@@ -26,6 +26,7 @@ executable crux
                , mtl
                , llvm-general-pure
                , llvm-general
+               , data-default
 
   -- hs-source-dirs:      
   default-language:    Haskell2010

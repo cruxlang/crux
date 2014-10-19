@@ -33,7 +33,7 @@ main = do
                         Left err -> putStrLn $ "Parse error: " ++ show err
                         Right p' -> do
                             m <- withContext $ \context ->
-                                runExceptT $ withModuleFromAST context (Crux.Gen.gen "main" [p']) $ \newModule -> do
+                                runExceptT $ withModuleFromAST context (Crux.Gen.gen "main" p') $ \newModule -> do
                                     llstr <- moduleLLVMAssembly newModule
                                     putStrLn llstr
                                     return newModule

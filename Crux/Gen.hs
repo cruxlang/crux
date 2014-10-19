@@ -3,7 +3,6 @@
 module Crux.Gen where
 
 import Crux.AST
-
 import Data.Monoid ((<>))
 import Control.Monad.State.Lazy
 import Control.Applicative
@@ -95,7 +94,7 @@ printStatement (LString str) = do
 stringConstant :: Text -> CodeGen Name
 stringConstant s = do
     name <- mkLongName "str"
-    let s' = s <> "\n\0"
+    let s' = s <> "\0"
     let values = [C.Int 8 (fromIntegral $ fromEnum c) | c <- unpack s']
     addDefinition $ GlobalDefinition $ GlobalVariable
         { name=name
@@ -113,7 +112,7 @@ stringConstant s = do
     return name
 
 gen :: String -> [Expression] -> Module
-gen moduleName expressions = do
+gen moduleName expressions =
     let gs = flip (execState . runCodeGen) def $ do
             addDefinition declarePrintf
             blockName <- mkName
@@ -132,7 +131,7 @@ gen moduleName expressions = do
                     ]
                 }
 
-    defaultModule
+    in defaultModule
         { moduleName = moduleName
         , moduleDefinitions = definitions gs
         }

@@ -3,6 +3,7 @@ LLVM=../../clang+llvm-3.4.2-x86_64-apple-darwin10.9/bin
 set -ex
 cabal build
 ./dist/build/crux/crux test.crux > test.ll
+$LLVM/llvm-as test.ll -o test.bc
 $LLVM/llc test.bc -o test.s
 $LLVM/clang test.s -o test
 ./test

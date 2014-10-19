@@ -3,13 +3,17 @@ Crux is a principled systems language.  It is intended to be a superior solution
 for applications that require high performance and reliability.  eg games, audio processing,
 drivers.
 
-Think "C with HM."
+Think "C with Hindley-Milner."
+
+# Status
+
+I started this like a week ago.  It's not even an executable proof of concept yet.
 
 # High level
 
 * Hindley-Milner type inference
 * Sum types
-* Precise control over memory
+* Precise, explicit control over memory
 * No GC
 * Small runtime
 * Lean C FFI
@@ -25,5 +29,5 @@ Key non-features
 
 * HM types good
 * Typeclasses offer statically dispatched ad-hoc polymorphism.
+* Existentials are great for runtime polymorphism.
 * Typeclasses can also be mechanically rewritten to use existentials to do runtime-polymorphic dispatch.
-* Existentials for runtime polymorphism.

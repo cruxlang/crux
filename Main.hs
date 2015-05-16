@@ -5,12 +5,10 @@ import System.Environment (getArgs)
 
 import Crux.Lex
 import Crux.Parse
-import Crux.Gen
+-- import Crux.Gen
 
-import LLVM.General.Context
-import LLVM.General.Module
 --import Control.Monad (void)
-import Control.Monad.Except (runExceptT)
+import Control.Monad.Error (runErrorT)
 --import Control.Monad.Error
 
 help :: IO ()
@@ -32,11 +30,5 @@ main = do
                     case p of
                         Left err -> putStrLn $ "Parse error: " ++ show err
                         Right p' -> do
-                            m <- withContext $ \context ->
-                                runExceptT $ withModuleFromAST context (Crux.Gen.gen "main" p') $ \newModule -> do
-                                    llstr <- moduleLLVMAssembly newModule
-                                    putStrLn llstr
-                                    return newModule
-                            case m of
-                                Left err -> putStrLn $ "Codegen error: " ++ err
-                                Right _ -> return ()
+                            putStrLn "Parse OK"
+                            print p'

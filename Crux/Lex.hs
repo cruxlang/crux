@@ -4,7 +4,7 @@ module Crux.Lex where
 import Data.Char
 import Crux.Tokens
 import qualified Text.Parsec as P
--- import qualified Text.Parsec.Text as PT
+import qualified Text.Parsec.Text as PT
 import qualified Data.ByteString as BS
 import qualified Data.Text.Encoding as DTE
 import Data.Text (Text)

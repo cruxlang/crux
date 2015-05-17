@@ -1,5 +1,5 @@
 
-module Main where
+module Crux.Main where
 
 import System.Environment (getArgs)
 
@@ -26,7 +26,9 @@ main = do
             case l of
                 Left err -> putStrLn $ "Lex error: " ++ show err
                 Right l' -> do
-                    let p = Crux.Parse.parse fn l'
+                    putStrLn "Lex OK"
+                    print l'
+                    p <- Crux.Parse.parse fn l'
                     case p of
                         Left err -> putStrLn $ "Parse error: " ++ show err
                         Right p' -> do

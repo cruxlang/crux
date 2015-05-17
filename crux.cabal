@@ -15,10 +15,13 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
-executable crux
-  main-is:           main.hs
-  -- other-modules:
-  -- other-extensions:
+library
+  exposed-modules: Crux.AST
+                 , Crux.Parse
+                 , Crux.Tokens
+                 , Crux.Lex
+                 , Crux.Main
+
   build-depends: base >=4.7 && <4.8
                , parsec
                , text
@@ -26,5 +29,19 @@ executable crux
                , mtl
                , data-default
 
-  -- hs-source-dirs:
+executable crux
+  main-is:           main.hs
+  -- other-modules:
+  -- other-extensions:
+  build-depends: base, crux
+
+  hs-source-dirs: src/crux
   default-language:    Haskell2010
+
+test-suite tests
+  type: exitcode-stdio-1.0
+  main-is: Tests.hs
+  hs-source-dirs: src/tests
+  build-depends: base
+               , HUnit
+               , parsec, text, crux

@@ -3,6 +3,9 @@ module Crux.AST where
 
 import Data.Text (Text)
 
+type Name = Text -- Temporary
+type Pattern = Name -- Temporary
+
 data Literal
     = LInteger Integer
     | LString Text
@@ -10,5 +13,8 @@ data Literal
 
 data Expression
     = EBlock [Expression]
-    | EPrint Literal
+    | ELet Pattern Expression
+    | EPrint Expression
+    | ELiteral Literal
+    | ESemi Expression Expression
       deriving (Show, Eq)

@@ -9,5 +9,9 @@ data Token
     | TIdentifier Text
     | TOpenBrace
     | TCloseBrace
+    | TOpenParen
+    | TCloseParen
     | TSemicolon
+    | TEqual
+    | TLet
       deriving (Show, Eq)

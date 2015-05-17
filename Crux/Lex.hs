@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 
 module Crux.Lex where
 
@@ -32,13 +33,23 @@ parseIdentifier = do
 
 token :: P.ParsecT Text u Identity Token
 token =
-    (P.try integerLiteral)
+    (P.try keyword)
+    <|> (P.try integerLiteral)
     <|> (P.try stringLiteral)
     <|> (P.try parseIdentifier)
     <|> (P.try symbol)
 
+keyword = P.try $ do
+    TIdentifier i <- parseIdentifier
+    case i of
+        "let" -> return TLet
+        _ -> fail ""
+
 symbol :: P.ParsecT Text u Identity Token
 symbol = sym ';' TSemicolon
+     <|> sym '=' TEqual
+     <|> sym '(' TOpenParen
+     <|> sym ')' TCloseParen
   where
     sym ch tok = P.char ch >> return tok
 

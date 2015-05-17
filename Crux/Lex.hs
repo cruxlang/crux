@@ -64,8 +64,11 @@ document = do
     P.eof
     return r
 
+lexSource :: FilePath -> Text -> Either P.ParseError [Token]
+lexSource fileName text =
+    P.runParser document () fileName text
+
 lex :: FilePath -> IO (Either P.ParseError [Token])
 lex fileName = do
     bytes <- BS.readFile fileName
-    let text = DTE.decodeUtf8 bytes
-    return $ P.runParser document () fileName text
+    return $ lexSource fileName (DTE.decodeUtf8 bytes)

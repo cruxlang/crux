@@ -83,9 +83,15 @@ letExpression = do
     expr <- noSemiExpression
     return (ELet name expr)
 
+semiExpression = do
+    e <- noSemiExpression
+    token TSemicolon
+    e2 <- noSemiExpression
+    return $ ESemi e e2
+
 parenExpression = do
     token $ TOpenParen
-    e <- noSemiExpression
+    e <- P.try semiExpression <|> noSemiExpression
     token $ TCloseParen
     return e
 

@@ -56,15 +56,24 @@ printExpression = do
     expr <- noSemiExpression
     return $ EPrint expr
 
-literalExpression = do
-    tok <- anyToken
+literalExpression = P.tokenPrim showTok nextPos testTok
+  where
+    showTok = show
+    nextPos pos _ _ = pos
+    testTok tok = case tok of
+        TInteger i -> Just $ ELiteral $ LInteger i
+        TString s -> Just $ ELiteral $ LString s
+        _ -> Nothing
 
-    t <- case tok of
-        TInteger i -> return $ ELiteral $ LInteger i
-        TString s ->  return $ ELiteral $ LString s
-        _ -> fail ""
-
-    return t
+-- literalExpression = do
+--     tok <- anyToken
+--
+--     t <- case tok of
+--         TInteger i -> return $ ELiteral $ LInteger i
+--         TString s ->  return $ ELiteral $ LString s
+--         _ -> fail ""
+--
+--     return t
 
 letExpression :: Parser Expression
 letExpression = do
@@ -75,24 +84,24 @@ letExpression = do
     return (ELet name expr)
 
 parenExpression = do
-    P.try $ token $ TOpenParen
-    e <- expression
+    token $ TOpenParen
+    e <- noSemiExpression
     token $ TCloseParen
     return e
 
 noSemiExpression =
-    letExpression
-    <|> printExpression
-    <|> parenExpression
-    <|> literalExpression
+    P.try letExpression
+    <|> P.try printExpression
+    <|> P.try parenExpression
+    <|> P.try literalExpression
 
 expression = do
-    s <- P.sepBy noSemiExpression (token TSemicolon)
-    return $ foldl1' ESemi s
+    s <- noSemiExpression
+    token TSemicolon
+    return s
 
 document :: Parser [Expression]
-document = do
-    P.sepBy expression (token TSemicolon)
+document = P.many1 expression
 
 parse :: P.SourceName -> [Token] -> IO (Either P.ParseError [Expression])
 parse fileName tokens = P.runParserT document () fileName tokens

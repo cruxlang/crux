@@ -19,9 +19,9 @@ integerLiteral = do
 
 stringLiteral :: P.ParsecT Text u Identity Token
 stringLiteral = do
-    P.char '"'
+    _ <- P.char '"'
     chars <- P.many $ P.satisfy (/= '"')
-    P.char '"'
+    _ <- P.char '"'
     return $ TString $ T.pack chars
 
 parseIdentifier :: P.ParsecT Text u Identity Token
@@ -32,12 +32,13 @@ parseIdentifier = do
 
 token :: P.ParsecT Text u Identity Token
 token =
-    (P.try keyword)
-    <|> (P.try integerLiteral)
-    <|> (P.try stringLiteral)
-    <|> (P.try parseIdentifier)
-    <|> (P.try symbol)
+    P.try keyword
+    <|> P.try integerLiteral
+    <|> P.try stringLiteral
+    <|> P.try parseIdentifier
+    <|> P.try symbol
 
+keyword :: P.ParsecT Text u Identity Token
 keyword = P.try $ do
     TIdentifier i <- parseIdentifier
     case i of

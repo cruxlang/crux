@@ -4,14 +4,13 @@ module Crux.Parse where
 import Crux.Tokens
 import Crux.AST
 import qualified Text.Parsec as P
-import Data.List (foldl1')
 import Control.Applicative ((<|>))
-import Control.Monad.Identity (Identity)
 import Control.Monad.Trans (liftIO)
 import Data.Text (Text)
 
 type Parser = P.ParsecT [Token] () IO
 
+getToken :: (P.Stream s m t, Show t) => (t -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim showTok nextPos predicate
   where
     showTok = show
@@ -35,12 +34,14 @@ identifier name = getToken testTok
         _ -> Nothing
 
 
+anyIdentifier :: Parser Text
 anyIdentifier = getToken testTok
   where
     testTok tok = case tok of
         TIdentifier t -> Just t
         _ -> Nothing
 
+peekAndShow :: Show msg => msg -> Parser ()
 peekAndShow msg = do
     peeked <- P.lookAhead $ P.anyToken
     liftIO $ print (msg, peeked)
@@ -48,10 +49,11 @@ peekAndShow msg = do
 
 printExpression :: Parser Expression
 printExpression = do
-    P.try $ identifier "print"
+    _ <- P.try $ identifier "print"
     expr <- noSemiExpression
     return $ EPrint expr
 
+literalExpression :: Parser Expression
 literalExpression = P.tokenPrim showTok nextPos testTok
   where
     showTok = show
@@ -63,33 +65,37 @@ literalExpression = P.tokenPrim showTok nextPos testTok
 
 letExpression :: Parser Expression
 letExpression = do
-    P.try $ token TLet
+    _ <- P.try $ token TLet
     name <- anyIdentifier
-    token TEqual
+    _ <- token TEqual
     expr <- noSemiExpression
     return (ELet name expr)
 
+semiExpression :: Parser Expression
 semiExpression = do
     e <- noSemiExpression
-    token TSemicolon
+    _ <- token TSemicolon
     e2 <- noSemiExpression
     return $ ESemi e e2
 
+parenExpression :: Parser Expression
 parenExpression = do
-    token $ TOpenParen
+    _ <- token $ TOpenParen
     e <- P.try semiExpression <|> noSemiExpression
-    token $ TCloseParen
+    _ <- token $ TCloseParen
     return e
 
+noSemiExpression :: Parser Expression
 noSemiExpression =
     P.try letExpression
     <|> P.try printExpression
     <|> P.try parenExpression
     <|> P.try literalExpression
 
+expression :: Parser Expression
 expression = do
     s <- noSemiExpression
-    token TSemicolon
+    _ <- token TSemicolon
     return s
 
 document :: Parser [Expression]

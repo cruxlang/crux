@@ -5,11 +5,6 @@ import System.Environment (getArgs)
 
 import Crux.Lex
 import Crux.Parse
--- import Crux.Gen
-
---import Control.Monad (void)
-import Control.Monad.Error (runErrorT)
---import Control.Monad.Error
 
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"

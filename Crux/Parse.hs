@@ -12,35 +12,31 @@ import Data.Text (Text)
 
 type Parser = P.ParsecT [Token] () IO
 
-anyToken :: Parser Token
-anyToken = P.tokenPrim showTok nextPos testTok
+getToken predicate = P.tokenPrim showTok nextPos predicate
   where
     showTok = show
     nextPos pos _ _ = pos
-    testTok = Just
+
+anyToken :: Parser Token
+anyToken = getToken Just
 
 token :: Token -> Parser Token
-token expected = P.tokenPrim showTok nextPos testTok
+token expected = getToken testTok
   where
-    showTok = show
-    nextPos pos _ _ = pos
     testTok tok
         | expected == tok = Just tok
         | otherwise = Nothing
 
 identifier :: Text -> Parser Token
-identifier name = P.tokenPrim showTok nextPos testTok
+identifier name = getToken testTok
   where
-    showTok = show
-    nextPos pos _ _ = pos
     testTok tok = case tok of
         TIdentifier t | t == name -> Just tok
         _ -> Nothing
 
-anyIdentifier = P.tokenPrim showTok nextPos testTok
+
+anyIdentifier = getToken testTok
   where
-    showTok = show
-    nextPos pos _ _ = pos
     testTok tok = case tok of
         TIdentifier t -> Just t
         _ -> Nothing
@@ -64,16 +60,6 @@ literalExpression = P.tokenPrim showTok nextPos testTok
         TInteger i -> Just $ ELiteral $ LInteger i
         TString s -> Just $ ELiteral $ LString s
         _ -> Nothing
-
--- literalExpression = do
---     tok <- anyToken
---
---     t <- case tok of
---         TInteger i -> return $ ELiteral $ LInteger i
---         TString s ->  return $ ELiteral $ LString s
---         _ -> fail ""
---
---     return t
 
 letExpression :: Parser Expression
 letExpression = do

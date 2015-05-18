@@ -6,7 +6,6 @@ version:             0.1.0.0
 -- synopsis:
 -- description:
 -- license:
-license-file:        LICENSE
 author:              Andy Friesen
 maintainer:          andy.friesen@gmail.com
 -- copyright:
@@ -16,33 +15,36 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules: Crux.AST
-                 , Crux.Parse
-                 , Crux.Tokens
-                 , Crux.Lex
-                 , Crux.Main
-                 , Crux.Driver
+    exposed-modules: Crux.AST
+                   , Crux.Parse
+                   , Crux.Tokens
+                   , Crux.Lex
+                   , Crux.Main
+                   , Crux.Driver
 
-  build-depends: base >=4.7 && <4.8
-               , parsec
-               , text
-               , bytestring
-               , mtl
-               , data-default
+    build-depends: base >=4.7 && <4.8
+                 , parsec == 3.1.9
+                 , text
+                 , bytestring
+                 , mtl
+                 , data-default
+
+    ghc-options: -Wall
+    default-language: Haskell2010
 
 executable crux
-  main-is:           main.hs
-  -- other-modules:
-  -- other-extensions:
-  build-depends: base, crux
+    main-is:           main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends: base, crux
 
-  hs-source-dirs: src/crux
-  default-language:    Haskell2010
+    hs-source-dirs: src/crux
+    default-language:    Haskell2010
 
 test-suite tests
-  type: exitcode-stdio-1.0
-  main-is: Tests.hs
-  hs-source-dirs: src/tests
-  build-depends: base
-               , HUnit
-               , parsec, text, crux
+    type: exitcode-stdio-1.0
+    main-is: Tests.hs
+    hs-source-dirs: src/tests
+    build-depends: base
+                 , HUnit
+                 , parsec, text, crux

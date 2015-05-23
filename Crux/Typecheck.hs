@@ -83,6 +83,13 @@ check env expr = case expr of
                 exprs' <- forM exprs (check env')
                 return $ EFun (TFun paramTypes (edata $ last exprs')) params exprs'
 
+    EApp _ lhs rhs -> do
+        lhs' <- check env lhs
+        rhs' <- check env rhs
+        result <- freshType env
+        unify (edata lhs') (TFun [edata rhs'] result)
+        return $ EApp result lhs' rhs'
+
     ELet _ name expr' -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
@@ -134,6 +141,11 @@ flatten expr =
             td' <- flattenTypeVar td
             exprs' <- forM exprs flatten
             return $ EFun td' params exprs'
+        EApp td lhs rhs -> do
+            td' <- flattenTypeVar td
+            lhs' <- flatten lhs
+            rhs' <- flatten rhs
+            return $ EApp td' lhs' rhs'
         ELet td name expr' -> do
             td' <- flattenTypeVar td
             expr'' <- flatten expr'

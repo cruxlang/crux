@@ -1,11 +1,12 @@
 
 module Crux.Main where
 
+import           Crux.AST
 import           Crux.Lex
 import           Crux.Parse
-import           Crux.AST
 import qualified Crux.Typecheck     as Typecheck
 import           System.Environment (getArgs)
+import           Text.Show.Pretty   (ppShow)
 
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"
@@ -32,4 +33,4 @@ main = do
                             -- print p'
                             typetree <- Typecheck.run (EBlock () p')
                             typetree' <- Typecheck.flatten typetree
-                            print typetree'
+                            putStrLn $ ppShow typetree'

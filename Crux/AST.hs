@@ -15,6 +15,7 @@ data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Pattern (Expression edata)
     | EFun edata [Text] [Expression edata]
+    | EApp edata (Expression edata) (Expression edata)
     | EPrint edata (Expression edata)
     | ELiteral edata Literal
     | EIdentifier edata Text
@@ -26,6 +27,7 @@ edata expr = case expr of
     EBlock ed _ -> ed
     ELet ed _ _ -> ed
     EFun ed _ _ -> ed
+    EApp ed _ _ -> ed
     EPrint ed _ -> ed
     ELiteral ed _ -> ed
     EIdentifier ed _ -> ed

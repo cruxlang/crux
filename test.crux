@@ -3,6 +3,7 @@ let spam = fun s {
     print s;
     print s;
     print s;
+    9;
 };
 
 print "hooper";
@@ -11,3 +12,5 @@ let t = 9;
 let u = "hody";
 let v = u;
 let w = t;
+
+spam "spam";

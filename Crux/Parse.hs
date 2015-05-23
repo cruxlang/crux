@@ -80,6 +80,14 @@ functionExpression = do
     _ <- token TCloseBrace
     return $ EFun () args body
 
+applicationExpression :: Parser ParseExpression
+applicationExpression = do
+    lhs <- identifierExpression <|> literalExpression
+    rhs <- P.optionMaybe (P.try applicationExpression)
+    case rhs of
+        Just rhs' -> return $ EApp () lhs rhs'
+        Nothing -> return lhs
+
 letExpression :: Parser ParseExpression
 letExpression = do
     _ <- P.try $ token TLet
@@ -107,9 +115,8 @@ noSemiExpression =
     P.try letExpression
     <|> P.try printExpression
     <|> P.try parenExpression
-    <|> P.try literalExpression
     <|> P.try functionExpression
-    <|> identifierExpression
+    <|> applicationExpression
 
 expression :: Parser ParseExpression
 expression = do

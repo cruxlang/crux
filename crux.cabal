@@ -31,6 +31,7 @@ library
                  , data-default
                  , hashable
                  , unordered-containers
+                 , pretty-show
 
     ghc-options: -Wall
     default-language: Haskell2010

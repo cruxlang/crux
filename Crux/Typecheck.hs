@@ -8,7 +8,7 @@ import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
-import           Data.IORef            (IORef)
+import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
 import           Data.Text             (Text)
 import           Prelude               hiding (String)
@@ -19,21 +19,25 @@ data Type
     | Unit
     deriving (Eq, Show)
 
+data VarLink a
+    = Unbound
+    | Link a
+    deriving (Show, Eq)
+
 data TypeVar
-    = TVar Int
+    = TVar Int (IORef (VarLink TypeVar))
+    | TFun [TypeVar] TypeVar
     | TType Type
-    deriving (Eq, Show)
 
-data TypeData = TypeData
-    { tdType :: IORef TypeVar
-    }
-
-instance Show TypeData where
-    show _ = "TD"
+data ImmutableTypeVar
+    = IVar Int (VarLink ImmutableTypeVar)
+    | IFun [ImmutableTypeVar] ImmutableTypeVar
+    | IType Type
+    deriving (Show, Eq)
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
-    , eBindings      :: IORef (HashMap Text TypeData)
+    , eBindings      :: IORef (HashMap Text TypeVar)
     }
 
 newEnv :: IO Env
@@ -44,24 +48,40 @@ newEnv = do
 
 type CheckT = ReaderT Env IO
 
-freshType :: Env -> IO TypeData
+freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
-    liftIO $ IORef.modifyIORef' eNextTypeIndex (+1)
-    index <- liftIO $ IORef.readIORef eNextTypeIndex
-    fmap TypeData $ IORef.newIORef (TVar index)
+    IORef.modifyIORef' eNextTypeIndex (+1)
+    index <- IORef.readIORef eNextTypeIndex
+    link <- IORef.newIORef Unbound
+    return $ TVar index link
 
-check :: Env -> Expression a -> IO (Expression TypeData)
+check :: Env -> Expression a -> IO (Expression TypeVar)
 check env expr = case expr of
     EBlock _ exprs -> do
         bindings' <- HashTable.clone (eBindings env)
         let env' = env{eBindings=bindings'}
         case exprs of
             [] -> do
-                tdType <- IORef.newIORef $ TType Unit
-                return $ EBlock TypeData{..} []
+                return $ EBlock (TType Unit) []
             _ -> do
                 exprs' <- forM exprs (check env')
                 return $ EBlock (edata $ last exprs') exprs'
+    EFun _ params exprs -> do
+        bindings' <- HashTable.clone (eBindings env)
+        paramTypes <- forM params $ \param -> do
+            paramType <- freshType env
+            HashTable.insert param paramType bindings'
+            return paramType
+
+        case exprs of
+            [] -> do
+                return $ EFun (TFun paramTypes (TType Unit)) params []
+            _ -> do
+
+                let env' = env{eBindings=bindings'}
+
+                exprs' <- forM exprs (check env')
+                return $ EFun (TFun paramTypes (edata $ last exprs')) params exprs'
 
     ELet _ name expr' -> do
         ty <- freshType env
@@ -71,14 +91,11 @@ check env expr = case expr of
         return $ ELet ty name expr''
     EPrint _ expr' -> do
         expr'' <- check env expr'
-        tdType <- IORef.newIORef $ TType Unit
-        return $ EPrint TypeData{..} expr''
+        return $ EPrint (TType Unit) expr''
     ELiteral _ (LInteger i) -> do
-        tdType <- IORef.newIORef $ TType Number
-        return $ ELiteral TypeData{..} (LInteger i)
+        return $ ELiteral (TType Number) (LInteger i)
     ELiteral _ (LString s) -> do
-        tdType <- IORef.newIORef $ TType String
-        return $ ELiteral TypeData{..} (LString s)
+        return $ ELiteral (TType String) (LString s)
     EIdentifier _ txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of
@@ -91,43 +108,65 @@ check env expr = case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
-flatten :: Expression TypeData -> IO (Expression TypeVar)
-flatten expr = case expr of
-    EBlock td exprs -> do
-        td' <- IORef.readIORef (tdType td)
-        exprs' <- forM exprs flatten
-        return $ EBlock td' exprs'
-    ELet td name expr' -> do
-        td' <- IORef.readIORef (tdType td)
-        expr'' <- flatten expr'
-        return $ ELet td' name expr''
-    EPrint td expr' -> do
-        td' <- IORef.readIORef (tdType td)
-        expr'' <- flatten expr'
-        return $ EPrint td' expr''
-    ELiteral td lit -> do
-        td' <- IORef.readIORef (tdType td)
-        return $ ELiteral td' lit
-    EIdentifier td i -> do
-        td' <- IORef.readIORef (tdType td)
-        return $ EIdentifier td' i
-    ESemi td lhs rhs -> do
-        td' <- IORef.readIORef (tdType td)
-        lhs' <- flatten lhs
-        rhs' <- flatten rhs
-        return $ ESemi td' lhs' rhs'
+flatten :: Expression (TypeVar) -> IO (Expression ImmutableTypeVar)
+flatten expr =
+    let flattenTypeVar tv = case tv of
+            TVar i ior -> do
+                t <- IORef.readIORef ior
+                case t of
+                    Unbound ->
+                        return $ IVar i Unbound
+                    Link tv' -> do
+                        flattenTypeVar tv'
+            TFun args body -> do
+                args' <- forM args flattenTypeVar
+                body' <- flattenTypeVar body
+                return $ IFun args' body'
+            TType t ->
+                return $ IType t
 
-unify :: TypeData -> TypeData -> IO ()
-unify a b = do
-    a' <- IORef.readIORef $ tdType a
-    b' <- IORef.readIORef $ tdType b
-    case (a', b') of
-        (TVar _, TType _) ->
-            IORef.writeIORef (tdType a) b'
-        (TType _, TVar _) ->
-            IORef.writeIORef (tdType b) a'
-        (TVar _, TVar _) ->
-            IORef.writeIORef (tdType b) a'
+    in case expr of
+        EBlock td exprs -> do
+            td' <- flattenTypeVar td
+            exprs' <- forM exprs flatten
+            return $ EBlock td' exprs'
+        EFun td params exprs -> do
+            td' <- flattenTypeVar td
+            exprs' <- forM exprs flatten
+            return $ EFun td' params exprs'
+        ELet td name expr' -> do
+            td' <- flattenTypeVar td
+            expr'' <- flatten expr'
+            return $ ELet td' name expr''
+        EPrint td expr' -> do
+            td' <- flattenTypeVar td
+            expr'' <- flatten expr'
+            return $ EPrint td' expr''
+        ELiteral td lit -> do
+            td' <- flattenTypeVar td
+            return $ ELiteral td' lit
+        EIdentifier td i -> do
+            td' <- flattenTypeVar td
+            return $ EIdentifier td' i
+        ESemi td lhs rhs -> do
+            td' <- flattenTypeVar td
+            lhs' <- flatten lhs
+            rhs' <- flatten rhs
+            return $ ESemi td' lhs' rhs'
+
+unify :: TypeVar -> TypeVar -> IO ()
+unify a b = case (a, b) of
+        (TVar _ ar, _) -> do
+            a' <- readIORef ar
+            case a' of
+                Unbound -> do
+                    -- occurs ...
+                    writeIORef ar (Link b)
+                Link a'' ->
+                    unify a'' b
+
+        (_, TVar {}) -> do
+            unify b a
 
         (TType aType, TType bType)
             | aType == bType ->
@@ -135,7 +174,16 @@ unify a b = do
             | otherwise -> do
                 error "unification failure"
 
-run :: Expression a -> IO (Expression TypeData)
+        (TFun aa ar, TFun ba br) -> do
+            forM_ (zip aa ba) (uncurry unify)
+            unify ar br
+
+        (TFun {}, TType {}) ->
+            error "Unification failure"
+        (TType {}, TFun {}) ->
+            error "Unification failure"
+
+run :: Expression a -> IO (Expression TypeVar)
 run expr = do
     env <- newEnv
     check env expr

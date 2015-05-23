@@ -43,6 +43,7 @@ keyword = P.try $ do
     TIdentifier i <- parseIdentifier
     case i of
         "let" -> return TLet
+        "fun" -> return TFun
         _ -> fail ""
 
 symbol :: P.ParsecT Text u Identity Token
@@ -50,8 +51,11 @@ symbol = sym ';' TSemicolon
      <|> sym '=' TEqual
      <|> sym '(' TOpenParen
      <|> sym ')' TCloseParen
+     <|> sym '{' TOpenBrace
+     <|> sym '}' TCloseBrace
   where
     sym ch tok = P.char ch >> return tok
+    sym2 c1 c2 tok = P.char c1 >> P.char c2 >> return tok
 
 whitespace :: P.ParsecT Text u Identity ()
 whitespace = P.spaces

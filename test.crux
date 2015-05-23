@@ -1,7 +1,13 @@
 
+let spam = fun s {
+    print s;
+    print s;
+    print s;
+};
+
 print "hooper";
 let r = (2 ; 8);
 let t = 9;
 let u = "hody";
 let v = u;
-let w = v;
+let w = t;

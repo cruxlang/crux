@@ -13,5 +13,6 @@ data Token
     | TCloseParen
     | TSemicolon
     | TEqual
+    | TFun
     | TLet
       deriving (Show, Eq)

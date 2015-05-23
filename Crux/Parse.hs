@@ -71,6 +71,15 @@ identifierExpression = getToken testTok
     testTok (TIdentifier txt) = Just $ EIdentifier () txt
     testTok _ = Nothing
 
+functionExpression :: Parser ParseExpression
+functionExpression = do
+    _ <- P.try $ token TFun
+    args <- P.many anyIdentifier
+    _ <- token TOpenBrace
+    body <- P.many expression
+    _ <- token TCloseBrace
+    return $ EFun () args body
+
 letExpression :: Parser ParseExpression
 letExpression = do
     _ <- P.try $ token TLet
@@ -99,6 +108,7 @@ noSemiExpression =
     <|> P.try printExpression
     <|> P.try parenExpression
     <|> P.try literalExpression
+    <|> P.try functionExpression
     <|> identifierExpression
 
 expression :: Parser ParseExpression

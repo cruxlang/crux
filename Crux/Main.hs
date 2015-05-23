@@ -1,10 +1,11 @@
 
 module Crux.Main where
 
-import System.Environment (getArgs)
-
-import Crux.Lex
-import Crux.Parse
+import           Crux.Lex
+import           Crux.Parse
+import           Crux.AST
+import qualified Crux.Typecheck     as Typecheck
+import           System.Environment (getArgs)
 
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"
@@ -28,4 +29,7 @@ main = do
                         Left err -> putStrLn $ "Parse error: " ++ show err
                         Right p' -> do
                             putStrLn "Parse OK"
-                            print p'
+                            -- print p'
+                            typetree <- Typecheck.run (EBlock () p')
+                            typetree' <- Typecheck.flatten typetree
+                            print typetree'

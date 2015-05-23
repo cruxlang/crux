@@ -9,6 +9,8 @@ import Control.Monad.Trans (liftIO)
 import Data.Text (Text)
 
 type Parser = P.ParsecT [Token] () IO
+type ParseData = ()
+type ParseExpression = Expression ParseData
 
 getToken :: (P.Stream s m t, Show t) => (t -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim showTok nextPos predicate
@@ -47,59 +49,59 @@ peekAndShow msg = do
     liftIO $ print (msg, peeked)
     return ()
 
-printExpression :: Parser Expression
+printExpression :: Parser ParseExpression
 printExpression = do
     _ <- P.try $ identifier "print"
     expr <- noSemiExpression
-    return $ EPrint expr
+    return $ EPrint () expr
 
-literalExpression :: Parser Expression
+literalExpression :: Parser ParseExpression
 literalExpression = P.tokenPrim showTok nextPos testTok
   where
     showTok = show
     nextPos pos _ _ = pos
     testTok tok = case tok of
-        TInteger i -> Just $ ELiteral $ LInteger i
-        TString s -> Just $ ELiteral $ LString s
+        TInteger i -> Just $ ELiteral () $ LInteger i
+        TString s -> Just $ ELiteral () $ LString s
         _ -> Nothing
 
-letExpression :: Parser Expression
+letExpression :: Parser ParseExpression
 letExpression = do
     _ <- P.try $ token TLet
     name <- anyIdentifier
     _ <- token TEqual
     expr <- noSemiExpression
-    return (ELet name expr)
+    return (ELet () name expr)
 
-semiExpression :: Parser Expression
+semiExpression :: Parser ParseExpression
 semiExpression = do
     e <- noSemiExpression
     _ <- token TSemicolon
     e2 <- noSemiExpression
-    return $ ESemi e e2
+    return $ ESemi () e e2
 
-parenExpression :: Parser Expression
+parenExpression :: Parser ParseExpression
 parenExpression = do
     _ <- token $ TOpenParen
     e <- P.try semiExpression <|> noSemiExpression
     _ <- token $ TCloseParen
     return e
 
-noSemiExpression :: Parser Expression
+noSemiExpression :: Parser ParseExpression
 noSemiExpression =
     P.try letExpression
     <|> P.try printExpression
     <|> P.try parenExpression
     <|> P.try literalExpression
 
-expression :: Parser Expression
+expression :: Parser ParseExpression
 expression = do
     s <- noSemiExpression
     _ <- token TSemicolon
     return s
 
-document :: Parser [Expression]
+document :: Parser [ParseExpression]
 document = P.many1 expression
 
-parse :: P.SourceName -> [Token] -> IO (Either P.ParseError [Expression])
+parse :: P.SourceName -> [Token] -> IO (Either P.ParseError [ParseExpression])
 parse fileName tokens = P.runParserT document () fileName tokens

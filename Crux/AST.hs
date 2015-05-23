@@ -11,10 +11,18 @@ data Literal
     | LString Text
       deriving (Show, Eq)
 
-data Expression
-    = EBlock [Expression]
-    | ELet Pattern Expression
-    | EPrint Expression
-    | ELiteral Literal
-    | ESemi Expression Expression
+data Expression edata
+    = EBlock edata [Expression edata]
+    | ELet edata Pattern (Expression edata)
+    | EPrint edata (Expression edata)
+    | ELiteral edata Literal
+    | ESemi edata (Expression edata) (Expression edata)
       deriving (Show, Eq)
+
+edata :: Expression edata -> edata
+edata expr = case expr of
+    EBlock ed _ -> ed
+    ELet ed _ _ -> ed
+    EPrint ed _ -> ed
+    ELiteral ed _ -> ed
+    ESemi ed _ _ -> ed

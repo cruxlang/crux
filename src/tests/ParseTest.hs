@@ -21,24 +21,24 @@ assertParseOk parser source expected = do
 testLiterals :: IO ()
 testLiterals = do
     assertParseOk literalExpression "5"
-        (ELiteral (LInteger 5))
+        (ELiteral () (LInteger 5))
     assertParseOk literalExpression "\"Hooper\""
-        (ELiteral (LString "Hooper"))
+        (ELiteral () (LString "Hooper"))
 
 testParens :: IO ()
 testParens = do
     assertParseOk noSemiExpression "(5)"
-        (ELiteral (LInteger 5))
+        (ELiteral () (LInteger 5))
 
 testLet :: IO ()
 testLet = do
     assertParseOk letExpression "let a = \"Hello\""
-        (ELet "a" (ELiteral (LString "Hello")))
+        (ELet () "a" (ELiteral () (LString "Hello")))
 
 testLet2 :: IO ()
 testLet2 = do
     assertParseOk letExpression "let a = (5)"
-        (ELet "a" (ELiteral (LInteger 5)))
+        (ELet () "a" (ELiteral () (LInteger 5)))
 
 tests :: Test
 tests = TestList

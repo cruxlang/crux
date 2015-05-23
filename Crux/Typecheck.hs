@@ -1,16 +1,17 @@
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module Crux.Typecheck where
 
 import           Control.Monad.Reader
 import           Crux.AST
-import           Data.HashMap.Strict  (HashMap)
-import qualified Data.HashMap.Strict  as HashMap
-import           Data.IORef           (IORef)
-import qualified Data.IORef           as IORef
-import           Data.Text            (Text)
-import           Prelude              hiding (String)
+import qualified Crux.MutableHashTable as HashTable
+import           Data.HashMap.Strict   (HashMap)
+import qualified Data.HashMap.Strict   as HashMap
+import           Data.IORef            (IORef)
+import qualified Data.IORef            as IORef
+import           Data.Text             (Text)
+import           Prelude               hiding (String)
 
 data Type
     = Number
@@ -32,13 +33,13 @@ instance Show TypeData where
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
-    , eBindings      :: HashMap Text TypeData
+    , eBindings      :: IORef (HashMap Text TypeData)
     }
 
 newEnv :: IO Env
 newEnv = do
     eNextTypeIndex <- IORef.newIORef 0
-    let eBindings = HashMap.empty
+    eBindings <- IORef.newIORef HashMap.empty
     return Env {..}
 
 type CheckT = ReaderT Env IO
@@ -52,19 +53,20 @@ freshType Env{eNextTypeIndex} = do
 check :: Env -> Expression a -> IO (Expression TypeData)
 check env expr = case expr of
     EBlock _ exprs -> do
+        bindings' <- HashTable.clone (eBindings env)
+        let env' = env{eBindings=bindings'}
         case exprs of
             [] -> do
                 tdType <- IORef.newIORef $ TType Unit
                 return $ EBlock TypeData{..} []
             _ -> do
-                exprs' <- forM exprs (check env)
+                exprs' <- forM exprs (check env')
                 return $ EBlock (edata $ last exprs') exprs'
 
     ELet _ name expr' -> do
         ty <- freshType env
-        let bindings = HashMap.insert name ty (eBindings env)
-        let env' = env{eBindings=bindings}
-        expr'' <- check env' expr'
+        HashTable.insert name ty (eBindings env)
+        expr'' <- check env expr'
         unify ty (edata expr'')
         return $ ELet ty name expr''
     EPrint _ expr' -> do
@@ -77,6 +79,13 @@ check env expr = case expr of
     ELiteral _ (LString s) -> do
         tdType <- IORef.newIORef $ TType String
         return $ ELiteral TypeData{..} (LString s)
+    EIdentifier _ txt -> do
+        result <- HashTable.lookup txt (eBindings env)
+        case result of
+            Nothing ->
+                error $ "Unbound symbol " ++ show txt
+            Just tyref -> do
+                return $ EIdentifier tyref txt
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
@@ -99,6 +108,9 @@ flatten expr = case expr of
     ELiteral td lit -> do
         td' <- IORef.readIORef (tdType td)
         return $ ELiteral td' lit
+    EIdentifier td i -> do
+        td' <- IORef.readIORef (tdType td)
+        return $ EIdentifier td' i
     ESemi td lhs rhs -> do
         td' <- IORef.readIORef (tdType td)
         lhs' <- flatten lhs

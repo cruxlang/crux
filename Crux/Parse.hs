@@ -65,6 +65,12 @@ literalExpression = P.tokenPrim showTok nextPos testTok
         TString s -> Just $ ELiteral () $ LString s
         _ -> Nothing
 
+identifierExpression :: Parser ParseExpression
+identifierExpression = getToken testTok
+  where
+    testTok (TIdentifier txt) = Just $ EIdentifier () txt
+    testTok _ = Nothing
+
 letExpression :: Parser ParseExpression
 letExpression = do
     _ <- P.try $ token TLet
@@ -93,6 +99,7 @@ noSemiExpression =
     <|> P.try printExpression
     <|> P.try parenExpression
     <|> P.try literalExpression
+    <|> identifierExpression
 
 expression :: Parser ParseExpression
 expression = do
@@ -101,7 +108,10 @@ expression = do
     return s
 
 document :: Parser [ParseExpression]
-document = P.many1 expression
+document = do
+    doc <- P.many1 expression
+    P.eof
+    return doc
 
 parse :: P.SourceName -> [Token] -> IO (Either P.ParseError [ParseExpression])
 parse fileName tokens = P.runParserT document () fileName tokens

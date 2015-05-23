@@ -29,6 +29,7 @@ library
                  , bytestring
                  , mtl
                  , data-default
+                 , hashable
                  , unordered-containers
 
     ghc-options: -Wall

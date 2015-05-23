@@ -23,7 +23,7 @@ main = do
                 Left err -> putStrLn $ "Lex error: " ++ show err
                 Right l' -> do
                     putStrLn "Lex OK"
-                    print l'
+                    -- print l'
                     p <- Crux.Parse.parse fn l'
                     case p of
                         Left err -> putStrLn $ "Parse error: " ++ show err

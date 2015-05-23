@@ -16,6 +16,7 @@ data Expression edata
     | ELet edata Pattern (Expression edata)
     | EPrint edata (Expression edata)
     | ELiteral edata Literal
+    | EIdentifier edata Text
     | ESemi edata (Expression edata) (Expression edata)
       deriving (Show, Eq)
 
@@ -25,4 +26,5 @@ edata expr = case expr of
     ELet ed _ _ -> ed
     EPrint ed _ -> ed
     ELiteral ed _ -> ed
+    EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed

@@ -6,6 +6,17 @@ let spam = fun s {
     9;
 };
 
+let spam2 = fun s {
+    print s;
+    print s;
+    print s;
+    9;
+};
+
+let foo = fun i {
+    fun j { 2; };
+};
+
 print "hooper";
 let r = (2 ; 8);
 let t = 9;

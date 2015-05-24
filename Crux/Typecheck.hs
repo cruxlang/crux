@@ -3,7 +3,7 @@
 
 module Crux.Typecheck where
 
-import           Control.Monad.Reader
+import           Control.Monad         (forM, forM_, when)
 import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Data.HashMap.Strict   (HashMap)
@@ -26,11 +26,13 @@ data VarLink a
 
 data TypeVar
     = TVar Int (IORef (VarLink TypeVar))
+    | TQuant Int
     | TFun [TypeVar] TypeVar
     | TType Type
 
 data ImmutableTypeVar
     = IVar Int (VarLink ImmutableTypeVar)
+    | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IType Type
     deriving (Show, Eq)
@@ -38,15 +40,20 @@ data ImmutableTypeVar
 data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
+    , eIsTopLevel    :: Bool
     }
 
 newEnv :: IO Env
 newEnv = do
     eNextTypeIndex <- IORef.newIORef 0
     eBindings <- IORef.newIORef HashMap.empty
+    let eIsTopLevel = True
     return Env {..}
 
-type CheckT = ReaderT Env IO
+childEnv :: Env -> IO Env
+childEnv env = do
+    bindings' <- HashTable.clone (eBindings env)
+    return env{eBindings=bindings', eIsTopLevel=False}
 
 freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
@@ -77,9 +84,7 @@ check env expr = case expr of
             [] -> do
                 return $ EFun (TFun paramTypes (TType Unit)) params []
             _ -> do
-
-                let env' = env{eBindings=bindings'}
-
+                let env' = env{eBindings=bindings', eIsTopLevel=False}
                 exprs' <- forM exprs (check env')
                 return $ EFun (TFun paramTypes (edata $ last exprs')) params exprs'
 
@@ -95,7 +100,10 @@ check env expr = case expr of
         HashTable.insert name ty (eBindings env)
         expr'' <- check env expr'
         unify ty (edata expr'')
+        when (eIsTopLevel env) $ do
+            quantify ty
         return $ ELet ty name expr''
+
     EPrint _ expr' -> do
         expr'' <- check env expr'
         return $ EPrint (TType Unit) expr''
@@ -109,11 +117,49 @@ check env expr = case expr of
             Nothing ->
                 error $ "Unbound symbol " ++ show txt
             Just tyref -> do
-                return $ EIdentifier tyref txt
+                tyref' <- instantiate env tyref
+                return $ EIdentifier tyref' txt
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
+
+quantify :: TypeVar -> IO ()
+quantify ty = do
+    case ty of
+        TVar i tv -> do
+            tv' <- readIORef tv
+            case tv' of
+                Unbound -> do
+                    writeIORef tv (Link $ TQuant i)
+                Link t' ->
+                    quantify t'
+        TFun [param] ret -> do
+            quantify param
+            quantify ret
+        _ ->
+            return ()
+
+instantiate :: Env -> TypeVar -> IO TypeVar
+instantiate env t =
+    let go ty subst = case ty of
+            TQuant name -> do
+                case lookup name (subst :: [(Int, TypeVar)]) of
+                    Just v -> return (v, subst)
+                    Nothing -> do
+                        tv <- freshType env
+                        return (tv, (name, tv):subst)
+            TVar _ tv -> do
+                vl <- readIORef tv
+                case vl of
+                    Link tv' -> go tv' subst
+                    Unbound -> return (ty, subst)
+            TFun [param] ret -> do
+                (ty1, subst') <- go param subst
+                (ty2, subst'') <- go ret subst'
+                return (TFun [ty1] ty2, subst'')
+            _ -> return (ty, subst)
+    in fmap fst (go t [])
 
 flatten :: Expression (TypeVar) -> IO (Expression ImmutableTypeVar)
 flatten expr =
@@ -125,6 +171,8 @@ flatten expr =
                         return $ IVar i Unbound
                     Link tv' -> do
                         flattenTypeVar tv'
+            TQuant i ->
+                return $ IQuant i
             TFun args body -> do
                 args' <- forM args flattenTypeVar
                 body' <- flattenTypeVar body
@@ -194,6 +242,11 @@ unify a b = case (a, b) of
             error "Unification failure"
         (TType {}, TFun {}) ->
             error "Unification failure"
+
+        (TQuant {}, _) ->
+            error "Internal error: QVar made it to unify"
+        (_, TQuant {}) ->
+            error "Internal error: QVar made it to unify"
 
 run :: Expression a -> IO (Expression TypeVar)
 run expr = do

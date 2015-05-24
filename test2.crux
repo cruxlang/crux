@@ -1,0 +1,14 @@
+
+let main = fun x {
+    let spam = fun s {
+        print s;
+        print s;
+        print s;
+    };
+
+    spam "spam";
+    spam "spammity";
+    spam "spam!!";
+};
+
+main 0;

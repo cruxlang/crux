@@ -15,6 +15,28 @@ Crux is a principled, practical AltJS language.  It aims to sacrifice nothing.
 * Full static type inference
 * Typeclasses
 
+# What does it look like?
+
+Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-Strawman)
+
+Summary:
+
+```
+let main = fun x {
+    let spam = fun s {
+        print s;
+        print s;
+        print s;
+    };
+
+    spam "spam";
+    spam "spammity";
+    spam "spam!!";
+};
+
+main 0;
+```
+
 # Status
 
 I give this project a 1% shot at eventually becoming useful enough to compile itself.

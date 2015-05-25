@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+
 module Crux.Parse where
 
 import Crux.Tokens
@@ -8,39 +10,40 @@ import Control.Applicative ((<|>))
 import Control.Monad.Trans (liftIO)
 import Data.Text (Text)
 
-type Parser = P.ParsecT [Token] () IO
+type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = ()
 type ParseExpression = Expression ParseData
 
-getToken :: (P.Stream s m t, Show t) => (t -> Maybe a) -> P.ParsecT s u m a
+-- getToken :: (P.Stream s m t, Show t) => (t -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim showTok nextPos predicate
   where
     showTok = show
-    nextPos pos _ _ = pos
+    nextPos pos t _ =
+        let Pos{..} = tokenData t
+        in P.setSourceLine (P.setSourceColumn pos posCol) posLine
 
-anyToken :: Parser Token
+anyToken :: Parser (Token Pos)
 anyToken = getToken Just
 
-token :: Token -> Parser Token
+token :: (Pos -> Token Pos) -> Parser (Token Pos)
 token expected = getToken testTok
   where
     testTok tok
-        | expected == tok = Just tok
+        | (expected (Pos 0 0)) == tok = Just tok
         | otherwise = Nothing
 
-identifier :: Text -> Parser Token
+identifier :: Text -> Parser (Token Pos)
 identifier name = getToken testTok
   where
     testTok tok = case tok of
-        TIdentifier t | t == name -> Just tok
+        TIdentifier _ t | t == name -> Just tok
         _ -> Nothing
-
 
 anyIdentifier :: Parser Text
 anyIdentifier = getToken testTok
   where
     testTok tok = case tok of
-        TIdentifier t -> Just t
+        TIdentifier _ t -> Just t
         _ -> Nothing
 
 peekAndShow :: Show msg => msg -> Parser ()
@@ -61,14 +64,14 @@ literalExpression = P.tokenPrim showTok nextPos testTok
     showTok = show
     nextPos pos _ _ = pos
     testTok tok = case tok of
-        TInteger i -> Just $ ELiteral () $ LInteger i
-        TString s -> Just $ ELiteral () $ LString s
+        TInteger _ i -> Just $ ELiteral () $ LInteger i
+        TString _ s -> Just $ ELiteral () $ LString s
         _ -> Nothing
 
 identifierExpression :: Parser ParseExpression
 identifierExpression = getToken testTok
   where
-    testTok (TIdentifier txt) = Just $ EIdentifier () txt
+    testTok (TIdentifier _ txt) = Just $ EIdentifier () txt
     testTok _ = Nothing
 
 functionExpression :: Parser ParseExpression
@@ -130,5 +133,5 @@ document = do
     P.eof
     return doc
 
-parse :: P.SourceName -> [Token] -> IO (Either P.ParseError [ParseExpression])
+parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError [ParseExpression])
 parse fileName tokens = P.runParserT document () fileName tokens

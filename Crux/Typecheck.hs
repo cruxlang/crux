@@ -3,7 +3,7 @@
 
 module Crux.Typecheck where
 
-import           Control.Monad         (forM, forM_, when)
+import           Control.Monad         (forM, forM_, when, foldM)
 import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Data.HashMap.Strict   (HashMap)
@@ -16,6 +16,7 @@ import           Prelude               hiding (String)
 data Type
     = Number
     | String
+    | UserType Name [Variant]
     | Unit
     deriving (Eq, Show)
 
@@ -40,6 +41,7 @@ data ImmutableTypeVar
 data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
+    , eTypeBindings  :: HashMap Text Type
     , eIsTopLevel    :: Bool
     }
 
@@ -47,6 +49,7 @@ newEnv :: IO Env
 newEnv = do
     eNextTypeIndex <- IORef.newIORef 0
     eBindings <- IORef.newIORef HashMap.empty
+    let eTypeBindings = HashMap.empty
     let eIsTopLevel = True
     return Env {..}
 
@@ -216,6 +219,8 @@ flatten expr = case expr of
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
+    DData name variants ->
+        return $ DData name variants
     DLet ty name expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
@@ -239,7 +244,7 @@ unify a b = case (a, b) of
             | aType == bType ->
                 return ()
             | otherwise -> do
-                error "unification failure"
+                error ("unification failure: " ++ (show (aType, bType)))
 
         (TFun aa ar, TFun ba br) -> do
             forM_ (zip aa ba) (uncurry unify)
@@ -273,12 +278,29 @@ occurs tvr ty = case ty of
 
 checkDecl :: Env -> Declaration a -> IO (Declaration TypeVar)
 checkDecl env decl = case decl of
+    DData name variants -> return $ DData name variants
     DLet _ name expr -> do
         expr' <- check env expr
         HashTable.insert name (edata expr') (eBindings env)
         return $ DLet (edata expr') name expr'
 
+buildTypeEnvironment :: [Declaration a] -> IO Env
+buildTypeEnvironment decls = do
+    env <- newEnv
+    typeEnv <- IORef.newIORef HashMap.empty
+    forM_ decls $ \decl -> case decl of
+            DData name variants -> do
+                let userType = UserType name variants
+                IORef.modifyIORef' typeEnv (HashMap.insert name userType)
+                let tv = TType userType
+                forM_ variants $ \v -> do
+                    HashTable.insert v tv (eBindings env)
+            _ -> return ()
+
+    te <- IORef.readIORef typeEnv
+    return env{eTypeBindings=te}
+
 run :: [Declaration a] -> IO [Declaration TypeVar]
 run decls = do
-    env <- newEnv
+    env <- buildTypeEnvironment decls
     forM decls (checkDecl env)

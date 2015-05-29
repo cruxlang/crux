@@ -57,6 +57,7 @@ keyword = P.try $ do
     case i of
         "let" -> return $ TLet p
         "fun" -> return $ TFun p
+        "data" -> return $ TData p
         _ -> fail ""
 
 symbol :: P.ParsecT Text u Identity (Token Pos)

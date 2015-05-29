@@ -11,8 +11,11 @@ data Literal
     | LString Text
       deriving (Show, Eq)
 
+type Variant = Text -- Temporary
+
 data Declaration edata
     = DLet edata Pattern (Expression edata)
+    | DData Name [Variant]
       deriving (Show, Eq)
 
 data Expression edata

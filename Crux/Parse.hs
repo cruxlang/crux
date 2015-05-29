@@ -134,9 +134,21 @@ letDeclaration = do
     ELet ed name expr <- letExpression
     return $ DLet ed name expr
 
+dataDeclaration :: Parser ParseDeclaration
+dataDeclaration = do
+    _ <- P.try $ token TData
+
+    name <- anyIdentifier
+    -- type vars go here
+    _ <- token TOpenBrace
+    variants <- P.many $ anyIdentifier <* token TSemicolon
+    _ <- token TCloseBrace
+    return $ DData name variants
+
 declaration :: Parser ParseDeclaration
 declaration =
-    P.try letDeclaration
+    dataDeclaration <|>
+    letDeclaration
 
 document :: Parser [ParseDeclaration]
 document = do

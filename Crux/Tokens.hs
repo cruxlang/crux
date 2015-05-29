@@ -21,6 +21,7 @@ data Token tdata
     | TEqual tdata
     | TFun tdata
     | TLet tdata
+    | TData tdata
       deriving (Show)
 
 instance Eq (Token a) where
@@ -36,6 +37,7 @@ instance Eq (Token a) where
         (TEqual _,          TEqual _)          -> True
         (TFun _,            TFun _)            -> True
         (TLet _,            TLet _)            -> True
+        (TData _,           TData _)           -> True
         _ -> False
 
 tokenData :: Token tdata -> tdata
@@ -51,3 +53,4 @@ tokenData tok = case tok of
     TEqual tdata -> tdata
     TFun tdata -> tdata
     TLet tdata -> tdata
+    TData tdata -> tdata

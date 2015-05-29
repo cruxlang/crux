@@ -34,8 +34,13 @@ stringLiteral = do
 parseIdentifier :: P.ParsecT Text u Identity (Token Pos)
 parseIdentifier = do
     p <- pos
-    first <- P.satisfy isAlpha
-    rest <- P.many P.alphaNum
+    let isIdentifierStart '_' = True
+        isIdentifierStart x = isAlpha x
+
+        isIdentifierChar x = isIdentifierStart x || isNumber x
+
+    first <- P.satisfy isIdentifierStart
+    rest <- P.many $ P.satisfy isIdentifierChar
     return $ TIdentifier p $ T.pack (first:rest)
 
 token :: P.ParsecT Text u Identity (Token Pos)

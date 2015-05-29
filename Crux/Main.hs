@@ -1,7 +1,7 @@
 
 module Crux.Main where
 
-import           Crux.AST
+import           Control.Monad      (forM)
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Typecheck     as Typecheck
@@ -31,6 +31,6 @@ main = do
                         Right p' -> do
                             putStrLn "Parse OK"
                             -- print p'
-                            typetree <- Typecheck.run (EBlock () p')
-                            typetree' <- Typecheck.flatten typetree
+                            typetree <- Typecheck.run p'
+                            typetree' <- forM typetree Typecheck.flattenDecl
                             putStrLn $ ppShow typetree'

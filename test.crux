@@ -17,11 +17,13 @@ let foo = fun i {
     fun j { 2; };
 };
 
-print "hooper";
-let r = (2 ; 8);
-let t = 9;
-let u = "hody";
-let v = u;
-let w = t;
+let main = fun _ {
+    print "hooper";
+    let r = (2 ; 8);
+    let t = 9;
+    let u = "hody";
+    let v = u;
+    let w = t;
 
-spam "spam";
+    spam "spam";
+};

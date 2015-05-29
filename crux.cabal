@@ -52,3 +52,4 @@ test-suite tests
     build-depends: base
                  , HUnit
                  , parsec, text, crux
+    default-language: Haskell2010

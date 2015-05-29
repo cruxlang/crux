@@ -10,5 +10,3 @@ let main = fun x {
     spam "spammity";
     spam "spam!!";
 };
-
-main 0;

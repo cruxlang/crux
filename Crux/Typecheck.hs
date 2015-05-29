@@ -161,58 +161,65 @@ instantiate env t =
             _ -> return (ty, subst)
     in fmap fst (go t [])
 
-flatten :: Expression (TypeVar) -> IO (Expression ImmutableTypeVar)
-flatten expr =
-    let flattenTypeVar tv = case tv of
-            TVar i ior -> do
-                t <- IORef.readIORef ior
-                case t of
-                    Unbound ->
-                        return $ IVar i Unbound
-                    Link tv' -> do
-                        flattenTypeVar tv'
-            TQuant i ->
-                return $ IQuant i
-            TFun args body -> do
-                args' <- forM args flattenTypeVar
-                body' <- flattenTypeVar body
-                return $ IFun args' body'
-            TType t ->
-                return $ IType t
+flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
+flattenTypeVar tv = case tv of
+        TVar i ior -> do
+            t <- IORef.readIORef ior
+            case t of
+                Unbound ->
+                    return $ IVar i Unbound
+                Link tv' -> do
+                    flattenTypeVar tv'
+        TQuant i ->
+            return $ IQuant i
+        TFun args body -> do
+            args' <- forM args flattenTypeVar
+            body' <- flattenTypeVar body
+            return $ IFun args' body'
+        TType t ->
+            return $ IType t
 
-    in case expr of
-        EBlock td exprs -> do
-            td' <- flattenTypeVar td
-            exprs' <- forM exprs flatten
-            return $ EBlock td' exprs'
-        EFun td params exprs -> do
-            td' <- flattenTypeVar td
-            exprs' <- forM exprs flatten
-            return $ EFun td' params exprs'
-        EApp td lhs rhs -> do
-            td' <- flattenTypeVar td
-            lhs' <- flatten lhs
-            rhs' <- flatten rhs
-            return $ EApp td' lhs' rhs'
-        ELet td name expr' -> do
-            td' <- flattenTypeVar td
-            expr'' <- flatten expr'
-            return $ ELet td' name expr''
-        EPrint td expr' -> do
-            td' <- flattenTypeVar td
-            expr'' <- flatten expr'
-            return $ EPrint td' expr''
-        ELiteral td lit -> do
-            td' <- flattenTypeVar td
-            return $ ELiteral td' lit
-        EIdentifier td i -> do
-            td' <- flattenTypeVar td
-            return $ EIdentifier td' i
-        ESemi td lhs rhs -> do
-            td' <- flattenTypeVar td
-            lhs' <- flatten lhs
-            rhs' <- flatten rhs
-            return $ ESemi td' lhs' rhs'
+flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
+flatten expr = case expr of
+    EBlock td exprs -> do
+        td' <- flattenTypeVar td
+        exprs' <- forM exprs flatten
+        return $ EBlock td' exprs'
+    EFun td params exprs -> do
+        td' <- flattenTypeVar td
+        exprs' <- forM exprs flatten
+        return $ EFun td' params exprs'
+    EApp td lhs rhs -> do
+        td' <- flattenTypeVar td
+        lhs' <- flatten lhs
+        rhs' <- flatten rhs
+        return $ EApp td' lhs' rhs'
+    ELet td name expr' -> do
+        td' <- flattenTypeVar td
+        expr'' <- flatten expr'
+        return $ ELet td' name expr''
+    EPrint td expr' -> do
+        td' <- flattenTypeVar td
+        expr'' <- flatten expr'
+        return $ EPrint td' expr''
+    ELiteral td lit -> do
+        td' <- flattenTypeVar td
+        return $ ELiteral td' lit
+    EIdentifier td i -> do
+        td' <- flattenTypeVar td
+        return $ EIdentifier td' i
+    ESemi td lhs rhs -> do
+        td' <- flattenTypeVar td
+        lhs' <- flatten lhs
+        rhs' <- flatten rhs
+        return $ ESemi td' lhs' rhs'
+
+flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
+flattenDecl decl = case decl of
+    DLet ty name expr -> do
+        ty' <- flattenTypeVar ty
+        expr' <- flatten expr
+        return $ DLet ty' name expr'
 
 unify :: TypeVar -> TypeVar -> IO ()
 unify a b = case (a, b) of
@@ -220,7 +227,7 @@ unify a b = case (a, b) of
             a' <- readIORef ar
             case a' of
                 Unbound -> do
-                    -- occurs ...
+                    occurs ar b
                     writeIORef ar (Link b)
                 Link a'' ->
                     unify a'' b
@@ -243,12 +250,35 @@ unify a b = case (a, b) of
         (TType {}, TFun {}) ->
             error "Unification failure"
 
+        -- These should never happen: Quantified type variables should be instantiated before we get here.
         (TQuant {}, _) ->
             error "Internal error: QVar made it to unify"
         (_, TQuant {}) ->
             error "Internal error: QVar made it to unify"
 
-run :: Expression a -> IO (Expression TypeVar)
-run expr = do
+occurs :: IORef (VarLink TypeVar) -> TypeVar -> IO ()
+occurs tvr ty = case ty of
+    TVar _ ty'
+        | tvr == ty' -> error "Occurs check"
+        | otherwise -> do
+            ty'' <- readIORef ty'
+            case ty'' of
+                Link ty''' -> occurs tvr ty'''
+                _ -> return ()
+    TFun [arg] ret -> do
+        occurs tvr arg
+        occurs tvr ret
+    _ ->
+        return ()
+
+checkDecl :: Env -> Declaration a -> IO (Declaration TypeVar)
+checkDecl env decl = case decl of
+    DLet _ name expr -> do
+        expr' <- check env expr
+        HashTable.insert name (edata expr') (eBindings env)
+        return $ DLet (edata expr') name expr'
+
+run :: [Declaration a] -> IO [Declaration TypeVar]
+run decls = do
     env <- newEnv
-    check env expr
+    forM decls (checkDecl env)

@@ -11,6 +11,10 @@ data Literal
     | LString Text
       deriving (Show, Eq)
 
+data Declaration edata
+    = DLet edata Pattern (Expression edata)
+      deriving (Show, Eq)
+
 data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Pattern (Expression edata)

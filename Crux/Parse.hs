@@ -6,15 +6,17 @@ module Crux.Parse where
 import Crux.Tokens
 import Crux.AST
 import qualified Text.Parsec as P
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), (<*))
 import Control.Monad.Trans (liftIO)
 import Data.Text (Text)
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = ()
 type ParseExpression = Expression ParseData
+type ParseDeclaration = Declaration ParseData
 
 -- getToken :: (P.Stream s m t, Show t) => (t -> Maybe a) -> P.ParsecT s u m a
+-- getToken :: (Token Pos -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim showTok nextPos predicate
   where
     showTok = show
@@ -127,11 +129,20 @@ expression = do
     _ <- token TSemicolon
     return s
 
-document :: Parser [ParseExpression]
+letDeclaration :: Parser ParseDeclaration
+letDeclaration = do
+    ELet ed name expr <- letExpression
+    return $ DLet ed name expr
+
+declaration :: Parser ParseDeclaration
+declaration =
+    P.try letDeclaration
+
+document :: Parser [ParseDeclaration]
 document = do
-    doc <- P.many1 expression
+    doc <- P.many1 $ declaration <* token TSemicolon
     P.eof
     return doc
 
-parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError [ParseExpression])
+parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError [ParseDeclaration])
 parse fileName tokens = P.runParserT document () fileName tokens

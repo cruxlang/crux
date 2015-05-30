@@ -25,5 +25,8 @@ let main = fun _ {
     let v = u;
     let w = t;
 
+    spam u;
     spam "spam";
 };
+
+let _ = main 0;

@@ -2,12 +2,10 @@
 
 module Crux.JSTree where
 
-import           Control.Monad (forM_)
-import           Data.Monoid   ((<>))
-import           Data.Text     (Text)
-import           Data.Text.IO  (putStr, putStrLn)
-import           Prelude       hiding (putStr, putStrLn)
-import qualified Prelude
+import           Data.Monoid            ((<>), mconcat, mempty)
+import           Data.Text              (Text)
+import qualified Data.Text.Lazy as T
+import           Data.Text.Lazy.Builder as B
 
 type Name = Text
 
@@ -37,70 +35,73 @@ data Expression
     | EComma Expression Expression
     deriving (Show, Eq)
 
-renderFunction maybeName maybeArg body = do
-    putStr $ "function "
-    case maybeName of
-        Just name -> putStr name
-        Nothing -> return ()
-    putStr "("
-    case maybeArg of
-        Just arg -> putStr arg
-        Nothing -> return ()
-    putStrLn "){"
-    case body of
-        [] -> return ()
-        _ -> do
-            forM_ (init body) render
-            putStr "return "
-            render (last body)
-    putStrLn "}"
+renderFunction :: Maybe Text -> Maybe Text -> [Statement] -> Builder
+renderFunction maybeName maybeArg body =
+    let renderedBody = case body of
+            [] -> mempty
+            _ -> mconcat (map render (init body))
+                    <> B.fromText "return " <> render (last body)
+    in B.fromText "function "
+        <> (maybe mempty B.fromText maybeName)
+        <> B.fromText "("
+        <> (maybe mempty B.fromText maybeArg)
+        <> B.fromText "){\n"
+        <> renderedBody
+        <> B.fromText "}\n"
 
+render :: Statement -> Builder
 render stmt = case stmt of
-    SBlock s -> do
-        putStr "{"
-        forM_ s render
-        putStrLn "}"
+    SBlock s ->
+        B.fromText "{\n"
+        <> mconcat (map render s)
+        <> B.fromText "}\n"
 
-    SVar name expr -> do
-        putStr $ "var " <> name <> " = "
-        renderExpr expr
-        putStrLn ";"
+    SVar name expr ->
+        B.fromText "var "
+            <> B.fromText name
+            <> B.fromText " = "
+            <> renderExpr expr
+            <> B.fromText ";\n"
 
-    SFunction maybeName maybeArg body -> do
+    SFunction maybeName maybeArg body ->
         renderFunction maybeName maybeArg body
-    SExpression expr -> do
+    SExpression expr ->
         renderExpr expr
-        putStrLn ";"
+            <> B.fromText  ";\n"
     SReturn expr -> do
-        putStr "return "
-        renderExpr expr
-        putStrLn ";"
+        B.fromText "return "
+            <> renderExpr expr
+            <> B.fromText ";\n"
 
+renderExpr :: Expression -> Builder
 renderExpr expr = case expr of
-    EApplication lhs maybeRhs -> do
+    EApplication lhs maybeRhs ->
         renderExpr lhs
-        putStr "("
-        case maybeRhs of
-            Just rhs -> renderExpr rhs
-            Nothing -> return ()
-        putStr ")"
-    EFunction maybeArg body -> do
-        putStr "("
-        renderFunction Nothing maybeArg body
-        putStr ")"
+            <> B.fromText "("
+            <> (maybe mempty renderExpr maybeRhs)
+            <> B.fromText ")"
+    EFunction maybeArg body ->
+        B.fromText "("
+            <> renderFunction Nothing maybeArg body
+            <> B.fromText ")"
     ELiteral lit -> case lit of
-        LInteger i -> Prelude.putStr $ show i
-        LString i -> Prelude.putStr $ show i
-        LTrue -> putStr "true"
-        LFalse -> putStr "false"
-        LNull -> putStr "null"
-        LUndefined -> putStr "(void 0)"
-    EIdentifier n -> putStr n
-    ESemi lhs rhs -> do
+        LInteger i -> B.fromString $ show i
+        LString i -> B.fromString $ show i
+        LTrue -> B.fromText "true"
+        LFalse -> B.fromText "false"
+        LNull -> B.fromText "null"
+        LUndefined -> B.fromText "(void 0)"
+    EIdentifier n -> B.fromText n
+    ESemi lhs rhs ->
         renderExpr lhs
-        putStrLn ";"
-        renderExpr rhs
+            <> B.fromText ";\n"
+            <> renderExpr rhs
     EComma lhs rhs -> do
-        renderExpr lhs
-        putStrLn ","
-        renderExpr rhs
+        B.fromText "("
+            <> renderExpr lhs
+            <> B.fromText ",\n"
+            <> renderExpr rhs
+            <> B.fromText ")"
+
+renderDocument :: [Statement] -> Text
+renderDocument statements = T.toStrict $ B.toLazyText $ mconcat (map render statements)

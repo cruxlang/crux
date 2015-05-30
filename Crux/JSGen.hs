@@ -2,11 +2,8 @@
 
 module Crux.JSGen where
 
-import           Control.Monad (forM_, when)
 import           Crux.AST
 import qualified Crux.JSTree   as JS
-import           Data.Monoid   ((<>))
-import qualified Data.Text.IO  as T
 
 generateDecl :: Declaration t -> [JS.Statement]
 generateDecl decl = case decl of

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Crux.Parse where
 
@@ -15,8 +16,8 @@ type ParseData = ()
 type ParseExpression = Expression ParseData
 type ParseDeclaration = Declaration ParseData
 
--- getToken :: (P.Stream s m t, Show t) => (t -> Maybe a) -> P.ParsecT s u m a
--- getToken :: (Token Pos -> Maybe a) -> P.ParsecT s u m a
+getToken :: P.Stream s m (Token Pos)
+         => (Token Pos -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim showTok nextPos predicate
   where
     showTok = show

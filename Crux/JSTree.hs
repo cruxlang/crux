@@ -66,10 +66,8 @@ render stmt = case stmt of
         renderExpr expr
         putStrLn ";"
 
-    SFunction Nothing _ _ ->
-        return ()
-    SFunction (Just name) maybeArg body -> do
-        renderFunction (Just name) maybeArg body
+    SFunction maybeName maybeArg body -> do
+        renderFunction maybeName maybeArg body
     SExpression expr -> do
         renderExpr expr
         putStrLn ";"

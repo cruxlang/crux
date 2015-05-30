@@ -21,7 +21,8 @@ library
                    , Crux.Typecheck
                    , Crux.Lex
                    , Crux.Main
-                --    , Crux.Driver
+                   , Crux.JSGen
+                   , Crux.JSTree
 
     build-depends: base >=4.7 && <4.8
                  , parsec == 3.1.9

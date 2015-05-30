@@ -1,7 +1,8 @@
 
 module Crux.Main where
 
-import           Control.Monad      (forM)
+import           Control.Monad      (forM, forM_)
+import           Crux.JSGen
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Typecheck     as Typecheck
@@ -33,4 +34,6 @@ main = do
                             -- print p'
                             typetree <- Typecheck.run p'
                             typetree' <- forM typetree Typecheck.flattenDecl
-                            putStrLn $ ppShow typetree'
+                            -- putStrLn $ ppShow typetree'
+                            -- forM_ typetree' generateDecl
+                            putStrLn $ ppShow $ map generateDecl' typetree'

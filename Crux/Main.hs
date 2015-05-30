@@ -12,12 +12,14 @@ import           System.Environment (getArgs)
 -- import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified System.FilePath    as F
+import System.IO (stderr, hPutStr)
 
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"
 
+failed :: String -> IO a
 failed message = do
-    putStrLn message
+    hPutStr stderr message
     exitWith $ ExitFailure 1
 
 main :: IO ()
@@ -31,11 +33,11 @@ main = do
             let outfile = F.replaceExtension fn "js"
             l <- Crux.Lex.lex fn
             case l of
-                Left err -> putStrLn $ "Lex error: " ++ show err
+                Left err -> failed $ "Lex error: " ++ show err
                 Right l' -> do
                     p <- Crux.Parse.parse fn l'
                     case p of
-                        Left err -> putStrLn $ "Parse error: " ++ show err
+                        Left err -> failed $ "Parse error: " ++ show err
                         Right p' -> do
                             typetree <- Typecheck.run p'
                             typetree' <- forM typetree Typecheck.flattenDecl

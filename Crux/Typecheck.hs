@@ -3,7 +3,7 @@
 
 module Crux.Typecheck where
 
-import           Control.Monad         (forM, forM_, when, foldM)
+import           Control.Monad         (forM, forM_, when)
 import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Data.HashMap.Strict   (HashMap)

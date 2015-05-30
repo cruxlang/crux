@@ -3,6 +3,7 @@ module Crux.Main where
 
 import           Control.Monad      (forM, forM_)
 import           Crux.JSGen
+import qualified Crux.JSTree        as JSTree
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Typecheck     as Typecheck
@@ -25,15 +26,12 @@ main = do
                 Left err -> putStrLn $ "Lex error: " ++ show err
                 Right l' -> do
                     putStrLn "Lex OK"
-                    -- print l'
                     p <- Crux.Parse.parse fn l'
                     case p of
                         Left err -> putStrLn $ "Parse error: " ++ show err
                         Right p' -> do
                             putStrLn "Parse OK"
-                            -- print p'
                             typetree <- Typecheck.run p'
                             typetree' <- forM typetree Typecheck.flattenDecl
-                            -- putStrLn $ ppShow typetree'
-                            -- forM_ typetree' generateDecl
-                            putStrLn $ ppShow $ map generateDecl' typetree'
+                            forM_ typetree' $ \t ->
+                                forM_ (generateDecl t) JSTree.render

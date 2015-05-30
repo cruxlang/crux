@@ -57,6 +57,9 @@ generateExpr expr = case expr of
         JS.ELiteral (JS.LInteger i)
     EIdentifier _ s ->
         JS.EIdentifier s
+    EFun _ [param] body ->
+        JS.EFunction (Just param) (generateBlock body)
+        -- ESemi translates to JS comma operator
     _ ->
         JS.EApplication
             (JS.EFunction Nothing $ generateBlock [expr])

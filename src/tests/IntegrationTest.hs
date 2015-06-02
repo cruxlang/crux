@@ -45,9 +45,9 @@ testInteger = do
     result <- run $ T.unlines
         [ "let x = 1;"
         , "let y = x;"
-        , "let _ = print (to_string y);"
+        , "let _ = print (toString y);"
         ]
-    assertEqual "" (Right "hi\n") result
+    assertEqual "" (Right "1\n") result
 
 tests :: Test
 tests = TestList

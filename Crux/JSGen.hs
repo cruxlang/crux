@@ -37,6 +37,10 @@ generateStatementExpr expr = case expr of
                 (JS.EIdentifier "console.log")
                 (Just $ generateExpr ex)
         ]
+    EToString _ ex ->
+        [JS.SExpression $
+            JS.EBinOp "+" (JS.ELiteral (JS.LString "" :: JS.Literal)) (generateExpr ex)
+        ]
     ELiteral {} ->
         [JS.SExpression $ generateExpr expr]
     EIdentifier {} ->

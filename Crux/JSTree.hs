@@ -29,6 +29,7 @@ data Literal
 data Expression
     = EApplication Expression (Maybe Expression)
     | EFunction (Maybe Name) [Statement] -- function(arg_name) { statements }
+    | EBinOp Text Expression Expression -- lhs <op> rhs
     | ELiteral Literal
     | EIdentifier Name
     | ESemi Expression Expression
@@ -83,6 +84,12 @@ renderExpr expr = case expr of
     EFunction maybeArg body ->
         B.fromText "("
             <> renderFunction Nothing maybeArg body
+            <> B.fromText ")"
+    EBinOp op lhs rhs ->
+        B.fromText "("
+            <> renderExpr lhs
+            <> B.fromText op
+            <> renderExpr rhs
             <> B.fromText ")"
     ELiteral lit -> case lit of
         LInteger i -> B.fromString $ show i

@@ -24,6 +24,7 @@ data Expression edata
     | EFun edata [Text] [Expression edata]
     | EApp edata (Expression edata) (Expression edata)
     | EPrint edata (Expression edata)
+    | EToString edata (Expression edata)
     | ELiteral edata Literal
     | EIdentifier edata Text
     | ESemi edata (Expression edata) (Expression edata)
@@ -36,6 +37,7 @@ edata expr = case expr of
     EFun ed _ _ -> ed
     EApp ed _ _ -> ed
     EPrint ed _ -> ed
+    EToString ed _ -> ed
     ELiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed

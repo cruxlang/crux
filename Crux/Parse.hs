@@ -61,6 +61,12 @@ printExpression = do
     expr <- noSemiExpression
     return $ EPrint () expr
 
+toStringExpression :: Parser ParseExpression
+toStringExpression = do
+    _ <- P.try $ identifier "toString"
+    expr <- noSemiExpression
+    return $ EToString () expr
+
 literalExpression :: Parser ParseExpression
 literalExpression = P.tokenPrim showTok nextPos testTok
   where
@@ -120,6 +126,7 @@ noSemiExpression :: Parser ParseExpression
 noSemiExpression =
     P.try letExpression
     <|> P.try printExpression
+    <|> P.try toStringExpression
     <|> P.try parenExpression
     <|> P.try functionExpression
     <|> applicationExpression

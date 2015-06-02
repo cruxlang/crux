@@ -110,6 +110,9 @@ check env expr = case expr of
     EPrint _ expr' -> do
         expr'' <- check env expr'
         return $ EPrint (TType Unit) expr''
+    EToString _ expr' -> do
+        expr'' <- check env expr'
+        return $ EToString (TType String) expr''
     ELiteral _ (LInteger i) -> do
         return $ ELiteral (TType Number) (LInteger i)
     ELiteral _ (LString s) -> do
@@ -205,6 +208,10 @@ flatten expr = case expr of
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
         return $ EPrint td' expr''
+    EToString td expr' -> do
+        td' <- flattenTypeVar td
+        expr'' <- flatten expr'
+        return $ EToString td' expr''
     ELiteral td lit -> do
         td' <- flattenTypeVar td
         return $ ELiteral td' lit

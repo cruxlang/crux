@@ -41,7 +41,16 @@ testHelloWorld = do
         ]
     assertEqual "" (Right "Hello, World!\n") result
 
+testInteger = do
+    result <- run $ T.unlines
+        [ "let x = 1;"
+        , "let y = x;"
+        , "let _ = print (to_string y);"
+        ]
+    assertEqual "" (Right "hi\n") result
+
 tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
+    , TestLabel "testInteger" $ TestCase testInteger
     ]

@@ -53,5 +53,5 @@ test-suite tests
     hs-source-dirs: src/tests
     build-depends: base
                  , HUnit
-                 , parsec, text, crux
+                 , parsec, text, crux, process, filepath
     default-language: Haskell2010

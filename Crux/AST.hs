@@ -4,6 +4,7 @@ module Crux.AST where
 import Data.Text (Text)
 
 type Name = Text -- Temporary
+type TypeName = Text
 type Pattern = Name -- Temporary
 
 data Literal
@@ -11,7 +12,8 @@ data Literal
     | LString Text
       deriving (Show, Eq)
 
-type Variant = Text -- Temporary
+data Variant = Variant Name [TypeName]
+    deriving (Show, Eq)
 
 data Declaration edata
     = DLet edata Pattern (Expression edata)

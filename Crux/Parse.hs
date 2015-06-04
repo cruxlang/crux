@@ -10,6 +10,7 @@ import qualified Text.Parsec as P
 import Control.Applicative ((<|>), (<*))
 import Control.Monad.Trans (liftIO)
 import Data.Text (Text)
+import Data.List (foldl')
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = ()
@@ -94,11 +95,11 @@ functionExpression = do
 
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
-    lhs <- identifierExpression <|> literalExpression
-    rhs <- P.optionMaybe (P.try applicationExpression)
-    case rhs of
-        Just rhs' -> return $ EApp () lhs rhs'
-        Nothing -> return lhs
+    terms <- P.many1 (identifierExpression <|> literalExpression <|> parenExpression)
+    case terms of
+        [] -> error "This should be very impossible"
+        [x] -> return x
+        (x:xs) -> return $ foldl' (EApp ()) x xs
 
 letExpression :: Parser ParseExpression
 letExpression = do
@@ -127,7 +128,6 @@ noSemiExpression =
     P.try letExpression
     <|> P.try printExpression
     <|> P.try toStringExpression
-    <|> P.try parenExpression
     <|> P.try functionExpression
     <|> applicationExpression
 
@@ -148,8 +148,13 @@ dataDeclaration = do
 
     name <- anyIdentifier
     -- type vars go here
+
     _ <- token TOpenBrace
-    variants <- P.many $ anyIdentifier <* token TSemicolon
+    variants <- P.many $ do
+        ctorname <- anyIdentifier
+        ctordata <- P.many anyIdentifier
+        _ <- token TSemicolon
+        return (Variant ctorname ctordata)
     _ <- token TCloseBrace
     return $ DData name variants
 

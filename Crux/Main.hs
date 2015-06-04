@@ -9,7 +9,7 @@ import           Crux.Parse
 import qualified Crux.Typecheck     as Typecheck
 import qualified Data.Text.IO       as T
 import           System.Environment (getArgs)
--- import           Text.Show.Pretty   (ppShow)
+import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified System.FilePath    as F
 import System.IO (stderr, hPutStr)
@@ -39,7 +39,9 @@ main = do
                     case p of
                         Left err -> failed $ "Parse error: " ++ show err
                         Right p' -> do
+                            -- putStrLn $ ppShow p'
                             typetree <- Typecheck.run p'
                             typetree' <- forM typetree Typecheck.flattenDecl
+                            -- putStrLn $ ppShow (concatMap generateDecl typetree')
                             T.writeFile outfile $ JSTree.renderDocument (concatMap generateDecl typetree')
                             exitWith ExitSuccess

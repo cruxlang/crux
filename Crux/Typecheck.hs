@@ -1,5 +1,6 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 module Crux.Typecheck where
 
@@ -11,6 +12,7 @@ import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
 import           Data.Text             (Text)
+import qualified Data.Text             as T
 import           Prelude               hiding (String)
 
 data Type
@@ -18,7 +20,14 @@ data Type
     | String
     | UserType Name [Variant]
     | Unit
-    deriving (Eq, Show)
+    deriving (Eq)
+
+instance Show Type where
+    show ty = case ty of
+        Number -> "Number"
+        String -> "String"
+        UserType name _ -> T.unpack name
+        Unit -> "Unit"
 
 data VarLink a
     = Unbound
@@ -41,9 +50,26 @@ data ImmutableTypeVar
 data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
-    , eTypeBindings  :: HashMap Text Type
+    , eTypeBindings  :: HashMap Text TypeVar
     , eIsTopLevel    :: Bool
     }
+
+showTypeVarIO :: TypeVar -> IO [Char]
+showTypeVarIO tvar = case tvar of
+    TVar i o -> do
+        o' <- readIORef o
+        os <- case o' of
+            Unbound -> return "Unbound"
+            Link x -> showTypeVarIO x
+        return $ "TVar " ++ show i ++ " " ++ os
+    TQuant i ->
+        return $ "TQuant " ++ show i
+    TFun args ret -> do
+        as <- forM args showTypeVarIO
+        rs <- showTypeVarIO ret
+        return $ "TFun " ++ show as  ++ " -> " ++ rs
+    TType ty ->
+        return $ "TType " ++ show ty
 
 newEnv :: IO Env
 newEnv = do
@@ -257,10 +283,14 @@ unify a b = case (a, b) of
             forM_ (zip aa ba) (uncurry unify)
             unify ar br
 
-        (TFun {}, TType {}) ->
-            error "Unification failure"
-        (TType {}, TFun {}) ->
-            error "Unification failure"
+        (TFun {}, TType {}) -> do
+            lt <- showTypeVarIO a
+            rt <- showTypeVarIO b
+            error $ "Unification failure: " ++ (show (lt, rt))
+        (TType {}, TFun {}) -> do
+            lt <- showTypeVarIO a
+            rt <- showTypeVarIO b
+            error $ "Unification failure: " ++ (show (lt, rt))
 
         -- These should never happen: Quantified type variables should be instantiated before we get here.
         (TQuant {}, _) ->
@@ -294,17 +324,34 @@ checkDecl env decl = case decl of
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
     env <- newEnv
-    typeEnv <- IORef.newIORef HashMap.empty
+    typeEnv <- IORef.newIORef $ HashMap.fromList
+        [ ("Number", TType Number)
+        , ("Unit", TType Unit)
+        , ("String", TType String)
+        ]
+
     forM_ decls $ \decl -> case decl of
-            DData name variants -> do
-                let userType = UserType name variants
-                IORef.modifyIORef' typeEnv (HashMap.insert name userType)
-                let tv = TType userType
-                forM_ variants $ \v -> do
-                    HashTable.insert v tv (eBindings env)
-            _ -> return ()
+        DData name variants -> do
+            let userType = TType $ UserType name variants
+            IORef.modifyIORef' typeEnv (HashMap.insert name userType)
+        _ -> return ()
 
     te <- IORef.readIORef typeEnv
+
+    let computeVariantType ty name argTypeNames = case argTypeNames of
+            [] -> ty
+            (x:xs) -> case HashMap.lookup x te of
+                Nothing -> error $ "Constructor " ++ (show name) ++ " variant uses undefined type " ++ (show x)
+                Just t -> TFun [t] (computeVariantType ty name xs)
+
+    forM_ decls $ \decl -> case decl of
+        DData name variants -> do
+            let Just userType = HashMap.lookup name te
+            forM_ variants $ \(Variant vname vdata) -> do
+                let ctorType = computeVariantType userType vname vdata
+                HashTable.insert vname ctorType (eBindings env)
+        _ -> return ()
+
     return env{eTypeBindings=te}
 
 run :: [Declaration a] -> IO [Declaration TypeVar]

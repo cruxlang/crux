@@ -2,9 +2,11 @@
 
 module Crux.JSTree where
 
-import           Data.Monoid            ((<>), mconcat, mempty)
+import Debug.Trace
+import           Data.Maybe             (maybeToList)
+import           Data.Monoid            (Monoid, mconcat, mempty, (<>))
 import           Data.Text              (Text)
-import qualified Data.Text.Lazy as T
+import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder as B
 
 type Name = Text
@@ -12,7 +14,7 @@ type Name = Text
 data Statement
     = SBlock [Statement]
     | SVar Name Expression
-    | SFunction (Maybe Name) (Maybe Name) [Statement] -- function name(arg_name) { statements }
+    | SFunction (Maybe Name) [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
     | SExpression Expression
     | SReturn Expression
     deriving (Show, Eq)
@@ -32,20 +34,32 @@ data Expression
     | EBinOp Text Expression Expression -- lhs <op> rhs
     | ELiteral Literal
     | EIdentifier Name
+    | EArray [Expression]
     | ESemi Expression Expression
     | EComma Expression Expression
     deriving (Show, Eq)
 
-renderFunction :: Maybe Text -> Maybe Text -> [Statement] -> Builder
+intercalate :: (Show m, Monoid m) => m -> [m] -> m
+intercalate sep els = case els of
+    [] -> mempty
+    [x] -> x
+    (x:y:xs) -> x <> sep <> intercalate sep (y:xs)
+
+renderFunction :: Maybe Text -> [Text] -> [Statement] -> Builder
 renderFunction maybeName maybeArg body =
     let renderedBody = case body of
             [] -> mempty
-            _ -> mconcat (map render (init body))
-                    <> B.fromText "return " <> render (last body)
+            _ ->
+                let inits = map render (init body)
+                    lastOne = last body
+                    last' = case lastOne of
+                        SExpression _ -> B.fromText "return " <> render lastOne
+                        _ -> render lastOne
+                in mconcat inits <> last'
     in B.fromText "function "
         <> (maybe mempty B.fromText maybeName)
         <> B.fromText "("
-        <> (maybe mempty B.fromText maybeArg)
+        <> intercalate (B.fromText ",") (map B.fromText maybeArg)
         <> B.fromText "){\n"
         <> renderedBody
         <> B.fromText "}\n"
@@ -83,7 +97,7 @@ renderExpr expr = case expr of
             <> B.fromText ")"
     EFunction maybeArg body ->
         B.fromText "("
-            <> renderFunction Nothing maybeArg body
+            <> renderFunction Nothing (maybeToList maybeArg) body
             <> B.fromText ")"
     EBinOp op lhs rhs ->
         B.fromText "("
@@ -99,6 +113,10 @@ renderExpr expr = case expr of
         LNull -> B.fromText "null"
         LUndefined -> B.fromText "(void 0)"
     EIdentifier n -> B.fromText n
+    EArray els ->
+        B.fromText "["
+        <> intercalate "," (map renderExpr els)
+        <> B.fromText "]"
     ESemi lhs rhs ->
         renderExpr lhs
             <> B.fromText ";\n"
@@ -111,4 +129,4 @@ renderExpr expr = case expr of
             <> B.fromText ")"
 
 renderDocument :: [Statement] -> Text
-renderDocument statements = T.toStrict $ B.toLazyText $ mconcat (map render statements)
+renderDocument statements = TL.toStrict $ B.toLazyText $ mconcat (map render statements)

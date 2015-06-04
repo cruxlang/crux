@@ -49,6 +49,18 @@ testInteger = do
         ]
     assertEqual "" (Right "1\n") result
 
+testDataTypes = do
+    result <- run $ T.unlines
+        [ "data IntList {"
+        , "    Element Int IntList;"
+        , "    Nil;"
+        , "};"
+        , "let mylist = Element 1 (Element 2 Nil);"
+        , "let _ = print mylist"
+        ]
+
+    assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
+
 tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld

@@ -56,7 +56,7 @@ testDataTypes = do
         , "    Nil;"
         , "};"
         , "let mylist = Element 1 (Element 2 Nil);"
-        , "let _ = print mylist"
+        , "let _ = print mylist;"
         ]
 
     assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
@@ -65,4 +65,5 @@ tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
     , TestLabel "testInteger" $ TestCase testInteger
+    , TestLabel "testDataTypes" $ TestCase testDataTypes
     ]

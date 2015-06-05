@@ -58,10 +58,12 @@ keyword = P.try $ do
         "let" -> return $ TLet p
         "fun" -> return $ TFun p
         "data" -> return $ TData p
+        "match" -> return $ TMatch p
         _ -> fail ""
 
 symbol :: P.ParsecT Text u Identity (Token Pos)
-symbol = sym ';' TSemicolon
+symbol = sym2 '=' '>' TFatRightArrow
+     <|> sym ';' TSemicolon
      <|> sym '=' TEqual
      <|> sym '(' TOpenParen
      <|> sym ')' TCloseParen
@@ -72,7 +74,11 @@ symbol = sym ';' TSemicolon
         p <- pos
         _ <- P.char ch
         return (tok p)
-    -- sym2 c1 c2 tok = P.char c1 >> P.char c2 >> return tok
+    sym2 c1 c2 tok = P.try $ do
+        p <- pos
+        _ <- P.char c1
+        _ <- P.char c2
+        return (tok p)
 
 whitespace :: P.ParsecT Text u Identity ()
 whitespace = P.spaces

@@ -13,15 +13,19 @@ data Token tdata
     = TInteger tdata Integer
     | TString tdata Text
     | TIdentifier tdata Text
+    -- symbols
     | TOpenBrace tdata
     | TCloseBrace tdata
     | TOpenParen tdata
     | TCloseParen tdata
     | TSemicolon tdata
     | TEqual tdata
+    | TFatRightArrow tdata
+    -- Keywords
     | TFun tdata
     | TLet tdata
     | TData tdata
+    | TMatch tdata
       deriving (Show)
 
 instance Eq (Token a) where
@@ -34,10 +38,12 @@ instance Eq (Token a) where
         (TOpenParen _,      TOpenParen _)      -> True
         (TCloseParen _,     TCloseParen _)     -> True
         (TSemicolon _,      TSemicolon _)      -> True
+        (TFatRightArrow _,  TFatRightArrow _)  -> True
         (TEqual _,          TEqual _)          -> True
         (TFun _,            TFun _)            -> True
         (TLet _,            TLet _)            -> True
         (TData _,           TData _)           -> True
+        (TMatch _,          TMatch _)          -> True
         _ -> False
 
 tokenData :: Token tdata -> tdata
@@ -51,6 +57,8 @@ tokenData tok = case tok of
     TCloseParen tdata -> tdata
     TSemicolon tdata -> tdata
     TEqual tdata -> tdata
+    TFatRightArrow tdata -> tdata
     TFun tdata -> tdata
     TLet tdata -> tdata
     TData tdata -> tdata
+    TMatch tdata -> tdata

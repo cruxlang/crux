@@ -1,16 +1,19 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RecordWildCards       #-}
 
 module Crux.Parse where
 
-import Crux.Tokens
-import Crux.AST
-import qualified Text.Parsec as P
-import Control.Applicative ((<|>), (<*))
-import Control.Monad.Trans (liftIO)
-import Data.Text (Text)
-import Data.List (foldl')
+import           Control.Applicative ((<*), (<|>))
+import           Control.Monad.Trans (liftIO)
+import           Crux.AST
+import           Crux.Tokens
+import Data.Char (isUpper)
+import           Data.List           (foldl')
+import           Data.Text           (Text)
+import qualified Data.Text           as T
+import qualified Text.Parsec         as P
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = ()
@@ -92,6 +95,41 @@ functionExpression = do
     body <- P.many expression
     _ <- token TCloseBrace
     return $ EFun () args body
+
+pattern :: Parser Pattern2
+pattern =
+    let parenPattern = do
+            _ <- P.try $ token TOpenParen
+            pat <- pattern
+            _ <- token TCloseParen
+            return pat
+
+    in parenPattern <|> noParenPattern
+
+noParenPattern :: Parser Pattern2
+noParenPattern = do
+    txt <- anyIdentifier
+    if isUpper (T.head txt)
+        then do
+            patternArgs <- P.many pattern
+            return $ PConstructor txt patternArgs
+        else
+            return $ PPlaceholder txt
+
+matchExpression :: Parser ParseExpression
+matchExpression = do
+    _ <- P.try (token TMatch)
+    expr <- noSemiExpression
+    _ <- token TOpenBrace
+    cases <- P.many $ do
+        pat <- pattern
+        _ <- token TFatRightArrow
+        ex <- noSemiExpression
+        _ <- token TSemicolon
+        return $ Case pat ex
+
+    _ <- token TCloseBrace
+    return $ EMatch () expr cases
 
 applicationExpression :: Parser ParseExpression
 applicationExpression = do

@@ -15,8 +15,10 @@ assertParseOk parser source expected = do
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens -> do
-            Right result <- P.runParserT parser () "<>" tokens
-            assertEqual (T.unpack source) expected result
+            res <- P.runParserT parser () "<>" tokens
+            case res of
+                Right result -> assertEqual (T.unpack source) expected result
+                Left err -> assertFailure ("Parse failed: " ++ show err)
 
 testLiterals :: IO ()
 testLiterals = do
@@ -40,10 +42,25 @@ testLet2 = do
     assertParseOk letExpression "let a = (5)"
         (ELet () "a" (ELiteral () (LInteger 5)))
 
+testPattern :: IO ()
+testPattern = do
+    assertParseOk pattern "Cons a (Cons b Nil)"
+        (PConstructor "Cons" [PPlaceholder "a", PConstructor "Cons" [PPlaceholder "b", PConstructor "Nil" []]])
+
+testMatch :: IO ()
+testMatch = do
+    assertParseOk matchExpression "match hoot { Nil => hodor ; Cons a b => hoober ; }"
+        (EMatch () (EIdentifier () "hoot")
+            [ Case (PConstructor "Nil" []) (EIdentifier () "hodor")
+            , Case (PConstructor "Cons" [PPlaceholder "a",PPlaceholder "b"]) (EIdentifier () "hoober")
+            ])
+
 tests :: Test
 tests = TestList
     [ TestLabel "testLiterals" $ TestCase testLiterals
     , TestLabel "testLet" $ TestCase testLet
     , TestLabel "testLet2" $ TestCase testLet2
     , TestLabel "testParens" $ TestCase testParens
+    , TestLabel "testPattern" $ TestCase testPattern
+    , TestLabel "testMatch" $ TestCase testMatch
     ]

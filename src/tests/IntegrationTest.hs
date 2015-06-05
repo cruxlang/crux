@@ -35,6 +35,7 @@ run src = do
 
                     fmap (Right . T.pack) $ readProcess "node" ["temp.js"] ""
 
+testHelloWorld :: IO ()
 testHelloWorld = do
     result <- run $ T.unlines
         [ "let _ = print \"Hello, World!\";"
@@ -52,7 +53,7 @@ testInteger = do
 testDataTypes = do
     result <- run $ T.unlines
         [ "data IntList {"
-        , "    Element Int IntList;"
+        , "    Element Number IntList;"
         , "    Nil;"
         , "};"
         , "let mylist = Element 1 (Element 2 Nil);"

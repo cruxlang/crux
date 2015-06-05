@@ -14,6 +14,7 @@ Crux is a principled, practical AltJS language.  It aims to sacrifice nothing.
 
 * Full static type inference
 * Typeclasses
+* The compiler should be fast
 
 # What does it look like?
 

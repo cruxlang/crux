@@ -164,6 +164,7 @@ parenExpression = do
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =
     P.try letExpression
+    <|> matchExpression
     <|> P.try printExpression
     <|> P.try toStringExpression
     <|> P.try functionExpression

@@ -12,8 +12,10 @@ data Literal
     | LString Text
     deriving (Show, Eq)
 
-data Variant = Variant Name [TypeName]
-    deriving (Show, Eq)
+data Variant = Variant
+    { vname :: Name
+    , vparameters :: [TypeName]
+    } deriving (Show, Eq)
 
 data Declaration edata
     = DLet edata Pattern (Expression edata)

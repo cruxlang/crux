@@ -9,6 +9,9 @@ import qualified Data.IORef          as IORef
 new :: IO (IORef (HashMap key value))
 new = IORef.newIORef HashMap.empty
 
+read :: IORef (HashMap key value) -> IO (HashMap key value)
+read = IORef.readIORef
+
 insert :: (Hashable key, Eq key) => key -> value -> IORef (HashMap key value) -> IO ()
 insert k v hm = do
     IORef.modifyIORef hm $ HashMap.insert k v

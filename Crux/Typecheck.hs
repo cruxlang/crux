@@ -7,10 +7,12 @@ module Crux.Typecheck where
 import           Control.Monad         (forM, forM_, when)
 import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
+import Text.Printf (printf)
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
+import           Data.List             (foldl')
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Prelude               hiding (String)
@@ -91,6 +93,41 @@ freshType Env{eNextTypeIndex} = do
     link <- IORef.newIORef Unbound
     return $ TVar index link
 
+typeFromConstructor :: Env -> Name -> Maybe (Type, Variant)
+typeFromConstructor env cname =
+    let fold acc ty = case (acc, ty) of
+            (Just a, _) -> Just a
+            (Nothing, TType ut@(UserType _ variants)) ->
+                case [v | v@(Variant vname _) <- variants, vname == cname] of
+                    [v] -> Just (ut, v)
+                    [] -> Nothing
+                    _ -> error "This should never happen: Type has multiple variants with the same constructor name"
+            _ -> Nothing
+    in foldl' fold Nothing (HashMap.elems $ eTypeBindings env)
+
+-- | Build up an environment for a case of a match block.
+-- exprType is the type of the expression.  We unify this with the constructor of the pattern
+buildPatternEnv :: TypeVar -> Env -> Pattern2 -> IO ()
+buildPatternEnv exprType env patt = case patt of
+    PPlaceholder pname -> do
+        HashTable.insert pname exprType (eBindings env)
+
+    PConstructor cname cargs -> do
+        case typeFromConstructor env cname of
+            Just (ty@(UserType {}), variant) -> do
+                unify exprType (TType ty)
+                let Variant{vparameters} = variant
+
+                when (length vparameters /= length cargs) $
+                    error $ printf "Pattern should specify %i args but got %i" (length vparameters) (length cargs)
+
+                forM_ (zip cargs vparameters) $ \(arg, vp) -> do
+                    case HashMap.lookup vp (eTypeBindings env) of
+                        Just vty ->
+                            buildPatternEnv vty env arg
+                        _ -> error $ printf "Should never happen: Sum type %s has data element of nonexistent type %s"
+            _ -> error $ printf "Unbound constructor %s" (show cname)
+
 check :: Env -> Expression a -> IO (Expression TypeVar)
 check env expr = case expr of
     EBlock _ exprs -> do
@@ -123,6 +160,20 @@ check env expr = case expr of
         result <- freshType env
         unify (edata lhs') (TFun [edata rhs'] result)
         return $ EApp result lhs' rhs'
+
+    EMatch _ matchExpr cases -> do
+        resultType <- freshType env
+
+        matchExpr' <- check env matchExpr
+
+        cases' <- forM cases $ \(Case patt caseExpr) -> do
+            env' <- childEnv env
+            buildPatternEnv (edata matchExpr') env' patt
+            caseExpr' <- check env' caseExpr
+            unify resultType (edata caseExpr')
+            return $ Case patt caseExpr'
+
+        return $ EMatch resultType matchExpr' cases'
 
     ELet _ name expr' -> do
         ty <- freshType env
@@ -226,6 +277,12 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- flatten rhs
         return $ EApp td' lhs' rhs'
+    EMatch td matchExpr cases -> do
+        td' <- flattenTypeVar td
+        expr' <- flatten matchExpr
+        cases' <- forM cases $ \(Case pattern subExpr) ->
+            fmap (Case pattern) (flatten subExpr)
+        return $ EMatch td' expr' cases'
     ELet td name expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'

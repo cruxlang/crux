@@ -2,7 +2,6 @@
 
 module Crux.JSTree where
 
-import Debug.Trace
 import           Data.Maybe             (maybeToList)
 import           Data.Monoid            (Monoid, mconcat, mempty, (<>))
 import           Data.Text              (Text)
@@ -17,6 +16,7 @@ data Statement
     | SFunction (Maybe Name) [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
     | SExpression Expression
     | SReturn Expression
+    | SIf Expression Statement (Maybe Statement) -- if (e1) { s1 } else { s2 }
     deriving (Show, Eq)
 
 data Literal
@@ -32,6 +32,7 @@ data Expression
     = EApplication Expression (Maybe Expression)
     | EFunction (Maybe Name) [Statement] -- function(arg_name) { statements }
     | EBinOp Text Expression Expression -- lhs <op> rhs
+    | ESubscript Expression Expression
     | ELiteral Literal
     | EIdentifier Name
     | EArray [Expression]
@@ -83,10 +84,18 @@ render stmt = case stmt of
     SExpression expr ->
         renderExpr expr
             <> B.fromText  ";\n"
-    SReturn expr -> do
+    SReturn expr ->
         B.fromText "return "
             <> renderExpr expr
             <> B.fromText ";\n"
+    SIf expr thenStmt elseStatement ->
+        B.fromText "if("
+        <> renderExpr expr
+        <> B.fromText ")"
+        <> render thenStmt
+        <> (case elseStatement of
+            Just elseStmt -> B.fromText "else " <> render elseStmt
+            Nothing -> mempty)
 
 renderExpr :: Expression -> Builder
 renderExpr expr = case expr of
@@ -105,6 +114,11 @@ renderExpr expr = case expr of
             <> B.fromText op
             <> renderExpr rhs
             <> B.fromText ")"
+    ESubscript lhs rhs ->
+        renderExpr lhs
+        <> B.fromText "["
+        <> renderExpr rhs
+        <> B.fromText "]"
     ELiteral lit -> case lit of
         LInteger i -> B.fromString $ show i
         LString i -> B.fromString $ show i

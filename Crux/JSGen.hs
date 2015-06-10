@@ -8,6 +8,10 @@ import Data.List (foldl', foldr)
 import qualified Crux.JSTree   as JS
 import qualified Data.Text as T
 
+data Env = Env
+    {
+    }
+
 mkArgName :: Int -> T.Text
 mkArgName i = T.pack ('a':show i)
 
@@ -34,17 +38,17 @@ generateVariant variantName vdata = case vdata of
                   [JS.ELiteral $ JS.LString variantName] ++ (map JS.EIdentifier argNames)
                 ]
 
-generateDecl :: Declaration t -> [JS.Statement]
-generateDecl decl = case decl of
+generateDecl :: Env -> Declaration t -> [JS.Statement]
+generateDecl env decl = case decl of
     DData _name variants ->
         map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
     DLet _ name (EFun _ [param] body) ->
-        [JS.SFunction (Just name) [param] (generateBlock body)]
+        [JS.SFunction (Just name) [param] (generateBlock env body)]
     DLet _ name expr ->
-        [JS.SVar name (generateExpr expr)]
+        [JS.SVar name (generateExpr env expr)]
 
-generateBlock :: [Expression t] -> [JS.Statement]
-generateBlock exprs = concatMap generateStatementExpr exprs
+generateBlock :: Env -> [Expression t] -> [JS.Statement]
+generateBlock env exprs = concatMap (generateStatementExpr env) exprs
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
@@ -76,57 +80,57 @@ generateMatchVars matchVar patt = case patt of
             | (index, patt) <- zip [1..] subpatterns
             ]
 
-generateStatementExpr :: Expression t -> [JS.Statement]
-generateStatementExpr expr = case expr of
+generateStatementExpr :: Env -> Expression t -> [JS.Statement]
+generateStatementExpr env expr = case expr of
     EBlock _ subExprs ->
-        concatMap generateStatementExpr subExprs
+        concatMap (generateStatementExpr env) subExprs
     ELet _ name (EFun _ [param] body) ->
-        [JS.SFunction (Just name) [param] (generateBlock body)]
+        [JS.SFunction (Just name) [param] (generateBlock env body)]
     ELet _ name e ->
-        [JS.SVar name (generateExpr e)]
+        [JS.SVar name (generateExpr env e)]
     EFun _ [param] body ->
-        [JS.SFunction Nothing [param] (generateBlock body)]
+        [JS.SFunction Nothing [param] (generateBlock env body)]
     EFun _ _ _ ->
         error "Andy to fill this in"
     EApp {} ->
-        [JS.SExpression $ generateExpr expr]
+        [JS.SExpression $ generateExpr env expr]
     EMatch _ matchExpr cases ->
         let matchVar = "$$match" -- todo compute something unique
             matchVarIdent = JS.EIdentifier matchVar
 
-            ifBody (Case patt expr) =
-                generateMatchVars matchVarIdent patt <> generateStatementExpr expr
+            ifBody (Case patt caseExpr) =
+                generateMatchVars matchVarIdent patt <> generateStatementExpr env caseExpr
 
             generateIfCascade :: Maybe JS.Statement -> Case a -> Maybe JS.Statement
-            generateIfCascade acc case_@(Case patt expr) =
+            generateIfCascade acc case_@(Case patt _) =
                 Just $ JS.SIf (generateMatchCond matchVarIdent patt) (JS.SBlock $ ifBody case_) acc
 
         in case foldl' generateIfCascade Nothing (reverse cases) of
-            Nothing -> [JS.SVar matchVar (generateExpr matchExpr)]
-            Just if_ -> [JS.SVar matchVar (generateExpr matchExpr), if_]
+            Nothing -> [JS.SVar matchVar (generateExpr env matchExpr)]
+            Just if_ -> [JS.SVar matchVar (generateExpr env matchExpr), if_]
     EPrint _ ex ->
         [JS.SExpression $
             JS.EApplication
                 (JS.EIdentifier "console.log")
-                (Just $ generateExpr ex)
+                (Just $ generateExpr env ex)
         ]
     EToString _ ex ->
         [JS.SExpression $
-            JS.EBinOp "+" (JS.ELiteral (JS.LString "" :: JS.Literal)) (generateExpr ex)
+            JS.EBinOp "+" (JS.ELiteral (JS.LString "" :: JS.Literal)) (generateExpr env ex)
         ]
     ELiteral {} ->
-        [JS.SExpression $ generateExpr expr]
+        [JS.SExpression $ generateExpr env expr]
     EIdentifier {} ->
-        [JS.SExpression $ generateExpr expr]
+        [JS.SExpression $ generateExpr env expr]
     ESemi _ lhs rhs ->
-        [JS.SExpression $ JS.ESemi (generateExpr lhs) (generateExpr rhs)]
+        [JS.SExpression $ JS.ESemi (generateExpr env lhs) (generateExpr env rhs)]
 
-generateExpr :: Expression t -> JS.Expression
-generateExpr expr = case expr of
+generateExpr :: Env -> Expression t -> JS.Expression
+generateExpr env expr = case expr of
     EFun _ [param] body ->
-        JS.EFunction (Just param) (generateBlock body)
+        JS.EFunction (Just param) (generateBlock env body)
     EApp _ lhs rhs ->
-        JS.EApplication (generateExpr lhs) (Just $ generateExpr rhs)
+        JS.EApplication (generateExpr env lhs) (Just $ generateExpr env rhs)
     ELiteral _ (LString s)  ->
         JS.ELiteral (JS.LString s)
     ELiteral _ (LInteger i) ->
@@ -134,8 +138,13 @@ generateExpr expr = case expr of
     EIdentifier _ s ->
         JS.EIdentifier s
     ESemi _ lhs rhs ->
-        JS.EComma (generateExpr lhs) (generateExpr rhs)
+        JS.EComma (generateExpr env lhs) (generateExpr env rhs)
     _ ->
         JS.EApplication
-            (JS.EFunction Nothing $ generateBlock [expr])
+            (JS.EFunction Nothing $ generateBlock env [expr])
             Nothing
+
+generateDocument :: [Declaration t] -> IO [JS.Statement]
+generateDocument decls = do
+    let env = Env{}
+    return $ concatMap (generateDecl env) decls

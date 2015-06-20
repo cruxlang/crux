@@ -10,6 +10,7 @@ type Pattern = Name -- Temporary
 data Literal
     = LInteger Integer
     | LString Text
+    | LUnit
     deriving (Show, Eq)
 
 data Variant = Variant

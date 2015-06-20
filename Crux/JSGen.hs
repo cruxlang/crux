@@ -1,8 +1,13 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
 
 module Crux.JSGen where
 
+import Debug.Trace (trace)
+import           Control.Monad         (forM)
+import           Control.Monad.Trans   (lift)
+import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
 import qualified Crux.JSTree           as JS
 import qualified Crux.MutableHashTable as HashTable
@@ -20,26 +25,34 @@ data Env = Env
     { eNames :: IORef (HashMap Name JS.Name)
     }
 
+type JSWrite a = Writer.WriterT [JS.Statement] IO a
+
+-- When rendering an expression, what should we do with the result?
+data ExprDestination
+    = DReturn
+    | DDiscard
+    | DAssign JS.Name
+
 mkChildEnv :: Env -> IO Env
 mkChildEnv env = do
     eNames' <- HashTable.clone (eNames env)
     return env{eNames=eNames'}
 
-mkName :: Env -> Text -> IO Text
+mkName :: Env -> Text -> JSWrite Text
 mkName Env{..} prefix =
     let insert number = do
             let n = prefix <> "_" <> (T.pack $ show number)
-            r <- HashTable.lookup n eNames
+            r <- lift $ HashTable.lookup n eNames
             case r of
                 Just _ -> insert (1 + number)
                 Nothing -> do
-                    HashTable.insert n n eNames
+                    lift $ HashTable.insert n n eNames
                     return n
     in do
-        r <- HashTable.lookup prefix eNames
+        r <- lift $ HashTable.lookup prefix eNames
         case r of
             Nothing -> do
-                HashTable.insert prefix prefix eNames
+                lift $ HashTable.insert prefix prefix eNames
                 return prefix
             Just _ ->
                 insert (0 :: Int)
@@ -50,9 +63,9 @@ mkArgName i = T.pack ('a':show i)
 blah :: Int -> Int -> [JS.Statement] -> JS.Statement
 blah arity count body
     | count == arity - 1 =
-        JS.SReturn $ JS.EFunction (Just $ mkArgName count) body
+        JS.SReturn $ Just $ JS.EFunction (Just $ mkArgName count) body
     | otherwise =
-        JS.SReturn $ JS.EFunction (Just $ mkArgName count) [blah arity (count + 1) body]
+        JS.SReturn $ Just $ JS.EFunction (Just $ mkArgName count) [blah arity (count + 1) body]
 
 mkCurriedFunction :: Name -> Int -> [JS.Statement] -> JS.Statement
 mkCurriedFunction name numArgs body
@@ -66,7 +79,7 @@ generateVariant variantName vdata = case vdata of
     _ ->
         mkCurriedFunction variantName (length vdata) $
             let argNames = [T.pack ('a':show i) | i <- [0..(length vdata) - 1]]
-            in [ JS.SReturn $ JS.EArray $
+            in [ JS.SReturn $ Just $ JS.EArray $
                   [JS.ELiteral $ JS.LString variantName] ++ (map JS.EIdentifier argNames)
                 ]
 
@@ -74,15 +87,17 @@ generateDecl :: Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
     DData _name variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
-    DLet _ name (EFun _ [param] body) -> do
-        body' <- generateBlock env body
+    DLet _ name (EFun funData [param] body) -> do
+        body' <- generateBlock env (DAssign name) funData body
         return [JS.SFunction (Just name) [param] body']
     DLet _ name expr -> do
-        expr' <- generateExpr env expr
-        return [JS.SVar name expr']
+        (expr', written) <- Writer.runWriterT $ generateExpr env expr
+        return $ written ++ [JS.SVar name expr']
 
-generateBlock :: Env -> [Expression t] -> IO [JS.Statement]
-generateBlock env exprs = fmap concat $ mapM (generateStatementExpr env) exprs
+generateBlock :: Env -> ExprDestination -> t -> [Expression t] -> IO [JS.Statement]
+generateBlock env dest blockData exprs = do
+    (e', written) <- Writer.runWriterT $ generateStatementExpr env dest (EBlock blockData exprs)
+    return (written ++ e')
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
@@ -115,19 +130,28 @@ generateMatchVars matchVar patt = case patt of
             | (index, subPattern) <- zip [1..] subpatterns
             ]
 
-generateStatementExpr :: Env -> Expression t -> IO [JS.Statement]
-generateStatementExpr env expr = case expr of
+generateStatementExpr :: Env -> ExprDestination -> Expression t -> JSWrite [JS.Statement]
+generateStatementExpr env dest expr = case expr of
+    EBlock _ [] -> case dest of
+        DReturn -> return [JS.SReturn Nothing]
+        _ -> return []
+    EBlock _ [subExpr] ->
+        generateStatementExpr env dest subExpr
     EBlock _ subExprs -> do
-        fmap concat $ mapM (generateStatementExpr env) subExprs
+        let sei = init subExprs
+            sel = last subExprs
+        sei' <- fmap concat $ mapM (generateStatementExpr env DDiscard) sei
+        sel' <- generateStatementExpr env dest sel
+        return (sei' ++ sel')
 
-    ELet _ name (EFun _ [param] body) -> do
-        body' <- generateBlock env body
+    ELet letData name (EFun _ [param] body) -> do
+        body' <- generateStatementExpr env DReturn (EBlock letData body)
         return [JS.SFunction (Just name) [param] body']
     ELet _ name e -> do
         e' <- generateExpr env e
         return [JS.SVar name e']
-    EFun _ [param] body -> do
-        body' <- generateBlock env body
+    EFun funData [param] body -> do
+        body' <- lift $ generateBlock env dest funData body
         return [JS.SFunction Nothing [param] body']
     EFun _ _ _ ->
         error "Andy to fill this in"
@@ -139,12 +163,11 @@ generateStatementExpr env expr = case expr of
         let matchVarIdent = JS.EIdentifier matchVar
 
             ifBody (Case patt caseExpr) = do
-                caseExpr' <- generateStatementExpr env caseExpr
+                caseExpr' <- generateStatementExpr env dest caseExpr
                 return $ generateMatchVars matchVarIdent patt <> caseExpr'
 
-            generateIfCascade :: Maybe JS.Statement -> Case a -> IO (Maybe JS.Statement)
+            generateIfCascade :: Maybe JS.Statement -> Case a -> JSWrite (Maybe JS.Statement)
             generateIfCascade acc case_@(Case patt _) = do
-                print acc
                 ifBody' <- ifBody case_
                 return $ Just $ JS.SIf (generateMatchCond matchVarIdent patt) (JS.SBlock ifBody') acc
 
@@ -166,24 +189,30 @@ generateStatementExpr env expr = case expr of
     EToString _ ex -> do
         ex' <- generateExpr env ex
 
-        return [JS.SExpression $
-            JS.EBinOp "+" (JS.ELiteral (JS.LString "" :: JS.Literal)) ex'
+        return [emitWriteDestination dest $
+              JS.EBinOp "+" (JS.ELiteral (JS.LString "")) ex'
             ]
     ELiteral {} -> do
         ex' <- generateExpr env expr
-        return [JS.SExpression ex']
+        return [emitWriteDestination dest ex']
     EIdentifier {} -> do
         ex' <- generateExpr env expr
-        return [JS.SExpression ex']
+        return [emitWriteDestination dest ex']
     ESemi _ lhs rhs -> do
         l <- generateExpr env lhs
         r <- generateExpr env rhs
-        return [JS.SExpression $ JS.ESemi l r]
+        return [JS.SExpression l, emitWriteDestination dest r]
 
-generateExpr :: Env -> Expression t -> IO JS.Expression
+emitWriteDestination :: ExprDestination -> JS.Expression -> JS.Statement
+emitWriteDestination dest expr = case dest of
+    DDiscard -> JS.SExpression expr
+    DReturn -> JS.SReturn $ Just expr
+    DAssign var -> JS.SAssign (JS.EIdentifier var) expr
+
+generateExpr :: Env -> Expression t -> JSWrite JS.Expression
 generateExpr env expr = case expr of
-    EFun _ [param] body -> do
-        body' <- generateBlock env body
+    EFun funData [param] body -> do
+        body' <- lift $ generateBlock env DReturn funData body
         return $ JS.EFunction (Just param) body'
     EApp _ lhs rhs -> do
         l <- generateExpr env lhs
@@ -199,11 +228,16 @@ generateExpr env expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return $ JS.EComma l r
-    _ -> do
-        block' <- generateBlock env [expr]
+    EPrint _ ex -> do
+        ex' <- generateExpr env ex
         return $ JS.EApplication
-            (JS.EFunction Nothing block')
-            Nothing
+            (JS.EIdentifier "console.log")
+            (Just ex')
+    _ -> do
+        tempName <- mkName env "temp"
+        s <- generateStatementExpr env (DAssign tempName) expr
+        Writer.tell s
+        return $ JS.EIdentifier tempName
 
 generateDocument :: [Declaration t] -> IO [JS.Statement]
 generateDocument decls = do

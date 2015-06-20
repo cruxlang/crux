@@ -3,17 +3,17 @@
 module IntegrationTest (run, tests) where
 
 import           Control.Monad  (forM)
-import           Crux.JSGen
+import qualified Crux.JSGen     as JSGen
 import qualified Crux.JSTree    as JSTree
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Typecheck as Typecheck
 import           Data.Text      (Text)
 import qualified Data.Text      as T
+import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
 import           System.Process (readProcess)
 import           Test.HUnit
-import qualified Data.Text as T
 -- import           Text.Show.Pretty   (ppShow)
 import           Data.Monoid    ((<>))
 
@@ -31,7 +31,8 @@ run src = do
                 Right p' -> do
                     typetree <- Typecheck.run p'
                     typetree' <- forM typetree Typecheck.flattenDecl
-                    T.writeFile "temp.js" $ JSTree.renderDocument (concatMap generateDecl typetree')
+                    js <- JSGen.generateDocument typetree'
+                    T.writeFile "temp.js" $ JSTree.renderDocument js
 
                     fmap (Right . T.pack) $ readProcess "node" ["temp.js"] ""
 
@@ -62,9 +63,27 @@ testDataTypes = do
 
     assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
 
+test_pattern_matches_can_be_expressions_that_yield_values = do
+    result <- run $ T.unlines
+        [ "data IntList {"
+        , "    Element Number IntList;"
+        , "    Nil;"
+        , "};"
+        , ""
+        , "let list = Element 1 (Element 2 Nil);"
+        , "let len = match list {"
+        , "    Element num Nil => 1;"
+        , "    Element numOne (Element numTwo Nil) => 2;"
+        , "    Nil => 0;"
+        , "};"
+        , "let _ = print len;"
+        ]
+    assertEqual "" (Right "2\n") result
+
 tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
     , TestLabel "testInteger" $ TestCase testInteger
     , TestLabel "testDataTypes" $ TestCase testDataTypes
+    , TestLabel "test_pattern_matches_can_be_expressions_that_yield_values" $ TestCase test_pattern_matches_can_be_expressions_that_yield_values
     ]

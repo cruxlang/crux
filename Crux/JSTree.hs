@@ -15,8 +15,9 @@ data Statement
     | SVar Name Expression
     | SFunction (Maybe Name) [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
     | SExpression Expression
-    | SReturn Expression
+    | SReturn (Maybe Expression)
     | SIf Expression Statement (Maybe Statement) -- if (e1) { s1 } else { s2 }
+    | SAssign Expression Expression
     deriving (Show, Eq)
 
 data Literal
@@ -79,6 +80,12 @@ render stmt = case stmt of
             <> renderExpr expr
             <> B.fromText ";\n"
 
+    SAssign lhs rhs ->
+        renderExpr lhs
+            <> B.fromText " = "
+            <> renderExpr rhs
+            <> B.fromText ";\n"
+
     SFunction maybeName maybeArg body ->
         renderFunction maybeName maybeArg body
     SExpression expr ->
@@ -86,7 +93,7 @@ render stmt = case stmt of
             <> B.fromText  ";\n"
     SReturn expr ->
         B.fromText "return "
-            <> renderExpr expr
+            <> maybe mempty renderExpr expr
             <> B.fromText ";\n"
     SIf expr thenStmt elseStatement ->
         B.fromText "if("

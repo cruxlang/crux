@@ -55,6 +55,11 @@ testMatch = do
             , Case (PConstructor "Cons" [PPlaceholder "a",PPlaceholder "b"]) (EIdentifier () "hoober")
             ])
 
+testPlus :: IO ()
+testPlus = do
+    assertParseOk noSemiExpression "5 + 5"
+        (EApp () (EApp () (EIdentifier () "+") (ELiteral () (LInteger 5))) (ELiteral () (LInteger 5)))
+
 tests :: Test
 tests = TestList
     [ TestLabel "testLiterals" $ TestCase testLiterals
@@ -63,4 +68,5 @@ tests = TestList
     , TestLabel "testParens" $ TestCase testParens
     , TestLabel "testPattern" $ TestCase testPattern
     , TestLabel "testMatch" $ TestCase testMatch
+    , TestLabel "testPlus" $ TestCase testPlus
     ]

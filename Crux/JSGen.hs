@@ -4,28 +4,20 @@
 
 module Crux.JSGen where
 
-import Debug.Trace (trace)
-import           Control.Monad         (forM)
 import           Control.Monad.Trans   (lift)
 import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
+import qualified Crux.Intrinsic        as Intrinsic
+import           Crux.JSGen.Types
 import qualified Crux.JSTree           as JS
 import qualified Crux.MutableHashTable as HashTable
 import           Data.Foldable         (foldlM)
-import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
-import           Data.IORef            (IORef)
 import qualified Data.IORef            as IORef
 import           Data.List             (foldl')
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
 import qualified Data.Text             as T
-
-data Env = Env
-    { eNames :: IORef (HashMap Name JS.Name)
-    }
-
-type JSWrite a = Writer.WriterT [JS.Statement] IO a
 
 -- When rendering an expression, what should we do with the result?
 data ExprDestination
@@ -214,6 +206,10 @@ generateExpr env expr = case expr of
     EFun funData [param] body -> do
         body' <- lift $ generateBlock env DReturn funData body
         return $ JS.EFunction (Just param) body'
+    EApp _ (EApp _ (EIdentifier _ "+") lhs) rhs -> do
+        l <- generateExpr env lhs
+        r <- generateExpr env rhs
+        return $ JS.EBinOp "+" l r
     EApp _ lhs rhs -> do
         l <- generateExpr env lhs
         r <- generateExpr env rhs

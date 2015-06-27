@@ -1,7 +1,9 @@
 
 module Crux.AST where
 
-import Data.Text (Text)
+import           Data.IORef (IORef)
+import           Data.Text  (Text)
+import qualified Data.Text  as T
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -14,7 +16,7 @@ data Literal
     deriving (Show, Eq)
 
 data Variant = Variant
-    { vname :: Name
+    { vname       :: Name
     , vparameters :: [TypeName]
     } deriving (Show, Eq)
 
@@ -56,3 +58,35 @@ edata expr = case expr of
     ELiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
+
+data Type
+    = Number
+    | String
+    | UserType Name [Variant]
+    | Unit
+    deriving (Eq)
+
+instance Show Type where
+    show ty = case ty of
+        Number -> "Number"
+        String -> "String"
+        UserType name _ -> T.unpack name
+        Unit -> "Unit"
+
+data VarLink a
+    = Unbound
+    | Link a
+    deriving (Show, Eq)
+
+data TypeVar
+    = TVar Int (IORef (VarLink TypeVar))
+    | TQuant Int
+    | TFun [TypeVar] TypeVar
+    | TType Type
+
+data ImmutableTypeVar
+    = IVar Int (VarLink ImmutableTypeVar)
+    | IQuant Int
+    | IFun [ImmutableTypeVar] ImmutableTypeVar
+    | IType Type
+    deriving (Show, Eq)

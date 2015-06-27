@@ -19,9 +19,11 @@ library
                    , Crux.Parse
                    , Crux.Tokens
                    , Crux.Typecheck
+                   , Crux.Intrinsic
                    , Crux.Lex
                    , Crux.Main
                    , Crux.JSGen
+                   , Crux.JSGen.Types
                    , Crux.JSTree
 
     build-depends: base >=4.7

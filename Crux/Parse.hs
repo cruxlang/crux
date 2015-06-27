@@ -7,8 +7,8 @@ module Crux.Parse where
 
 import           Control.Applicative ((<*), (<|>))
 import           Control.Monad.Trans (liftIO)
-import           Crux.AST
-import           Crux.Tokens
+import           Crux.AST as AST
+import           Crux.Tokens as Tokens
 import Data.Char (isUpper)
 import           Data.List           (foldl')
 import           Data.Text           (Text)
@@ -89,7 +89,7 @@ identifierExpression = getToken testTok
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
-    _ <- P.try $ token TFun
+    _ <- P.try $ token Tokens.TFun
     args <- P.many anyIdentifier
     _ <- token TOpenBrace
     body <- P.many expression
@@ -131,9 +131,25 @@ matchExpression = do
     _ <- token TCloseBrace
     return $ EMatch () expr cases
 
+basicExpression :: Parser ParseExpression
+basicExpression = identifierExpression <|> literalExpression <|> parenExpression
+
+addExpression :: Parser ParseExpression
+addExpression = do
+    first <- basicExpression
+    rest <- P.many $ do
+        _ <- token TPlus
+        basicExpression
+
+    let foldIt acc expr =
+            AST.EApp () (AST.EApp () (AST.EIdentifier () "+") acc) expr
+    case rest of
+        [] -> return first
+        _ -> return $ foldl foldIt first rest
+
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
-    terms <- P.many1 (identifierExpression <|> literalExpression <|> parenExpression)
+    terms <- P.many1 addExpression
     case terms of
         [] -> error "This should be very impossible"
         [x] -> return x

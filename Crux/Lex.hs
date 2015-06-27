@@ -69,6 +69,7 @@ symbol = sym2 '=' '>' TFatRightArrow
      <|> sym ')' TCloseParen
      <|> sym '{' TOpenBrace
      <|> sym '}' TCloseBrace
+     <|> sym '+' TPlus
   where
     sym ch tok = do
         p <- pos

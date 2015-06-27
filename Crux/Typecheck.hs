@@ -6,48 +6,17 @@ module Crux.Typecheck where
 
 import           Control.Monad         (forM, forM_, when)
 import           Crux.AST
+import           Crux.Intrinsic        (Intrinsic(..))
+import qualified Crux.Intrinsic        as Intrinsic
 import qualified Crux.MutableHashTable as HashTable
-import Text.Printf (printf)
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
 import           Data.List             (foldl')
 import           Data.Text             (Text)
-import qualified Data.Text             as T
 import           Prelude               hiding (String)
-
-data Type
-    = Number
-    | String
-    | UserType Name [Variant]
-    | Unit
-    deriving (Eq)
-
-instance Show Type where
-    show ty = case ty of
-        Number -> "Number"
-        String -> "String"
-        UserType name _ -> T.unpack name
-        Unit -> "Unit"
-
-data VarLink a
-    = Unbound
-    | Link a
-    deriving (Show, Eq)
-
-data TypeVar
-    = TVar Int (IORef (VarLink TypeVar))
-    | TQuant Int
-    | TFun [TypeVar] TypeVar
-    | TType Type
-
-data ImmutableTypeVar
-    = IVar Int (VarLink ImmutableTypeVar)
-    | IQuant Int
-    | IFun [ImmutableTypeVar] ImmutableTypeVar
-    | IType Type
-    deriving (Show, Eq)
+import           Text.Printf           (printf)
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
@@ -194,6 +163,8 @@ check env expr = case expr of
         return $ ELiteral (TType Number) (LInteger i)
     ELiteral _ (LString s) -> do
         return $ ELiteral (TType String) (LString s)
+    ELiteral _ LUnit -> do
+        return $ ELiteral (TType Unit) LUnit
     EIdentifier _ txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of
@@ -400,6 +371,10 @@ buildTypeEnvironment decls = do
             (x:xs) -> case HashMap.lookup x te of
                 Nothing -> error $ "Constructor " ++ (show name) ++ " variant uses undefined type " ++ (show x)
                 Just t -> TFun [t] (computeVariantType ty name xs)
+
+    forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
+        let Intrinsic{..} = intrin
+        HashTable.insert name iType (eBindings env)
 
     forM_ decls $ \decl -> case decl of
         DData name variants -> do

@@ -7,7 +7,6 @@ module Crux.JSGen where
 import           Control.Monad.Trans   (lift)
 import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
-import qualified Crux.Intrinsic        as Intrinsic
 import           Crux.JSGen.Types
 import qualified Crux.JSTree           as JS
 import qualified Crux.MutableHashTable as HashTable
@@ -24,6 +23,7 @@ data ExprDestination
     = DReturn
     | DDiscard
     | DAssign JS.Name
+    deriving (Show, Eq)
 
 mkChildEnv :: Env -> IO Env
 mkChildEnv env = do
@@ -80,7 +80,7 @@ generateDecl env decl = case decl of
     DData _name variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
     DLet _ name (EFun funData [param] body) -> do
-        body' <- generateBlock env (DAssign name) funData body
+        body' <- generateBlock env DReturn funData body
         return [JS.SFunction (Just name) [param] body']
     DLet _ name expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
@@ -137,6 +137,7 @@ generateStatementExpr env dest expr = case expr of
         return (sei' ++ sel')
 
     ELet letData name (EFun _ [param] body) -> do
+        Writer.liftIO $ print "SRCHSRCH"
         body' <- generateStatementExpr env DReturn (EBlock letData body)
         return [JS.SFunction (Just name) [param] body']
     ELet _ name e -> do
@@ -184,16 +185,20 @@ generateStatementExpr env dest expr = case expr of
         return [emitWriteDestination dest $
               JS.EBinOp "+" (JS.ELiteral (JS.LString "")) ex'
             ]
+    ESemi _ lhs rhs -> do
+        l <- generateExpr env lhs
+        r <- generateExpr env rhs
+        return [JS.SExpression l, emitWriteDestination dest r]
     ELiteral {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
     EIdentifier {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
-    ESemi _ lhs rhs -> do
-        l <- generateExpr env lhs
-        r <- generateExpr env rhs
-        return [JS.SExpression l, emitWriteDestination dest r]
+    EBinIntrinsic {} -> do
+        Writer.liftIO $ print dest
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
 
 emitWriteDestination :: ExprDestination -> JS.Expression -> JS.Statement
 emitWriteDestination dest expr = case dest of
@@ -206,10 +211,6 @@ generateExpr env expr = case expr of
     EFun funData [param] body -> do
         body' <- lift $ generateBlock env DReturn funData body
         return $ JS.EFunction (Just param) body'
-    EApp _ (EApp _ (EIdentifier _ "+") lhs) rhs -> do
-        l <- generateExpr env lhs
-        r <- generateExpr env rhs
-        return $ JS.EBinOp "+" l r
     EApp _ lhs rhs -> do
         l <- generateExpr env lhs
         r <- generateExpr env rhs
@@ -229,6 +230,15 @@ generateExpr env expr = case expr of
         return $ JS.EApplication
             (JS.EIdentifier "console.log")
             (Just ex')
+    EBinIntrinsic _ op lhs rhs -> do
+        let sym = case op of
+                BIPlus     -> "+"
+                BIMinus    -> "-"
+                BIMultiply -> "*"
+                BIDivide   -> "/"
+        l <- generateExpr env lhs
+        r <- generateExpr env rhs
+        return $ JS.EBinOp sym l r
     _ -> do
         tempName <- mkName env "temp"
         s <- generateStatementExpr env (DAssign tempName) expr

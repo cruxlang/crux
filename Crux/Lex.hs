@@ -70,6 +70,9 @@ symbol = sym2 '=' '>' TFatRightArrow
      <|> sym '{' TOpenBrace
      <|> sym '}' TCloseBrace
      <|> sym '+' TPlus
+     <|> sym '-' TMinus
+     <|> sym '*' TMultiply
+     <|> sym '/' TDivide
   where
     sym ch tok = do
         p <- pos

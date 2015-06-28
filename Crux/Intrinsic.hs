@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE Rank2Types        #-}
 
 module Crux.Intrinsic where
@@ -11,15 +12,15 @@ import qualified Data.HashMap.Strict as HashMap
 
 data Intrinsic = Intrinsic
     { iType :: TypeVar
-    , iGen  :: forall a. JSGen.Env -> Expression a -> JSGen.JSWrite JS.Expression
+    , iGen  :: forall a. JSGen.GenVTable -> JSGen.Env -> Expression a -> JSGen.JSWrite JS.Expression
     }
 
--- genPlus :: JSGen.Env -> Expression t -> JSGen.JSWrite JS.Expression
--- genPlus env (EApp _ (EApp _ _ lhs) rhs) = do
---     lhs' <- JSGen.generateExpr env lhs
---     rhs' <- JSGen.generateExpr env rhs
---     return $ JS.EBinOp "+" lhs' rhs'
--- genPlus _ _ = error "Unexpected: Only pass EApp to genPlus"
+genPlus :: JSGen.GenVTable -> JSGen.Env -> Expression t -> JSGen.JSWrite JS.Expression
+genPlus JSGen.GenVTable{..} env (EApp _ (EApp _ (EIdentifier _ "+") lhs) rhs) = do
+    lhs' <- vGenerateExpr env lhs
+    rhs' <- vGenerateExpr env rhs
+    return $ JS.EBinOp "+" lhs' rhs'
+genPlus _ _ _ = error "Unexpected: Only pass EApp to genPlus"
 
 mkCurriedFunctionType :: [TypeVar] -> TypeVar -> TypeVar
 mkCurriedFunctionType [] res = res
@@ -29,7 +30,7 @@ intrinsics :: HashMap Name Intrinsic
 intrinsics = HashMap.fromList
     [ ("+", Intrinsic
         { iType = mkCurriedFunctionType [TType Number, TType Number] (TType Number)
-        , iGen = undefined -- genPlus
+        , iGen = genPlus
         }
       )
     ]

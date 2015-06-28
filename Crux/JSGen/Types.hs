@@ -1,3 +1,5 @@
+{-# LANGUAGE Rank2Types #-}
+
 module Crux.JSGen.Types where
 
 import qualified Control.Monad.Writer  as Writer
@@ -11,3 +13,7 @@ data Env = Env
     }
 
 type JSWrite a = Writer.WriterT [JS.Statement] IO a
+
+data GenVTable = GenVTable
+    { vGenerateExpr :: forall t. Env -> Expression t -> JSWrite JS.Expression
+    }

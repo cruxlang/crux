@@ -80,10 +80,18 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
         ]
     assertEqual "" (Right "2\n") result
 
+test_arithmetic = do
+    result <- run $ T.unlines
+        [ "let hypot_squared = fun x { fun y { x * x + y * y; }; };"
+        , "let _ = print (square 4 3);"
+        ]
+    assertEqual "" (Right "25\n") result
+
 tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
     , TestLabel "testInteger" $ TestCase testInteger
     , TestLabel "testDataTypes" $ TestCase testDataTypes
     , TestLabel "test_pattern_matches_can_be_expressions_that_yield_values" $ TestCase test_pattern_matches_can_be_expressions_that_yield_values
+    , TestLabel "test_arithmetic" $ TestCase test_arithmetic
     ]

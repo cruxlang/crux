@@ -33,6 +33,13 @@ data Pattern2
 data Case edata = Case Pattern2 (Expression edata)
     deriving (Show, Eq)
 
+data BinIntrinsic
+    = BIPlus
+    | BIMinus
+    | BIMultiply
+    | BIDivide
+    deriving (Show, Eq)
+
 data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Pattern (Expression edata)
@@ -44,6 +51,7 @@ data Expression edata
     | ELiteral edata Literal
     | EIdentifier edata Text
     | ESemi edata (Expression edata) (Expression edata)
+    | EBinIntrinsic edata BinIntrinsic (Expression edata) (Expression edata)
     deriving (Show, Eq)
 
 edata :: Expression edata -> edata
@@ -58,6 +66,7 @@ edata expr = case expr of
     ELiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
+    EBinIntrinsic ed _ _ _ -> ed
 
 data Type
     = Number

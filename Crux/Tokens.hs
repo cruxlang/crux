@@ -22,6 +22,9 @@ data Token tdata
     | TEqual tdata
     | TFatRightArrow tdata
     | TPlus tdata
+    | TMinus tdata
+    | TMultiply tdata
+    | TDivide tdata
     -- Keywords
     | TFun tdata
     | TLet tdata
@@ -42,6 +45,9 @@ instance Eq (Token a) where
         (TFatRightArrow _,  TFatRightArrow _)  -> True
         (TEqual _,          TEqual _)          -> True
         (TPlus _,           TPlus _)           -> True
+        (TMinus _,          TMinus _)          -> True
+        (TMultiply _,       TMultiply _)       -> True
+        (TDivide _,         TDivide _)         -> True
         (TFun _,            TFun _)            -> True
         (TLet _,            TLet _)            -> True
         (TData _,           TData _)           -> True
@@ -60,6 +66,9 @@ tokenData tok = case tok of
     TSemicolon tdata -> tdata
     TEqual tdata -> tdata
     TPlus tdata -> tdata
+    TMinus tdata -> tdata
+    TMultiply tdata -> tdata
+    TDivide tdata -> tdata
     TFatRightArrow tdata -> tdata
     TFun tdata -> tdata
     TLet tdata -> tdata

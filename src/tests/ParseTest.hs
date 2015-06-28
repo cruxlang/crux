@@ -58,7 +58,11 @@ testMatch = do
 testPlus :: IO ()
 testPlus = do
     assertParseOk noSemiExpression "5 + 5"
-        (EApp () (EApp () (EIdentifier () "+") (ELiteral () (LInteger 5))) (ELiteral () (LInteger 5)))
+        (EBinIntrinsic () BIPlus (ELiteral () $ LInteger 5) (ELiteral () $ LInteger 5))
+
+testTimes = do
+    assertParseOk multiplyExpression "8 * 8"
+        (EBinIntrinsic () BIMultiply (ELiteral () $ LInteger 8) (ELiteral () $ LInteger 8))
 
 tests :: Test
 tests = TestList
@@ -69,4 +73,5 @@ tests = TestList
     , TestLabel "testPattern" $ TestCase testPattern
     , TestLabel "testMatch" $ TestCase testMatch
     , TestLabel "testPlus" $ TestCase testPlus
+    , TestLabel "testTimes" $ TestCase testTimes
     ]

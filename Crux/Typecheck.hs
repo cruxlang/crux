@@ -178,6 +178,16 @@ check env expr = case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
+    -- TEMP: For now, all binary intrinsics are Number -> Number -> Number
+    EBinIntrinsic _ bi lhs rhs -> do
+        lhs' <- check env lhs
+        unify (TType Number) (edata lhs')
+
+        rhs' <- check env rhs
+        unify (TType Number) (edata rhs')
+
+        return $ EBinIntrinsic (TType Number) bi lhs' rhs'
+
 quantify :: TypeVar -> IO ()
 quantify ty = do
     case ty of
@@ -277,6 +287,11 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- flatten rhs
         return $ ESemi td' lhs' rhs'
+    EBinIntrinsic td name lhs rhs -> do
+        td' <- flattenTypeVar td
+        lhs' <- flatten lhs
+        rhs' <- flatten rhs
+        return $ EBinIntrinsic td' name lhs' rhs'
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of

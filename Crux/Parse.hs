@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE TupleSections #-}
 
 module Crux.Parse where
 
@@ -134,18 +135,28 @@ matchExpression = do
 basicExpression :: Parser ParseExpression
 basicExpression = identifierExpression <|> literalExpression <|> parenExpression
 
+infixExpression :: Parser BinIntrinsic -> Parser ParseExpression -> Parser ParseExpression
+infixExpression operator term = do
+    first <- term
+    rest <- P.many $ do
+        t <- operator
+        fmap (t,) term
+
+    let foldIt acc [] = acc
+        foldIt acc ((binopType, next):terms) =
+            foldIt (AST.EBinIntrinsic () binopType acc next) terms
+
+    return $ foldIt first rest
+
+multiplyExpression :: Parser ParseExpression
+multiplyExpression = do
+    let op = (token TMultiply >> return BIMultiply) <|> (token TDivide >> return BIDivide)
+    infixExpression op basicExpression
+
 addExpression :: Parser ParseExpression
 addExpression = do
-    first <- basicExpression
-    rest <- P.many $ do
-        _ <- token TPlus
-        basicExpression
-
-    let foldIt acc expr =
-            AST.EApp () (AST.EApp () (AST.EIdentifier () "+") acc) expr
-    case rest of
-        [] -> return first
-        _ -> return $ foldl foldIt first rest
+    let op = (token TPlus >> return BIPlus) <|> (token TMinus >> return BIMinus)
+    infixExpression op multiplyExpression
 
 applicationExpression :: Parser ParseExpression
 applicationExpression = do

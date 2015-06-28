@@ -137,17 +137,11 @@ generateStatementExpr env dest expr = case expr of
         return (sei' ++ sel')
 
     ELet letData name (EFun _ [param] body) -> do
-        Writer.liftIO $ print "SRCHSRCH"
         body' <- generateStatementExpr env DReturn (EBlock letData body)
         return [JS.SFunction (Just name) [param] body']
     ELet _ name e -> do
         e' <- generateExpr env e
         return [JS.SVar name e']
-    EFun funData [param] body -> do
-        body' <- lift $ generateBlock env dest funData body
-        return [JS.SFunction Nothing [param] body']
-    EFun _ _ _ ->
-        error "Andy to fill this in"
     EApp {} -> do
         expr' <- generateExpr env expr
         return [JS.SExpression expr']
@@ -189,6 +183,9 @@ generateStatementExpr env dest expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return [JS.SExpression l, emitWriteDestination dest r]
+    EFun {} -> do
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
     ELiteral {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
@@ -196,7 +193,6 @@ generateStatementExpr env dest expr = case expr of
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
     EBinIntrinsic {} -> do
-        Writer.liftIO $ print dest
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
 

@@ -91,11 +91,15 @@ identifierExpression = getToken testTok
 functionExpression :: Parser ParseExpression
 functionExpression = do
     _ <- P.try $ token Tokens.TFun
-    args <- P.many anyIdentifier
+    (first:args) <- P.many1 anyIdentifier
     _ <- token TOpenBrace
     body <- P.many expression
     _ <- token TCloseBrace
-    return $ EFun () args body
+
+    let curryTheFunction firstArg [] = EFun () [firstArg] body
+        curryTheFunction firstArg (next:rest) = EFun () [firstArg] [curryTheFunction next rest]
+
+    return $ curryTheFunction first args
 
 pattern :: Parser Pattern2
 pattern =

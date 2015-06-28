@@ -82,7 +82,7 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
 
 test_arithmetic = do
     result <- run $ T.unlines
-        [ "let hypot_squared = fun x { fun y { x * x + y * y; }; };"
+        [ "let hypot_squared = fun x y { x * x + y * y; };"
         , "let _ = print (hypot_squared 4 3);"
         ]
     assertEqual "" (Right "25\n") result

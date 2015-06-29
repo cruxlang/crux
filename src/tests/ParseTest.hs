@@ -35,12 +35,12 @@ testParens = do
 testLet :: IO ()
 testLet = do
     assertParseOk letExpression "let a = \"Hello\""
-        (ELet () "a" (ELiteral () (LString "Hello")))
+        (ELet () NoRec "a" (ELiteral () (LString "Hello")))
 
 testLet2 :: IO ()
 testLet2 = do
     assertParseOk letExpression "let a = (5)"
-        (ELet () "a" (ELiteral () (LInteger 5)))
+        (ELet () NoRec "a" (ELiteral () (LInteger 5)))
 
 testPattern :: IO ()
 testPattern = do

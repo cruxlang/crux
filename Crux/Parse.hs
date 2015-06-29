@@ -173,10 +173,14 @@ applicationExpression = do
 letExpression :: Parser ParseExpression
 letExpression = do
     _ <- P.try $ token TLet
+    mt <- P.optionMaybe $ token TRec
+    let rec = case mt of
+            Nothing -> NoRec
+            _ -> Rec
     name <- anyIdentifier
     _ <- token TEqual
     expr <- noSemiExpression
-    return (ELet () name expr)
+    return (ELet () rec name expr)
 
 semiExpression :: Parser ParseExpression
 semiExpression = do
@@ -209,8 +213,8 @@ expression = do
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
-    ELet ed name expr <- letExpression
-    return $ DLet ed name expr
+    ELet ed rec name expr <- letExpression
+    return $ DLet ed rec name expr
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do

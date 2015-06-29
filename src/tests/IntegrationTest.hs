@@ -3,13 +3,13 @@
 module IntegrationTest (run, tests) where
 
 import           Control.Monad  (forM)
+import Control.Exception (catch, SomeException)
 import qualified Crux.JSGen     as JSGen
 import qualified Crux.JSTree    as JSTree
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Typecheck as Typecheck
 import           Data.Text      (Text)
-import qualified Data.Text      as T
 import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
 import           System.Process (readProcess)
@@ -19,6 +19,12 @@ import           Data.Monoid    ((<>))
 
 run :: Text -> IO (Either String Text)
 run src = do
+    catch (run' src) $ \e -> do
+        let _ = e :: SomeException
+        return $ Left (show e)
+
+run' :: Text -> IO (Either String Text)
+run' src = do
     let fn = "<string>"
     let l = Crux.Lex.lexSource fn src
     case l of
@@ -87,6 +93,23 @@ test_arithmetic = do
         ]
     assertEqual "" (Right "25\n") result
 
+test_let_is_not_recursive_by_default = do
+    result <- run $ T.unlines [ "let foo = fun x { foo x; };" ]
+    assertEqual "" (Left "Unbound symbol \"foo\"") result
+
+test_recursive = do
+    result <- run $ T.unlines
+        [ "data IntList { Cons Number IntList; Nil; };"
+        , "let rec len = fun l {"
+        , "    match l {"
+        , "        Nil => 0;"
+        , "        Cons num tail => 1 + (len tail);"
+        , "    };"
+        , "};"
+        , "let _ = print (len (Cons 5 Nil));"
+        ]
+    assertEqual "" (Right "1\n") result
+
 tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
@@ -94,4 +117,6 @@ tests = TestList
     , TestLabel "testDataTypes" $ TestCase testDataTypes
     , TestLabel "test_pattern_matches_can_be_expressions_that_yield_values" $ TestCase test_pattern_matches_can_be_expressions_that_yield_values
     , TestLabel "test_arithmetic" $ TestCase test_arithmetic
+    , TestLabel "test_recursive" $ TestCase test_recursive
+    , TestLabel "test_let_is_not_recursive_by_default" $ TestCase test_let_is_not_recursive_by_default
     ]

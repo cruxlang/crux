@@ -9,6 +9,11 @@ type Name = Text -- Temporary
 type TypeName = Text
 type Pattern = Name -- Temporary
 
+data Recursive
+    = Rec
+    | NoRec
+    deriving (Show, Eq)
+
 data Literal
     = LInteger Integer
     | LString Text
@@ -21,7 +26,7 @@ data Variant = Variant
     } deriving (Show, Eq)
 
 data Declaration edata
-    = DLet edata Pattern (Expression edata)
+    = DLet edata Recursive Pattern (Expression edata)
     | DData Name [Variant]
     deriving (Show, Eq)
 
@@ -42,7 +47,7 @@ data BinIntrinsic
 
 data Expression edata
     = EBlock edata [Expression edata]
-    | ELet edata Pattern (Expression edata)
+    | ELet edata Recursive Pattern (Expression edata)
     | EFun edata [Text] [Expression edata]
     | EApp edata (Expression edata) (Expression edata)
     | EMatch edata (Expression edata) [Case edata]
@@ -57,7 +62,7 @@ data Expression edata
 edata :: Expression edata -> edata
 edata expr = case expr of
     EBlock ed _ -> ed
-    ELet ed _ _ -> ed
+    ELet ed _ _ _ -> ed
     EFun ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed

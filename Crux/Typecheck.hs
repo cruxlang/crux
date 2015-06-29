@@ -144,14 +144,23 @@ check env expr = case expr of
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet _ name expr' -> do
+    ELet _ Rec name expr' -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
         expr'' <- check env expr'
         unify ty (edata expr'')
         when (eIsTopLevel env) $ do
             quantify ty
-        return $ ELet ty name expr''
+        return $ ELet ty Rec name expr''
+
+    ELet _ NoRec name expr' -> do
+        ty <- freshType env
+        expr'' <- check env expr'
+        HashTable.insert name ty (eBindings env)
+        unify ty (edata expr'')
+        when (eIsTopLevel env) $ do
+            quantify ty
+        return $ ELet ty NoRec name expr''
 
     EPrint _ expr' -> do
         expr'' <- check env expr'
@@ -264,10 +273,10 @@ flatten expr = case expr of
         cases' <- forM cases $ \(Case pattern subExpr) ->
             fmap (Case pattern) (flatten subExpr)
         return $ EMatch td' expr' cases'
-    ELet td name expr' -> do
+    ELet td rec name expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
-        return $ ELet td' name expr''
+        return $ ELet td' rec name expr''
     EPrint td expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
@@ -297,10 +306,10 @@ flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
     DData name variants ->
         return $ DData name variants
-    DLet ty name expr -> do
+    DLet ty rec name expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
-        return $ DLet ty' name expr'
+        return $ DLet ty' rec name expr'
 
 unify :: TypeVar -> TypeVar -> IO ()
 unify a b = case (a, b) of
@@ -359,10 +368,17 @@ occurs tvr ty = case ty of
 checkDecl :: Env -> Declaration a -> IO (Declaration TypeVar)
 checkDecl env decl = case decl of
     DData name variants -> return $ DData name variants
-    DLet _ name expr -> do
+    DLet _ Rec name expr -> do
+        ty <- freshType env
+        HashTable.insert name ty (eBindings env)
         expr' <- check env expr
-        HashTable.insert name (edata expr') (eBindings env)
-        return $ DLet (edata expr') name expr'
+        unify (edata expr') ty
+        return $ DLet (edata expr') Rec name expr'
+    DLet _ NoRec name expr -> do
+        expr' <- check env expr
+        let ty = edata expr'
+        HashTable.insert name ty (eBindings env)
+        return $ DLet (edata expr') NoRec name expr'
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do

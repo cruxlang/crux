@@ -1,18 +1,16 @@
 
-Crux is a principled, practical AltJS language.  It aims to sacrifice nothing.
+Crux is a principled, practical AltJS language.  It aims to provide a practical programming environment that doesn't compromise on strong fundamentals.
 
 # Core Principles
 
-* Hindley-Milner static types all the way
+* Hindley-Milner type inference
 * Accessible to humans
-* Small code
-* Fast code
-* Clean mapping to raw JS
+* Small, fast code
+* Clean mapping to JS
 * Solid asynchronous programming
 
 # Feature Wishlist
 
-* Full static type inference
 * Typeclasses
 * The compiler should be fast
 
@@ -22,22 +20,22 @@ Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-St
 
 Summary:
 
-```
-let main = fun x {
-    let spam = fun s {
-        print s;
-        print s;
-        print s;
-    };
-
-    spam "spam";
-    spam "spammity";
-    spam "spam!!";
+```ocaml
+data IntList {
+    Cons Number IntList;
+    Nil;
 };
 
-main 0;
+let rec len = fun l {
+    match l {
+        Nil => 0;
+        Cons num tail => 1 + (len tail);
+    };
+};
+
+let _ = print (len (Cons 5 Nil));
 ```
 
 # Status
 
-I give this project a 1% shot at eventually becoming useful enough to compile itself.
+I give this project a 1% shot at eventually becoming useful enough to compile itself.  The whole effort is just little old me in my spare time.

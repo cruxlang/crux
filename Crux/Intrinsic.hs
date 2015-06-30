@@ -24,7 +24,7 @@ genPlus _ _ _ = error "Unexpected: Only pass EApp to genPlus"
 
 mkCurriedFunctionType :: [TypeVar] -> TypeVar -> TypeVar
 mkCurriedFunctionType [] res = res
-mkCurriedFunctionType (ty:rest) res = TFun [ty] (mkCurriedFunctionType rest res)
+mkCurriedFunctionType (ty:rest) res = TFun ty (mkCurriedFunctionType rest res)
 
 intrinsics :: HashMap Name Intrinsic
 intrinsics = HashMap.fromList

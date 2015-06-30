@@ -48,7 +48,7 @@ data BinIntrinsic
 data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Recursive Pattern (Expression edata)
-    | EFun edata [Text] [Expression edata]
+    | EFun edata Text [Expression edata]
     | EApp edata (Expression edata) (Expression edata)
     | EMatch edata (Expression edata) [Case edata]
     | EPrint edata (Expression edata)
@@ -95,12 +95,12 @@ data VarLink a
 data TypeVar
     = TVar Int (IORef (VarLink TypeVar))
     | TQuant Int
-    | TFun [TypeVar] TypeVar
+    | TFun TypeVar TypeVar
     | TType Type
 
 data ImmutableTypeVar
     = IVar Int (VarLink ImmutableTypeVar)
     | IQuant Int
-    | IFun [ImmutableTypeVar] ImmutableTypeVar
+    | IFun ImmutableTypeVar ImmutableTypeVar
     | IType Type
     deriving (Show, Eq)

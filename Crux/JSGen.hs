@@ -79,7 +79,7 @@ generateDecl :: Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
     DData _name variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
-    DLet _ _ name (EFun funData [param] body) -> do
+    DLet _ _ name (EFun funData param body) -> do
         body' <- generateBlock env DReturn funData body
         return [JS.SFunction (Just name) [param] body']
     DLet _ _ name expr -> do
@@ -136,7 +136,7 @@ generateStatementExpr env dest expr = case expr of
         sel' <- generateStatementExpr env dest sel
         return (sei' ++ sel')
 
-    ELet letData _ name (EFun _ [param] body) -> do
+    ELet letData _ name (EFun _ param body) -> do
         body' <- generateStatementExpr env DReturn (EBlock letData body)
         return [JS.SFunction (Just name) [param] body']
     ELet _ _ name e -> do
@@ -204,7 +204,7 @@ emitWriteDestination dest expr = case dest of
 
 generateExpr :: Env -> Expression t -> JSWrite JS.Expression
 generateExpr env expr = case expr of
-    EFun funData [param] body -> do
+    EFun funData param body -> do
         body' <- lift $ generateBlock env DReturn funData body
         return $ JS.EFunction (Just param) body'
     EApp _ lhs rhs -> do

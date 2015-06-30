@@ -96,8 +96,8 @@ functionExpression = do
     body <- P.many expression
     _ <- token TCloseBrace
 
-    let curryTheFunction firstArg [] = EFun () [firstArg] body
-        curryTheFunction firstArg (next:rest) = EFun () [firstArg] [curryTheFunction next rest]
+    let curryTheFunction firstArg [] = EFun () firstArg body
+        curryTheFunction firstArg (next:rest) = EFun () firstArg [curryTheFunction next rest]
 
     return $ curryTheFunction first args
 

@@ -35,8 +35,8 @@ showTypeVarIO tvar = case tvar of
         return $ "TVar " ++ show i ++ " " ++ os
     TQuant i ->
         return $ "TQuant " ++ show i
-    TFun args ret -> do
-        as <- forM args showTypeVarIO
+    TFun arg ret -> do
+        as <- showTypeVarIO arg
         rs <- showTypeVarIO ret
         return $ "TFun " ++ show as  ++ " -> " ++ rs
     TType ty ->
@@ -108,26 +108,24 @@ check env expr = case expr of
             _ -> do
                 exprs' <- forM exprs (check env')
                 return $ EBlock (edata $ last exprs') exprs'
-    EFun _ params exprs -> do
+    EFun _ param exprs -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramTypes <- forM params $ \param -> do
-            paramType <- freshType env
-            HashTable.insert param paramType bindings'
-            return paramType
+        paramType <- freshType env
+        HashTable.insert param paramType bindings'
 
         case exprs of
             [] -> do
-                return $ EFun (TFun paramTypes (TType Unit)) params []
+                return $ EFun (TFun paramType (TType Unit)) param []
             _ -> do
                 let env' = env{eBindings=bindings', eIsTopLevel=False}
                 exprs' <- forM exprs (check env')
-                return $ EFun (TFun paramTypes (edata $ last exprs')) params exprs'
+                return $ EFun (TFun paramType (edata $ last exprs')) param exprs'
 
     EApp _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
         result <- freshType env
-        unify (edata lhs') (TFun [edata rhs'] result)
+        unify (edata lhs') (TFun (edata rhs') result)
         return $ EApp result lhs' rhs'
 
     EMatch _ matchExpr cases -> do
@@ -207,7 +205,7 @@ quantify ty = do
                     writeIORef tv (Link $ TQuant i)
                 Link t' ->
                     quantify t'
-        TFun [param] ret -> do
+        TFun param ret -> do
             quantify param
             quantify ret
         _ ->
@@ -227,10 +225,10 @@ instantiate env t =
                 case vl of
                     Link tv' -> go tv' subst
                     Unbound -> return (ty, subst)
-            TFun [param] ret -> do
+            TFun param ret -> do
                 (ty1, subst') <- go param subst
                 (ty2, subst'') <- go ret subst'
-                return (TFun [ty1] ty2, subst'')
+                return (TFun ty1 ty2, subst'')
             _ -> return (ty, subst)
     in fmap fst (go t [])
 
@@ -245,10 +243,10 @@ flattenTypeVar tv = case tv of
                     flattenTypeVar tv'
         TQuant i ->
             return $ IQuant i
-        TFun args body -> do
-            args' <- forM args flattenTypeVar
+        TFun arg body -> do
+            arg' <- flattenTypeVar arg
             body' <- flattenTypeVar body
-            return $ IFun args' body'
+            return $ IFun arg' body'
         TType t ->
             return $ IType t
 
@@ -332,7 +330,7 @@ unify a b = case (a, b) of
                 error ("unification failure: " ++ (show (aType, bType)))
 
         (TFun aa ar, TFun ba br) -> do
-            forM_ (zip aa ba) (uncurry unify)
+            unify aa ba
             unify ar br
 
         (TFun {}, TType {}) -> do
@@ -359,7 +357,7 @@ occurs tvr ty = case ty of
             case ty'' of
                 Link ty''' -> occurs tvr ty'''
                 _ -> return ()
-    TFun [arg] ret -> do
+    TFun arg ret -> do
         occurs tvr arg
         occurs tvr ret
     _ ->
@@ -401,7 +399,7 @@ buildTypeEnvironment decls = do
             [] -> ty
             (x:xs) -> case HashMap.lookup x te of
                 Nothing -> error $ "Constructor " ++ (show name) ++ " variant uses undefined type " ++ (show x)
-                Just t -> TFun [t] (computeVariantType ty name xs)
+                Just t -> TFun t (computeVariantType ty name xs)
 
     forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin

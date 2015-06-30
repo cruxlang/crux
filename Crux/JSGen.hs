@@ -77,7 +77,7 @@ generateVariant variantName vdata = case vdata of
 
 generateDecl :: Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
-    DData _name variants ->
+    DData _name [] variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
     DLet _ _ name (EFun funData param body) -> do
         body' <- generateBlock env DReturn funData body

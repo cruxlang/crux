@@ -7,6 +7,7 @@ import qualified Data.Text  as T
 
 type Name = Text -- Temporary
 type TypeName = Text
+type TypeVariable = Text -- :)
 type Pattern = Name -- Temporary
 
 data Recursive
@@ -27,7 +28,7 @@ data Variant = Variant
 
 data Declaration edata
     = DLet edata Recursive Pattern (Expression edata)
-    | DData Name [Variant]
+    | DData Name [TypeVariable] [Variant]
     deriving (Show, Eq)
 
 data Pattern2

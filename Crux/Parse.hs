@@ -230,7 +230,7 @@ dataDeclaration = do
         _ <- token TSemicolon
         return (Variant ctorname ctordata)
     _ <- token TCloseBrace
-    return $ DData name variants
+    return $ DData name [] variants
 
 declaration :: Parser ParseDeclaration
 declaration =

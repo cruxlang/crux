@@ -302,8 +302,8 @@ flatten expr = case expr of
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
-    DData name variants ->
-        return $ DData name variants
+    DData name [] variants ->
+        return $ DData name [] variants
     DLet ty rec name expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
@@ -365,7 +365,7 @@ occurs tvr ty = case ty of
 
 checkDecl :: Env -> Declaration a -> IO (Declaration TypeVar)
 checkDecl env decl = case decl of
-    DData name variants -> return $ DData name variants
+    DData name [] variants -> return $ DData name [] variants
     DLet _ Rec name expr -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
@@ -388,7 +388,7 @@ buildTypeEnvironment decls = do
         ]
 
     forM_ decls $ \decl -> case decl of
-        DData name variants -> do
+        DData name [] variants -> do
             let userType = TType $ UserType name variants
             IORef.modifyIORef' typeEnv (HashMap.insert name userType)
         _ -> return ()
@@ -406,7 +406,7 @@ buildTypeEnvironment decls = do
         HashTable.insert name iType (eBindings env)
 
     forM_ decls $ \decl -> case decl of
-        DData name variants -> do
+        DData name [] variants -> do
             let Just userType = HashMap.lookup name te
             forM_ variants $ \(Variant vname vdata) -> do
                 let ctorType = computeVariantType userType vname vdata

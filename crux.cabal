@@ -25,6 +25,7 @@ library
                    , Crux.JSGen
                    , Crux.JSGen.Types
                    , Crux.JSTree
+                   , Crux.Text
 
     build-depends: base >=4.7
                  , parsec == 3.1.9

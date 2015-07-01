@@ -3,7 +3,6 @@ module Crux.AST where
 
 import           Data.IORef (IORef)
 import           Data.Text  (Text)
-import qualified Data.Text  as T
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -77,7 +76,6 @@ edata expr = case expr of
 data Type
     = Number
     | String
-    | UserType Name [Variant]
     | Unit
     deriving (Eq)
 
@@ -85,7 +83,6 @@ instance Show Type where
     show ty = case ty of
         Number -> "Number"
         String -> "String"
-        UserType name _ -> T.unpack name
         Unit -> "Unit"
 
 data VarLink a
@@ -93,15 +90,22 @@ data VarLink a
     | Link a
     deriving (Show, Eq)
 
+data TVariant typevar = TVariant
+    { tvName :: Name
+    , tvParameters :: [typevar]
+    } deriving (Show, Eq)
+
 data TypeVar
     = TVar Int (IORef (VarLink TypeVar))
     | TQuant Int
     | TFun TypeVar TypeVar
+    | TUserType Name [TypeVar] [TVariant TypeVar]
     | TType Type
 
 data ImmutableTypeVar
     = IVar Int (VarLink ImmutableTypeVar)
     | IQuant Int
     | IFun ImmutableTypeVar ImmutableTypeVar
+    | IUserType Name [ImmutableTypeVar] [TVariant ImmutableTypeVar]
     | IType Type
     deriving (Show, Eq)

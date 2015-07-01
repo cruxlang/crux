@@ -12,7 +12,7 @@ type Name = Text
 
 data Statement
     = SBlock [Statement]
-    | SVar Name Expression
+    | SVar Name (Maybe Expression)
     | SFunction (Maybe Name) [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
     | SExpression Expression
     | SReturn (Maybe Expression)
@@ -73,11 +73,10 @@ render stmt = case stmt of
         <> mconcat (map render s)
         <> B.fromText "}\n"
 
-    SVar name expr ->
+    SVar name maybeExpr ->
         B.fromText "var "
             <> B.fromText name
-            <> B.fromText " = "
-            <> renderExpr expr
+            <> maybe mempty (\expr -> B.fromText " = " <> renderExpr expr) maybeExpr
             <> B.fromText ";\n"
 
     SAssign lhs rhs ->

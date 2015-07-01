@@ -4,16 +4,18 @@
 
 module Crux.Typecheck where
 
-import           Control.Monad         (forM, forM_, when)
+import           Control.Monad         (forM, forM_, when, foldM)
 import           Crux.AST
-import           Crux.Intrinsic        (Intrinsic(..))
+import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
 import qualified Crux.MutableHashTable as HashTable
+import           Crux.Tokens           (Pos (..))
+import Crux.Text (isCapitalized)
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
-import           Data.List             (foldl')
+import           Data.List             (foldl', intercalate)
 import           Data.Text             (Text)
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
@@ -39,6 +41,9 @@ showTypeVarIO tvar = case tvar of
         as <- showTypeVarIO arg
         rs <- showTypeVarIO ret
         return $ "TFun " ++ show as  ++ " -> " ++ rs
+    TUserType name tvars _ -> do
+        tvs <- mapM showTypeVarIO tvars
+        return $ (show name) ++ " " ++ (intercalate " " tvs)
     TType ty ->
         return $ "TType " ++ show ty
 
@@ -62,12 +67,12 @@ freshType Env{eNextTypeIndex} = do
     link <- IORef.newIORef Unbound
     return $ TVar index link
 
-typeFromConstructor :: Env -> Name -> Maybe (Type, Variant)
+typeFromConstructor :: Env -> Name -> Maybe (TypeVar, TVariant TypeVar)
 typeFromConstructor env cname =
     let fold acc ty = case (acc, ty) of
             (Just a, _) -> Just a
-            (Nothing, TType ut@(UserType _ variants)) ->
-                case [v | v@(Variant vname _) <- variants, vname == cname] of
+            (Nothing, ut@(TUserType _ _ variants)) ->
+                case [v | v@(TVariant vname _) <- variants, vname == cname] of
                     [v] -> Just (ut, v)
                     [] -> Nothing
                     _ -> error "This should never happen: Type has multiple variants with the same constructor name"
@@ -83,21 +88,36 @@ buildPatternEnv exprType env patt = case patt of
 
     PConstructor cname cargs -> do
         case typeFromConstructor env cname of
-            Just (ty@(UserType {}), variant) -> do
-                unify exprType (TType ty)
-                let Variant{vparameters} = variant
+            Just (ty@(TUserType {}), _) -> do
+                ty' <- instantiate env ty
+                unify exprType ty'
 
-                when (length vparameters /= length cargs) $
-                    error $ printf "Pattern should specify %i args but got %i" (length vparameters) (length cargs)
+                let findVariant [] = error "findVariant: This should never happen"
+                    findVariant (v:rest)
+                        | tvName v == cname = Just v
+                        | otherwise = findVariant rest
 
-                forM_ (zip cargs vparameters) $ \(arg, vp) -> do
-                    case HashMap.lookup vp (eTypeBindings env) of
-                        Just vty ->
-                            buildPatternEnv vty env arg
-                        _ -> error $ printf "Should never happen: Sum type %s has data element of nonexistent type %s"
+                let TUserType _ _ variants = ty'
+                let Just variant = findVariant variants
+                let TVariant{tvParameters} = variant
+
+
+                when (length tvParameters /= length cargs) $
+                    error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
+
+                st <- showTypeVarIO ty'
+                print $ ("pconstr", st)
+                -- AHA Here we need the unified type variables.  Right now we're getting the quantified ones still.
+                pp <- mapM showTypeVarIO tvParameters
+                print ("pp", pp)
+
+                -- Problem here: The TUserType constructor only holds type *names* of variants.  Need to expand that to include the TypeVar
+
+                forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
+                    buildPatternEnv vp env arg
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
-check :: Env -> Expression a -> IO (Expression TypeVar)
+check :: Env -> Expression Pos -> IO (Expression TypeVar)
 check env expr = case expr of
     EBlock _ exprs -> do
         bindings' <- HashTable.clone (eBindings env)
@@ -172,13 +192,16 @@ check env expr = case expr of
         return $ ELiteral (TType String) (LString s)
     ELiteral _ LUnit -> do
         return $ ELiteral (TType Unit) LUnit
-    EIdentifier _ txt -> do
+    EIdentifier pos txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of
-            Nothing ->
-                error $ "Unbound symbol " ++ show txt
+            Nothing -> do
+                eb <- readIORef $ eBindings env
+
+                error $ "Unbound symbol " ++ show (pos, txt, HashMap.keys eb)
             Just tyref -> do
                 tyref' <- instantiate env tyref
+                ts <- showTypeVarIO tyref'
                 return $ EIdentifier tyref' txt
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
@@ -212,43 +235,59 @@ quantify ty = do
             return ()
 
 instantiate :: Env -> TypeVar -> IO TypeVar
-instantiate env t =
-    let go ty subst = case ty of
+instantiate env t = do
+    subst <- HashTable.new
+    let go ty = case ty of
             TQuant name -> do
-                case lookup name (subst :: [(Int, TypeVar)]) of
-                    Just v -> return (v, subst)
+                mv <- HashTable.lookup name subst
+                case mv of
+                    Just v ->
+                        return v
                     Nothing -> do
                         tv <- freshType env
-                        return (tv, (name, tv):subst)
+                        HashTable.insert name tv subst
+                        return tv
             TVar _ tv -> do
                 vl <- readIORef tv
                 case vl of
-                    Link tv' -> go tv' subst
-                    Unbound -> return (ty, subst)
+                    Link tv' -> go tv'
+                    Unbound  -> return ty
             TFun param ret -> do
-                (ty1, subst') <- go param subst
-                (ty2, subst'') <- go ret subst'
-                return (TFun ty1 ty2, subst'')
-            _ -> return (ty, subst)
-    in fmap fst (go t [])
+                ty1 <- go param
+                ty2 <- go ret
+                return $ TFun ty1 ty2
+            TUserType name tyVars variants -> do
+                typeVars' <- mapM go tyVars
+                variants' <- forM variants $ \TVariant{..} -> do
+                    parameters' <- mapM go tvParameters
+                    return $ TVariant {tvName, tvParameters=parameters'}
+                return $ TUserType name typeVars' variants'
+            _ -> return ty
+    go t
 
 flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
 flattenTypeVar tv = case tv of
-        TVar i ior -> do
-            t <- IORef.readIORef ior
-            case t of
-                Unbound ->
-                    return $ IVar i Unbound
-                Link tv' -> do
-                    flattenTypeVar tv'
-        TQuant i ->
-            return $ IQuant i
-        TFun arg body -> do
-            arg' <- flattenTypeVar arg
-            body' <- flattenTypeVar body
-            return $ IFun arg' body'
-        TType t ->
-            return $ IType t
+    TVar i ior -> do
+        t <- IORef.readIORef ior
+        case t of
+            Unbound ->
+                return $ IVar i Unbound
+            Link tv' -> do
+                flattenTypeVar tv'
+    TQuant i ->
+        return $ IQuant i
+    TFun arg body -> do
+        arg' <- flattenTypeVar arg
+        body' <- flattenTypeVar body
+        return $ IFun arg' body'
+    TUserType name tvars variants -> do
+        tvars' <- mapM flattenTypeVar tvars
+        variants' <- forM variants $ \TVariant{..} -> do
+            tvParameters' <- mapM flattenTypeVar tvParameters
+            return $ TVariant { tvName, tvParameters=tvParameters'}
+        return $ IUserType name tvars' variants'
+    TType t ->
+        return $ IType t
 
 flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
 flatten expr = case expr of
@@ -302,8 +341,8 @@ flatten expr = case expr of
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
-    DData name [] variants ->
-        return $ DData name [] variants
+    DData name typeVars variants ->
+        return $ DData name typeVars variants
     DLet ty rec name expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
@@ -311,42 +350,57 @@ flattenDecl decl = case decl of
 
 unify :: TypeVar -> TypeVar -> IO ()
 unify a b = case (a, b) of
-        (TVar _ ar, _) -> do
-            a' <- readIORef ar
-            case a' of
-                Unbound -> do
-                    occurs ar b
-                    writeIORef ar (Link b)
-                Link a'' ->
-                    unify a'' b
+    (TVar _ ar, _) -> do
+        a' <- readIORef ar
+        case a' of
+            Unbound -> do
+                occurs ar b
+                writeIORef ar (Link b)
+            Link a'' ->
+                unify a'' b
 
-        (_, TVar {}) -> do
-            unify b a
+    (_, TVar {}) -> do
+        unify b a
 
-        (TType aType, TType bType)
-            | aType == bType ->
-                return ()
-            | otherwise -> do
-                error ("unification failure: " ++ (show (aType, bType)))
+    (TType aType, TType bType)
+        | aType == bType ->
+            return ()
+        | otherwise -> do
+            error ("unification failure: " ++ (show (aType, bType)))
 
-        (TFun aa ar, TFun ba br) -> do
-            unify aa ba
-            unify ar br
+    (TUserType an atv _av, TUserType bn btv _bv)
+        | an == bn -> do
+            mapM_ (uncurry unify) (zip atv btv)
+        | otherwise -> do
+            error ("Unification failure: " ++ (show (an, bn)))
 
-        (TFun {}, TType {}) -> do
-            lt <- showTypeVarIO a
-            rt <- showTypeVarIO b
-            error $ "Unification failure: " ++ (show (lt, rt))
-        (TType {}, TFun {}) -> do
-            lt <- showTypeVarIO a
-            rt <- showTypeVarIO b
-            error $ "Unification failure: " ++ (show (lt, rt))
+    (TFun aa ar, TFun ba br) -> do
+        unify aa ba
+        unify ar br
 
-        -- These should never happen: Quantified type variables should be instantiated before we get here.
-        (TQuant {}, _) ->
-            error "Internal error: QVar made it to unify"
-        (_, TQuant {}) ->
-            error "Internal error: QVar made it to unify"
+    (TFun {}, TType {}) -> do
+        lt <- showTypeVarIO a
+        rt <- showTypeVarIO b
+        error $ "Unification failure: " ++ (show (lt, rt))
+    (TType {}, TFun {}) -> do
+        lt <- showTypeVarIO a
+        rt <- showTypeVarIO b
+        error $ "Unification failure: " ++ (show (lt, rt))
+
+    -- These should never happen: Quantified type variables should be instantiated before we get here.
+    (TQuant {}, _) -> do
+        lt <- showTypeVarIO a
+        rt <- showTypeVarIO b
+        error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
+    (_, TQuant {}) -> do
+        lt <- showTypeVarIO a
+        rt <- showTypeVarIO b
+        error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
+
+    _ -> do
+        as <- showTypeVarIO a
+        bs <- showTypeVarIO b
+        error $ "Unification failure: " ++ (show (as, bs))
 
 occurs :: IORef (VarLink TypeVar) -> TypeVar -> IO ()
 occurs tvr ty = case ty of
@@ -363,9 +417,11 @@ occurs tvr ty = case ty of
     _ ->
         return ()
 
-checkDecl :: Env -> Declaration a -> IO (Declaration TypeVar)
+checkDecl :: Env -> Declaration Pos -> IO (Declaration TypeVar)
 checkDecl env decl = case decl of
-    DData name [] variants -> return $ DData name [] variants
+    DData name typeVars variants ->
+        -- TODO: Verify that all types referred to by variants exist, or are typeVars
+        return $ DData name typeVars variants
     DLet _ Rec name expr -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
@@ -387,35 +443,77 @@ buildTypeEnvironment decls = do
         , ("String", TType String)
         ]
 
+    -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
+    qvarsRef <- HashTable.new
+
+    -- First, populate the type environment.  Variant parameter types are all initially free.
     forM_ decls $ \decl -> case decl of
-        DData name [] variants -> do
-            let userType = TType $ UserType name variants
+        DData name typeVarNames variants -> do
+            typeVars <- forM typeVarNames $ const $ do
+                ft <- freshType env
+                quantify ft
+                return ft
+            let typeVarTable = zip typeVarNames typeVars
+            HashTable.insert name typeVarTable qvarsRef
+
+            variants' <- forM variants $ \Variant{..} -> do
+                tvParameters <- forM vparameters $ const $ freshType env
+                let tvName = vname
+                return TVariant{..}
+
+            let userType = TUserType name typeVars variants'
             IORef.modifyIORef' typeEnv (HashMap.insert name userType)
         _ -> return ()
 
+    qvars <- IORef.readIORef qvarsRef
     te <- IORef.readIORef typeEnv
 
-    let computeVariantType ty name argTypeNames = case argTypeNames of
+    -- Second, unify parameter types
+    forM_ decls $ \decl -> case decl of
+        DData name _typeVarNames variants -> do
+            Just (TUserType _ _tvars tvariants) <- HashTable.lookup name typeEnv
+            let Just qvarTable = HashMap.lookup name qvars
+            forM_ (zip variants tvariants) $ \(v, tv) -> do
+                forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeName, typeVar) -> do
+                    if isCapitalized typeName
+                        then case HashMap.lookup typeName te of
+                            Nothing -> error $ printf "Constructor uses nonexistent type %s" (show typeName)
+                            Just t -> unify typeVar t
+                        else case lookup typeName qvarTable of
+                            Nothing -> error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
+                            Just t -> unify typeVar t
+        _ -> return ()
+
+    let computeVariantType ty qvarNames name argTypeNames = case argTypeNames of
             [] -> ty
             (x:xs) -> case HashMap.lookup x te of
-                Nothing -> error $ "Constructor " ++ (show name) ++ " variant uses undefined type " ++ (show x)
-                Just t -> TFun t (computeVariantType ty name xs)
+                Just t ->
+                    TFun t (computeVariantType ty qvarNames name xs)
+                Nothing ->
+                    case lookup x qvarNames of
+                        Just t -> TFun t (computeVariantType ty qvarNames name xs)
+                        Nothing -> error $ "Constructor " ++ (show name) ++ " variant uses undefined type " ++ (show x)
 
     forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
         HashTable.insert name iType (eBindings env)
 
+    -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
+    -- with the TypeVars created in the type environment.
     forM_ decls $ \decl -> case decl of
-        DData name [] variants -> do
+        DData name _ variants -> do
             let Just userType = HashMap.lookup name te
+            let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
-                let ctorType = computeVariantType userType vname vdata
+                let ctorType = computeVariantType userType qvarTable vname vdata
+                ct <- showTypeVarIO ctorType
+                print (vname, ct)
                 HashTable.insert vname ctorType (eBindings env)
         _ -> return ()
 
     return env{eTypeBindings=te}
 
-run :: [Declaration a] -> IO [Declaration TypeVar]
+run :: [Declaration Pos] -> IO [Declaration TypeVar]
 run decls = do
     env <- buildTypeEnvironment decls
     forM decls (checkDecl env)

@@ -67,7 +67,7 @@ mkCurriedFunction name numArgs body
 generateVariant :: Name -> [Name] -> JS.Statement
 generateVariant variantName vdata = case vdata of
     [] ->
-        JS.SVar variantName (JS.EArray [JS.ELiteral $ JS.LString variantName])
+        JS.SVar variantName (Just $ JS.EArray [JS.ELiteral $ JS.LString variantName])
     _ ->
         mkCurriedFunction variantName (length vdata) $
             let argNames = [T.pack ('a':show i) | i <- [0..(length vdata) - 1]]
@@ -77,14 +77,14 @@ generateVariant variantName vdata = case vdata of
 
 generateDecl :: Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
-    DData _name [] variants ->
+    DData _name _ variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
     DLet _ _ name (EFun funData param body) -> do
         body' <- generateBlock env DReturn funData body
         return [JS.SFunction (Just name) [param] body']
     DLet _ _ name expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
-        return $ written ++ [JS.SVar name expr']
+        return $ written ++ [JS.SVar name $ Just expr']
 
 generateBlock :: Env -> ExprDestination -> t -> [Expression t] -> IO [JS.Statement]
 generateBlock env dest blockData exprs = do
@@ -115,7 +115,7 @@ generateMatchVars :: JS.Expression -> Pattern2 -> [JS.Statement]
 generateMatchVars matchVar patt = case patt of
     PPlaceholder "_" -> []
     PPlaceholder pname ->
-        [ JS.SVar pname matchVar ]
+        [ JS.SVar pname $ Just matchVar ]
     PConstructor _ subpatterns ->
         concat
             [ generateMatchVars (JS.ESubscript matchVar (JS.ELiteral $ JS.LInteger index)) subPattern
@@ -141,7 +141,7 @@ generateStatementExpr env dest expr = case expr of
         return [JS.SFunction (Just name) [param] body']
     ELet _ _ name e -> do
         e' <- generateExpr env e
-        return [JS.SVar name e']
+        return [JS.SVar name $ Just e']
     EApp {} -> do
         expr' <- generateExpr env expr
         return [JS.SExpression expr']
@@ -162,9 +162,9 @@ generateStatementExpr env dest expr = case expr of
         matchExpr' <- generateExpr env matchExpr
         return $ case if_' of
             Nothing ->
-                [JS.SVar matchVar matchExpr']
+                [JS.SVar matchVar $ Just matchExpr']
             Just if_ ->
-                [JS.SVar matchVar matchExpr', if_]
+                [JS.SVar matchVar $ Just matchExpr', if_]
 
     EPrint _ ex -> do
         ex' <- generateExpr env ex
@@ -238,6 +238,7 @@ generateExpr env expr = case expr of
     _ -> do
         tempName <- mkName env "temp"
         s <- generateStatementExpr env (DAssign tempName) expr
+        Writer.tell [JS.SVar tempName Nothing]
         Writer.tell s
         return $ JS.EIdentifier tempName
 

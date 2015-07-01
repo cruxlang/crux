@@ -42,7 +42,7 @@ main = do
                             -- putStrLn $ ppShow p'
                             typetree <- Typecheck.run p'
                             typetree' <- forM typetree Typecheck.flattenDecl
-                            -- putStrLn $ ppShow typetree'
+                            putStrLn $ ppShow typetree'
                             -- putStrLn $ ppShow (concatMap generateDecl typetree')
                             doc <- generateDocument typetree'
                             T.writeFile outfile $ JSTree.renderDocument doc

@@ -2,22 +2,23 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections         #-}
 
 module Crux.Parse where
 
 import           Control.Applicative ((<*), (<|>))
+import           Control.Monad       (unless, when)
 import           Control.Monad.Trans (liftIO)
-import           Crux.AST as AST
-import           Crux.Tokens as Tokens
-import Data.Char (isUpper)
+import           Crux.AST            as AST
+import           Crux.Text           (isCapitalized)
+import           Crux.Tokens         as Tokens
 import           Data.List           (foldl')
+import           Data.Monoid         ((<>))
 import           Data.Text           (Text)
-import qualified Data.Text           as T
 import qualified Text.Parsec         as P
 
 type Parser = P.ParsecT [Token Pos] () IO
-type ParseData = ()
+type ParseData = Pos
 type ParseExpression = Expression ParseData
 type ParseDeclaration = Declaration ParseData
 
@@ -62,15 +63,15 @@ peekAndShow msg = do
 
 printExpression :: Parser ParseExpression
 printExpression = do
-    _ <- P.try $ identifier "print"
+    pr <- P.try $ identifier "print"
     expr <- noSemiExpression
-    return $ EPrint () expr
+    return $ EPrint (tokenData pr) expr
 
 toStringExpression :: Parser ParseExpression
 toStringExpression = do
-    _ <- P.try $ identifier "toString"
+    ts <- P.try $ identifier "toString"
     expr <- noSemiExpression
-    return $ EToString () expr
+    return $ EToString (tokenData ts) expr
 
 literalExpression :: Parser ParseExpression
 literalExpression = P.tokenPrim showTok nextPos testTok
@@ -78,26 +79,26 @@ literalExpression = P.tokenPrim showTok nextPos testTok
     showTok = show
     nextPos pos _ _ = pos
     testTok tok = case tok of
-        TInteger _ i -> Just $ ELiteral () $ LInteger i
-        TString _ s -> Just $ ELiteral () $ LString s
+        TInteger pos i -> Just $ ELiteral pos $ LInteger i
+        TString pos s -> Just $ ELiteral pos $ LString s
         _ -> Nothing
 
 identifierExpression :: Parser ParseExpression
 identifierExpression = getToken testTok
   where
-    testTok (TIdentifier _ txt) = Just $ EIdentifier () txt
+    testTok (TIdentifier pos txt) = Just $ EIdentifier pos txt
     testTok _ = Nothing
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
-    _ <- P.try $ token Tokens.TFun
+    tfun <- P.try $ token Tokens.TFun
     (first:args) <- P.many1 anyIdentifier
     _ <- token TOpenBrace
     body <- P.many expression
     _ <- token TCloseBrace
 
-    let curryTheFunction firstArg [] = EFun () firstArg body
-        curryTheFunction firstArg (next:rest) = EFun () firstArg [curryTheFunction next rest]
+    let curryTheFunction firstArg [] = EFun (tokenData tfun) firstArg body
+        curryTheFunction firstArg (next:rest) = EFun (tokenData tfun) firstArg [curryTheFunction next rest]
 
     return $ curryTheFunction first args
 
@@ -114,7 +115,7 @@ pattern =
 noParenPattern :: Parser Pattern2
 noParenPattern = do
     txt <- anyIdentifier
-    if isUpper (T.head txt)
+    if isCapitalized txt
         then do
             patternArgs <- P.many pattern
             return $ PConstructor txt patternArgs
@@ -123,7 +124,7 @@ noParenPattern = do
 
 matchExpression :: Parser ParseExpression
 matchExpression = do
-    _ <- P.try (token TMatch)
+    tmatch <- P.try (token TMatch)
     expr <- noSemiExpression
     _ <- token TOpenBrace
     cases <- P.many $ do
@@ -134,7 +135,7 @@ matchExpression = do
         return $ Case pat ex
 
     _ <- token TCloseBrace
-    return $ EMatch () expr cases
+    return $ EMatch (tokenData tmatch) expr cases
 
 basicExpression :: Parser ParseExpression
 basicExpression = identifierExpression <|> literalExpression <|> parenExpression
@@ -148,7 +149,7 @@ infixExpression operator term = do
 
     let foldIt acc [] = acc
         foldIt acc ((binopType, next):terms) =
-            foldIt (AST.EBinIntrinsic () binopType acc next) terms
+            foldIt (AST.EBinIntrinsic (edata next) binopType acc next) terms
 
     return $ foldIt first rest
 
@@ -168,11 +169,11 @@ applicationExpression = do
     case terms of
         [] -> error "This should be very impossible"
         [x] -> return x
-        (x:xs) -> return $ foldl' (EApp ()) x xs
+        (x:xs) -> return $ foldl' (EApp $ edata x) x xs
 
 letExpression :: Parser ParseExpression
 letExpression = do
-    _ <- P.try $ token TLet
+    tlet <- P.try $ token TLet
     mt <- P.optionMaybe $ token TRec
     let rec = case mt of
             Nothing -> NoRec
@@ -180,14 +181,14 @@ letExpression = do
     name <- anyIdentifier
     _ <- token TEqual
     expr <- noSemiExpression
-    return (ELet () rec name expr)
+    return (ELet (tokenData tlet) rec name expr)
 
 semiExpression :: Parser ParseExpression
 semiExpression = do
     e <- noSemiExpression
     _ <- token TSemicolon
     e2 <- noSemiExpression
-    return $ ESemi () e e2
+    return $ ESemi (edata e) e e2
 
 parenExpression :: Parser ParseExpression
 parenExpression = do
@@ -216,12 +217,24 @@ letDeclaration = do
     ELet ed rec name expr <- letExpression
     return $ DLet ed rec name expr
 
+typeName :: Parser Text
+typeName = do
+    name <- anyIdentifier
+    unless (isCapitalized name) $ P.parserFail $ "Expected type name, but got " <> (show name)
+    return name
+
+typeVariableName :: Parser Text
+typeVariableName = do
+    name <- anyIdentifier
+    when (isCapitalized name) $ P.parserFail $ "Expected type variable name but got " <> (show name)
+    return name
+
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
     _ <- P.try $ token TData
 
-    name <- anyIdentifier
-    -- type vars go here
+    name <- typeName
+    typeVars <- P.many typeVariableName
 
     _ <- token TOpenBrace
     variants <- P.many $ do
@@ -230,7 +243,7 @@ dataDeclaration = do
         _ <- token TSemicolon
         return (Variant ctorname ctordata)
     _ <- token TCloseBrace
-    return $ DData name [] variants
+    return $ DData name typeVars variants
 
 declaration :: Parser ParseDeclaration
 declaration =

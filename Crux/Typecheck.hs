@@ -4,7 +4,7 @@
 
 module Crux.Typecheck where
 
-import           Control.Monad         (forM, forM_, when, foldM)
+import           Control.Monad         (forM, forM_, when)
 import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
@@ -101,17 +101,8 @@ buildPatternEnv exprType env patt = case patt of
                 let Just variant = findVariant variants
                 let TVariant{tvParameters} = variant
 
-
                 when (length tvParameters /= length cargs) $
                     error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
-
-                st <- showTypeVarIO ty'
-                print $ ("pconstr", st)
-                -- AHA Here we need the unified type variables.  Right now we're getting the quantified ones still.
-                pp <- mapM showTypeVarIO tvParameters
-                print ("pp", pp)
-
-                -- Problem here: The TUserType constructor only holds type *names* of variants.  Need to expand that to include the TypeVar
 
                 forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
                     buildPatternEnv vp env arg
@@ -201,7 +192,6 @@ check env expr = case expr of
                 error $ "Unbound symbol " ++ show (pos, txt, HashMap.keys eb)
             Just tyref -> do
                 tyref' <- instantiate env tyref
-                ts <- showTypeVarIO tyref'
                 return $ EIdentifier tyref' txt
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
@@ -506,8 +496,6 @@ buildTypeEnvironment decls = do
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
                 let ctorType = computeVariantType userType qvarTable vname vdata
-                ct <- showTypeVarIO ctorType
-                print (vname, ct)
                 HashTable.insert vname ctorType (eBindings env)
         _ -> return ()
 

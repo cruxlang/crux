@@ -41,9 +41,9 @@ showTypeVarIO tvar = case tvar of
         as <- showTypeVarIO arg
         rs <- showTypeVarIO ret
         return $ "TFun " ++ show as  ++ " -> " ++ rs
-    TUserType name tvars _ -> do
+    TUserType def tvars -> do
         tvs <- mapM showTypeVarIO tvars
-        return $ (show name) ++ " " ++ (intercalate " " tvs)
+        return $ (show $ tuName def) ++ " " ++ (intercalate " " tvs)
     TType ty ->
         return $ "TType " ++ show ty
 
@@ -71,8 +71,9 @@ typeFromConstructor :: Env -> Name -> Maybe (TypeVar, TVariant TypeVar)
 typeFromConstructor env cname =
     let fold acc ty = case (acc, ty) of
             (Just a, _) -> Just a
-            (Nothing, ut@(TUserType _ _ variants)) ->
-                case [v | v@(TVariant vname _) <- variants, vname == cname] of
+            (Nothing, ut@(TUserType def _)) ->
+                let TUserTypeDef { tuVariants = variants } = def
+                in case [v | v@(TVariant vname _) <- variants, vname == cname] of
                     [v] -> Just (ut, v)
                     [] -> Nothing
                     _ -> error "This should never happen: Type has multiple variants with the same constructor name"
@@ -88,8 +89,9 @@ buildPatternEnv exprType env patt = case patt of
 
     PConstructor cname cargs -> do
         case typeFromConstructor env cname of
-            Just (ty@(TUserType {}), _) -> do
-                ty' <- instantiate env ty
+            Just (ty@(TUserType def tyVars), _) -> do
+                subst <- HashTable.new
+                (ty', variants) <- instantiateUserType subst env def tyVars
                 unify exprType ty'
 
                 let findVariant [] = error "findVariant: This should never happen"
@@ -97,7 +99,6 @@ buildPatternEnv exprType env patt = case patt of
                         | tvName v == cname = Just v
                         | otherwise = findVariant rest
 
-                let TUserType _ _ variants = ty'
                 let Just variant = findVariant variants
                 let TVariant{tvParameters} = variant
 
@@ -189,7 +190,7 @@ check env expr = case expr of
             Nothing -> do
                 eb <- readIORef $ eBindings env
 
-                error $ "Unbound symbol " ++ show (pos, txt, HashMap.keys eb)
+                error $ "Unbound symbol " ++ show (pos, txt)
             Just tyref -> do
                 tyref' <- instantiate env tyref
                 return $ EIdentifier tyref' txt
@@ -224,36 +225,50 @@ quantify ty = do
         _ ->
             return ()
 
+instantiateUserType subst env def tyVars = do
+    typeVars' <- mapM (instantiate' subst env) tyVars
+    let userType = TUserType def typeVars'
+    variants <- forM (tuVariants def) $ \variant -> do
+        paramTypes <- forM (tvParameters variant) $ \param -> do
+            instantiate' subst env param
+        return variant{tvParameters=paramTypes}
+    return (userType, variants)
+
+instantiate' subst env ty = case ty of
+    TQuant name -> do
+        mv <- HashTable.lookup name subst
+        case mv of
+            Just v ->
+                return v
+            Nothing -> do
+                tv <- freshType env
+                HashTable.insert name tv subst
+                return tv
+    TVar _ tv -> do
+        vl <- readIORef tv
+        case vl of
+            Link tv' -> instantiate' subst env tv'
+            Unbound  -> return ty
+    TFun param ret -> do
+        ty1 <- instantiate' subst env param
+        ty2 <- instantiate' subst env ret
+        return $ TFun ty1 ty2
+    TUserType def tyVars -> do
+        typeVars' <- mapM (instantiate' subst env) tyVars
+        return $ TUserType def typeVars'
+    _ -> return ty
+
 instantiate :: Env -> TypeVar -> IO TypeVar
 instantiate env t = do
     subst <- HashTable.new
-    let go ty = case ty of
-            TQuant name -> do
-                mv <- HashTable.lookup name subst
-                case mv of
-                    Just v ->
-                        return v
-                    Nothing -> do
-                        tv <- freshType env
-                        HashTable.insert name tv subst
-                        return tv
-            TVar _ tv -> do
-                vl <- readIORef tv
-                case vl of
-                    Link tv' -> go tv'
-                    Unbound  -> return ty
-            TFun param ret -> do
-                ty1 <- go param
-                ty2 <- go ret
-                return $ TFun ty1 ty2
-            TUserType name tyVars variants -> do
-                typeVars' <- mapM go tyVars
-                variants' <- forM variants $ \TVariant{..} -> do
-                    parameters' <- mapM go tvParameters
-                    return $ TVariant {tvName, tvParameters=parameters'}
-                return $ TUserType name typeVars' variants'
-            _ -> return ty
-    go t
+    instantiate' subst env t
+
+flattenTypeDef TUserTypeDef{..} = do
+    parameters' <- mapM flattenTypeVar tuParameters
+    -- Huge hack: don't try to flatten variants because they can be recursive
+    let variants' = []
+    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
+    return td
 
 flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
 flattenTypeVar tv = case tv of
@@ -270,12 +285,10 @@ flattenTypeVar tv = case tv of
         arg' <- flattenTypeVar arg
         body' <- flattenTypeVar body
         return $ IFun arg' body'
-    TUserType name tvars variants -> do
+    TUserType def tvars -> do
         tvars' <- mapM flattenTypeVar tvars
-        variants' <- forM variants $ \TVariant{..} -> do
-            tvParameters' <- mapM flattenTypeVar tvParameters
-            return $ TVariant { tvName, tvParameters=tvParameters'}
-        return $ IUserType name tvars' variants'
+        def' <- flattenTypeDef def
+        return $ IUserType def' tvars'
     TType t ->
         return $ IType t
 
@@ -338,6 +351,9 @@ flattenDecl decl = case decl of
         expr' <- flatten expr
         return $ DLet ty' rec name expr'
 
+flattenProgram decls =
+    mapM flattenDecl decls
+
 unify :: TypeVar -> TypeVar -> IO ()
 unify a b = case (a, b) of
     (TVar _ ar, _) -> do
@@ -358,11 +374,11 @@ unify a b = case (a, b) of
         | otherwise -> do
             error ("unification failure: " ++ (show (aType, bType)))
 
-    (TUserType an atv _av, TUserType bn btv _bv)
-        | an == bn -> do
+    (TUserType ad atv, TUserType bd btv)
+        | tuName ad == tuName bd -> do
             mapM_ (uncurry unify) (zip atv btv)
         | otherwise -> do
-            error ("Unification failure: " ++ (show (an, bn)))
+            error ("Unification failure: " ++ (show (tuName ad, tuName bd)))
 
     (TFun aa ar, TFun ba br) -> do
         unify aa ba
@@ -451,7 +467,12 @@ buildTypeEnvironment decls = do
                 let tvName = vname
                 return TVariant{..}
 
-            let userType = TUserType name typeVars variants'
+            let typeDef = TUserTypeDef
+                    { tuName = name
+                    , tuParameters = typeVars
+                    , tuVariants = variants'
+                    }
+            let userType = TUserType typeDef typeVars
             IORef.modifyIORef' typeEnv (HashMap.insert name userType)
         _ -> return ()
 
@@ -461,7 +482,8 @@ buildTypeEnvironment decls = do
     -- Second, unify parameter types
     forM_ decls $ \decl -> case decl of
         DData name _typeVarNames variants -> do
-            Just (TUserType _ _tvars tvariants) <- HashTable.lookup name typeEnv
+            Just (TUserType typeDef _) <- HashTable.lookup name typeEnv
+            let TUserTypeDef { tuVariants = tvariants } = typeDef
             let Just qvarTable = HashMap.lookup name qvars
             forM_ (zip variants tvariants) $ \(v, tv) -> do
                 forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeName, typeVar) -> do

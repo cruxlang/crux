@@ -1,4 +1,4 @@
-
+{-# LANGUAGE RecordWildCards #-}
 module Crux.Tokens where
 
 import Data.Text
@@ -7,7 +7,10 @@ data Pos = Pos
     { posLine :: Int
     , posCol :: Int
     }
-    deriving (Eq, Show)
+    deriving (Eq)
+
+instance Show Pos where
+    show Pos{..} = (show posLine) ++ ":" ++ (show posCol)
 
 data Token tdata
     = TInteger tdata Integer

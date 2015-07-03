@@ -95,7 +95,7 @@ test_arithmetic = do
 
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun x { foo x; };" ]
-    assertEqual "" (Left "Unbound symbol \"foo\"") result
+    assertEqual "" (Left "Unbound symbol (1:19,\"foo\")") result
 
 test_recursive = do
     result <- run $ T.unlines

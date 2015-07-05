@@ -70,7 +70,7 @@ testTimes = do
 
 testPolymorphicData = do
     assertExprParses dataDeclaration "data Maybe a { Some a; None; };"
-        (DData "Maybe" ["a"] [Variant {vname = "Some", vparameters = ["a"]},Variant {vname = "None", vparameters = []}])
+        (DData "Maybe" ["a"] [Variant {vname = "Some", vparameters = [TypeIdent "a" []]},Variant {vname = "None", vparameters = []}])
 
 tests :: Test
 tests = TestList

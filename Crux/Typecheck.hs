@@ -34,7 +34,7 @@ showTypeVarIO tvar = case tvar of
         os <- case o' of
             Unbound -> return "Unbound"
             Link x -> showTypeVarIO x
-        return $ "TVar " ++ show i ++ " " ++ os
+        return $ "(TVar " ++ show i ++ " " ++ os ++ ")"
     TQuant i ->
         return $ "TQuant " ++ show i
     TFun arg ret -> do
@@ -89,7 +89,7 @@ buildPatternEnv exprType env patt = case patt of
 
     PConstructor cname cargs -> do
         case typeFromConstructor env cname of
-            Just (ty@(TUserType def tyVars), _) -> do
+            Just (TUserType def tyVars, _) -> do
                 subst <- HashTable.new
                 (ty', variants) <- instantiateUserType subst env def tyVars
                 unify exprType ty'
@@ -188,8 +188,6 @@ check env expr = case expr of
         result <- HashTable.lookup txt (eBindings env)
         case result of
             Nothing -> do
-                eb <- readIORef $ eBindings env
-
                 error $ "Unbound symbol " ++ show (pos, txt)
             Just tyref -> do
                 tyref' <- instantiate env tyref
@@ -225,6 +223,7 @@ quantify ty = do
         _ ->
             return ()
 
+instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
     typeVars' <- mapM (instantiate' subst env) tyVars
     let userType = TUserType def typeVars'
@@ -234,6 +233,7 @@ instantiateUserType subst env def tyVars = do
         return variant{tvParameters=paramTypes}
     return (userType, variants)
 
+instantiate' :: IORef (HashMap Int TypeVar) -> Crux.Typecheck.Env -> TypeVar -> IO TypeVar
 instantiate' subst env ty = case ty of
     TQuant name -> do
         mv <- HashTable.lookup name subst
@@ -263,6 +263,7 @@ instantiate env t = do
     subst <- HashTable.new
     instantiate' subst env t
 
+flattenTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
 flattenTypeDef TUserTypeDef{..} = do
     parameters' <- mapM flattenTypeVar tuParameters
     -- Huge hack: don't try to flatten variants because they can be recursive
@@ -351,11 +352,15 @@ flattenDecl decl = case decl of
         expr' <- flatten expr
         return $ DLet ty' rec name expr'
 
+flattenProgram :: [Declaration TypeVar] -> IO [Declaration ImmutableTypeVar]
 flattenProgram decls =
     mapM flattenDecl decls
 
 unify :: TypeVar -> TypeVar -> IO ()
 unify a b = case (a, b) of
+    (TVar aid _, TVar bid _)
+        | aid == bid ->
+            return ()
     (TVar _ ar, _) -> do
         a' <- readIORef ar
         case a' of
@@ -442,7 +447,7 @@ checkDecl env decl = case decl of
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
-    env <- newEnv
+    e <- newEnv
     typeEnv <- IORef.newIORef $ HashMap.fromList
         [ ("Number", TType Number)
         , ("Unit", TType Unit)
@@ -456,14 +461,14 @@ buildTypeEnvironment decls = do
     forM_ decls $ \decl -> case decl of
         DData name typeVarNames variants -> do
             typeVars <- forM typeVarNames $ const $ do
-                ft <- freshType env
+                ft <- freshType e
                 quantify ft
                 return ft
             let typeVarTable = zip typeVarNames typeVars
             HashTable.insert name typeVarTable qvarsRef
 
             variants' <- forM variants $ \Variant{..} -> do
-                tvParameters <- forM vparameters $ const $ freshType env
+                tvParameters <- forM vparameters $ const $ freshType e
                 let tvName = vname
                 return TVariant{..}
 
@@ -478,33 +483,25 @@ buildTypeEnvironment decls = do
 
     qvars <- IORef.readIORef qvarsRef
     te <- IORef.readIORef typeEnv
+    let env = e{eTypeBindings=te}
 
     -- Second, unify parameter types
     forM_ decls $ \decl -> case decl of
         DData name _typeVarNames variants -> do
             Just (TUserType typeDef _) <- HashTable.lookup name typeEnv
             let TUserTypeDef { tuVariants = tvariants } = typeDef
-            let Just qvarTable = HashMap.lookup name qvars
             forM_ (zip variants tvariants) $ \(v, tv) -> do
-                forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeName, typeVar) -> do
-                    if isCapitalized typeName
-                        then case HashMap.lookup typeName te of
-                            Nothing -> error $ printf "Constructor uses nonexistent type %s" (show typeName)
-                            Just t -> unify typeVar t
-                        else case lookup typeName qvarTable of
-                            Nothing -> error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
-                            Just t -> unify typeVar t
+                forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
+                    let Just qv = HashMap.lookup name qvars
+                    let t = resolveTypeIdent env qv typeIdent
+                    unify typeVar t
         _ -> return ()
 
-    let computeVariantType ty qvarNames name argTypeNames = case argTypeNames of
+    let computeVariantType ty qvarNames name argTypeIdents = case argTypeIdents of
             [] -> ty
-            (x:xs) -> case HashMap.lookup x te of
-                Just t ->
-                    TFun t (computeVariantType ty qvarNames name xs)
-                Nothing ->
-                    case lookup x qvarNames of
-                        Just t -> TFun t (computeVariantType ty qvarNames name xs)
-                        Nothing -> error $ "Constructor " ++ (show name) ++ " variant uses undefined type " ++ (show x)
+            (x:xs) ->
+                let t = resolveTypeIdent env qvarNames x
+                in TFun t (computeVariantType ty qvarNames name xs)
 
     forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
@@ -522,6 +519,32 @@ buildTypeEnvironment decls = do
         _ -> return ()
 
     return env{eTypeBindings=te}
+
+resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> TypeVar
+resolveTypeIdent env qvarTable typeIdent =
+    go typeIdent
+  where
+    te = eTypeBindings env
+    go (TypeIdent typeName typeParameters) =
+        if isCapitalized typeName
+            then case HashMap.lookup typeName te of
+                Nothing -> error $ printf "Constructor uses nonexistent type %s" (show typeName)
+                Just t@(TType {}) ->
+                    if [] /= typeParameters
+                        then error "Primitive types don't take type parameters"
+                        else t
+                Just (TUserType def _) ->
+                    let typeParams = map go typeParameters
+                    in if length qvarTable /= length typeParameters
+                        then
+                            error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
+                        else
+                            TUserType def typeParams
+                Just t ->
+                    t
+            else case lookup typeName qvarTable of
+                Nothing -> error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
+                Just t -> t
 
 run :: [Declaration Pos] -> IO [Declaration TypeVar]
 run decls = do

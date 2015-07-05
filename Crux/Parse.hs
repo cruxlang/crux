@@ -217,6 +217,19 @@ letDeclaration = do
     ELet ed rec name expr <- letExpression
     return $ DLet ed rec name expr
 
+typeIdent :: Parser TypeIdent
+typeIdent =
+    let parenthesized = do
+            _ <- P.try $ token TOpenParen
+            name <- anyIdentifier
+            params <- P.many typeIdent
+            _ <- token TCloseParen
+            return $ TypeIdent name params
+        justOne = do
+            name <- anyIdentifier
+            return $ TypeIdent name []
+    in parenthesized <|> justOne
+
 typeName :: Parser Text
 typeName = do
     name <- anyIdentifier
@@ -239,7 +252,7 @@ dataDeclaration = do
     _ <- token TOpenBrace
     variants <- P.many $ do
         ctorname <- anyIdentifier
-        ctordata <- P.many anyIdentifier
+        ctordata <- P.many typeIdent
         _ <- token TSemicolon
         return (Variant ctorname ctordata)
     _ <- token TCloseBrace

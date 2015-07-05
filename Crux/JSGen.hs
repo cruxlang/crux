@@ -64,7 +64,7 @@ mkCurriedFunction name numArgs body
     | 1 == numArgs = JS.SFunction (Just name) ["a0"] body
     | otherwise = JS.SFunction (Just name) ["a0"] [blah numArgs 1 body]
 
-generateVariant :: Name -> [Name] -> JS.Statement
+generateVariant :: Name -> [TypeIdent] -> JS.Statement
 generateVariant variantName vdata = case vdata of
     [] ->
         JS.SVar variantName (Just $ JS.EArray [JS.ELiteral $ JS.LString variantName])

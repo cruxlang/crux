@@ -110,6 +110,27 @@ test_recursive = do
         ]
     assertEqual "" (Right "1\n") result
 
+test_recursive_data = do
+    result <- run $ T.unlines
+        [ "data List a {"
+        , "    Cons a (List a);"
+        , "    Nil;"
+        , "};"
+        , ""
+        , "let s = Cons 5 (Cons 6 (Cons 7 Nil));"
+        , ""
+        , "let rec len = fun list {"
+        , "    match list {"
+        , "        Nil => 0;"
+        , "        Cons x tail => 1 + (len tail);"
+        , "    };"
+        , "};"
+        , ""
+        , "let _ = print (len s);"
+        ]
+    assertEqual "" (Right "3\n") result
+
+
 tests :: Test
 tests = TestList
     [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
@@ -119,4 +140,5 @@ tests = TestList
     , TestLabel "test_arithmetic" $ TestCase test_arithmetic
     , TestLabel "test_recursive" $ TestCase test_recursive
     , TestLabel "test_let_is_not_recursive_by_default" $ TestCase test_let_is_not_recursive_by_default
+    , TestLabel "test_recursive_data" $ TestCase test_recursive_data
     ]

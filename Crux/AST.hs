@@ -9,6 +9,9 @@ type TypeName = Text
 type TypeVariable = Text -- :)
 type Pattern = Name -- Temporary
 
+data TypeIdent = TypeIdent TypeName [TypeIdent]
+    deriving (Show, Eq)
+
 data Recursive
     = Rec
     | NoRec
@@ -22,7 +25,7 @@ data Literal
 
 data Variant = Variant
     { vname       :: Name
-    , vparameters :: [TypeName]
+    , vparameters :: [TypeIdent]
     } deriving (Show, Eq)
 
 data Declaration edata
@@ -33,7 +36,7 @@ data Declaration edata
 instance Functor Declaration where
     fmap f d = case d of
         DLet ddata rec pat subExpr -> DLet (f ddata) rec pat (fmap f subExpr)
-        DData {..} -> DData {..}
+        DData name vars variants -> DData name vars variants
 
 data Pattern2
     = PConstructor Name [Pattern2]

@@ -1,6 +1,8 @@
 
 module Crux.Main where
 
+import           Control.Applicative
+import           Data.Monoid
 import           Control.Monad      (forM)
 import           Crux.JSGen
 import qualified Crux.JSTree        as JSTree
@@ -13,6 +15,24 @@ import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified System.FilePath    as F
 import System.IO (stderr, hPutStr)
+import qualified Options.Applicative as Opt
+
+data Options = Options
+     { ast :: Bool
+     , files :: [String]
+     }
+
+optionsParser :: Opt.Parser Options
+optionsParser = Options
+    <$> Opt.switch (Opt.long "ast" <> Opt.help "output AST only")
+    <*> Opt.some (Opt.strArgument (Opt.metavar "SOURCE"))
+
+parseOptions :: IO Options
+parseOptions = Opt.execParser $
+    Opt.info (Opt.helper <*> optionsParser) (
+        Opt.fullDesc
+        <> Opt.progDesc "Compile Crux into JavaScript"
+        <> Opt.header "crux - the best AltJS" )
 
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"
@@ -24,9 +44,8 @@ failed message = do
 
 main :: IO ()
 main = do
-    args <- getArgs
-
-    case args of
+    options <- parseOptions
+    case files options of
         [] -> help
         (_:_:_) -> help
         [fn] -> do

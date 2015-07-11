@@ -3,6 +3,7 @@ module Crux.Main where
 
 import           Control.Applicative
 import           Data.Monoid
+import qualified Data.Text as Text
 import           Control.Monad      (forM)
 import           Crux.JSGen
 import qualified Crux.JSTree        as JSTree
@@ -61,8 +62,11 @@ main = do
                             -- putStrLn $ ppShow p'
                             typetree <- Typecheck.run p'
                             typetree' <- Typecheck.flattenProgram typetree
-                            putStrLn $ ppShow typetree'
+                            if ast options then
+                                putStrLn $ ppShow typetree'
+                            else do
+                                doc <- generateDocument typetree'
+                                putStr $ Text.unpack $ JSTree.renderDocument doc
                             -- putStrLn $ ppShow (concatMap generateDecl typetree')
-                            doc <- generateDocument typetree'
-                            T.writeFile outfile $ JSTree.renderDocument doc
+                             --T.writeFile outfile $ JSTree.renderDocument doc
                             exitWith ExitSuccess

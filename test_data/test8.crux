@@ -1,0 +1,15 @@
+
+data IntList {
+    Element Number IntList;
+    Nil;
+};
+
+let rec length = fun list {
+    match list {
+        Nil => 0;
+        Element num tail => 1 + (length tail);
+    };
+};
+
+let list = Element 1 (Element 2 Nil);
+let _ = print (length list);

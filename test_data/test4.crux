@@ -1,0 +1,8 @@
+
+data IntList {
+    Element Number IntList;
+    Nil;
+};
+
+let butts = Element 1 (Element 2 Nil);
+let _ = print butts;

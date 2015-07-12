@@ -63,8 +63,8 @@ testDataTypes = do
         , "    Element Number IntList;"
         , "    Nil;"
         , "};"
-        , "let mylist = Element 1 (Element 2 Nil);"
-        , "let _ = print mylist;"
+        , "let mylist = Element(1, Element(2, Nil));"
+        , "let _ = print(mylist);"
         ]
 
     assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result

@@ -38,7 +38,7 @@ showTypeVarIO tvar = case tvar of
     TQuant i ->
         return $ "TQuant " ++ show i
     TFun arg ret -> do
-        as <- showTypeVarIO arg
+        as <- mapM showTypeVarIO arg
         rs <- showTypeVarIO ret
         return $ "TFun " ++ show as  ++ " -> " ++ rs
     TUserType def tvars -> do
@@ -122,22 +122,24 @@ check env expr = case expr of
                 return $ EBlock (edata $ last exprs') exprs'
     EFun _ param exprs -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramType <- freshType env
-        HashTable.insert param paramType bindings'
+        paramTypes <- forM param $ \p -> do
+            pt <- freshType env
+            HashTable.insert p pt bindings'
+            return pt
 
         case exprs of
             [] -> do
-                return $ EFun (TFun paramType (TType Unit)) param []
+                return $ EFun (TFun paramTypes (TType Unit)) param []
             _ -> do
                 let env' = env{eBindings=bindings', eIsTopLevel=False}
                 exprs' <- forM exprs (check env')
-                return $ EFun (TFun paramType (edata $ last exprs')) param exprs'
+                return $ EFun (TFun paramTypes (edata $ last exprs')) param exprs'
 
     EApp _ lhs rhs -> do
         lhs' <- check env lhs
-        rhs' <- check env rhs
+        rhs' <- mapM (check env) rhs
         result <- freshType env
-        unify (edata lhs') (TFun (edata rhs') result)
+        unify (edata lhs') (TFun (map edata rhs') result)
         return $ EApp result lhs' rhs'
 
     EMatch _ matchExpr cases -> do
@@ -218,7 +220,7 @@ quantify ty = do
                 Link t' ->
                     quantify t'
         TFun param ret -> do
-            quantify param
+            mapM_ quantify param
             quantify ret
         _ ->
             return ()
@@ -250,7 +252,7 @@ instantiate' subst env ty = case ty of
             Link tv' -> instantiate' subst env tv'
             Unbound  -> return ty
     TFun param ret -> do
-        ty1 <- instantiate' subst env param
+        ty1 <- mapM (instantiate' subst env) param
         ty2 <- instantiate' subst env ret
         return $ TFun ty1 ty2
     TUserType def tyVars -> do
@@ -283,7 +285,7 @@ flattenTypeVar tv = case tv of
     TQuant i ->
         return $ IQuant i
     TFun arg body -> do
-        arg' <- flattenTypeVar arg
+        arg' <- mapM flattenTypeVar arg
         body' <- flattenTypeVar body
         return $ IFun arg' body'
     TUserType def tvars -> do
@@ -306,7 +308,7 @@ flatten expr = case expr of
     EApp td lhs rhs -> do
         td' <- flattenTypeVar td
         lhs' <- flatten lhs
-        rhs' <- flatten rhs
+        rhs' <- mapM flatten rhs
         return $ EApp td' lhs' rhs'
     EMatch td matchExpr cases -> do
         td' <- flattenTypeVar td
@@ -386,7 +388,12 @@ unify a b = case (a, b) of
             error ("Unification failure: " ++ (show (tuName ad, tuName bd)))
 
     (TFun aa ar, TFun ba br) -> do
-        unify aa ba
+        when (length aa /= length ba) $ do
+            at <- showTypeVarIO a
+            bt <- showTypeVarIO b
+            error $ "Unification failure: " ++ (show (at, bt))
+
+        mapM_ (uncurry unify) (zip aa ba)
         unify ar br
 
     (TFun {}, TType {}) -> do
@@ -423,7 +430,7 @@ occurs tvr ty = case ty of
                 Link ty''' -> occurs tvr ty'''
                 _ -> return ()
     TFun arg ret -> do
-        occurs tvr arg
+        mapM_ (occurs tvr) arg
         occurs tvr ret
     _ ->
         return ()
@@ -497,11 +504,11 @@ buildTypeEnvironment decls = do
                     unify typeVar t
         _ -> return ()
 
-    let computeVariantType ty qvarNames name argTypeIdents = case argTypeIdents of
+    let computeVariantType ty qvarNames _name argTypeIdents = case argTypeIdents of
             [] -> ty
-            (x:xs) ->
-                let t = resolveTypeIdent env qvarNames x
-                in TFun t (computeVariantType ty qvarNames name xs)
+            _ ->
+                let resolvedArgTypes = map (resolveTypeIdent env qvarNames) argTypeIdents
+                in TFun resolvedArgTypes ty
 
     forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin

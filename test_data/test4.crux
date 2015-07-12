@@ -4,5 +4,5 @@ data IntList {
     Nil;
 };
 
-let butts = Element 1 (Element 2 Nil);
-let _ = print butts;
+let list = Element(1, Element(2, Nil));
+let _ = print(list);

@@ -12,7 +12,6 @@ import           Control.Monad.Trans (liftIO)
 import           Crux.AST            as AST
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
-import           Data.List           (foldl')
 import           Data.Monoid         ((<>))
 import           Data.Text           (Text)
 import qualified Text.Parsec         as P
@@ -92,15 +91,14 @@ identifierExpression = getToken testTok
 functionExpression :: Parser ParseExpression
 functionExpression = do
     tfun <- P.try $ token Tokens.TFun
-    (first:args) <- P.many1 anyIdentifier
+    _ <- token TOpenParen
+    args <- P.sepBy anyIdentifier (token TComma)
+    _ <- token TCloseParen
     _ <- token TOpenBrace
     body <- P.many expression
     _ <- token TCloseBrace
 
-    let curryTheFunction firstArg [] = EFun (tokenData tfun) firstArg body
-        curryTheFunction firstArg (next:rest) = EFun (tokenData tfun) firstArg [curryTheFunction next rest]
-
-    return $ curryTheFunction first args
+    return $ EFun (tokenData tfun) args body
 
 pattern :: Parser Pattern2
 pattern =
@@ -140,6 +138,20 @@ matchExpression = do
 basicExpression :: Parser ParseExpression
 basicExpression = identifierExpression <|> literalExpression <|> parenExpression
 
+applicationExpression :: Parser ParseExpression
+applicationExpression = do
+    lhs <- basicExpression
+
+    argList <- P.optionMaybe $ do
+        _ <- token TOpenParen
+        args <- P.sepBy noSemiExpression (token TComma)
+        _ <- token TCloseParen
+        return args
+
+    case argList of
+        Nothing -> return lhs
+        Just args -> return $ EApp (edata lhs) lhs args
+
 infixExpression :: Parser BinIntrinsic -> Parser ParseExpression -> Parser ParseExpression
 infixExpression operator term = do
     first <- term
@@ -156,20 +168,12 @@ infixExpression operator term = do
 multiplyExpression :: Parser ParseExpression
 multiplyExpression = do
     let op = (token TMultiply >> return BIMultiply) <|> (token TDivide >> return BIDivide)
-    infixExpression op basicExpression
+    infixExpression op applicationExpression
 
 addExpression :: Parser ParseExpression
 addExpression = do
     let op = (token TPlus >> return BIPlus) <|> (token TMinus >> return BIMinus)
     infixExpression op multiplyExpression
-
-applicationExpression :: Parser ParseExpression
-applicationExpression = do
-    terms <- P.many1 addExpression
-    case terms of
-        [] -> error "This should be very impossible"
-        [x] -> return x
-        (x:xs) -> return $ foldl' (EApp $ edata x) x xs
 
 letExpression :: Parser ParseExpression
 letExpression = do
@@ -204,7 +208,7 @@ noSemiExpression =
     <|> P.try printExpression
     <|> P.try toStringExpression
     <|> P.try functionExpression
-    <|> applicationExpression
+    <|> addExpression
 
 expression :: Parser ParseExpression
 expression = do

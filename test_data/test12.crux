@@ -3,13 +3,13 @@ data List a {
     Nil;
 };
 
-let s = Cons(5, Cons(6, Cons(7, Nil)));
+let s = Cons 5 (Cons 6 (Cons 7 Nil));
 
-let rec len = fun (list) {
+let rec len = fun list {
     match list {
         Nil => 0;
-        Cons x tail => 1 + len(tail);
+        Cons x tail => 1 + (len tail);
     };
 };
 
-let _ = print(len(s));
+let _ = print (len s);

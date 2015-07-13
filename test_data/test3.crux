@@ -4,12 +4,12 @@ data Bool {
     False;
 };
 
-let main = fun (x) {
-    let spam = fun (s) {
-        print(s);
-        print(s);
-        print(s);
+let main = fun x {
+    let spam = fun s {
+        print s;
+        print s;
+        print s;
     };
 
-    spam(True);
+    spam True;
 };

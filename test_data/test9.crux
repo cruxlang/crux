@@ -1,2 +1,2 @@
-let hypot_squared = fun(x, y) { x * x + y * y; };
-let _ = print(hypot_squared(4, 3));
+let hypot_squared = fun x y { x * x + y * y; };
+let _ = print (hypot_squared 4 3);

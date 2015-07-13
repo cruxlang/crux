@@ -142,15 +142,11 @@ applicationExpression :: Parser ParseExpression
 applicationExpression = do
     lhs <- basicExpression
 
-    argList <- P.optionMaybe $ do
-        _ <- token TOpenParen
-        args <- P.sepBy noSemiExpression (token TComma)
-        _ <- token TCloseParen
-        return args
+    argList <- P.many noSemiExpression
 
     case argList of
-        Nothing -> return lhs
-        Just args -> return $ EApp (edata lhs) lhs args
+        [] -> return lhs
+        args -> return $ EApp (edata lhs) lhs args
 
 infixExpression :: Parser BinIntrinsic -> Parser ParseExpression -> Parser ParseExpression
 infixExpression operator term = do

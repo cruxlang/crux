@@ -59,8 +59,8 @@ data BinIntrinsic
 data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Recursive Pattern (Expression edata)
-    | EFun edata Text [Expression edata]
-    | EApp edata (Expression edata) (Expression edata)
+    | EFun edata [Text] [Expression edata]
+    | EApp edata (Expression edata) [Expression edata]
     | EMatch edata (Expression edata) [Case edata]
     | EPrint edata (Expression edata)
     | EToString edata (Expression edata)
@@ -74,8 +74,8 @@ instance Functor Expression where
     fmap f expr = case expr of
         EBlock d s -> EBlock (f d) (fmap (fmap f) s)
         ELet d rec pat subExpr -> ELet (f d) rec pat (fmap f subExpr)
-        EFun d name subExprs -> EFun (f d) name (fmap (fmap f) subExprs)
-        EApp d lhs rhs -> EApp (f d) (fmap f lhs) (fmap f rhs)
+        EFun d argNames subExprs -> EFun (f d) argNames (fmap (fmap f) subExprs)
+        EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
         EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
         EPrint d subExpr -> EPrint (f d) (fmap f subExpr)
         EToString d subExpr -> EToString (f d) (fmap f subExpr)
@@ -129,14 +129,14 @@ data TUserTypeDef typevar = TUserTypeDef
 data TypeVar
     = TVar Int (IORef (VarLink TypeVar))
     | TQuant Int
-    | TFun TypeVar TypeVar
+    | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TType Type
 
 data ImmutableTypeVar
     = IVar Int (VarLink ImmutableTypeVar)
     | IQuant Int
-    | IFun ImmutableTypeVar ImmutableTypeVar
+    | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IType Type
     deriving (Show, Eq)

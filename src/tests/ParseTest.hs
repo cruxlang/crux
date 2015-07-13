@@ -36,6 +36,21 @@ testParens = do
     assertExprParses noSemiExpression "(5)"
         (ELiteral () (LInteger 5))
 
+testApplication :: IO ()
+testApplication = do
+    assertExprParses expression "foo();"
+        (EApp () (EIdentifier () "foo") [])
+
+testApplicationWithArgs :: IO ()
+testApplicationWithArgs = do
+    assertExprParses expression "foo(bar, baz);"
+        (EApp () (EIdentifier () "foo") [EIdentifier () "bar", EIdentifier () "baz"])
+
+testApplicationAssociation :: IO ()
+testApplicationAssociation = do
+    assertExprParses expression "1 + length(list);"
+        (EBinIntrinsic () BIPlus (ELiteral () (LInteger 1)) (EApp () (EIdentifier () "length") [EIdentifier () "list"]))
+
 testLet :: IO ()
 testLet = do
     assertExprParses letExpression "let a = \"Hello\""
@@ -75,6 +90,9 @@ testPolymorphicData = do
 tests :: Test
 tests = TestList
     [ TestLabel "testLiterals" $ TestCase testLiterals
+    , TestLabel "testApplication" $ TestCase testApplication
+    , TestLabel "testApplicationWithArgs" $ TestCase testApplicationWithArgs
+    , TestLabel "testApplicationAssociation" $ TestCase testApplicationAssociation
     , TestLabel "testLet" $ TestCase testLet
     , TestLabel "testLet2" $ TestCase testLet2
     , TestLabel "testParens" $ TestCase testParens

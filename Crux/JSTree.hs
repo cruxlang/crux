@@ -2,7 +2,6 @@
 
 module Crux.JSTree where
 
-import           Data.Maybe             (maybeToList)
 import           Data.Monoid            (Monoid, mconcat, mempty, (<>))
 import           Data.Text              (Text)
 import qualified Data.Text.Lazy         as TL
@@ -30,8 +29,8 @@ data Literal
     deriving (Show, Eq)
 
 data Expression
-    = EApplication Expression (Maybe Expression)
-    | EFunction (Maybe Name) [Statement] -- function(arg_name) { statements }
+    = EApplication Expression [Expression]
+    | EFunction [Name] [Statement] -- function(args) { statements }
     | EBinOp Text Expression Expression -- lhs <op> rhs
     | ESubscript Expression Expression
     | ELiteral Literal
@@ -108,11 +107,11 @@ renderExpr expr = case expr of
     EApplication lhs maybeRhs ->
         renderExpr lhs
             <> B.fromText "("
-            <> (maybe mempty renderExpr maybeRhs)
+            <> (intercalate (B.fromText ", ") $ map renderExpr maybeRhs)
             <> B.fromText ")"
-    EFunction maybeArg body ->
+    EFunction args body ->
         B.fromText "("
-            <> renderFunction Nothing (maybeToList maybeArg) body
+            <> renderFunction Nothing args body
             <> B.fromText ")"
     EBinOp op lhs rhs ->
         B.fromText "("

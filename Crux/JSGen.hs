@@ -49,39 +49,24 @@ mkName Env{..} prefix =
             Just _ ->
                 insert (0 :: Int)
 
-mkArgName :: Int -> T.Text
-mkArgName i = T.pack ('a':show i)
-
-blah :: Int -> Int -> [JS.Statement] -> JS.Statement
-blah arity count body
-    | count == arity - 1 =
-        JS.SReturn $ Just $ JS.EFunction (Just $ mkArgName count) body
-    | otherwise =
-        JS.SReturn $ Just $ JS.EFunction (Just $ mkArgName count) [blah arity (count + 1) body]
-
-mkCurriedFunction :: Name -> Int -> [JS.Statement] -> JS.Statement
-mkCurriedFunction name numArgs body
-    | 1 == numArgs = JS.SFunction (Just name) ["a0"] body
-    | otherwise = JS.SFunction (Just name) ["a0"] [blah numArgs 1 body]
-
 generateVariant :: Name -> [TypeIdent] -> JS.Statement
 generateVariant variantName vdata = case vdata of
     [] ->
         JS.SVar variantName (Just $ JS.EArray [JS.ELiteral $ JS.LString variantName])
     _ ->
-        mkCurriedFunction variantName (length vdata) $
-            let argNames = [T.pack ('a':show i) | i <- [0..(length vdata) - 1]]
-            in [ JS.SReturn $ Just $ JS.EArray $
-                  [JS.ELiteral $ JS.LString variantName] ++ (map JS.EIdentifier argNames)
-                ]
+        let argNames = [T.pack ('a':show i) | i <- [0..(length vdata) - 1]]
+        in JS.SFunction (Just variantName) argNames $
+            [ JS.SReturn $ Just $ JS.EArray $
+              [JS.ELiteral $ JS.LString variantName] ++ (map JS.EIdentifier argNames)
+            ]
 
 generateDecl :: Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
     DData _name _ variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
-    DLet _ _ name (EFun funData param body) -> do
+    DLet _ _ name (EFun funData params body) -> do
         body' <- generateBlock env DReturn funData body
-        return [JS.SFunction (Just name) [param] body']
+        return [JS.SFunction (Just name) params body']
     DLet _ _ name expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
         return $ written ++ [JS.SVar name $ Just expr']
@@ -136,9 +121,9 @@ generateStatementExpr env dest expr = case expr of
         sel' <- generateStatementExpr env dest sel
         return (sei' ++ sel')
 
-    ELet letData _ name (EFun _ param body) -> do
+    ELet letData _ name (EFun _ params body) -> do
         body' <- generateStatementExpr env DReturn (EBlock letData body)
-        return [JS.SFunction (Just name) [param] body']
+        return [JS.SFunction (Just name) params body']
     ELet _ _ name e -> do
         e' <- generateExpr env e
         return [JS.SVar name $ Just e']
@@ -171,7 +156,7 @@ generateStatementExpr env dest expr = case expr of
         return [JS.SExpression $
             JS.EApplication
                 (JS.EIdentifier "console.log")
-                (Just ex')
+                [ex']
             ]
     EToString _ ex -> do
         ex' <- generateExpr env ex
@@ -204,13 +189,13 @@ emitWriteDestination dest expr = case dest of
 
 generateExpr :: Env -> Expression t -> JSWrite JS.Expression
 generateExpr env expr = case expr of
-    EFun funData param body -> do
+    EFun funData params body -> do
         body' <- lift $ generateBlock env DReturn funData body
-        return $ JS.EFunction (Just param) body'
+        return $ JS.EFunction params body'
     EApp _ lhs rhs -> do
         l <- generateExpr env lhs
-        r <- generateExpr env rhs
-        return $ JS.EApplication l (Just r)
+        r <- mapM (generateExpr env) rhs
+        return $ JS.EApplication l r
     ELiteral _ (LString s)  ->
         return $ JS.ELiteral (JS.LString s)
     ELiteral _ (LInteger i) ->
@@ -225,7 +210,7 @@ generateExpr env expr = case expr of
         ex' <- generateExpr env ex
         return $ JS.EApplication
             (JS.EIdentifier "console.log")
-            (Just ex')
+            [ex']
     EBinIntrinsic _ op lhs rhs -> do
         let sym = case op of
                 BIPlus     -> "+"

@@ -76,37 +76,37 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
         , "    Nil;"
         , "};"
         , ""
-        , "let list = Element 1 (Element 2 Nil);"
+        , "let list = Element(1, Element(2, Nil));"
         , "let len = match list {"
         , "    Element num Nil => 1;"
         , "    Element numOne (Element numTwo Nil) => 2;"
         , "    Nil => 0;"
         , "};"
-        , "let _ = print len;"
+        , "let _ = print(len);"
         ]
     assertEqual "" (Right "2\n") result
 
 test_arithmetic = do
     result <- run $ T.unlines
-        [ "let hypot_squared = fun x y { x * x + y * y; };"
-        , "let _ = print (hypot_squared 4 3);"
+        [ "let hypot_squared = fun (x, y) { x * x + y * y; };"
+        , "let _ = print(hypot_squared(4, 3));"
         ]
     assertEqual "" (Right "25\n") result
 
 test_let_is_not_recursive_by_default = do
-    result <- run $ T.unlines [ "let foo = fun x { foo x; };" ]
-    assertEqual "" (Left "Unbound symbol (1:19,\"foo\")") result
+    result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
+    assertEqual "" (Left "Unbound symbol (1:21,\"foo\")") result
 
 test_recursive = do
     result <- run $ T.unlines
         [ "data IntList { Cons Number IntList; Nil; };"
-        , "let rec len = fun l {"
+        , "let rec len = fun (l) {"
         , "    match l {"
         , "        Nil => 0;"
-        , "        Cons num tail => 1 + (len tail);"
+        , "        Cons num tail => 1 + len(tail);"
         , "    };"
         , "};"
-        , "let _ = print (len (Cons 5 Nil));"
+        , "let _ = print(len(Cons(5, Nil)));"
         ]
     assertEqual "" (Right "1\n") result
 
@@ -117,16 +117,16 @@ test_recursive_data = do
         , "    Nil;"
         , "};"
         , ""
-        , "let s = Cons 5 (Cons 6 (Cons 7 Nil));"
+        , "let s = Cons(5, Cons(6, Cons(7, Nil)));"
         , ""
-        , "let rec len = fun list {"
+        , "let rec len = fun (list) {"
         , "    match list {"
         , "        Nil => 0;"
-        , "        Cons x tail => 1 + (len tail);"
+        , "        Cons x tail => 1 + len(tail);"
         , "    };"
         , "};"
         , ""
-        , "let _ = print (len s);"
+        , "let _ = print(len(s));"
         ]
     assertEqual "" (Right "3\n") result
 

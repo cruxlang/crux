@@ -3,11 +3,11 @@ data IntList {
     Nil;
 };
 
-let rec len = fun l {
+let rec len = fun (l) {
     match l {
         Nil => 0;
-        Cons num tail => 1 + (len tail);
+        Cons num tail => 1 + len(tail);
     };
 };
 
-let _ = print (len (Cons 5 Nil));
+let _ = print(len(Cons(5, Nil)));

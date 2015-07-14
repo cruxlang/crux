@@ -4,4 +4,4 @@ data IntList {
     Nil;
 };
 
-let butts = Element 1 (Element 2 Nil);
+let list = Element(1, Element(2, Nil));

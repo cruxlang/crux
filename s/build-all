@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")"/..
+
+for fn in test_data/*.crux; do
+    dist/build/crux/crux "$fn"
+done

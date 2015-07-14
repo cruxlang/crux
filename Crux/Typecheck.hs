@@ -16,6 +16,7 @@ import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
 import           Data.List             (foldl', intercalate)
+import           Data.Monoid ((<>))
 import           Data.Text             (Text)
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
@@ -379,19 +380,19 @@ unify a b = case (a, b) of
         | aType == bType ->
             return ()
         | otherwise -> do
-            error ("unification failure: " ++ (show (aType, bType)))
+            unificationError aType bType
 
     (TUserType ad atv, TUserType bd btv)
         | tuName ad == tuName bd -> do
             mapM_ (uncurry unify) (zip atv btv)
         | otherwise -> do
-            error ("Unification failure: " ++ (show (tuName ad, tuName bd)))
+            unificationError (tuName ad) (tuName bd)
 
     (TFun aa ar, TFun ba br) -> do
         when (length aa /= length ba) $ do
             at <- showTypeVarIO a
             bt <- showTypeVarIO b
-            error $ "Unification failure: " ++ (show (at, bt))
+            unificationError at bt
 
         mapM_ (uncurry unify) (zip aa ba)
         unify ar br
@@ -399,11 +400,11 @@ unify a b = case (a, b) of
     (TFun {}, TType {}) -> do
         lt <- showTypeVarIO a
         rt <- showTypeVarIO b
-        error $ "Unification failure: " ++ (show (lt, rt))
+        unificationError lt rt
     (TType {}, TFun {}) -> do
         lt <- showTypeVarIO a
         rt <- showTypeVarIO b
-        error $ "Unification failure: " ++ (show (lt, rt))
+        unificationError lt rt
 
     -- These should never happen: Quantified type variables should be instantiated before we get here.
     (TQuant {}, _) -> do
@@ -418,7 +419,10 @@ unify a b = case (a, b) of
     _ -> do
         as <- showTypeVarIO a
         bs <- showTypeVarIO b
-        error $ "Unification failure: " ++ (show (as, bs))
+        unificationError as bs
+
+unificationError :: Show a => a -> a -> IO ()
+unificationError a b = error $ "Unification error: " <> show (a, b)
 
 occurs :: IORef (VarLink TypeVar) -> TypeVar -> IO ()
 occurs tvr ty = case ty of

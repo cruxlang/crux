@@ -216,11 +216,6 @@ expression = do
     _ <- token TSemicolon
     return s
 
-letDeclaration :: Parser ParseDeclaration
-letDeclaration = do
-    ELet ed rec name expr <- letExpression
-    return $ DLet ed rec name expr
-
 typeIdent :: Parser TypeIdent
 typeIdent =
     let parenthesized = do
@@ -246,6 +241,11 @@ typeVariableName = do
     when (isCapitalized name) $ P.parserFail $ "Expected type variable name but got " <> (show name)
     return name
 
+letDeclaration :: Parser ParseDeclaration
+letDeclaration = do
+    ELet ed rec name expr <- letExpression
+    return $ DLet ed rec name expr
+
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
     _ <- P.try $ token TData
@@ -262,9 +262,26 @@ dataDeclaration = do
     _ <- token TCloseBrace
     return $ DData name typeVars variants
 
+funDeclaration :: Parser ParseDeclaration
+funDeclaration = do
+    tfun <- P.try $ token Tokens.TFun
+    name <- anyIdentifier
+    _ <- token TOpenParen
+    args <- P.sepBy anyIdentifier (token TComma)
+    _ <- token TCloseParen
+    _ <- token TOpenBrace
+    body <- P.many expression
+    _ <- token TCloseBrace
+
+    let expr = EFun (tokenData tfun) args body
+
+    return $ DLet (tokenData tfun) NoRec name expr
+
+
 declaration :: Parser ParseDeclaration
 declaration =
     dataDeclaration <|>
+    funDeclaration <|>
     letDeclaration
 
 document :: Parser [ParseDeclaration]

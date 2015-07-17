@@ -12,6 +12,7 @@ import           Control.Monad.Trans (liftIO)
 import           Crux.AST            as AST
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
+import           Data.List           (foldl')
 import           Data.Monoid         ((<>))
 import           Data.Text           (Text)
 import qualified Text.Parsec         as P
@@ -138,9 +139,20 @@ matchExpression = do
 basicExpression :: Parser ParseExpression
 basicExpression = identifierExpression <|> literalExpression <|> parenExpression
 
+lookupExpression :: Parser ParseExpression
+lookupExpression = do
+    lhs <- basicExpression
+    rhs <- P.many $ do
+        _ <- token TDot
+        anyIdentifier
+
+    case rhs of
+        [] -> return lhs
+        _ -> return $ foldl' (\acc name -> ELookup (edata lhs) acc name) lhs rhs
+
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
-    lhs <- basicExpression
+    lhs <- lookupExpression
 
     argList <- P.optionMaybe $ do
         _ <- token TOpenParen

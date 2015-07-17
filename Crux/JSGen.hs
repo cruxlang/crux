@@ -127,6 +127,12 @@ generateStatementExpr env dest expr = case expr of
     ELet _ _ name e -> do
         e' <- generateExpr env e
         return [JS.SVar name $ Just e']
+    EFun {} -> do
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
+    ELookup {} -> do
+        expr' <- generateExpr env expr
+        return [JS.SExpression expr']
     EApp {} -> do
         expr' <- generateExpr env expr
         return [JS.SExpression expr']
@@ -168,9 +174,6 @@ generateStatementExpr env dest expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return [JS.SExpression l, emitWriteDestination dest r]
-    EFun {} -> do
-        ex' <- generateExpr env expr
-        return [emitWriteDestination dest ex']
     ELiteral {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
@@ -192,6 +195,9 @@ generateExpr env expr = case expr of
     EFun funData params body -> do
         body' <- lift $ generateBlock env DReturn funData body
         return $ JS.EFunction params body'
+    ELookup _ subExpr propName -> do
+        subExpr' <- generateExpr env subExpr
+        return $ JS.ELookup subExpr' propName
     EApp _ lhs rhs -> do
         l <- generateExpr env lhs
         r <- mapM (generateExpr env) rhs

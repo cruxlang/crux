@@ -33,6 +33,7 @@ data Expression
     | EFunction [Name] [Statement] -- function(args) { statements }
     | EBinOp Text Expression Expression -- lhs <op> rhs
     | ESubscript Expression Expression
+    | ELookup Expression Name
     | ELiteral Literal
     | EIdentifier Name
     | EArray [Expression]
@@ -124,6 +125,12 @@ renderExpr expr = case expr of
         <> B.fromText "["
         <> renderExpr rhs
         <> B.fromText "]"
+    ELookup lhs propName ->
+        B.fromText "("
+        <> renderExpr lhs
+        <> B.fromText ")"
+        <> B.fromText "."
+        <> B.fromText propName
     ELiteral lit -> case lit of
         LInteger i -> B.fromString $ show i
         LString i -> B.fromString $ show i

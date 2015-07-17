@@ -9,15 +9,16 @@ import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
 import qualified Crux.MutableHashTable as HashTable
+import           Crux.Text             (isCapitalized)
 import           Crux.Tokens           (Pos (..))
-import Crux.Text (isCapitalized)
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
-import           Data.List             (foldl', intercalate)
-import           Data.Monoid ((<>))
+import           Data.List             (foldl', intercalate, sort, nub)
+import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
+import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 
@@ -45,6 +46,16 @@ showTypeVarIO tvar = case tvar of
     TUserType def tvars -> do
         tvs <- mapM showTypeVarIO tvars
         return $ (show $ tuName def) ++ " " ++ (intercalate " " tvs)
+    TRecord open rows -> do
+        open' <- readIORef open
+        rows' <- readIORef rows
+        let rowNames = map fst rows'
+        rowTypes <- mapM (showTypeVarIO . snd) rows'
+        let showRow (name, ty) = Text.unpack name <> ": " <> ty
+        let dotdotdot = case open' of
+                RecordOpen -> ["..."]
+                RecordClose -> []
+        return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
     TType ty ->
         return $ "TType " ++ show ty
 
@@ -142,6 +153,15 @@ check env expr = case expr of
         result <- freshType env
         unify (edata lhs') (TFun (map edata rhs') result)
         return $ EApp result lhs' rhs'
+
+    ELookup _ lhs propName -> do
+        lhs' <- check env lhs
+        ty <- freshType env
+        open <- IORef.newIORef RecordOpen
+        props <- IORef.newIORef [(propName, ty)]
+        let recTy = TRecord open props
+        unify (edata lhs') recTy
+        return $ ELookup ty lhs' propName
 
     EMatch _ matchExpr cases -> do
         resultType <- freshType env
@@ -293,6 +313,14 @@ flattenTypeVar tv = case tv of
         tvars' <- mapM flattenTypeVar tvars
         def' <- flattenTypeDef def
         return $ IUserType def' tvars'
+    TRecord open rows -> do
+        rows' <- readIORef rows
+        let flattenRow (name, ty) = do
+                ty' <- flattenTypeVar ty
+                return (name, ty')
+        rows'' <- mapM flattenRow rows'
+        open' <- readIORef open
+        return $ IRecord open' rows''
     TType t ->
         return $ IType t
 
@@ -311,6 +339,10 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- mapM flatten rhs
         return $ EApp td' lhs' rhs'
+    ELookup td lhs rhs -> do
+        td' <- flattenTypeVar td
+        lhs' <- flatten lhs
+        return $ ELookup td' lhs' rhs
     EMatch td matchExpr cases -> do
         td' <- flattenTypeVar td
         expr' <- flatten matchExpr
@@ -359,6 +391,12 @@ flattenProgram :: [Declaration TypeVar] -> IO [Declaration ImmutableTypeVar]
 flattenProgram decls =
     mapM flattenDecl decls
 
+unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
+unificationError message a b = do
+    sa <- showTypeVarIO a
+    sb <- showTypeVarIO b
+    error $ "Unification error: " ++ message ++ " " ++ sa ++ " and " ++ sb
+
 unify :: TypeVar -> TypeVar -> IO ()
 unify a b = case (a, b) of
     (TVar aid _, TVar bid _)
@@ -380,31 +418,73 @@ unify a b = case (a, b) of
         | aType == bType ->
             return ()
         | otherwise -> do
-            unificationError aType bType
+            unificationError "" a b
 
     (TUserType ad atv, TUserType bd btv)
         | tuName ad == tuName bd -> do
             mapM_ (uncurry unify) (zip atv btv)
         | otherwise -> do
-            unificationError (tuName ad) (tuName bd)
+            unificationError "" a b
+
+    (TRecord aOpen aRows, TRecord bOpen bRows) -> do
+        aOpen' <- readIORef aOpen
+        aRows' <- readIORef aRows
+        bOpen' <- readIORef bOpen
+        bRows' <- readIORef bRows
+
+        let aFields = sort $ map fst aRows'
+        let bFields = sort $ map fst bRows'
+
+        case (aOpen', bOpen') of
+            (RecordClose, RecordClose) -> do
+                when (aFields /= bFields) $ do
+                    unificationError "Record fields do not match" a b
+
+                forM_ aFields $ \propName ->
+                    let Just at = lookup propName aRows'
+                        Just bt = lookup propName bRows'
+                    in unify at bt
+
+            (RecordClose, RecordOpen) -> do
+                forM_ aRows' $ \(field, aTy) -> do
+                    case lookup field bRows' of
+                        Nothing -> unificationError "Required record field missing" a b
+                        Just bTy ->
+                            unify aTy bTy
+
+                writeIORef bOpen RecordClose
+
+            (RecordOpen, RecordClose) ->
+                unify b a
+
+            (RecordOpen, RecordOpen) -> do
+                let allKeys = nub $ sort (aFields ++ bFields)
+                newFields <- forM allKeys $ \key -> do
+                    case (lookup key aRows', lookup key bRows') of
+                        (Just t, Nothing) ->
+                            return (key, t)
+                        (Nothing, Just t) ->
+                            return (key, t)
+                        (Just t1, Just t2) -> do
+                            unify t1 t2
+                            return (key, t1)
+                        (Nothing, Nothing) ->
+                            error "Unifying rows: This should super never happen"
+
+                writeIORef aRows newFields
+                writeIORef bRows newFields
 
     (TFun aa ar, TFun ba br) -> do
-        when (length aa /= length ba) $ do
-            at <- showTypeVarIO a
-            bt <- showTypeVarIO b
-            unificationError at bt
+        when (length aa /= length ba) $
+            unificationError "" a b
 
         mapM_ (uncurry unify) (zip aa ba)
         unify ar br
 
-    (TFun {}, TType {}) -> do
-        lt <- showTypeVarIO a
-        rt <- showTypeVarIO b
-        unificationError lt rt
-    (TType {}, TFun {}) -> do
-        lt <- showTypeVarIO a
-        rt <- showTypeVarIO b
-        unificationError lt rt
+    (TFun {}, TType {}) ->
+        unificationError "" a b
+    (TType {}, TFun {}) ->
+        unificationError "" a b
 
     -- These should never happen: Quantified type variables should be instantiated before we get here.
     (TQuant {}, _) -> do
@@ -416,13 +496,8 @@ unify a b = case (a, b) of
         rt <- showTypeVarIO b
         error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
 
-    _ -> do
-        as <- showTypeVarIO a
-        bs <- showTypeVarIO b
-        unificationError as bs
-
-unificationError :: Show a => a -> a -> IO ()
-unificationError a b = error $ "Unification error: " <> show (a, b)
+    _ ->
+        unificationError "" a b
 
 occurs :: IORef (VarLink TypeVar) -> TypeVar -> IO ()
 occurs tvr ty = case ty of

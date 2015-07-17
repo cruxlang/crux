@@ -60,6 +60,7 @@ data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Recursive Pattern (Expression edata)
     | EFun edata [Text] [Expression edata]
+    | ELookup edata (Expression edata) Name
     | EApp edata (Expression edata) [Expression edata]
     | EMatch edata (Expression edata) [Case edata]
     | EPrint edata (Expression edata)
@@ -75,6 +76,7 @@ instance Functor Expression where
         EBlock d s -> EBlock (f d) (fmap (fmap f) s)
         ELet d rec pat subExpr -> ELet (f d) rec pat (fmap f subExpr)
         EFun d argNames subExprs -> EFun (f d) argNames (fmap (fmap f) subExprs)
+        ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
         EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
         EPrint d subExpr -> EPrint (f d) (fmap f subExpr)
@@ -89,6 +91,7 @@ edata expr = case expr of
     EBlock ed _ -> ed
     ELet ed _ _ _ -> ed
     EFun ed _ _ -> ed
+    ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
     EPrint ed _ -> ed
@@ -126,11 +129,30 @@ data TUserTypeDef typevar = TUserTypeDef
     , tuVariants :: [TVariant typevar]
     } deriving (Show, Eq)
 
+type TypeRow typevar = (Name, typevar)
+
+{-
+fun hypot(p) { sqrt(p.x * p.x + p.y * p.y); };
+let p = { x:9,y:22,z:33 };
+let ps = hypot(p);
+
+We instantiate the argument type {x:Number, y:Number, ...} and unify with {x:Number, y:Number, z:Number}
+This yields {x:Number, y:Number, z:Number}
+-}
+
+-- An open record can be unified with another record type that has extra properties.
+-- Open u Open == open record combining properties
+-- Open u Closed == Assert that lhs has all the fields of the rhs, unify their types, and unify to the closed record
+-- Closed u Closed == All properties must exist in both types and unify.
+data RecordOpen = RecordOpen | RecordClose
+    deriving (Show, Eq)
+
 data TypeVar
     = TVar Int (IORef (VarLink TypeVar))
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
+    | TRecord (IORef RecordOpen) (IORef [TypeRow TypeVar])
     | TType Type
 
 data ImmutableTypeVar
@@ -138,5 +160,6 @@ data ImmutableTypeVar
     | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
+    | IRecord RecordOpen [TypeRow ImmutableTypeVar]
     | IType Type
     deriving (Show, Eq)

@@ -2,6 +2,8 @@
 
 module Crux.JSTree where
 
+import           Data.HashMap.Strict    (HashMap)
+import qualified Data.HashMap.Strict    as HashMap
 import           Data.Monoid            (Monoid, mconcat, mempty, (<>))
 import           Data.Text              (Text)
 import qualified Data.Text.Lazy         as TL
@@ -31,6 +33,7 @@ data Literal
 data Expression
     = EApplication Expression [Expression]
     | EFunction [Name] [Statement] -- function(args) { statements }
+    | EObject (HashMap Name Expression)
     | EBinOp Text Expression Expression -- lhs <op> rhs
     | ESubscript Expression Expression
     | ELookup Expression Name
@@ -114,6 +117,11 @@ renderExpr expr = case expr of
         B.fromText "("
             <> renderFunction Nothing args body
             <> B.fromText ")"
+    EObject fields ->
+        let renderKeyValuePair (key, value) = B.fromText key <> B.fromText ":" <> renderExpr value
+        in B.fromText "{"
+        <> (intercalate (B.fromText ", ") $ map renderKeyValuePair (HashMap.toList fields))
+        <> B.fromText "}"
     EBinOp op lhs rhs ->
         B.fromText "("
             <> renderExpr lhs

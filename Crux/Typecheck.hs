@@ -26,7 +26,6 @@ data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
     , eTypeBindings  :: HashMap Text TypeVar
-    , eIsTopLevel    :: Bool
     }
 
 showTypeVarIO :: TypeVar -> IO [Char]
@@ -64,13 +63,12 @@ newEnv = do
     eNextTypeIndex <- IORef.newIORef 0
     eBindings <- IORef.newIORef HashMap.empty
     let eTypeBindings = HashMap.empty
-    let eIsTopLevel = True
     return Env {..}
 
 childEnv :: Env -> IO Env
 childEnv env = do
     bindings' <- HashTable.clone (eBindings env)
-    return env{eBindings=bindings', eIsTopLevel=False}
+    return env{eBindings=bindings'}
 
 freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
@@ -143,7 +141,7 @@ check env expr = case expr of
             [] -> do
                 return $ EFun (TFun paramTypes (TType Unit)) param []
             _ -> do
-                let env' = env{eBindings=bindings', eIsTopLevel=False}
+                let env' = env{eBindings=bindings'}
                 exprs' <- forM exprs (check env')
                 return $ EFun (TFun paramTypes (edata $ last exprs')) param exprs'
 
@@ -153,6 +151,21 @@ check env expr = case expr of
         result <- freshType env
         unify (edata lhs') (TFun (map edata rhs') result)
         return $ EApp result lhs' rhs'
+
+    ERecordLiteral _ fields -> do
+        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
+            ty <- freshType env
+            fieldExpr' <- check env fieldExpr
+            unify ty (edata fieldExpr')
+            return (name, fieldExpr')
+
+        let fieldTypes = map (\(name, ex) -> (name, edata ex)) fields'
+
+        open <- IORef.newIORef RecordClose
+        props <- IORef.newIORef fieldTypes
+
+        let recordTy = TRecord open props
+        return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
@@ -182,8 +195,6 @@ check env expr = case expr of
         HashTable.insert name ty (eBindings env)
         expr'' <- check env expr'
         unify ty (edata expr'')
-        when (eIsTopLevel env) $ do
-            quantify ty
         return $ ELet ty Rec name expr''
 
     ELet _ NoRec name expr' -> do
@@ -191,8 +202,6 @@ check env expr = case expr of
         expr'' <- check env expr'
         HashTable.insert name ty (eBindings env)
         unify ty (edata expr'')
-        when (eIsTopLevel env) $ do
-            quantify ty
         return $ ELet ty NoRec name expr''
 
     EPrint _ expr' -> do
@@ -243,6 +252,11 @@ quantify ty = do
         TFun param ret -> do
             mapM_ quantify param
             quantify ret
+        TRecord open rows -> do
+            writeIORef open RecordOpen
+            rows' <- readIORef rows
+            forM_ rows' $ \(_key, val) -> do
+                quantify val
         _ ->
             return ()
 
@@ -339,6 +353,13 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- mapM flatten rhs
         return $ EApp td' lhs' rhs'
+    ERecordLiteral td fields -> do
+        td' <- flattenTypeVar td
+        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
+            fieldExpr' <- flatten fieldExpr
+            return (name, fieldExpr')
+
+        return $ ERecordLiteral td' (HashMap.fromList fields')
     ELookup td lhs rhs -> do
         td' <- flattenTypeVar td
         lhs' <- flatten lhs
@@ -524,11 +545,13 @@ checkDecl env decl = case decl of
         HashTable.insert name ty (eBindings env)
         expr' <- check env expr
         unify (edata expr') ty
+        quantify ty
         return $ DLet (edata expr') Rec name expr'
     DLet _ NoRec name expr -> do
         expr' <- check env expr
         let ty = edata expr'
         HashTable.insert name ty (eBindings env)
+        quantify ty
         return $ DLet (edata expr') NoRec name expr'
 
 buildTypeEnvironment :: [Declaration a] -> IO Env

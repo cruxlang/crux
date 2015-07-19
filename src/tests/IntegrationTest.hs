@@ -49,6 +49,7 @@ testHelloWorld = do
         ]
     assertEqual "" (Right "Hello, World!\n") result
 
+testInteger :: IO ()
 testInteger = do
     result <- run $ T.unlines
         [ "let x = 1;"
@@ -57,6 +58,7 @@ testInteger = do
         ]
     assertEqual "" (Right "1\n") result
 
+testDataTypes :: IO ()
 testDataTypes = do
     result <- run $ T.unlines
         [ "data IntList {"
@@ -69,6 +71,7 @@ testDataTypes = do
 
     assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
 
+test_pattern_matches_can_be_expressions_that_yield_values :: IO ()
 test_pattern_matches_can_be_expressions_that_yield_values = do
     result <- run $ T.unlines
         [ "data IntList {"
@@ -86,6 +89,7 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
         ]
     assertEqual "" (Right "2\n") result
 
+test_arithmetic :: IO ()
 test_arithmetic = do
     result <- run $ T.unlines
         [ "let hypot_squared = fun (x, y) { x * x + y * y; };"
@@ -93,10 +97,12 @@ test_arithmetic = do
         ]
     assertEqual "" (Right "25\n") result
 
+test_let_is_not_recursive_by_default :: IO ()
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
     assertEqual "" (Left "Unbound symbol (1:21,\"foo\")") result
 
+test_recursive :: IO ()
 test_recursive = do
     result <- run $ T.unlines
         [ "data IntList { Cons Number IntList; Nil; };"
@@ -110,6 +116,7 @@ test_recursive = do
         ]
     assertEqual "" (Right "1\n") result
 
+test_recursive_data :: IO ()
 test_recursive_data = do
     result <- run $ T.unlines
         [ "data List a {"
@@ -130,6 +137,23 @@ test_recursive_data = do
         ]
     assertEqual "" (Right "3\n") result
 
+test_row_polymorphic_records :: IO ()
+test_row_polymorphic_records = do
+    result <- run $ T.unlines
+        [ "fun manhattan(p) { p.x + p.y; };"
+        , ""
+        , "let zero = { x: 0, y: 0 };"
+        , "let myhouse = {x: 33, y: 44, z:8};"
+        , ""
+        , "fun main() {"
+        , "    print(manhattan(zero));"
+        , "    print(manhattan(myhouse));"
+        , "};"
+        , ""
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Right "0\n77\n") result
 
 tests :: Test
 tests = TestList
@@ -141,4 +165,5 @@ tests = TestList
     , TestLabel "test_recursive" $ TestCase test_recursive
     , TestLabel "test_let_is_not_recursive_by_default" $ TestCase test_let_is_not_recursive_by_default
     , TestLabel "test_recursive_data" $ TestCase test_recursive_data
+    , TestLabel "test_row_polymorphic_records" $ TestCase test_row_polymorphic_records
     ]

@@ -22,6 +22,7 @@ data Token tdata
     | TOpenParen tdata
     | TCloseParen tdata
     | TSemicolon tdata
+    | TColon tdata
     | TComma tdata
     | TEqual tdata
     | TDot tdata
@@ -48,6 +49,7 @@ instance Eq (Token a) where
         (TOpenParen _,      TOpenParen _)      -> True
         (TCloseParen _,     TCloseParen _)     -> True
         (TSemicolon _,      TSemicolon _)      -> True
+        (TColon _,          TColon _)          -> True
         (TComma _,          TComma _)          -> True
         (TDot _,            TDot _)            -> True
         (TFatRightArrow _,  TFatRightArrow _)  -> True
@@ -73,6 +75,7 @@ tokenData tok = case tok of
     TOpenParen tdata -> tdata
     TCloseParen tdata -> tdata
     TSemicolon tdata -> tdata
+    TColon tdata -> tdata
     TComma tdata -> tdata
     TDot tdata -> tdata
     TEqual tdata -> tdata

@@ -12,6 +12,7 @@ import           Control.Monad.Trans (liftIO)
 import           Crux.AST            as AST
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
+import qualified Data.HashMap.Strict as HashMap
 import           Data.List           (foldl')
 import           Data.Monoid         ((<>))
 import           Data.Text           (Text)
@@ -213,6 +214,19 @@ parenExpression = do
     _ <- token $ TCloseParen
     return e
 
+recordLiteralExpression :: Parser ParseExpression
+recordLiteralExpression = do
+    t <- token $ TOpenBrace
+    let keyValuePair = do
+            name <- anyIdentifier
+            _ <- token $ TColon
+            expr <- noSemiExpression
+            return (name, expr)
+    pairs <- P.sepBy keyValuePair $ token $ TComma
+    _ <- token $ TCloseBrace
+
+    return $ ERecordLiteral (tokenData t) (HashMap.fromList pairs)
+
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =
     P.try letExpression
@@ -220,6 +234,7 @@ noSemiExpression =
     <|> P.try printExpression
     <|> P.try toStringExpression
     <|> P.try functionExpression
+    <|> P.try recordLiteralExpression
     <|> addExpression
 
 expression :: Parser ParseExpression

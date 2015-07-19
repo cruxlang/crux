@@ -65,6 +65,7 @@ keyword = P.try $ do
 symbol :: P.ParsecT Text u Identity (Token Pos)
 symbol = sym2 '=' '>' TFatRightArrow
      <|> sym ';' TSemicolon
+     <|> sym ':' TColon
      <|> sym '.' TDot
      <|> sym ',' TComma
      <|> sym '=' TEqual

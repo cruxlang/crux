@@ -1,8 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 module Crux.AST where
 
-import           Data.IORef (IORef)
-import           Data.Text  (Text)
+import           Data.HashMap.Strict (HashMap)
+import           Data.IORef          (IORef)
+import           Data.Text           (Text)
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -60,6 +61,7 @@ data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Recursive Pattern (Expression edata)
     | EFun edata [Text] [Expression edata]
+    | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name
     | EApp edata (Expression edata) [Expression edata]
     | EMatch edata (Expression edata) [Case edata]
@@ -76,6 +78,7 @@ instance Functor Expression where
         EBlock d s -> EBlock (f d) (fmap (fmap f) s)
         ELet d rec pat subExpr -> ELet (f d) rec pat (fmap f subExpr)
         EFun d argNames subExprs -> EFun (f d) argNames (fmap (fmap f) subExprs)
+        ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
         EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
@@ -91,6 +94,7 @@ edata expr = case expr of
     EBlock ed _ -> ed
     ELet ed _ _ _ -> ed
     EFun ed _ _ -> ed
+    ERecordLiteral ed _ -> ed
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
@@ -119,14 +123,14 @@ data VarLink a
     deriving (Show, Eq)
 
 data TVariant typevar = TVariant
-    { tvName :: Name
+    { tvName       :: Name
     , tvParameters :: [typevar]
     } deriving (Show, Eq)
 
 data TUserTypeDef typevar = TUserTypeDef
-    { tuName :: Name
+    { tuName       :: Name
     , tuParameters :: [typevar]
-    , tuVariants :: [TVariant typevar]
+    , tuVariants   :: [TVariant typevar]
     } deriving (Show, Eq)
 
 type TypeRow typevar = (Name, typevar)

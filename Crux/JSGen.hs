@@ -4,6 +4,7 @@
 
 module Crux.JSGen where
 
+import           Control.Monad         (forM)
 import           Control.Monad.Trans   (lift)
 import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
@@ -130,6 +131,9 @@ generateStatementExpr env dest expr = case expr of
     EFun {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
+    ERecordLiteral {} -> do
+        expr' <- generateExpr env expr
+        return [JS.SExpression expr']
     ELookup {} -> do
         expr' <- generateExpr env expr
         return [JS.SExpression expr']
@@ -195,6 +199,11 @@ generateExpr env expr = case expr of
     EFun funData params body -> do
         body' <- lift $ generateBlock env DReturn funData body
         return $ JS.EFunction params body'
+    ERecordLiteral _ fields -> do
+        fields' <- forM (HashMap.toList fields) $ \(key, fieldExpr) -> do
+            fieldExpr' <- generateExpr env fieldExpr
+            return (key, fieldExpr')
+        return $ JS.EObject $ HashMap.fromList fields'
     ELookup _ subExpr propName -> do
         subExpr' <- generateExpr env subExpr
         return $ JS.ELookup subExpr' propName

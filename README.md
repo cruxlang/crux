@@ -1,5 +1,6 @@
 
-Crux is a principled, practical AltJS language.  It aims to provide a practical programming environment that doesn't compromise on strong fundamentals.
+Crux is a principled, practical AltJS language that aims to provide an easy, familiar programming environment that
+does not compromise on rock-solid fundamentals.
 
 # Core Principles
 
@@ -21,21 +22,39 @@ Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-St
 Summary:
 
 ```ocaml
-data IntList {
-    Cons Number IntList;
+data List a {
+    Cons a (List a);
     Nil;
 };
 
-let rec len = fun l {
-    match l {
+let s = Cons(5, Cons(6, Cons(7, Nil)));
+
+let rec len = fun (list) {
+    match list {
         Nil => 0;
-        Cons num tail => 1 + (len tail);
+        Cons x tail => 1 + len(tail);
     };
 };
 
-let _ = print (len (Cons 5 Nil));
+let _ = print(len(s));
 ```
 
 # Status
 
-I give this project a 1% shot at eventually becoming useful enough to compile itself.  The whole effort is just little old me in my spare time.
+Working:
+
+* Type inference
+* Sums
+* Pattern matching
+* Row-polymorphic records
+
+Not done:
+
+* Modules
+* Conditionals
+* `break`, `continue`, `return`
+* Mutability
+* Asynchrony
+* JS FFI
+* Type aliasing
+* Class definitions

@@ -161,23 +161,16 @@ generateStatementExpr env dest expr = case expr of
             Just if_ ->
                 [JS.SVar matchVar $ Just matchExpr', if_]
 
-    EPrint _ ex -> do
-        ex' <- generateExpr env ex
-        return [JS.SExpression $
-            JS.EApplication
-                (JS.EIdentifier "console.log")
-                [ex']
-            ]
-    EToString _ ex -> do
-        ex' <- generateExpr env ex
-
-        return [emitWriteDestination dest $
-              JS.EBinOp "+" (JS.ELiteral (JS.LString "")) ex'
-            ]
     ESemi _ lhs rhs -> do
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return [JS.SExpression l, emitWriteDestination dest r]
+    EPrint {} -> do
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
+    EToString {} -> do
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
     ELiteral {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
@@ -226,6 +219,9 @@ generateExpr env expr = case expr of
         return $ JS.EApplication
             (JS.EIdentifier "console.log")
             [ex']
+    EToString _ ex -> do
+        ex' <- generateExpr env ex
+        return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) ex'
     EBinIntrinsic _ op lhs rhs -> do
         let sym = case op of
                 BIPlus     -> "+"

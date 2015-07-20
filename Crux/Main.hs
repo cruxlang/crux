@@ -4,14 +4,11 @@ module Crux.Main where
 import           Control.Applicative
 import           Data.Monoid
 import qualified Data.Text as Text
-import           Control.Monad      (forM)
 import           Crux.JSGen
 import qualified Crux.JSTree        as JSTree
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Typecheck     as Typecheck
-import qualified Data.Text.IO       as T
-import           System.Environment (getArgs)
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified System.FilePath    as F

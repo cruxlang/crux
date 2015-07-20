@@ -60,6 +60,9 @@ keyword = P.try $ do
         "fun" -> return $ TFun p
         "data" -> return $ TData p
         "match" -> return $ TMatch p
+        "if" -> return $ TIf p
+        "then" -> return $ TThen p
+        "else" -> return $ TElse p
         _ -> fail ""
 
 symbol :: P.ParsecT Text u Identity (Token Pos)

@@ -37,6 +37,9 @@ data Token tdata
     | TRec tdata
     | TData tdata
     | TMatch tdata
+    | TIf tdata
+    | TThen tdata
+    | TElse tdata
       deriving (Show)
 
 instance Eq (Token a) where
@@ -63,6 +66,9 @@ instance Eq (Token a) where
         (TRec _,            TRec _)            -> True
         (TData _,           TData _)           -> True
         (TMatch _,          TMatch _)          -> True
+        (TIf _,             TIf _)             -> True
+        (TThen _,           TThen _)           -> True
+        (TElse _,           TElse _)           -> True
         _ -> False
 
 tokenData :: Token tdata -> tdata
@@ -89,3 +95,6 @@ tokenData tok = case tok of
     TRec tdata -> tdata
     TData tdata -> tdata
     TMatch tdata -> tdata
+    TIf tdata -> tdata
+    TThen tdata -> tdata
+    TElse tdata -> tdata

@@ -239,6 +239,15 @@ check env expr = case expr of
 
         return $ EBinIntrinsic (TType Number) bi lhs' rhs'
 
+    EIfThenElse _ condition ifTrue ifFalse -> do
+        condition' <- check env condition
+        ifTrue' <- check env ifTrue
+        ifFalse' <- check env ifFalse
+
+        unify (edata ifTrue') (edata ifFalse')
+
+        return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
+
 quantify :: TypeVar -> IO ()
 quantify ty = do
     case ty of
@@ -398,6 +407,12 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- flatten rhs
         return $ EBinIntrinsic td' name lhs' rhs'
+    EIfThenElse td condition ifTrue ifFalse -> do
+        td' <- flattenTypeVar td
+        condition' <- flatten condition
+        ifTrue' <- flatten ifTrue
+        ifFalse' <- flatten ifFalse
+        return $ EIfThenElse td' condition' ifTrue' ifFalse'
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of

@@ -180,6 +180,9 @@ generateStatementExpr env dest expr = case expr of
     EBinIntrinsic {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
+    EIfThenElse {} -> do
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
 
 emitWriteDestination :: ExprDestination -> JS.Expression -> JS.Statement
 emitWriteDestination dest expr = case dest of
@@ -231,6 +234,11 @@ generateExpr env expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return $ JS.EBinOp sym l r
+    EIfThenElse _ condition ifTrue ifFalse -> do
+        condition' <- generateExpr env condition
+        ifTrue' <- generateExpr env ifTrue
+        ifFalse' <- generateExpr env ifFalse
+        return $ JS.ETernary condition' ifTrue' ifFalse'
     _ -> do
         tempName <- mkName env "temp"
         s <- generateStatementExpr env (DAssign tempName) expr

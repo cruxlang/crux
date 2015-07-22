@@ -241,6 +241,7 @@ check env expr = case expr of
 
     EIfThenElse _ condition ifTrue ifFalse -> do
         condition' <- check env condition
+        unify (TType Boolean) (edata condition')
         ifTrue' <- check env ifTrue
         ifFalse' <- check env ifFalse
 
@@ -576,7 +577,11 @@ buildTypeEnvironment decls = do
         [ ("Number", TType Number)
         , ("Unit", TType Unit)
         , ("String", TType String)
+        , ("Boolean", TType Boolean)
         ]
+
+    HashTable.insert "True" (TType Boolean) (eBindings e)
+    HashTable.insert "False" (TType Boolean) (eBindings e)
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new

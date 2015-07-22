@@ -112,13 +112,8 @@ data Type
     = Number
     | String
     | Unit
-    deriving (Eq)
-
-instance Show Type where
-    show ty = case ty of
-        Number -> "Number"
-        String -> "String"
-        Unit -> "Unit"
+    | Boolean
+    deriving (Show, Eq)
 
 data VarLink a
     = Unbound

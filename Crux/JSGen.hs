@@ -250,5 +250,11 @@ generateDocument :: [Declaration t] -> IO [JS.Statement]
 generateDocument decls = do
     eNames <- IORef.newIORef HashMap.empty
     let env = Env{..}
+
+    let prelude =
+            [ JS.SVar "True" (Just $ JS.EIdentifier "true")
+            , JS.SVar "False" (Just $ JS.EIdentifier "false")
+            ]
+
     d <- mapM (generateDecl env) decls
-    return $ concat d
+    return $ prelude ++ (concat d)

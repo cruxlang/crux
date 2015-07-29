@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
 module IntegrationTest (run, tests) where
 
@@ -13,7 +13,7 @@ import           Data.Text      (Text)
 import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
 import           System.Process (readProcess)
-import           Test.HUnit
+import           TestJesus
 -- import           Text.Show.Pretty   (ppShow)
 import           Data.Monoid    ((<>))
 
@@ -42,15 +42,13 @@ run' src = do
 
                     fmap (Right . T.pack) $ readProcess "node" ["temp.js"] ""
 
-testHelloWorld :: IO ()
-testHelloWorld = do
+case_hello_world = do
     result <- run $ T.unlines
         [ "let _ = print \"Hello, World!\";"
         ]
     assertEqual "" (Right "Hello, World!\n") result
 
-testInteger :: IO ()
-testInteger = do
+case_integer = do
     result <- run $ T.unlines
         [ "let x = 1;"
         , "let y = x;"
@@ -58,8 +56,7 @@ testInteger = do
         ]
     assertEqual "" (Right "1\n") result
 
-testDataTypes :: IO ()
-testDataTypes = do
+case_data_types = do
     result <- run $ T.unlines
         [ "data IntList {"
         , "    Element Number IntList;"
@@ -71,8 +68,7 @@ testDataTypes = do
 
     assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
 
-test_pattern_matches_can_be_expressions_that_yield_values :: IO ()
-test_pattern_matches_can_be_expressions_that_yield_values = do
+case_pattern_matches_can_be_expressions_that_yield_values = do
     result <- run $ T.unlines
         [ "data IntList {"
         , "    Element Number IntList;"
@@ -89,21 +85,18 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
         ]
     assertEqual "" (Right "2\n") result
 
-test_arithmetic :: IO ()
-test_arithmetic = do
+case_arithmetic = do
     result <- run $ T.unlines
         [ "let hypot_squared = fun (x, y) { x * x + y * y; };"
         , "let _ = print(hypot_squared(4, 3));"
         ]
     assertEqual "" (Right "25\n") result
 
-test_let_is_not_recursive_by_default :: IO ()
-test_let_is_not_recursive_by_default = do
+case_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
     assertEqual "" (Left "Unbound symbol (1:21,\"foo\")") result
 
-test_recursive :: IO ()
-test_recursive = do
+case_recursive = do
     result <- run $ T.unlines
         [ "data IntList { Cons Number IntList; Nil; };"
         , "let rec len = fun (l) {"
@@ -116,8 +109,7 @@ test_recursive = do
         ]
     assertEqual "" (Right "1\n") result
 
-test_recursive_data :: IO ()
-test_recursive_data = do
+case_recursive_data = do
     result <- run $ T.unlines
         [ "data List a {"
         , "    Cons a (List a);"
@@ -137,8 +129,7 @@ test_recursive_data = do
         ]
     assertEqual "" (Right "3\n") result
 
-test_row_polymorphic_records :: IO ()
-test_row_polymorphic_records = do
+case_row_polymorphic_records = do
     result <- run $ T.unlines
         [ "fun manhattan(p) { p.x + p.y; };"
         , ""
@@ -155,15 +146,4 @@ test_row_polymorphic_records = do
 
     assertEqual "" (Right "0\n77\n") result
 
-tests :: Test
-tests = TestList
-    [ TestLabel "testHelloWorld" $ TestCase testHelloWorld
-    , TestLabel "testInteger" $ TestCase testInteger
-    , TestLabel "testDataTypes" $ TestCase testDataTypes
-    , TestLabel "test_pattern_matches_can_be_expressions_that_yield_values" $ TestCase test_pattern_matches_can_be_expressions_that_yield_values
-    , TestLabel "test_arithmetic" $ TestCase test_arithmetic
-    , TestLabel "test_recursive" $ TestCase test_recursive
-    , TestLabel "test_let_is_not_recursive_by_default" $ TestCase test_let_is_not_recursive_by_default
-    , TestLabel "test_recursive_data" $ TestCase test_recursive_data
-    , TestLabel "test_row_polymorphic_records" $ TestCase test_row_polymorphic_records
-    ]
+tests = $(testGroupGenerator)

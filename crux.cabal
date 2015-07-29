@@ -54,8 +54,16 @@ executable crux
 test-suite tests
     type: exitcode-stdio-1.0
     main-is: Tests.hs
+    -- ghc-options: -ddump-splices
     hs-source-dirs: src/tests
     build-depends: base
                  , HUnit
-                 , parsec, text, crux, process, filepath
+                 , test-framework
+                 , test-framework-hunit
+                 , test-framework-th
+                 , parsec
+                 , text
+                 , crux
+                 , process
+                 , filepath
     default-language: Haskell2010

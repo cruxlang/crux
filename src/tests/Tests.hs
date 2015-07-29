@@ -1,17 +1,11 @@
-
-module Main where
+module Main (main) where
 
 import qualified ParseTest
 import qualified IntegrationTest
-import Test.HUnit
+import Test.Framework
 import System.Exit (exitWith, ExitCode (..))
 
-main :: IO Counts
-main = do
-    testCounts <- runTestTT $ TestList
+main = defaultMain
         [ ParseTest.tests
         , IntegrationTest.tests
         ]
-    case failures testCounts of
-        0 -> exitWith ExitSuccess
-        _ -> exitWith $ ExitFailure 1

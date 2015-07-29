@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
 module ParseTest where
 
@@ -7,6 +7,9 @@ import           Crux.AST
 import           Crux.Lex
 import qualified Data.Text as T
 import           Test.HUnit
+import           Test.Framework
+import           Test.Framework.TH
+import           Test.Framework.Providers.HUnit
 import qualified Text.Parsec as P
 
 discardData expr = fmap (const ()) expr
@@ -24,83 +27,57 @@ assertParseOk parser source expected f = do
 
 assertExprParses parser source expected = assertParseOk parser source expected discardData
 
-testLiterals :: IO ()
-testLiterals = do
+case_literals = do
     assertExprParses literalExpression "5"
         (ELiteral () (LInteger 5))
     assertExprParses literalExpression "\"Hooper\""
         (ELiteral () (LString "Hooper"))
 
-testParens :: IO ()
-testParens = do
+case_parens = do
     assertExprParses noSemiExpression "(5)"
         (ELiteral () (LInteger 5))
 
-testApplication :: IO ()
-testApplication = do
+case_application = do
     assertExprParses expression "foo();"
         (EApp () (EIdentifier () "foo") [])
 
-testApplicationWithArgs :: IO ()
-testApplicationWithArgs = do
+case_application_with_args = do
     assertExprParses expression "foo(bar, baz);"
         (EApp () (EIdentifier () "foo") [EIdentifier () "bar", EIdentifier () "baz"])
 
-testApplicationAssociation :: IO ()
-testApplicationAssociation = do
+case_application_association = do
     assertExprParses expression "1 + length(list);"
         (EBinIntrinsic () BIPlus (ELiteral () (LInteger 1)) (EApp () (EIdentifier () "length") [EIdentifier () "list"]))
 
-testLet :: IO ()
-testLet = do
+case_let = do
     assertExprParses letExpression "let a = \"Hello\""
         (ELet () NoRec "a" (ELiteral () (LString "Hello")))
 
-testLet2 :: IO ()
-testLet2 = do
+case_let2 = do
     assertExprParses letExpression "let a = (5)"
         (ELet () NoRec "a" (ELiteral () (LInteger 5)))
 
-testPattern :: IO ()
-testPattern = do
+case_pattern = do
     assertParseOk pattern "Cons a (Cons b Nil)"
         (PConstructor "Cons" [PPlaceholder "a", PConstructor "Cons" [PPlaceholder "b", PConstructor "Nil" []]]) id
 
-testMatch :: IO ()
-testMatch = do
+case_match = do
     assertExprParses matchExpression "match hoot { Nil => hodor ; Cons a b => hoober ; }"
         (EMatch () (EIdentifier () "hoot")
             [ Case (PConstructor "Nil" []) (EIdentifier () "hodor")
             , Case (PConstructor "Cons" [PPlaceholder "a",PPlaceholder "b"]) (EIdentifier () "hoober")
             ])
 
-testPlus :: IO ()
-testPlus = do
+case_plus = do
     assertExprParses noSemiExpression "5 + 5"
         (EBinIntrinsic () BIPlus (ELiteral () $ LInteger 5) (ELiteral () $ LInteger 5))
 
-testTimes = do
+case_times = do
     assertExprParses multiplyExpression "8 * 8"
         (EBinIntrinsic () BIMultiply (ELiteral () $ LInteger 8) (ELiteral () $ LInteger 8))
 
-testPolymorphicData = do
+case_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe a { Some a; None; };"
         (DData "Maybe" ["a"] [Variant {vname = "Some", vparameters = [TypeIdent "a" []]},Variant {vname = "None", vparameters = []}])
 
-tests :: Test
-tests = TestList
-    [ TestLabel "testLiterals" $ TestCase testLiterals
-    , TestLabel "testApplication" $ TestCase testApplication
-    , TestLabel "testApplicationWithArgs" $ TestCase testApplicationWithArgs
-    , TestLabel "testApplicationAssociation" $ TestCase testApplicationAssociation
-    , TestLabel "testLet" $ TestCase testLet
-    , TestLabel "testLet2" $ TestCase testLet2
-    , TestLabel "testParens" $ TestCase testParens
-    , TestLabel "testPattern" $ TestCase testPattern
-    , TestLabel "testMatch" $ TestCase testMatch
-    , TestLabel "testPlus" $ TestCase testPlus
-    , TestLabel "testTimes" $ TestCase testTimes
-    , TestLabel "testPolymorphicData" $ TestCase testPolymorphicData
-    ]
-
--- tests = TestList []
+tests = $(testGroupGenerator)

@@ -72,6 +72,7 @@ data Expression edata
     | ESemi edata (Expression edata) (Expression edata)
     | EBinIntrinsic edata BinIntrinsic (Expression edata) (Expression edata)
     | EIfThenElse edata (Expression edata) (Expression edata) (Expression edata)
+    | EReturn edata (Expression edata)
     deriving (Show, Eq)
 
 instance Functor Expression where
@@ -90,6 +91,7 @@ instance Functor Expression where
         ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
         EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
+        EReturn d rv -> EReturn (f d) (fmap f rv)
 
 edata :: Expression edata -> edata
 edata expr = case expr of
@@ -107,6 +109,7 @@ edata expr = case expr of
     ESemi ed _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
     EIfThenElse ed _ _ _ -> ed
+    EReturn ed _ -> ed
 
 data Type
     = Number

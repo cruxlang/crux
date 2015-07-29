@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
-module ParseTest where
+module ParseTest (tests) where
 
 import           Crux.Parse
 import           Crux.AST

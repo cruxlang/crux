@@ -78,6 +78,12 @@ ifThenElseExpression = do
     ifFalse <- noSemiExpression
     return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
 
+returnExpression :: Parser ParseExpression
+returnExpression = do
+    pr <- P.try $ token TReturn
+    rv <- noSemiExpression
+    return $ EReturn (tokenData pr) rv
+
 toStringExpression :: Parser ParseExpression
 toStringExpression = do
     ts <- P.try $ identifier "toString"
@@ -242,6 +248,7 @@ noSemiExpression =
     P.try letExpression
     <|> matchExpression
     <|> P.try ifThenElseExpression
+    <|> P.try returnExpression
     <|> P.try printExpression
     <|> P.try toStringExpression
     <|> P.try functionExpression

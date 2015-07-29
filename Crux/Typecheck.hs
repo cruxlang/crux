@@ -249,6 +249,11 @@ check env expr = case expr of
 
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
+    EReturn _ rv -> do
+        rv' <- check env rv
+        -- TODO: unify with environment's current function's return type
+        return $ EReturn (edata rv') rv'
+
 quantify :: TypeVar -> IO ()
 quantify ty = do
     case ty of

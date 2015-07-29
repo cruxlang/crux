@@ -8,7 +8,7 @@ import           Control.Monad         (forM)
 import           Control.Monad.Trans   (lift)
 import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
-import           Crux.JSGen.Types
+import           Crux.JSGen.Types      (Env(..), JSWrite)
 import qualified Crux.JSTree           as JS
 import qualified Crux.MutableHashTable as HashTable
 import           Data.Foldable         (foldlM)
@@ -183,6 +183,8 @@ generateStatementExpr env dest expr = case expr of
     EIfThenElse {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
+    EReturn {} -> do
+        return []
 
 emitWriteDestination :: ExprDestination -> JS.Expression -> JS.Statement
 emitWriteDestination dest expr = case dest of

@@ -40,6 +40,7 @@ data Token tdata
     | TIf tdata
     | TThen tdata
     | TElse tdata
+    | TReturn tdata
       deriving (Show)
 
 instance Eq (Token a) where
@@ -69,6 +70,7 @@ instance Eq (Token a) where
         (TIf _,             TIf _)             -> True
         (TThen _,           TThen _)           -> True
         (TElse _,           TElse _)           -> True
+        (TReturn _,         TReturn _)         -> True
         _ -> False
 
 tokenData :: Token tdata -> tdata
@@ -98,3 +100,4 @@ tokenData tok = case tok of
     TIf tdata -> tdata
     TThen tdata -> tdata
     TElse tdata -> tdata
+    TReturn tdata -> tdata

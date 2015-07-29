@@ -8,7 +8,7 @@ import Data.Text (Text)
 import TestJesus
 import qualified Crux.Lex
 import qualified Crux.Parse
-import Crux.JSGen (generateDocument)
+import Crux.JSGen (generateDocumentWithoutPrelude)
 import qualified Crux.JSTree as JS
 import qualified Crux.Typecheck as Typecheck
 
@@ -27,10 +27,12 @@ genDoc src = do
                 Right p' -> do
                     typetree <- Typecheck.run p'
                     typetree' <- forM typetree Typecheck.flattenDecl
-                    generateDocument typetree'
+                    generateDocumentWithoutPrelude typetree'
 
 case_direct_prints = do
     doc <- genDoc "let _ = print 10;"
-    assertEqual "single print expression" doc []
+    assertEqual "single print expression" doc
+        [ JS.SVar "_" $ Just $ JS.EApplication (JS.EIdentifier "console.log") [JS.ELiteral (JS.LInteger 10)]
+        ]
 
 tests = $(testGroupGenerator)

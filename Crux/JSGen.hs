@@ -260,3 +260,11 @@ generateDocument decls = do
 
     d <- mapM (generateDecl env) decls
     return $ prelude ++ (concat d)
+
+generateDocumentWithoutPrelude :: [Declaration t] -> IO [JS.Statement]
+generateDocumentWithoutPrelude decls = do
+    eNames <- IORef.newIORef HashMap.empty
+    let env = Env{..}
+
+    d <- mapM (generateDecl env) decls
+    return $ concat d

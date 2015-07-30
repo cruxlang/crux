@@ -14,6 +14,7 @@ does not compromise on rock-solid fundamentals.
 
 * Typeclasses
 * The compiler should be fast
+* Debugging should be pleasant
 
 # What does it look like?
 

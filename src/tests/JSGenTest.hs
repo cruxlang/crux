@@ -12,27 +12,38 @@ import Crux.JSGen (generateDocumentWithoutPrelude)
 import qualified Crux.JSTree as JS
 import qualified Crux.Typecheck as Typecheck
 
-genDoc :: Text -> IO [JS.Statement]
-genDoc src = do
+genDoc' :: Text -> IO (Either String [JS.Statement])
+genDoc' src = do
     let fn = "<string>"
     let l = Crux.Lex.lexSource fn src
     case l of
         Left err ->
-            error $ "Lex error: " <> show err
+            return $ Left $ "Lex error: " <> show err
         Right l' -> do
             p <- Crux.Parse.parse fn l'
             case p of
                 Left err ->
-                    error $ "Parse error: " <> show err
+                    return $ Left $ "Parse error: " <> show err
                 Right p' -> do
                     typetree <- Typecheck.run p'
                     typetree' <- forM typetree Typecheck.flattenDecl
-                    generateDocumentWithoutPrelude typetree'
+                    fmap Right $ generateDocumentWithoutPrelude typetree'
+
+genDoc :: Text -> IO [JS.Statement]
+genDoc src = do
+    rv <- genDoc' src
+    case rv of
+        Left err -> error err
+        Right stmts -> return stmts
 
 case_direct_prints = do
     doc <- genDoc "let _ = print 10;"
     assertEqual "single print expression" doc
         [ JS.SVar "_" $ Just $ JS.EApplication (JS.EIdentifier "console.log") [JS.ELiteral (JS.LInteger 10)]
         ]
+
+case_return_at_top_level_is_error = do
+    rv <- genDoc' "let _ = return 1;"
+    assertEqual "return outside of function is error" (Left "") $ rv
 
 tests = $(testGroupGenerator)

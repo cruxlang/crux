@@ -419,6 +419,10 @@ flatten expr = case expr of
         ifTrue' <- flatten ifTrue
         ifFalse' <- flatten ifFalse
         return $ EIfThenElse td' condition' ifTrue' ifFalse'
+    EReturn td rv -> do
+        td' <- flattenTypeVar td
+        rv' <- flatten rv
+        return $ EReturn td' rv'
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of

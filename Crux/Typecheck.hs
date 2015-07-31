@@ -131,20 +131,21 @@ check env expr = case expr of
             _ -> do
                 exprs' <- forM exprs (check env')
                 return $ EBlock (edata $ last exprs') exprs'
-    EFun _ param exprs -> do
+    EFun _ params exprs -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramTypes <- forM param $ \p -> do
+        paramTypes <- forM params $ \p -> do
             pt <- freshType env
             HashTable.insert p pt bindings'
             return pt
 
-        case exprs of
-            [] -> do
-                return $ EFun (TFun paramTypes (TType Unit)) param []
-            _ -> do
-                let env' = env{eBindings=bindings'}
-                exprs' <- forM exprs (check env')
-                return $ EFun (TFun paramTypes (edata $ last exprs')) param exprs'
+        returnType <- freshType env
+
+        let env' = env{eBindings=bindings', eReturnType=Just returnType}
+        exprs' <- forM exprs (check env')
+        unify returnType $ case exprs' of
+            [] -> TType Unit
+            _ -> edata $ last exprs'
+        return $ EFun (TFun paramTypes returnType) params exprs'
 
     EApp _ lhs rhs -> do
         lhs' <- check env lhs

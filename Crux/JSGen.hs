@@ -183,8 +183,9 @@ generateStatementExpr env dest expr = case expr of
     EIfThenElse {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
-    EReturn {} -> do
-        return []
+    EReturn _ rv -> do
+        ex' <- generateExpr env rv
+        return [JS.SReturn $ Just ex']
 
 emitWriteDestination :: ExprDestination -> JS.Expression -> JS.Statement
 emitWriteDestination dest expr = case dest of

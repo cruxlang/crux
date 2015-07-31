@@ -48,4 +48,8 @@ case_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1;"
     assertEqual "exception matches" (Left $ ErrorCall "Cannot return outside of functions") $ result
 
+case_return_from_function = do
+    result <- genDoc "fun f() { return 1; };"
+    assertEqual "statements" [JS.SFunction (Just "f") [] [JS.SReturn (Just (JS.ELiteral (JS.LInteger 1)))]] result
+
 tests = $(testGroupGenerator)

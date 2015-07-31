@@ -211,12 +211,12 @@ check env expr = case expr of
     EToString _ expr' -> do
         expr'' <- check env expr'
         return $ EToString (TType String) expr''
-    ELiteral _ (LInteger i) -> do
-        return $ ELiteral (TType Number) (LInteger i)
-    ELiteral _ (LString s) -> do
-        return $ ELiteral (TType String) (LString s)
-    ELiteral _ LUnit -> do
-        return $ ELiteral (TType Unit) LUnit
+    ELiteral _ lit -> do
+        let litType = case lit of
+                LInteger _ -> TType Number
+                LString _ -> TType String
+                LUnit -> TType Unit
+        return $ ELiteral litType lit
     EIdentifier pos txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of

@@ -26,6 +26,7 @@ data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
     , eTypeBindings  :: HashMap Text TypeVar
+    , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     }
 
 showTypeVarIO :: TypeVar -> IO [Char]
@@ -58,8 +59,8 @@ showTypeVarIO tvar = case tvar of
     TType ty ->
         return $ "TType " ++ show ty
 
-newEnv :: IO Env
-newEnv = do
+newEnv :: Maybe TypeVar -> IO Env
+newEnv eReturnType = do
     eNextTypeIndex <- IORef.newIORef 0
     eBindings <- IORef.newIORef HashMap.empty
     let eTypeBindings = HashMap.empty
@@ -130,20 +131,21 @@ check env expr = case expr of
             _ -> do
                 exprs' <- forM exprs (check env')
                 return $ EBlock (edata $ last exprs') exprs'
-    EFun _ param exprs -> do
+    EFun _ params exprs -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramTypes <- forM param $ \p -> do
+        paramTypes <- forM params $ \p -> do
             pt <- freshType env
             HashTable.insert p pt bindings'
             return pt
 
-        case exprs of
-            [] -> do
-                return $ EFun (TFun paramTypes (TType Unit)) param []
-            _ -> do
-                let env' = env{eBindings=bindings'}
-                exprs' <- forM exprs (check env')
-                return $ EFun (TFun paramTypes (edata $ last exprs')) param exprs'
+        returnType <- freshType env
+
+        let env' = env{eBindings=bindings', eReturnType=Just returnType}
+        exprs' <- forM exprs (check env')
+        unify returnType $ case exprs' of
+            [] -> TType Unit
+            _ -> edata $ last exprs'
+        return $ EFun (TFun paramTypes returnType) params exprs'
 
     EApp _ lhs rhs -> do
         lhs' <- check env lhs
@@ -248,6 +250,15 @@ check env expr = case expr of
         unify (edata ifTrue') (edata ifFalse')
 
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
+
+    EReturn _ rv -> do
+        rv' <- check env rv
+        case eReturnType env of
+            Nothing ->
+                error "Cannot return outside of functions"
+            Just rt -> do
+                unify rt $ edata rv'
+                return $ EReturn (edata rv') rv'
 
 quantify :: TypeVar -> IO ()
 quantify ty = do
@@ -414,6 +425,10 @@ flatten expr = case expr of
         ifTrue' <- flatten ifTrue
         ifFalse' <- flatten ifFalse
         return $ EIfThenElse td' condition' ifTrue' ifFalse'
+    EReturn td rv -> do
+        td' <- flattenTypeVar td
+        rv' <- flatten rv
+        return $ EReturn td' rv'
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
@@ -572,7 +587,7 @@ checkDecl env decl = case decl of
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
-    e <- newEnv
+    e <- newEnv Nothing
     typeEnv <- IORef.newIORef $ HashMap.fromList
         [ ("Number", TType Number)
         , ("Unit", TType Unit)

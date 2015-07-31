@@ -63,6 +63,7 @@ keyword = P.try $ do
         "if" -> return $ TIf p
         "then" -> return $ TThen p
         "else" -> return $ TElse p
+        "return" -> return $ TReturn p
         _ -> fail ""
 
 symbol :: P.ParsecT Text u Identity (Token Pos)

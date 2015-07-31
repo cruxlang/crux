@@ -16,6 +16,8 @@ import           System.Process (readProcess)
 import           TestJesus
 -- import           Text.Show.Pretty   (ppShow)
 import           Data.Monoid    ((<>))
+import           System.IO (hFlush)
+import           System.IO.Temp (withSystemTempFile)
 
 run :: Text -> IO (Either String Text)
 run src = do
@@ -38,9 +40,10 @@ run' src = do
                     typetree <- Typecheck.run p'
                     typetree' <- forM typetree Typecheck.flattenDecl
                     js <- JSGen.generateDocument typetree'
-                    T.writeFile "temp.js" $ JSTree.renderDocument js
-
-                    fmap (Right . T.pack) $ readProcess "node" ["temp.js"] ""
+                    withSystemTempFile "crux.js" $ \path handle -> do
+                        T.hPutStr handle $ JSTree.renderDocument js
+                        hFlush handle
+                        fmap (Right . T.pack) $ readProcess "node" [path] ""
 
 case_hello_world = do
     result <- run $ T.unlines

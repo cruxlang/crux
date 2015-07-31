@@ -1,5 +1,5 @@
 
-module Crux.Main where
+module Crux.Main (main) where
 
 import           Control.Applicative
 import           Data.Monoid
@@ -11,7 +11,7 @@ import           Crux.Parse
 import qualified Crux.Typecheck     as Typecheck
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
-import qualified System.FilePath    as F
+--import qualified System.FilePath    as F
 import System.IO (stderr, hPutStr)
 import qualified Options.Applicative as Opt
 
@@ -47,7 +47,7 @@ main = do
         [] -> help
         (_:_:_) -> help
         [fn] -> do
-            let outfile = F.replaceExtension fn "js"
+            --let outfile = F.replaceExtension fn "js"
             l <- Crux.Lex.lex fn
             case l of
                 Left err -> failed $ "Lex error: " ++ show err

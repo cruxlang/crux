@@ -66,4 +66,5 @@ test-suite tests
                  , crux
                  , process
                  , filepath
+                 , temporary
     default-language: Haskell2010

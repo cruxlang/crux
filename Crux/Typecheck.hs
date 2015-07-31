@@ -26,6 +26,7 @@ data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
     , eTypeBindings  :: HashMap Text TypeVar
+    , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     }
 
 showTypeVarIO :: TypeVar -> IO [Char]
@@ -58,8 +59,8 @@ showTypeVarIO tvar = case tvar of
     TType ty ->
         return $ "TType " ++ show ty
 
-newEnv :: IO Env
-newEnv = do
+newEnv :: Maybe TypeVar -> IO Env
+newEnv eReturnType = do
     eNextTypeIndex <- IORef.newIORef 0
     eBindings <- IORef.newIORef HashMap.empty
     let eTypeBindings = HashMap.empty
@@ -251,8 +252,12 @@ check env expr = case expr of
 
     EReturn _ rv -> do
         rv' <- check env rv
-        -- TODO: unify with environment's current function's return type
-        return $ EReturn (edata rv') rv'
+        case eReturnType env of
+            Nothing ->
+                error "Top-level return is meaningless"
+            Just rt -> do
+                unify rt $ edata rv'
+                return $ EReturn (edata rv') rv'
 
 quantify :: TypeVar -> IO ()
 quantify ty = do
@@ -581,7 +586,7 @@ checkDecl env decl = case decl of
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
-    e <- newEnv
+    e <- newEnv Nothing
     typeEnv <- IORef.newIORef $ HashMap.fromList
         [ ("Number", TType Number)
         , ("Unit", TType Unit)

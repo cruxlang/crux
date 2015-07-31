@@ -90,8 +90,14 @@ toStringExpression = do
     expr <- noSemiExpression
     return $ EToString (tokenData ts) expr
 
+unitLiteralExpression :: Parser ParseExpression
+unitLiteralExpression = do
+    o <- token TOpenParen
+    _ <- token TCloseParen
+    return $ ELiteral (tokenData o) LUnit
+
 literalExpression :: Parser ParseExpression
-literalExpression = P.tokenPrim showTok nextPos testTok
+literalExpression = (P.try unitLiteralExpression) <|> P.tokenPrim showTok nextPos testTok
   where
     showTok = show
     nextPos pos _ _ = pos

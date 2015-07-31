@@ -214,6 +214,8 @@ generateExpr env expr = case expr of
         return $ JS.ELiteral (JS.LString s)
     ELiteral _ (LInteger i) ->
         return $ JS.ELiteral (JS.LInteger i)
+    ELiteral _ LUnit ->
+        return $ JS.ELiteral JS.LUndefined
     EIdentifier _ s ->
         return $ JS.EIdentifier s
     ESemi _ lhs rhs -> do

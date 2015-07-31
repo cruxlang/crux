@@ -32,6 +32,8 @@ case_literals = do
         (ELiteral () (LInteger 5))
     assertExprParses literalExpression "\"Hooper\""
         (ELiteral () (LString "Hooper"))
+    assertExprParses literalExpression "()"
+        (ELiteral () (LUnit))
 
 case_parens = do
     assertExprParses noSemiExpression "(5)"

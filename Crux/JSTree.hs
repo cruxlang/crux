@@ -14,7 +14,7 @@ type Name = Text
 data Statement
     = SBlock [Statement]
     | SVar Name (Maybe Expression)
-    | SFunction (Maybe Name) [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
+    | SFunction Name [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
     | SExpression Expression
     | SReturn (Maybe Expression)
     | SIf Expression Statement (Maybe Statement) -- if (e1) { s1 } else { s2 }
@@ -89,8 +89,8 @@ render stmt = case stmt of
             <> renderExpr rhs
             <> B.fromText ";\n"
 
-    SFunction maybeName maybeArg body ->
-        renderFunction maybeName maybeArg body
+    SFunction name maybeArg body ->
+        renderFunction (Just name) maybeArg body
     SExpression expr ->
         renderExpr expr
             <> B.fromText  ";\n"

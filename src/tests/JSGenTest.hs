@@ -50,6 +50,17 @@ case_return_at_top_level_is_error = do
 
 case_return_from_function = do
     result <- genDoc "fun f() { return 1; };"
-    assertEqual "statements" [JS.SFunction (Just "f") [] [JS.SReturn (Just (JS.ELiteral (JS.LInteger 1)))]] result
+    assertEqual "statements" [JS.SFunction "f" [] [JS.SReturn (Just (JS.ELiteral (JS.LInteger 1)))]] result
+
+{-
+xcase_return_from_branch = do
+    result <- genDoc "fun f() { if True then return 1 else return 2; };"
+    assertEqual "statements"
+        [ JS.SFunction "f" []
+            [ JS.SVar
+            ]
+        ]
+        result
+-}
 
 tests = $(testGroupGenerator)

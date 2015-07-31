@@ -56,7 +56,7 @@ generateVariant variantName vdata = case vdata of
         JS.SVar variantName (Just $ JS.EArray [JS.ELiteral $ JS.LString variantName])
     _ ->
         let argNames = [T.pack ('a':show i) | i <- [0..(length vdata) - 1]]
-        in JS.SFunction (Just variantName) argNames $
+        in JS.SFunction variantName argNames $
             [ JS.SReturn $ Just $ JS.EArray $
               [JS.ELiteral $ JS.LString variantName] ++ (map JS.EIdentifier argNames)
             ]
@@ -67,7 +67,7 @@ generateDecl env decl = case decl of
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
     DLet _ _ name (EFun funData params body) -> do
         body' <- generateBlock env DReturn funData body
-        return [JS.SFunction (Just name) params body']
+        return [JS.SFunction name params body']
     DLet _ _ name expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
         return $ written ++ [JS.SVar name $ Just expr']
@@ -124,7 +124,7 @@ generateStatementExpr env dest expr = case expr of
 
     ELet letData _ name (EFun _ params body) -> do
         body' <- generateStatementExpr env DReturn (EBlock letData body)
-        return [JS.SFunction (Just name) params body']
+        return [JS.SFunction name params body']
     ELet _ _ name e -> do
         e' <- generateExpr env e
         return [JS.SVar name $ Just e']
@@ -210,12 +210,11 @@ generateExpr env expr = case expr of
         l <- generateExpr env lhs
         r <- mapM (generateExpr env) rhs
         return $ JS.EApplication l r
-    ELiteral _ (LString s)  ->
-        return $ JS.ELiteral (JS.LString s)
-    ELiteral _ (LInteger i) ->
-        return $ JS.ELiteral (JS.LInteger i)
-    ELiteral _ LUnit ->
-        return $ JS.ELiteral JS.LUndefined
+    ELiteral _ lit ->
+        return $ JS.ELiteral $ case lit of
+            LString s -> JS.LString s
+            LInteger i -> JS.LInteger i
+            LUnit -> JS.LUndefined
     EIdentifier _ s ->
         return $ JS.EIdentifier s
     ESemi _ lhs rhs -> do

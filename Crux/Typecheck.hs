@@ -192,19 +192,18 @@ check env expr = case expr of
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet _ Rec name expr' -> do
+    ELet _ rec name expr' -> do
         ty <- freshType env
-        HashTable.insert name ty (eBindings env)
-        expr'' <- check env expr'
+        expr'' <- case rec of
+            Rec -> do
+                HashTable.insert name ty (eBindings env)
+                check env expr'
+            NoRec -> do
+                expr'' <- check env expr'
+                HashTable.insert name ty (eBindings env)
+                return expr''
         unify ty (edata expr'')
-        return $ ELet ty Rec name expr''
-
-    ELet _ NoRec name expr' -> do
-        ty <- freshType env
-        expr'' <- check env expr'
-        HashTable.insert name ty (eBindings env)
-        unify ty (edata expr'')
-        return $ ELet ty NoRec name expr''
+        return $ ELet (TType Unit) Rec name expr''
 
     EPrint _ expr' -> do
         expr'' <- check env expr'

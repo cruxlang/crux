@@ -3,6 +3,8 @@
 module JSGenTest (tests) where
 
 import Control.Monad (forM)
+import Control.Exception (try)
+import GHC.Exception (ErrorCall(..))
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import TestJesus
@@ -43,7 +45,7 @@ case_direct_prints = do
         ]
 
 case_return_at_top_level_is_error = do
-    rv <- genDoc' "let _ = return 1;"
-    assertEqual "return outside of function is error" (Left "") $ rv
+    result <- try $! genDoc "let _ = return 1;"
+    assertEqual "exception matches" (Left $ ErrorCall "Cannot return outside of functions") $ result
 
 tests = $(testGroupGenerator)

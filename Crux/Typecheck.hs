@@ -254,7 +254,7 @@ check env expr = case expr of
         rv' <- check env rv
         case eReturnType env of
             Nothing ->
-                error "Top-level return is meaningless"
+                error "Cannot return outside of functions"
             Just rt -> do
                 unify rt $ edata rv'
                 return $ EReturn (edata rv') rv'

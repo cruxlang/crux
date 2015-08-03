@@ -22,6 +22,7 @@ library
                    , Crux.Intrinsic
                    , Crux.Lex
                    , Crux.Main
+                   , Crux.Gen
                    , Crux.JSGen
                    , Crux.JSGen.Types
                    , Crux.JSTree
@@ -32,6 +33,7 @@ library
                  , text
                  , bytestring
                  , mtl
+                 , transformers
                  , data-default
                  , hashable
                  , unordered-containers

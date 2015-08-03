@@ -4,7 +4,7 @@
 
 module Crux.JSGen where
 
-import           Control.Monad         (forM)
+import Crux.Prelude
 import           Control.Monad.Trans   (lift)
 import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
@@ -15,8 +15,6 @@ import           Data.Foldable         (foldlM)
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.IORef            as IORef
 import           Data.List             (foldl')
-import           Data.Monoid           ((<>))
-import           Data.Text             (Text)
 import qualified Data.Text             as T
 
 -- When rendering an expression, what should we do with the result?
@@ -192,6 +190,8 @@ emitWriteDestination dest expr = case dest of
     DDiscard -> JS.SExpression expr
     DReturn -> JS.SReturn $ Just expr
     DAssign var -> JS.SAssign (JS.EIdentifier var) expr
+
+data Computation = Computation (Maybe Name)
 
 generateExpr :: Env -> Expression t -> JSWrite JS.Expression
 generateExpr env expr = case expr of

@@ -1,0 +1,2 @@
+let _ = print(let x = 10);
+let y = let z = 10;

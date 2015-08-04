@@ -78,12 +78,6 @@ returnExpression = do
     rv <- noSemiExpression
     return $ EReturn (tokenData pr) rv
 
-toStringExpression :: Parser ParseExpression
-toStringExpression = do
-    ts <- P.try $ identifier "toString"
-    expr <- noSemiExpression
-    return $ EToString (tokenData ts) expr
-
 unitLiteralExpression :: Parser ParseExpression
 unitLiteralExpression = do
     o <- token TOpenParen
@@ -249,7 +243,6 @@ noSemiExpression =
     <|> matchExpression
     <|> P.try ifThenElseExpression
     <|> P.try returnExpression
-    <|> P.try toStringExpression
     <|> P.try functionExpression
     <|> P.try recordLiteralExpression
     <|> addExpression

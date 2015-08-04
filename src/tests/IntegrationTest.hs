@@ -55,7 +55,7 @@ case_integer = do
     result <- run $ T.unlines
         [ "let x = 1;"
         , "let y = x;"
-        , "let _ = print (toString y);"
+        , "let _ = print(toString(y));"
         ]
     assertEqual "" (Right "1\n") result
 

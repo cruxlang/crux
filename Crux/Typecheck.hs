@@ -224,10 +224,6 @@ check env expr = case expr of
                 return expr''
         unify ty (edata expr'')
         return $ ELet (TType Unit) Rec name expr''
-
-    EToString _ expr' -> do
-        expr'' <- check env expr'
-        return $ EToString (TType String) expr''
     ELiteral _ lit -> do
         let litType = case lit of
                 LInteger _ -> TType Number
@@ -428,10 +424,6 @@ flatten expr = case expr of
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
         return $ ELet td' rec name expr''
-    EToString td expr' -> do
-        td' <- flattenTypeVar td
-        expr'' <- flatten expr'
-        return $ EToString td' expr''
     ELiteral td lit -> do
         td' <- flattenTypeVar td
         return $ ELiteral td' lit

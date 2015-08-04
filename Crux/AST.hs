@@ -71,7 +71,6 @@ data Expression edata
     | ELookup edata (Expression edata) Name
     | EApp edata (Expression edata) [Expression edata]
     | EMatch edata (Expression edata) [Case edata]
-    | EToString edata (Expression edata)
     | ELiteral edata Literal
     | EIdentifier edata Text
     | ESemi edata (Expression edata) (Expression edata)
@@ -90,7 +89,6 @@ instance Functor Expression where
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
         EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
-        EToString d subExpr -> EToString (f d) (fmap f subExpr)
         ELiteral d l -> ELiteral (f d) l
         EIdentifier d i -> EIdentifier (f d) i
         ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
@@ -111,7 +109,6 @@ edata expr = case expr of
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
-    EToString ed _ -> ed
     ELiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed

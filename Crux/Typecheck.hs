@@ -144,6 +144,13 @@ check env expr = case expr of
     EApp _ (EIdentifier _ "_unsafe_js") _ ->
         error "_unsafe_js takes just one string literal"
 
+    EApp _ (EIdentifier _ "_unsafe_coerce") [subExpr] -> do
+        t <- freshType env
+        subExpr' <- check env subExpr
+        return $ EIntrinsic t (IIUnsafeCoerce subExpr')
+    EApp _ (EIdentifier _ "_unsafe_coerce") _ ->
+        error "_unsafe_coerce takes just one argument"
+
     EApp _ (EIdentifier _ "print") args -> do
         args' <- mapM (check env) args
         return $ EIntrinsic (TType Unit) (IIPrint args')
@@ -227,6 +234,8 @@ check env expr = case expr of
         error "Intrinsic toString is not a value"
     EIdentifier _ "_unsafe_js" ->
         error "Intrinsic _unsafe_js is not a value"
+    EIdentifier _ "_unsafe_coerce" ->
+        error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of
@@ -368,6 +377,20 @@ flattenTypeVar tv = case tv of
     TType t ->
         return $ IType t
 
+flattenIntrinsic :: IntrinsicId TypeVar -> IO (IntrinsicId ImmutableTypeVar)
+flattenIntrinsic intrin = case intrin of
+    IIUnsafeJs txt ->
+        return $ IIUnsafeJs txt
+    IIUnsafeCoerce arg -> do
+        arg' <- flatten arg
+        return $ IIUnsafeCoerce arg'
+    IIPrint args -> do
+        args' <- mapM flatten args
+        return $ IIPrint args'
+    IIToString arg -> do
+        arg' <- flatten arg
+        return $ IIToString arg'
+
 flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
 flatten expr = case expr of
     EFun td params exprs -> do
@@ -379,17 +402,10 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- mapM flatten rhs
         return $ EApp td' lhs' rhs'
-    EIntrinsic td (IIUnsafeJs txt) -> do
+    EIntrinsic td intrin -> do
         td' <- flattenTypeVar td
-        return $ EIntrinsic td' (IIUnsafeJs txt)
-    EIntrinsic td (IIPrint args) -> do
-        td' <- flattenTypeVar td
-        args' <- mapM flatten args
-        return $ EIntrinsic td' (IIPrint args')
-    EIntrinsic td (IIToString arg) -> do
-        td' <- flattenTypeVar td
-        arg' <- flatten arg
-        return $ EIntrinsic td' (IIToString arg')
+        intrin' <- flattenIntrinsic intrin
+        return $ EIntrinsic td' intrin'
     ERecordLiteral td fields -> do
         td' <- flattenTypeVar td
         fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do

@@ -162,4 +162,13 @@ case_incorrect_unsafe_js = do
         ]
     assertEqual "" (Left "Intrinsic _unsafe_js is not a value") result
 
+case_unsafe_coerce = do
+    result <- run $ T.unlines
+        [ "let message = \"ohai\";"
+        , "let coerced = _unsafe_coerce(message);"
+        , "let _ = print(5 + coerced);"
+        ]
+
+    assertEqual "" (Right "5ohai\n") result
+
 tests = $(testGroupGenerator)

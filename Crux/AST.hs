@@ -59,6 +59,7 @@ data BinIntrinsic
 
 data IntrinsicId edata
     = IIUnsafeJs Text
+    | IIUnsafeCoerce (Expression edata)
     | IIPrint [Expression edata]
     | IIToString (Expression edata)
     deriving (Show, Eq)
@@ -93,6 +94,7 @@ instance Functor Expression where
         EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
         EIntrinsic d i -> case i of
             IIUnsafeJs txt -> EIntrinsic (f d) (IIUnsafeJs txt)
+            IIUnsafeCoerce subExpr -> EIntrinsic (f d) (IIUnsafeCoerce $ fmap f subExpr)
             IIPrint args -> EIntrinsic (f d) (IIPrint $ map (fmap f) args)
             IIToString arg -> EIntrinsic (f d) (IIToString $ fmap f arg)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)

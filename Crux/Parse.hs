@@ -107,8 +107,12 @@ functionExpression = do
     args <- P.sepBy anyIdentifier (token TComma)
     _ <- token TCloseParen
     _ <- token TOpenBrace
-    body <- P.many expression
+    bodyExprs <- P.many expression
     _ <- token TCloseBrace
+
+    let body = case bodyExprs of
+            [] -> ELiteral (tokenData tfun) LUnit
+            _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
 
     return $ EFun (tokenData tfun) args body
 
@@ -307,8 +311,12 @@ funDeclaration = do
     args <- P.sepBy anyIdentifier (token TComma)
     _ <- token TCloseParen
     _ <- token TOpenBrace
-    body <- P.many expression
+    bodyExprs <- P.many expression
     _ <- token TCloseBrace
+
+    let body = case bodyExprs of
+            [] -> ELiteral (tokenData tfun) LUnit
+            _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
 
     let expr = EFun (tokenData tfun) args body
 

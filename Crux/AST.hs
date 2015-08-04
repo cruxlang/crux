@@ -66,7 +66,7 @@ data IntrinsicId edata
 
 data Expression edata
     = ELet edata Recursive Pattern (Expression edata)
-    | EFun edata [Text] [Expression edata]
+    | EFun edata [Text] (Expression edata)
     | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name
     | EApp edata (Expression edata) [Expression edata]
@@ -83,7 +83,7 @@ data Expression edata
 instance Functor Expression where
     fmap f expr = case expr of
         ELet d rec pat subExpr -> ELet (f d) rec pat (fmap f subExpr)
-        EFun d argNames subExprs -> EFun (f d) argNames (fmap (fmap f) subExprs)
+        EFun d argNames body -> EFun (f d) argNames (fmap f body)
         ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)

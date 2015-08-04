@@ -63,30 +63,20 @@ generateDecl :: Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
     DData _name _ variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
-    DLet _ _ name (EFun funData params body) -> do
-        body' <- generateBlock env DReturn funData body
+    DLet _ _ name (EFun _ params body) -> do
+        body' <- generateBlock env DReturn body
         return [JS.SFunction name params body']
     DLet _ _ name expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
         return $ written ++ [JS.SVar name $ Just expr']
 
 
-generateBlock' :: Env -> ExprDestination -> [Expression t] -> JSWrite [JS.Statement]
-generateBlock' env dest exprs = case exprs of
-    [] -> case dest of
-        DReturn -> return [JS.SReturn Nothing]
-        _ -> return []
-    [subExpr] -> do
-        generateStatementExpr env dest subExpr
-    subExprs -> do
-        let sei = init subExprs
-            sel = last subExprs
-        sei' <- fmap concat $ mapM (generateStatementExpr env DDiscard) sei
-        sel' <- generateStatementExpr env dest sel
-        return (sei' ++ sel')
+generateBlock' :: Env -> ExprDestination -> Expression t -> JSWrite [JS.Statement]
+generateBlock' env dest expr = do
+    generateStatementExpr env dest expr
 
-generateBlock :: Env -> ExprDestination -> t -> [Expression t] -> IO [JS.Statement]
-generateBlock env dest blockData exprs = do
+generateBlock :: Env -> ExprDestination -> Expression t -> IO [JS.Statement]
+generateBlock env dest exprs = do
     (e', written) <- Writer.runWriterT $
         generateBlock' env dest exprs
     return (written ++ e')
@@ -125,7 +115,7 @@ generateMatchVars matchVar patt = case patt of
 generateStatementExpr :: Env -> ExprDestination -> Expression t -> JSWrite [JS.Statement]
 generateStatementExpr env dest expr = case expr of
 
-    ELet letData _ name (EFun _ params body) -> do
+    ELet _ _ name (EFun _ params body) -> do
         body' <- generateBlock' env DReturn body
         return [JS.SFunction name params body']
     ELet _ _ name e -> do
@@ -197,8 +187,8 @@ data Computation = Computation (Maybe Name)
 
 generateExpr :: Env -> Expression t -> JSWrite JS.Expression
 generateExpr env expr = case expr of
-    EFun funData params body -> do
-        body' <- lift $ generateBlock env DReturn funData body
+    EFun _ params body -> do
+        body' <- lift $ generateBlock env DReturn body
         return $ JS.EFunction params body'
     ERecordLiteral _ fields -> do
         fields' <- forM (HashMap.toList fields) $ \(key, fieldExpr) -> do

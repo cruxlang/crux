@@ -122,7 +122,7 @@ buildPatternEnv exprType env patt = case patt of
 
 check :: Env -> Expression Pos -> IO (Expression TypeVar)
 check env expr = case expr of
-    EFun _ params exprs -> do
+    EFun _ params body -> do
         bindings' <- HashTable.clone (eBindings env)
         paramTypes <- forM params $ \p -> do
             pt <- freshType env
@@ -132,11 +132,9 @@ check env expr = case expr of
         returnType <- freshType env
 
         let env' = env{eBindings=bindings', eReturnType=Just returnType}
-        exprs' <- forM exprs (check env')
-        unify returnType $ case exprs' of
-            [] -> TType Unit
-            _ -> edata $ last exprs'
-        return $ EFun (TFun paramTypes returnType) params exprs'
+        body' <- check env' body
+        unify returnType $ edata body'
+        return $ EFun (TFun paramTypes returnType) params body'
 
     EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
         t <- freshType env
@@ -393,10 +391,10 @@ flattenIntrinsic intrin = case intrin of
 
 flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
 flatten expr = case expr of
-    EFun td params exprs -> do
+    EFun td params body -> do
         td' <- flattenTypeVar td
-        exprs' <- forM exprs flatten
-        return $ EFun td' params exprs'
+        body' <- flatten body
+        return $ EFun td' params body'
     EApp td lhs rhs -> do
         td' <- flattenTypeVar td
         lhs' <- flatten lhs

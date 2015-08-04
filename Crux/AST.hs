@@ -64,8 +64,7 @@ data IntrinsicId edata
     deriving (Show, Eq)
 
 data Expression edata
-    = EBlock edata [Expression edata]
-    | ELet edata Recursive Pattern (Expression edata)
+    = ELet edata Recursive Pattern (Expression edata)
     | EFun edata [Text] [Expression edata]
     | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name
@@ -82,7 +81,6 @@ data Expression edata
 
 instance Functor Expression where
     fmap f expr = case expr of
-        EBlock d s -> EBlock (f d) (fmap (fmap f) s)
         ELet d rec pat subExpr -> ELet (f d) rec pat (fmap f subExpr)
         EFun d argNames subExprs -> EFun (f d) argNames (fmap (fmap f) subExprs)
         ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
@@ -102,7 +100,6 @@ instance Functor Expression where
 
 edata :: Expression edata -> edata
 edata expr = case expr of
-    EBlock ed _ -> ed
     ELet ed _ _ _ -> ed
     EFun ed _ _ -> ed
     ERecordLiteral ed _ -> ed

@@ -70,9 +70,25 @@ generateDecl env decl = case decl of
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
         return $ written ++ [JS.SVar name $ Just expr']
 
+
+generateBlock' :: Env -> ExprDestination -> [Expression t] -> JSWrite [JS.Statement]
+generateBlock' env dest exprs = case exprs of
+    [] -> case dest of
+        DReturn -> return [JS.SReturn Nothing]
+        _ -> return []
+    [subExpr] -> do
+        generateStatementExpr env dest subExpr
+    subExprs -> do
+        let sei = init subExprs
+            sel = last subExprs
+        sei' <- fmap concat $ mapM (generateStatementExpr env DDiscard) sei
+        sel' <- generateStatementExpr env dest sel
+        return (sei' ++ sel')
+
 generateBlock :: Env -> ExprDestination -> t -> [Expression t] -> IO [JS.Statement]
 generateBlock env dest blockData exprs = do
-    (e', written) <- Writer.runWriterT $ generateStatementExpr env dest (EBlock blockData exprs)
+    (e', written) <- Writer.runWriterT $
+        generateBlock' env dest exprs
     return (written ++ e')
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
@@ -108,20 +124,9 @@ generateMatchVars matchVar patt = case patt of
 
 generateStatementExpr :: Env -> ExprDestination -> Expression t -> JSWrite [JS.Statement]
 generateStatementExpr env dest expr = case expr of
-    EBlock _ [] -> case dest of
-        DReturn -> return [JS.SReturn Nothing]
-        _ -> return []
-    EBlock _ [subExpr] ->
-        generateStatementExpr env dest subExpr
-    EBlock _ subExprs -> do
-        let sei = init subExprs
-            sel = last subExprs
-        sei' <- fmap concat $ mapM (generateStatementExpr env DDiscard) sei
-        sel' <- generateStatementExpr env dest sel
-        return (sei' ++ sel')
 
     ELet letData _ name (EFun _ params body) -> do
-        body' <- generateStatementExpr env DReturn (EBlock letData body)
+        body' <- generateBlock' env DReturn body
         return [JS.SFunction name params body']
     ELet _ _ name e -> do
         e' <- generateExpr env e

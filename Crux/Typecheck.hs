@@ -122,15 +122,6 @@ buildPatternEnv exprType env patt = case patt of
 
 check :: Env -> Expression Pos -> IO (Expression TypeVar)
 check env expr = case expr of
-    EBlock _ exprs -> do
-        bindings' <- HashTable.clone (eBindings env)
-        let env' = env{eBindings=bindings'}
-        case exprs of
-            [] -> do
-                return $ EBlock (TType Unit) []
-            _ -> do
-                exprs' <- forM exprs (check env')
-                return $ EBlock (edata $ last exprs') exprs'
     EFun _ params exprs -> do
         bindings' <- HashTable.clone (eBindings env)
         paramTypes <- forM params $ \p -> do
@@ -379,10 +370,6 @@ flattenTypeVar tv = case tv of
 
 flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
 flatten expr = case expr of
-    EBlock td exprs -> do
-        td' <- flattenTypeVar td
-        exprs' <- forM exprs flatten
-        return $ EBlock td' exprs'
     EFun td params exprs -> do
         td' <- flattenTypeVar td
         exprs' <- forM exprs flatten

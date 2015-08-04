@@ -208,18 +208,12 @@ check env expr = case expr of
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet _ rec name expr' -> do
+    ELet _ name expr' -> do
         ty <- freshType env
-        expr'' <- case rec of
-            Rec -> do
-                HashTable.insert name ty (eBindings env)
-                check env expr'
-            NoRec -> do
-                expr'' <- check env expr'
-                HashTable.insert name ty (eBindings env)
-                return expr''
+        expr'' <- check env expr'
+        HashTable.insert name ty (eBindings env)
         unify ty (edata expr'')
-        return $ ELet (TType Unit) Rec name expr''
+        return $ ELet (TType Unit) name expr''
     ELiteral _ lit -> do
         let litType = case lit of
                 LInteger _ -> TType Number
@@ -421,10 +415,10 @@ flatten expr = case expr of
         cases' <- forM cases $ \(Case pattern subExpr) ->
             fmap (Case pattern) (flatten subExpr)
         return $ EMatch td' expr' cases'
-    ELet td rec name expr' -> do
+    ELet td name expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
-        return $ ELet td' rec name expr''
+        return $ ELet td' name expr''
     ELiteral td lit -> do
         td' <- flattenTypeVar td
         return $ ELiteral td' lit

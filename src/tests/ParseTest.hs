@@ -53,11 +53,11 @@ case_application_association = do
 
 case_let = do
     assertExprParses letExpression "let a = \"Hello\""
-        (ELet () NoRec "a" (ELiteral () (LString "Hello")))
+        (ELet () "a" (ELiteral () (LString "Hello")))
 
 case_let2 = do
     assertExprParses letExpression "let a = (5)"
-        (ELet () NoRec "a" (ELiteral () (LInteger 5)))
+        (ELet () "a" (ELiteral () (LInteger 5)))
 
 case_pattern = do
     assertParseOk pattern "Cons a (Cons b Nil)"

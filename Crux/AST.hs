@@ -13,11 +13,6 @@ type Pattern = Name -- Temporary
 data TypeIdent = TypeIdent TypeName [TypeIdent]
     deriving (Show, Eq)
 
-data Recursive
-    = Rec
-    | NoRec
-    deriving (Show, Eq)
-
 data Literal
     = LInteger Integer
     | LString Text
@@ -67,7 +62,7 @@ data IntrinsicId edata
     deriving (Show, Eq)
 
 data Expression edata
-    = ELet edata Recursive Pattern (Expression edata)
+    = ELet edata Pattern (Expression edata)
     | EFun edata [Text] (Expression edata)
     | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name
@@ -84,7 +79,7 @@ data Expression edata
 
 instance Functor Expression where
     fmap f expr = case expr of
-        ELet d rec pat subExpr -> ELet (f d) rec pat (fmap f subExpr)
+        ELet d pat subExpr -> ELet (f d) pat (fmap f subExpr)
         EFun d argNames body -> EFun (f d) argNames (fmap f body)
         ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
@@ -104,7 +99,7 @@ instance Functor Expression where
 
 edata :: Expression edata -> edata
 edata expr = case expr of
-    ELet ed _ _ _ -> ed
+    ELet ed _ _ -> ed
     EFun ed _ _ -> ed
     ERecordLiteral ed _ -> ed
     ELookup ed _ _ -> ed

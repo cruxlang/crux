@@ -56,7 +56,6 @@ keyword = P.try $ do
     TIdentifier p i <- parseIdentifier
     case i of
         "let" -> return $ TLet p
-        "rec" -> return $ TRec p
         "fun" -> return $ TFun p
         "data" -> return $ TData p
         "match" -> return $ TMatch p

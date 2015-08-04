@@ -34,7 +34,6 @@ data Token tdata
     -- Keywords
     | TFun tdata
     | TLet tdata
-    | TRec tdata
     | TData tdata
     | TMatch tdata
     | TIf tdata
@@ -64,7 +63,6 @@ instance Eq (Token a) where
         (TDivide _,         TDivide _)         -> True
         (TFun _,            TFun _)            -> True
         (TLet _,            TLet _)            -> True
-        (TRec _,            TRec _)            -> True
         (TData _,           TData _)           -> True
         (TMatch _,          TMatch _)          -> True
         (TIf _,             TIf _)             -> True
@@ -94,7 +92,6 @@ tokenData tok = case tok of
     TFatRightArrow tdata -> tdata
     TFun tdata -> tdata
     TLet tdata -> tdata
-    TRec tdata -> tdata
     TData tdata -> tdata
     TMatch tdata -> tdata
     TIf tdata -> tdata

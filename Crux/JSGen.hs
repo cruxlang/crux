@@ -116,10 +116,10 @@ generateMatchVars matchVar patt = case patt of
 generateStatementExpr :: Env -> ExprDestination -> Expression t -> JSWrite [JS.Statement]
 generateStatementExpr env dest expr = case expr of
 
-    ELet _ _ name (EFun _ params body) -> do
+    ELet _ name (EFun _ params body) -> do
         body' <- generateBlock' env DReturn body
         return [JS.SFunction name params body']
-    ELet _ _ name e -> do
+    ELet _ name e -> do
         e' <- generateExpr env e
         return [JS.SVar name $ Just e']
     EFun {} -> do

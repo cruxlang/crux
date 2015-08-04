@@ -44,7 +44,7 @@ fun distance(p1, p2) {
     let dy = p1.y - p2.y;
     sqrt(dx * dx + dy * dy);
 };
-print(distance(point_one named_point_two));
+print(distance(point_one, named_point_two));
 ```
 
 In this example, the `distance` function can accept either point, because both are compatible with the type `{x:Number, y:Number}`.

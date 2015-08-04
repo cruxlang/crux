@@ -4,13 +4,13 @@
 
 module Crux.JSGen where
 
-import Crux.Prelude
 import           Control.Monad.Trans   (lift)
 import qualified Control.Monad.Writer  as Writer
 import           Crux.AST
-import           Crux.JSGen.Types      (Env(..), JSWrite)
+import           Crux.JSGen.Types      (Env (..), JSWrite)
 import qualified Crux.JSTree           as JS
 import qualified Crux.MutableHashTable as HashTable
+import           Crux.Prelude
 import           Data.Foldable         (foldlM)
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.IORef            as IORef
@@ -178,6 +178,9 @@ generateStatementExpr env dest expr = case expr of
     EBinIntrinsic {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
+    EIntrinsic _ (IIUnsafeJs _) -> do
+        ex' <- generateExpr env expr
+        return [emitWriteDestination dest ex']
     EIfThenElse {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
@@ -238,6 +241,8 @@ generateExpr env expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return $ JS.EBinOp sym l r
+    EIntrinsic _ (IIUnsafeJs txt) -> do
+        return $ JS.ERaw txt
     EIfThenElse _ condition ifTrue ifFalse -> do
         condition' <- generateExpr env condition
         ifTrue' <- generateExpr env ifTrue

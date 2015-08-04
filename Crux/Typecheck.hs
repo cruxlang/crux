@@ -147,12 +147,19 @@ check env expr = case expr of
             _ -> edata $ last exprs'
         return $ EFun (TFun paramTypes returnType) params exprs'
 
+    EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
+        t <- freshType env
+        return $ EIntrinsic t (IIUnsafeJs txt)
+
     EApp _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- mapM (check env) rhs
         result <- freshType env
         unify (edata lhs') (TFun (map edata rhs') result)
         return $ EApp result lhs' rhs'
+
+    EIntrinsic {} -> do
+        error "Unexpected: EIntrinsic encountered during typechecking"
 
     ERecordLiteral _ fields -> do
         fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
@@ -217,6 +224,8 @@ check env expr = case expr of
                 LString _ -> TType String
                 LUnit -> TType Unit
         return $ ELiteral litType lit
+    EIdentifier _ "_unsafe_js" ->
+        error "_unsafe_js is not a value.  It is magic!"
     EIdentifier pos txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of
@@ -373,6 +382,10 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- mapM flatten rhs
         return $ EApp td' lhs' rhs'
+    EIntrinsic td iid@(IIUnsafeJs _) -> do
+        td' <- flattenTypeVar td
+        return $ EIntrinsic td' iid
+    EIntrinsic {} -> error "!!!!@!"
     ERecordLiteral td fields -> do
         td' <- flattenTypeVar td
         fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do

@@ -43,6 +43,7 @@ data Expression
     | ESemi Expression Expression
     | EComma Expression Expression
     | ETernary Expression Expression Expression
+    | ERaw Text
     deriving (Show, Eq)
 
 intercalate :: (Show m, Monoid m) => m -> [m] -> m
@@ -164,6 +165,8 @@ renderExpr expr = case expr of
             <> B.fromText ")"
     ETernary condition ifTrue ifFalse ->
         renderExpr condition <> "?" <> renderExpr ifTrue <> ":" <> renderExpr ifFalse
+    ERaw txt ->
+        B.fromText txt
 
 renderDocument :: [Statement] -> Text
 renderDocument statements = TL.toStrict $ B.toLazyText $ mconcat (map render statements)

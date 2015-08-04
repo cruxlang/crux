@@ -57,6 +57,12 @@ data BinIntrinsic
     | BIDivide
     deriving (Show, Eq)
 
+data IntrinsicId
+    = IIUnsafeJs Text
+    | IIPrint
+    | IIToString
+    deriving (Show, Eq)
+
 data Expression edata
     = EBlock edata [Expression edata]
     | ELet edata Recursive Pattern (Expression edata)
@@ -71,6 +77,7 @@ data Expression edata
     | EIdentifier edata Text
     | ESemi edata (Expression edata) (Expression edata)
     | EBinIntrinsic edata BinIntrinsic (Expression edata) (Expression edata)
+    | EIntrinsic edata IntrinsicId
     | EIfThenElse edata (Expression edata) (Expression edata) (Expression edata)
     | EReturn edata (Expression edata)
     deriving (Show, Eq)
@@ -90,6 +97,7 @@ instance Functor Expression where
         EIdentifier d i -> EIdentifier (f d) i
         ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
         EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
+        EIntrinsic d i -> EIntrinsic (f d) i
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
         EReturn d rv -> EReturn (f d) (fmap f rv)
 
@@ -108,6 +116,7 @@ edata expr = case expr of
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
+    EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
     EReturn ed _ -> ed
 

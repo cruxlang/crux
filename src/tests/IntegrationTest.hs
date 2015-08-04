@@ -149,4 +149,17 @@ case_row_polymorphic_records = do
 
     assertEqual "" (Right "0\n77\n") result
 
+case_unsafe_js_intrinsic = do
+    result <- run $ T.unlines
+        [ "let c = _unsafe_js(\"console\");"
+        , "let _ = c.log(\"hoop\");"
+        ]
+    assertEqual "" (Right "hoop\n") result
+
+case_incorrect_unsafe_js = do
+    result <- run $ T.unlines
+        [ "let bad = _unsafe_js;"
+        ]
+    assertEqual "" (Left "_unsafe_js is not a value.  It is magic!") result
+
 tests = $(testGroupGenerator)

@@ -39,7 +39,7 @@ genDoc src = do
         Right stmts -> return stmts
 
 case_direct_prints = do
-    doc <- genDoc "let _ = print 10;"
+    doc <- genDoc "let _ = print(10);"
     assertEqual "single print expression" doc
         [ JS.SVar "_" $ Just $ JS.EApplication (JS.EIdentifier "console.log") [JS.ELiteral (JS.LInteger 10)]
         ]

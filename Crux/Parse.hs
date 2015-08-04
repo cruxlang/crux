@@ -62,12 +62,6 @@ peekAndShow msg = do
     liftIO $ print (msg, peeked)
     return ()
 
-printExpression :: Parser ParseExpression
-printExpression = do
-    pr <- P.try $ identifier "print"
-    expr <- noSemiExpression
-    return $ EPrint (tokenData pr) expr
-
 ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
     pr <- P.try $ token TIf
@@ -255,7 +249,6 @@ noSemiExpression =
     <|> matchExpression
     <|> P.try ifThenElseExpression
     <|> P.try returnExpression
-    <|> P.try printExpression
     <|> P.try toStringExpression
     <|> P.try functionExpression
     <|> P.try recordLiteralExpression

@@ -163,9 +163,6 @@ generateStatementExpr env dest expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return [JS.SExpression l, emitWriteDestination dest r]
-    EPrint {} -> do
-        ex' <- generateExpr env expr
-        return [emitWriteDestination dest ex']
     EToString {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
@@ -178,7 +175,7 @@ generateStatementExpr env dest expr = case expr of
     EBinIntrinsic {} -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
-    EIntrinsic _ (IIUnsafeJs _) -> do
+    EIntrinsic _ _ -> do
         ex' <- generateExpr env expr
         return [emitWriteDestination dest ex']
     EIfThenElse {} -> do
@@ -224,11 +221,6 @@ generateExpr env expr = case expr of
         l <- generateExpr env lhs
         r <- generateExpr env rhs
         return $ JS.EComma l r
-    EPrint _ ex -> do
-        ex' <- generateExpr env ex
-        return $ JS.EApplication
-            (JS.EIdentifier "console.log")
-            [ex']
     EToString _ ex -> do
         ex' <- generateExpr env ex
         return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) ex'
@@ -243,6 +235,14 @@ generateExpr env expr = case expr of
         return $ JS.EBinOp sym l r
     EIntrinsic _ (IIUnsafeJs txt) -> do
         return $ JS.ERaw txt
+    EIntrinsic _ (IIPrint args) -> do
+        exprs <- mapM (generateExpr env) args
+        return $ JS.EApplication
+            (JS.EIdentifier "console.log")
+            exprs
+    EIntrinsic _ (IIToString arg) -> do
+        arg' <- generateExpr env arg
+        return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) arg'
     EIfThenElse _ condition ifTrue ifFalse -> do
         condition' <- generateExpr env condition
         ifTrue' <- generateExpr env ifTrue

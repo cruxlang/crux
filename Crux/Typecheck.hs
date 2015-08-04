@@ -150,6 +150,19 @@ check env expr = case expr of
     EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
         t <- freshType env
         return $ EIntrinsic t (IIUnsafeJs txt)
+    EApp _ (EIdentifier _ "_unsafe_js") _ ->
+        error "_unsafe_js takes just one string literal"
+
+    EApp _ (EIdentifier _ "print") args -> do
+        args' <- mapM (check env) args
+        return $ EIntrinsic (TType Unit) (IIPrint args')
+
+    EApp _ (EIdentifier _ "toString") [arg] -> do
+        arg' <- check env arg
+        return $ EIntrinsic (TType String) (IIToString arg')
+
+    EApp _ (EIdentifier _ "toString") _ ->
+        error "toString takes just one argument"
 
     EApp _ lhs rhs -> do
         lhs' <- check env lhs
@@ -212,9 +225,6 @@ check env expr = case expr of
         unify ty (edata expr'')
         return $ ELet (TType Unit) Rec name expr''
 
-    EPrint _ expr' -> do
-        expr'' <- check env expr'
-        return $ EPrint (TType Unit) expr''
     EToString _ expr' -> do
         expr'' <- check env expr'
         return $ EToString (TType String) expr''
@@ -224,8 +234,12 @@ check env expr = case expr of
                 LString _ -> TType String
                 LUnit -> TType Unit
         return $ ELiteral litType lit
+    EIdentifier _ "print" ->
+        error "Intrinsic print is not a value"
+    EIdentifier _ "toString" ->
+        error "Intrinsic toString is not a value"
     EIdentifier _ "_unsafe_js" ->
-        error "_unsafe_js is not a value.  It is magic!"
+        error "Intrinsic _unsafe_js is not a value"
     EIdentifier pos txt -> do
         result <- HashTable.lookup txt (eBindings env)
         case result of
@@ -382,10 +396,17 @@ flatten expr = case expr of
         lhs' <- flatten lhs
         rhs' <- mapM flatten rhs
         return $ EApp td' lhs' rhs'
-    EIntrinsic td iid@(IIUnsafeJs _) -> do
+    EIntrinsic td (IIUnsafeJs txt) -> do
         td' <- flattenTypeVar td
-        return $ EIntrinsic td' iid
-    EIntrinsic {} -> error "!!!!@!"
+        return $ EIntrinsic td' (IIUnsafeJs txt)
+    EIntrinsic td (IIPrint args) -> do
+        td' <- flattenTypeVar td
+        args' <- mapM flatten args
+        return $ EIntrinsic td' (IIPrint args')
+    EIntrinsic td (IIToString arg) -> do
+        td' <- flattenTypeVar td
+        arg' <- flatten arg
+        return $ EIntrinsic td' (IIToString arg')
     ERecordLiteral td fields -> do
         td' <- flattenTypeVar td
         fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
@@ -407,10 +428,6 @@ flatten expr = case expr of
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
         return $ ELet td' rec name expr''
-    EPrint td expr' -> do
-        td' <- flattenTypeVar td
-        expr'' <- flatten expr'
-        return $ EPrint td' expr''
     EToString td expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'

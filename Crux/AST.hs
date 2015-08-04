@@ -57,10 +57,10 @@ data BinIntrinsic
     | BIDivide
     deriving (Show, Eq)
 
-data IntrinsicId
+data IntrinsicId edata
     = IIUnsafeJs Text
-    | IIPrint
-    | IIToString
+    | IIPrint [Expression edata]
+    | IIToString (Expression edata)
     deriving (Show, Eq)
 
 data Expression edata
@@ -71,13 +71,12 @@ data Expression edata
     | ELookup edata (Expression edata) Name
     | EApp edata (Expression edata) [Expression edata]
     | EMatch edata (Expression edata) [Case edata]
-    | EPrint edata (Expression edata)
     | EToString edata (Expression edata)
     | ELiteral edata Literal
     | EIdentifier edata Text
     | ESemi edata (Expression edata) (Expression edata)
     | EBinIntrinsic edata BinIntrinsic (Expression edata) (Expression edata)
-    | EIntrinsic edata IntrinsicId
+    | EIntrinsic edata (IntrinsicId edata)
     | EIfThenElse edata (Expression edata) (Expression edata) (Expression edata)
     | EReturn edata (Expression edata)
     deriving (Show, Eq)
@@ -91,13 +90,15 @@ instance Functor Expression where
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
         EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
-        EPrint d subExpr -> EPrint (f d) (fmap f subExpr)
         EToString d subExpr -> EToString (f d) (fmap f subExpr)
         ELiteral d l -> ELiteral (f d) l
         EIdentifier d i -> EIdentifier (f d) i
         ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
         EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
-        EIntrinsic d i -> EIntrinsic (f d) i
+        EIntrinsic d i -> case i of
+            IIUnsafeJs txt -> EIntrinsic (f d) (IIUnsafeJs txt)
+            IIPrint args -> EIntrinsic (f d) (IIPrint $ map (fmap f) args)
+            IIToString arg -> EIntrinsic (f d) (IIToString $ fmap f arg)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
         EReturn d rv -> EReturn (f d) (fmap f rv)
 
@@ -110,7 +111,6 @@ edata expr = case expr of
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
-    EPrint ed _ -> ed
     EToString ed _ -> ed
     ELiteral ed _ -> ed
     EIdentifier ed _ -> ed

@@ -47,7 +47,7 @@ run' src = do
 
 case_hello_world = do
     result <- run $ T.unlines
-        [ "let _ = print \"Hello, World!\";"
+        [ "let _ = print(\"Hello, World!\");"
         ]
     assertEqual "" (Right "Hello, World!\n") result
 
@@ -160,6 +160,6 @@ case_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js;"
         ]
-    assertEqual "" (Left "_unsafe_js is not a value.  It is magic!") result
+    assertEqual "" (Left "Intrinsic _unsafe_js is not a value") result
 
 tests = $(testGroupGenerator)

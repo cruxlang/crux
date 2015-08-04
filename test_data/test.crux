@@ -18,7 +18,7 @@ let foo = fun(i) {
 };
 
 let main = fun() {
-    print "hooper";
+    print("hooper");
     let r = (2 ; 8);
     let t = 9;
     let u = "hody";

@@ -5,7 +5,7 @@ data List a {
 
 let s = Cons(5, Cons(6, Cons(7, Nil)));
 
-let rec len = fun (list) {
+fun len(list) {
     match list {
         Nil => 0;
         Cons x tail => 1 + len(tail);

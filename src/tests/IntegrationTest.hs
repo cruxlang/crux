@@ -102,7 +102,7 @@ case_let_is_not_recursive_by_default = do
 case_recursive = do
     result <- run $ T.unlines
         [ "data IntList { Cons Number IntList; Nil; };"
-        , "let rec len = fun (l) {"
+        , "fun len(l) {"
         , "    match l {"
         , "        Nil => 0;"
         , "        Cons num tail => 1 + len(tail);"
@@ -121,7 +121,7 @@ case_recursive_data = do
         , ""
         , "let s = Cons(5, Cons(6, Cons(7, Nil)));"
         , ""
-        , "let rec len = fun (list) {"
+        , "fun len(list) {"
         , "    match list {"
         , "        Nil => 0;"
         , "        Cons x tail => 1 + len(tail);"

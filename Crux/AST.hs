@@ -30,13 +30,15 @@ data Variant = Variant
     } deriving (Show, Eq)
 
 data Declaration edata
-    = DLet edata Recursive Pattern (Expression edata)
+    = DLet edata Name (Expression edata)
+    | DFun edata Name [Name] (Expression edata)
     | DData Name [TypeVariable] [Variant]
     deriving (Show, Eq)
 
 instance Functor Declaration where
     fmap f d = case d of
-        DLet ddata rec pat subExpr -> DLet (f ddata) rec pat (fmap f subExpr)
+        DLet ddata name subExpr -> DLet (f ddata) name (fmap f subExpr)
+        DFun ddata name args body -> DFun (f ddata) name args (fmap f body)
         DData name vars variants -> DData name vars variants
 
 data Pattern2

@@ -284,8 +284,8 @@ typeVariableName = do
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
-    ELet ed rec name expr <- letExpression
-    return $ DLet ed rec name expr
+    ELet ed _ name expr <- letExpression
+    return $ DLet ed name expr
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
@@ -308,7 +308,7 @@ funDeclaration = do
     tfun <- P.try $ token Tokens.TFun
     name <- anyIdentifier
     _ <- token TOpenParen
-    args <- P.sepBy anyIdentifier (token TComma)
+    params <- P.sepBy anyIdentifier (token TComma)
     _ <- token TCloseParen
     _ <- token TOpenBrace
     bodyExprs <- P.many expression
@@ -318,10 +318,7 @@ funDeclaration = do
             [] -> ELiteral (tokenData tfun) LUnit
             _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
 
-    let expr = EFun (tokenData tfun) args body
-
-    return $ DLet (tokenData tfun) NoRec name expr
-
+    return $ DFun (tokenData tfun) name params body
 
 declaration :: Parser ParseDeclaration
 declaration =

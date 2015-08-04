@@ -456,10 +456,14 @@ flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
-    DLet ty rec name expr -> do
+    DLet ty name expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
-        return $ DLet ty' rec name expr'
+        return $ DLet ty' name expr'
+    DFun ty name params body -> do
+        ty' <- flattenTypeVar ty
+        body' <- flatten body
+        return $ DFun ty' name params body'
 
 flattenProgram :: [Declaration TypeVar] -> IO [Declaration ImmutableTypeVar]
 flattenProgram decls =
@@ -593,19 +597,20 @@ checkDecl env decl = case decl of
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
-    DLet _ Rec name expr -> do
+    DFun pos name args body -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
-        expr' <- check env expr
+        let expr = EFun pos args body
+        expr'@(EFun _ _ body') <- check env expr
         unify (edata expr') ty
         quantify ty
-        return $ DLet (edata expr') Rec name expr'
-    DLet _ NoRec name expr -> do
+        return $ DFun (edata expr') name args body'
+    DLet _ name expr -> do
         expr' <- check env expr
         let ty = edata expr'
         HashTable.insert name ty (eBindings env)
         quantify ty
-        return $ DLet (edata expr') NoRec name expr'
+        return $ DLet (edata expr') name expr'
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do

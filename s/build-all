@@ -3,5 +3,7 @@ set -e
 cd "$(dirname "$0")"/..
 
 for fn in test_data/*.crux; do
+    echo "building $fn:"
     dist/build/crux/crux "$fn"
+    echo
 done

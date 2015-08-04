@@ -4,7 +4,7 @@ data IntList {
     Nil;
 };
 
-let rec length = fun(list) {
+fun length(list) {
     match list {
         Nil => 0;
         Element num tail => 1 + length(tail);

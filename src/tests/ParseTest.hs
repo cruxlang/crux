@@ -82,4 +82,12 @@ case_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe a { Some a; None; };"
         (DData "Maybe" ["a"] [Variant {vname = "Some", vparameters = [TypeIdent "a" []]},Variant {vname = "None", vparameters = []}])
 
+case_empty_fun_decl = do
+    assertExprParses funDeclaration "fun f() {}"
+        (DFun () "f" [] (ELiteral () $ LUnit))
+
+case_fun_with_return = do
+    assertExprParses funDeclaration "fun f() { return 1; }"
+        (DFun () "f" [] (EReturn () $ ELiteral () $ LInteger $ 1))
+
 tests = $(testGroupGenerator)

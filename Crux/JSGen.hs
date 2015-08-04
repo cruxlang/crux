@@ -59,14 +59,15 @@ generateVariant variantName vdata = case vdata of
               [JS.ELiteral $ JS.LString variantName] ++ (map JS.EIdentifier argNames)
             ]
 
-generateDecl :: Env -> Declaration t -> IO [JS.Statement]
+generateDecl :: Show t => Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
     DData _name _ variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
-    DLet _ _ name (EFun _ params body) -> do
+    DFun _ name params body -> do
+        putStrLn $ show name ++ ": " ++ show body
         body' <- generateBlock env DReturn body
         return [JS.SFunction name params body']
-    DLet _ _ name expr -> do
+    DLet _ name expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
         return $ written ++ [JS.SVar name $ Just expr']
 
@@ -247,7 +248,7 @@ generateExpr env expr = case expr of
         Writer.tell s
         return $ JS.EIdentifier tempName
 
-generateDocument :: [Declaration t] -> IO [JS.Statement]
+generateDocument :: Show t => [Declaration t] -> IO [JS.Statement]
 generateDocument decls = do
     eNames <- IORef.newIORef HashMap.empty
     let env = Env{..}
@@ -260,7 +261,7 @@ generateDocument decls = do
     d <- mapM (generateDecl env) decls
     return $ prelude ++ (concat d)
 
-generateDocumentWithoutPrelude :: [Declaration t] -> IO [JS.Statement]
+generateDocumentWithoutPrelude :: Show t => [Declaration t] -> IO [JS.Statement]
 generateDocumentWithoutPrelude decls = do
     eNames <- IORef.newIORef HashMap.empty
     let env = Env{..}

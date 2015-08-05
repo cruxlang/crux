@@ -27,7 +27,7 @@ genDoc' src = do
                 Left err ->
                     return $ Left $ "Parse error: " <> show err
                 Right p' -> do
-                    typetree <- Typecheck.run p'
+                    typetree <- Typecheck.run $ AST.mDecls p'
                     typetree' <- forM typetree Typecheck.flattenDecl
                     fmap Right $ Gen.generateModule typetree'
 

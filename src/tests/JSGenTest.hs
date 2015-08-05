@@ -13,6 +13,7 @@ import qualified Crux.Parse
 import Crux.JSGen (generateDocumentWithoutPrelude)
 import qualified Crux.JSTree as JS
 import qualified Crux.Typecheck as Typecheck
+import qualified Crux.AST as AST
 
 genDoc' :: Text -> IO (Either String [JS.Statement])
 genDoc' src = do
@@ -26,8 +27,8 @@ genDoc' src = do
             case p of
                 Left err ->
                     return $ Left $ "Parse error: " <> show err
-                Right p' -> do
-                    typetree <- Typecheck.run p'
+                Right module' -> do
+                    typetree <- Typecheck.run $ AST.mDecls module'
                     typetree' <- forM typetree Typecheck.flattenDecl
                     fmap Right $ generateDocumentWithoutPrelude typetree'
 

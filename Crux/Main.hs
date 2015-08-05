@@ -4,10 +4,11 @@ module Crux.Main (main) where
 import           Control.Applicative
 import           Data.Monoid
 import qualified Data.Text as Text
+import           Crux.AST (mDecls)
 import           Crux.JSGen
 import qualified Crux.JSTree        as JSTree
 import           Crux.Lex
-import           Crux.Parse
+import           Crux.Parse hiding (module')
 import qualified Crux.Typecheck     as Typecheck
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
@@ -55,9 +56,9 @@ main = do
                     p <- Crux.Parse.parse fn l'
                     case p of
                         Left err -> failed $ "Parse error: " ++ show err
-                        Right p' -> do
+                        Right module' -> do
                             -- putStrLn $ ppShow p'
-                            typetree <- Typecheck.run p'
+                            typetree <- Typecheck.run $ mDecls module'
                             typetree' <- Typecheck.flattenProgram typetree
                             if ast options then
                                 putStrLn $ ppShow typetree'

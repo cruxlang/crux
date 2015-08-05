@@ -36,6 +36,14 @@ instance Functor Declaration where
         DFun ddata name args body -> DFun (f ddata) name args (fmap f body)
         DData name vars variants -> DData name vars variants
 
+data Module edata = Module
+    -- { mName :: Text
+    -- , mFileName
+    -- , mImports
+    -- , mExports
+    { mDecls :: [Declaration edata]
+    }
+
 data Pattern2
     = PConstructor Name [Pattern2]
     | PPlaceholder Name

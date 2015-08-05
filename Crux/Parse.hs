@@ -322,11 +322,11 @@ declaration =
     funDeclaration <|>
     letDeclaration
 
-document :: Parser [ParseDeclaration]
-document = do
+module' :: Parser (Module Pos)
+module' = do
     doc <- P.many1 $ declaration <* token TSemicolon
     P.eof
-    return doc
+    return Module { mDecls = doc }
 
-parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError [ParseDeclaration])
-parse fileName tokens = P.runParserT document () fileName tokens
+parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError (Module Pos))
+parse fileName tokens = P.runParserT module' () fileName tokens

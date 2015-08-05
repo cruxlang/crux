@@ -1,0 +1,9 @@
+fn pn(n) {
+    if (n < 0) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
+let _ = print(pn(5))

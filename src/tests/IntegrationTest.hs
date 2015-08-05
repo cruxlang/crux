@@ -4,6 +4,7 @@ module IntegrationTest (run, tests) where
 
 import           Control.Monad  (forM)
 import Control.Exception (catch, SomeException)
+import qualified Crux.AST       as AST
 import qualified Crux.JSGen     as JSGen
 import qualified Crux.JSTree    as JSTree
 import           Crux.Lex
@@ -37,7 +38,7 @@ run' src = do
             case p of
                 Left err -> return $ Left $ "Parse error: " ++ show err
                 Right p' -> do
-                    typetree <- Typecheck.run p'
+                    typetree <- Typecheck.run $ AST.mDecls p'
                     typetree' <- forM typetree Typecheck.flattenDecl
                     js <- JSGen.generateDocument typetree'
                     withSystemTempFile "crux.js" $ \path handle -> do

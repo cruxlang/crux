@@ -8,6 +8,7 @@ import GHC.Exception (ErrorCall(..))
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import TestJesus
+import qualified Crux.AST as AST
 import qualified Crux.Lex
 import qualified Crux.Parse
 import qualified Crux.Typecheck as Typecheck
@@ -39,11 +40,12 @@ genDoc src = do
 
 {-
 xcase_direct_prints = do
-    doc <- genDoc "let _ = print 10;"
-    assertEqual "single print expression" doc
-        [ Gen.Computation "temp_0" $ Gen.Literal 10
+    doc <- genDoc "let _ = print(10);"
+    assertEqual "single print expression"
+        [ Gen.Computation "temp_0" $ Gen.Literal $ AST.LInteger 10
         , Gen.Computation "temp_1" $ Gen.Print "temp_0"
         ]
+        doc
 -}
 
 {-

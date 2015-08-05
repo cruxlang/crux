@@ -27,8 +27,10 @@ data Step
     -- control flow
     | Return Input
     | If Input [Computation] [Computation]
+    deriving (Show, Eq)
 
 data Computation = Computation Output Step
+    deriving (Show, Eq)
 
 type Env = IORef Int
 

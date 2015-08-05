@@ -13,8 +13,8 @@ does not compromise on rock-solid fundamentals.
 # Feature Wishlist
 
 * Typeclasses
-* The compiler should be fast
-* Debugging should be pleasant
+* Fast compiles
+* Debuggability
 
 # What does it look like?
 
@@ -30,7 +30,7 @@ data List a {
 
 let s = Cons(5, Cons(6, Cons(7, Nil)));
 
-let rec len = fun (list) {
+fun len(list) {
     match list {
         Nil => 0;
         Cons x tail => 1 + len(tail);

@@ -27,8 +27,8 @@ genDoc' src = do
             case p of
                 Left err ->
                     return $ Left $ "Parse error: " <> show err
-                Right module' -> do
-                    typetree <- Typecheck.run $ AST.mDecls module'
+                Right mod' -> do
+                    typetree <- Typecheck.run $ AST.mDecls mod'
                     typetree' <- forM typetree Typecheck.flattenDecl
                     fmap Right $ generateDocumentWithoutPrelude typetree'
 
@@ -48,6 +48,10 @@ case_direct_prints = do
 case_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1;"
     assertEqual "exception matches" (Left $ ErrorCall "Cannot return outside of functions") $ result
+
+case_if_on_non_boolean_is_error = do
+    result <- try $! genDoc "let _ = if 1 then 2 else 3;"
+    assertEqual "blah" (Left $ ErrorCall "Unification error:  TType Boolean and TType Number") $ result
 
 case_return_from_function = do
     result <- genDoc "fun f() { return 1; };"

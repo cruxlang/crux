@@ -25,14 +25,14 @@ data Variant = Variant
     } deriving (Show, Eq)
 
 data Declaration edata
-    = DLet edata Name (Expression edata)
+    = DLet edata Name (Maybe TypeIdent) (Expression edata)
     | DFun edata Name [Name] (Expression edata)
     | DData Name [TypeVariable] [Variant]
     deriving (Show, Eq)
 
 instance Functor Declaration where
     fmap f d = case d of
-        DLet ddata name subExpr -> DLet (f ddata) name (fmap f subExpr)
+        DLet ddata name typeAnn subExpr -> DLet (f ddata) name typeAnn (fmap f subExpr)
         DFun ddata name args body -> DFun (f ddata) name args (fmap f body)
         DData name vars variants -> DData name vars variants
 
@@ -70,7 +70,7 @@ data IntrinsicId edata
     deriving (Show, Eq)
 
 data Expression edata
-    = ELet edata Pattern (Expression edata)
+    = ELet edata Pattern (Maybe TypeIdent) (Expression edata)
     | EFun edata [Text] (Expression edata)
     | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name
@@ -87,7 +87,7 @@ data Expression edata
 
 instance Functor Expression where
     fmap f expr = case expr of
-        ELet d pat subExpr -> ELet (f d) pat (fmap f subExpr)
+        ELet d pat typeAnn subExpr -> ELet (f d) pat typeAnn (fmap f subExpr)
         EFun d argNames body -> EFun (f d) argNames (fmap f body)
         ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
@@ -107,7 +107,7 @@ instance Functor Expression where
 
 edata :: Expression edata -> edata
 edata expr = case expr of
-    ELet ed _ _ -> ed
+    ELet ed _ _ _ -> ed
     EFun ed _ _ -> ed
     ERecordLiteral ed _ -> ed
     ELookup ed _ _ -> ed

@@ -206,9 +206,12 @@ letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- P.try $ token TLet
     name <- anyIdentifier
+    typeAnn <- P.optionMaybe $ do
+        _ <- P.try $ token TColon
+        typeIdent
     _ <- token TEqual
     expr <- noSemiExpression
-    return (ELet (tokenData tlet) name expr)
+    return (ELet (tokenData tlet) name typeAnn expr)
 
 semiExpression :: Parser ParseExpression
 semiExpression = do
@@ -280,8 +283,8 @@ typeVariableName = do
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
-    ELet ed name expr <- letExpression
-    return $ DLet ed name expr
+    ELet ed name typeAnn expr <- letExpression
+    return $ DLet ed name typeAnn expr
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do

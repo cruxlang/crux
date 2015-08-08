@@ -53,11 +53,15 @@ case_application_association = do
 
 case_let = do
     assertExprParses letExpression "let a = \"Hello\""
-        (ELet () "a" (ELiteral () (LString "Hello")))
+        (ELet () "a" Nothing (ELiteral () (LString "Hello")))
 
 case_let2 = do
     assertExprParses letExpression "let a = (5)"
-        (ELet () "a" (ELiteral () (LInteger 5)))
+        (ELet () "a" Nothing (ELiteral () (LInteger 5)))
+
+case_let_with_type_annotation = do
+    assertExprParses letExpression "let a : Number = 5"
+        (ELet () "a" (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 case_pattern = do
     assertParseOk pattern "Cons a (Cons b Nil)"

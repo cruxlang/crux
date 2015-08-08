@@ -4,21 +4,23 @@
 
 module Crux.Typecheck where
 
-import           Control.Monad         (forM, forM_, when)
+import           Control.Monad         (when)
 import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Text             (isCapitalized)
 import           Crux.Tokens           (Pos (..))
+import           Data.Foldable         (forM_)
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
-import           Data.List             (foldl', intercalate, sort, nub)
+import           Data.List             (foldl', intercalate, nub, sort)
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
+import           Data.Traversable      (forM)
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 
@@ -208,12 +210,16 @@ check env expr = case expr of
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet _ name expr' -> do
+    ELet _ name maybeAnnot expr' -> do
         ty <- freshType env
         expr'' <- check env expr'
         HashTable.insert name ty (eBindings env)
         unify ty (edata expr'')
-        return $ ELet (TType Unit) name expr''
+        forM_ maybeAnnot $ \annotation -> do
+            let annotTy = resolveTypeIdent env [] annotation
+            unify ty annotTy
+        return $ ELet (TType Unit) name maybeAnnot expr''
+
     ELiteral _ lit -> do
         let litType = case lit of
                 LInteger _ -> TType Number
@@ -415,10 +421,10 @@ flatten expr = case expr of
         cases' <- forM cases $ \(Case pattern subExpr) ->
             fmap (Case pattern) (flatten subExpr)
         return $ EMatch td' expr' cases'
-    ELet td name expr' -> do
+    ELet td name typeAnn expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
-        return $ ELet td' name expr''
+        return $ ELet td' name typeAnn expr''
     ELiteral td lit -> do
         td' <- flattenTypeVar td
         return $ ELiteral td' lit
@@ -450,10 +456,10 @@ flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
-    DLet ty name expr -> do
+    DLet ty name typeAnn expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
-        return $ DLet ty' name expr'
+        return $ DLet ty' name typeAnn expr'
     DFun ty name params body -> do
         ty' <- flattenTypeVar ty
         body' <- flatten body
@@ -599,12 +605,15 @@ checkDecl env decl = case decl of
         unify (edata expr') ty
         quantify ty
         return $ DFun (edata expr') name args body'
-    DLet _ name expr -> do
+    DLet _ name maybeAnnot expr -> do
         expr' <- check env expr
         let ty = edata expr'
         HashTable.insert name ty (eBindings env)
         quantify ty
-        return $ DLet (edata expr') name expr'
+        forM_ maybeAnnot $ \annotation -> do
+            let annotTy = resolveTypeIdent env [] annotation
+            unify ty annotTy
+        return $ DLet (edata expr') name maybeAnnot expr'
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
@@ -699,12 +708,11 @@ resolveTypeIdent env qvarTable typeIdent =
                         then error "Primitive types don't take type parameters"
                         else t
                 Just (TUserType def _) ->
-                    let typeParams = map go typeParameters
-                    in if length qvarTable /= length typeParameters
+                    if length qvarTable /= length typeParameters
                         then
                             error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
                         else
-                            TUserType def typeParams
+                            TUserType def (map go typeParameters)
                 Just t ->
                     t
             else case lookup typeName qvarTable of

@@ -67,7 +67,7 @@ generateDecl env decl = case decl of
         -- putStrLn $ show name ++ ": " ++ show body
         body' <- generateBlock env DReturn body
         return [JS.SFunction name params body']
-    DLet _ name expr -> do
+    DLet _ name _ expr -> do
         (expr', written) <- Writer.runWriterT $ generateExpr env expr
         return $ written ++ [JS.SVar name $ Just expr']
 
@@ -115,11 +115,10 @@ generateMatchVars matchVar patt = case patt of
 
 generateStatementExpr :: Env -> ExprDestination -> Expression t -> JSWrite [JS.Statement]
 generateStatementExpr env dest expr = case expr of
-
-    ELet _ name (EFun _ params body) -> do
+    ELet _ name _ (EFun _ params body) -> do
         body' <- generateBlock' env DReturn body
         return [JS.SFunction name params body']
-    ELet _ name e -> do
+    ELet _ name _ e -> do
         e' <- generateExpr env e
         return [JS.SVar name $ Just e']
     EFun {} -> do

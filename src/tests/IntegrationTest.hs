@@ -172,4 +172,11 @@ case_unsafe_coerce = do
 
     assertEqual "" (Right "5ohai\n") result
 
+case_annotation_is_checked = do
+    result <- run $ T.unlines
+        [ "let i : Number = \"hody\";"
+        ]
+
+    assertEqual "" (Left "Unification error:  TType String and TType Number") result
+
 tests = $(testGroupGenerator)

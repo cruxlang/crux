@@ -460,10 +460,10 @@ flattenDecl decl = case decl of
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
         return $ DLet ty' name typeAnn expr'
-    DFun ty name params body -> do
+    DFun (FunDef ty name params body) -> do
         ty' <- flattenTypeVar ty
         body' <- flatten body
-        return $ DFun ty' name params body'
+        return $ DFun $ FunDef ty' name params body'
 
 flattenModule :: Module TypeVar -> IO (Module ImmutableTypeVar)
 flattenModule Module{..} = do
@@ -598,14 +598,14 @@ checkDecl env decl = case decl of
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
-    DFun pos name args body -> do
+    DFun (FunDef pos name args body) -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
         let expr = EFun pos args body
         expr'@(EFun _ _ body') <- check env expr
         unify (edata expr') ty
         quantify ty
-        return $ DFun (edata expr') name args body'
+        return $ DFun $ FunDef (edata expr') name args body'
     DLet _ name maybeAnnot expr -> do
         expr' <- check env expr
         let ty = edata expr'

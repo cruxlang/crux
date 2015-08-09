@@ -63,7 +63,7 @@ generateDecl :: Show t => Env -> Declaration t -> IO [JS.Statement]
 generateDecl env decl = case decl of
     DData _name _ variants ->
         return $ map (\(Variant variantName vdata) -> generateVariant variantName vdata) variants
-    DFun _ name params body -> do
+    DFun (FunDef _ name params body) -> do
         -- putStrLn $ show name ++ ": " ++ show body
         body' <- generateBlock env DReturn body
         return [JS.SFunction name params body']

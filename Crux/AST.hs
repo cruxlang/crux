@@ -24,16 +24,23 @@ data Variant = Variant
     , vparameters :: [TypeIdent]
     } deriving (Show, Eq)
 
+data FunDef edata = FunDef edata Name [Name] (Expression edata)
+    deriving (Show, Eq)
+
+instance Functor FunDef where
+    fmap f (FunDef ed name params body) = FunDef (f ed) name params (fmap f body)
+
+-- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 data Declaration edata
     = DLet edata Name (Maybe TypeIdent) (Expression edata)
-    | DFun edata Name [Name] (Expression edata)
+    | DFun (FunDef edata)
     | DData Name [TypeVariable] [Variant]
     deriving (Show, Eq)
 
 instance Functor Declaration where
     fmap f d = case d of
         DLet ddata name typeAnn subExpr -> DLet (f ddata) name typeAnn (fmap f subExpr)
-        DFun ddata name args body -> DFun (f ddata) name args (fmap f body)
+        DFun fd -> DFun $ fmap f fd
         DData name vars variants -> DData name vars variants
 
 data Module edata = Module

@@ -317,7 +317,7 @@ funDeclaration = do
             [] -> ELiteral (tokenData tfun) LUnit
             _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
 
-    return $ DFun (tokenData tfun) name params body
+    return $ DFun $ FunDef (tokenData tfun) name params body
 
 declaration :: Parser ParseDeclaration
 declaration =

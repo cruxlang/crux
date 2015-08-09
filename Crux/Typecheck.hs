@@ -140,24 +140,24 @@ check env expr = case expr of
 
     EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
         t <- freshType env
-        return $ EIntrinsic t (IIUnsafeJs txt)
+        return $ EIntrinsic t (IUnsafeJs txt)
     EApp _ (EIdentifier _ "_unsafe_js") _ ->
         error "_unsafe_js takes just one string literal"
 
     EApp _ (EIdentifier _ "_unsafe_coerce") [subExpr] -> do
         t <- freshType env
         subExpr' <- check env subExpr
-        return $ EIntrinsic t (IIUnsafeCoerce subExpr')
+        return $ EIntrinsic t (IUnsafeCoerce subExpr')
     EApp _ (EIdentifier _ "_unsafe_coerce") _ ->
         error "_unsafe_coerce takes just one argument"
 
     EApp _ (EIdentifier _ "print") args -> do
         args' <- mapM (check env) args
-        return $ EIntrinsic (TType Unit) (IIPrint args')
+        return $ EIntrinsic (TType Unit) (IPrint args')
 
     EApp _ (EIdentifier _ "toString") [arg] -> do
         arg' <- check env arg
-        return $ EIntrinsic (TType String) (IIToString arg')
+        return $ EIntrinsic (TType String) (IToString arg')
 
     EApp _ (EIdentifier _ "toString") _ ->
         error "toString takes just one argument"
@@ -376,18 +376,7 @@ flattenTypeVar tv = case tv of
         return $ IType t
 
 flattenIntrinsic :: IntrinsicId TypeVar -> IO (IntrinsicId ImmutableTypeVar)
-flattenIntrinsic intrin = case intrin of
-    IIUnsafeJs txt ->
-        return $ IIUnsafeJs txt
-    IIUnsafeCoerce arg -> do
-        arg' <- flatten arg
-        return $ IIUnsafeCoerce arg'
-    IIPrint args -> do
-        args' <- mapM flatten args
-        return $ IIPrint args'
-    IIToString arg -> do
-        arg' <- flatten arg
-        return $ IIToString arg'
+flattenIntrinsic = mapIntrinsicInputs flatten
 
 flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
 flatten expr = case expr of

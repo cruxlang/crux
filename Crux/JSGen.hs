@@ -223,16 +223,16 @@ generateExpr env expr = case expr of
         r <- generateExpr env rhs
         return $ JS.EBinOp sym l r
     EIntrinsic _ intrin -> case intrin of
-        IIUnsafeJs txt -> do
+        IUnsafeJs txt -> do
             return $ JS.ERaw txt
-        IIUnsafeCoerce arg -> do
+        IUnsafeCoerce arg -> do
             generateExpr env arg
-        IIPrint args -> do
+        IPrint args -> do
             exprs <- mapM (generateExpr env) args
             return $ JS.EApplication
                 (JS.EIdentifier "console.log")
                 exprs
-        IIToString arg -> do
+        IToString arg -> do
             arg' <- generateExpr env arg
             return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) arg'
     EIfThenElse _ condition ifTrue ifFalse -> do

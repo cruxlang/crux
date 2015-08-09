@@ -32,15 +32,14 @@ genDoc src = do
         Left err -> error err
         Right stmts -> return stmts
 
-{-
-xcase_direct_prints = do
+case_direct_prints = do
     doc <- genDoc "let _ = print(10);"
     assertEqual "single print expression"
         [ Gen.Computation "temp_0" $ Gen.Literal $ AST.LInteger 10
-        , Gen.Computation "temp_1" $ Gen.Print "temp_0"
+        , Gen.Computation "temp_1" $ Gen.Intrinsic (AST.IPrint ["temp_0"])
+        , Gen.Computation "_" $ Gen.LetBinding "_" "temp_1"
         ]
         doc
--}
 
 {-
 xcase_return_at_top_level_is_error = do

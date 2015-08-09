@@ -13,14 +13,16 @@ import Control.Monad.Trans.Class (lift)
 
 type Name = Text
 type Output = Text
-
 type Input = Name
+
 data Step
     -- values
-    = Function [Name] [Computation]
+    = LetBinding Name Input
+    | Function [Name] [Computation]
     | Literal AST.Literal
 
     -- operations
+    | Intrinsic (AST.Intrinsic Input)
     | Apply Input [Input]
     | Print Input
 
@@ -42,36 +44,54 @@ newOutput env = do
     writeIORef env (value + 1)
     return $ "temp_" <> Text.pack (show value)
 
-writeComputation :: Name -> Step -> WriterT [Computation] IO Output
+type GenWriter a = WriterT [Computation] IO a
+
+writeComputation :: Name -> Step -> GenWriter Output
 writeComputation output step = do
     tell [Computation output step]
     return output
 
-generate' :: Env -> AST.Expression t -> WriterT [Computation] IO Output
+newComputation :: Env -> Step -> GenWriter Output
+newComputation env step = do
+    output <- lift $ newOutput env
+    writeComputation output step
+
+generate' :: Show t => Env -> AST.Expression t -> GenWriter Output
 generate' env expr = case expr of
     AST.EApp _ fn args -> do
         fn' <- generate' env fn
         args' <- mapM (generate' env) args
-        output <- lift $ newOutput env
-        writeComputation output $ Apply fn' args'
-    {-
-        return $ JS.ELiteral $ case lit of
-            LString s -> JS.LString s
-            LInteger i -> JS.LInteger i
-            LUnit -> JS.LUndefined
-    -}
+        newComputation env $ Apply fn' args'
+
+    AST.ELiteral _ lit -> do
+        newComputation env $ Literal lit
+
+    AST.EIntrinsic _ iid -> do
+        iid' <- AST.mapIntrinsicInputs (generate' env) iid
+        newComputation env $ Intrinsic iid'
+
     AST.ESemi _ lhs rhs -> do
         _ <- generate' env lhs
         generate' env rhs
 
-generate :: AST.Expression t -> IO [Computation]
+    _ -> do
+        error $ "Unexpected expression: " <> show expr
+
+generate :: Show t => AST.Expression t -> IO [Computation]
 generate expr = do
     env <- newIORef 0
     fmap snd $ runWriterT $ generate' env expr
 
-generateModule :: AST.Module t -> IO Module
+generateDecl :: Show t => Env -> AST.Declaration t -> GenWriter ()
+generateDecl env decl = do
+    case decl of
+        AST.DLet _ name _ defn -> do
+            output <- generate' env defn
+            writeComputation name $ LetBinding name output
+            return ()
+
+generateModule :: Show t => AST.Module t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
     fmap snd $ runWriterT $ do
-        forM_ mDecls $ \decl ->
-            return ((), [])
+        forM_ mDecls $ generateDecl env

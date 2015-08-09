@@ -70,12 +70,29 @@ data BinIntrinsic
     | BIDivide
     deriving (Show, Eq)
 
-data IntrinsicId edata
-    = IIUnsafeJs Text
-    | IIUnsafeCoerce (Expression edata)
-    | IIPrint [Expression edata]
-    | IIToString (Expression edata)
+data Intrinsic input
+    = IUnsafeJs Text
+    | IUnsafeCoerce input
+    | IPrint [input]
+    | IToString input
     deriving (Show, Eq)
+
+mapIntrinsicInputs :: Monad m => (a -> m b) -> Intrinsic a -> m (Intrinsic b)
+mapIntrinsicInputs action intrin = do
+    case intrin of
+        IUnsafeJs text -> do
+            return $ IUnsafeJs text
+        IUnsafeCoerce input -> do
+            input' <- action input
+            return $ IUnsafeCoerce input'
+        IPrint inputs -> do
+            inputs' <- mapM action inputs
+            return $ IPrint inputs'
+        IToString input -> do
+            input' <- action input
+            return $ IToString input'
+
+type IntrinsicId edata = Intrinsic (Expression edata)
 
 data Expression edata
     = ELet edata Pattern (Maybe TypeIdent) (Expression edata)
@@ -106,10 +123,10 @@ instance Functor Expression where
         ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
         EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
         EIntrinsic d i -> case i of
-            IIUnsafeJs txt -> EIntrinsic (f d) (IIUnsafeJs txt)
-            IIUnsafeCoerce subExpr -> EIntrinsic (f d) (IIUnsafeCoerce $ fmap f subExpr)
-            IIPrint args -> EIntrinsic (f d) (IIPrint $ map (fmap f) args)
-            IIToString arg -> EIntrinsic (f d) (IIToString $ fmap f arg)
+            IUnsafeJs txt -> EIntrinsic (f d) (IUnsafeJs txt)
+            IUnsafeCoerce subExpr -> EIntrinsic (f d) (IUnsafeCoerce $ fmap f subExpr)
+            IPrint args -> EIntrinsic (f d) (IPrint $ map (fmap f) args)
+            IToString arg -> EIntrinsic (f d) (IToString $ fmap f arg)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
         EReturn d rv -> EReturn (f d) (fmap f rv)
 

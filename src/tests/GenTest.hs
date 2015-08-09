@@ -41,15 +41,19 @@ case_direct_prints = do
         ]
         doc
 
-{-
-xcase_return_at_top_level_is_error = do
+case_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1;"
     assertEqual "exception matches" (Left $ ErrorCall "Cannot return outside of functions") $ result
 
-xcase_return_from_function = do
-    result <- genDoc "fun f() { return 1; };"
-    assertEqual "statements" [JS.SFunction "f" [] [JS.SReturn (Just (JS.ELiteral (JS.LInteger 1)))]] result
--}
+case_return_from_function = do
+    doc <- genDoc "fun f() { return 1; };"
+    assertEqual "statements"
+        [ Gen.Computation "f" $ Gen.Function []
+            [ Gen.Computation "temp_0" $ Gen.Literal $ AST.LInteger 1
+            , Gen.Computation "temp_1" $ Gen.Return $ "temp_0"
+            ]
+        ]
+        doc
 
 {-
 xcase_return_from_branch = do

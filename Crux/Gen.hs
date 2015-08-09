@@ -74,6 +74,10 @@ generate' env expr = case expr of
         _ <- generate' env lhs
         generate' env rhs
 
+    AST.EReturn _ rv -> do
+        rv' <- generate' env rv
+        newComputation env $ Return rv'
+
     _ -> do
         error $ "Unexpected expression: " <> show expr
 
@@ -88,6 +92,10 @@ generateDecl env decl = do
         AST.DLet _ name _ defn -> do
             output <- generate' env defn
             writeComputation name $ LetBinding name output
+            return ()
+        AST.DFun (AST.FunDef _ name params body) -> do
+            body' <- fmap snd $ lift $ runWriterT $ generate' env body
+            writeComputation name $ Function params body'
             return ()
 
 generateModule :: Show t => AST.Module t -> IO Module

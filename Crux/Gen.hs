@@ -69,9 +69,9 @@ generate expr = do
     env <- newIORef 0
     fmap snd $ runWriterT $ generate' env expr
 
-generateModule :: [AST.Declaration t] -> IO Module
-generateModule decls = do
+generateModule :: AST.Module t -> IO Module
+generateModule AST.Module{..} = do
     env <- newIORef 0
     fmap snd $ runWriterT $ do
-        forM_ decls $ \decl ->
+        forM_ mDecls $ \decl ->
             return ((), [])

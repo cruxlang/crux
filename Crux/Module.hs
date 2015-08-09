@@ -20,9 +20,9 @@ loadModuleFromSource filename source = do
                 Left err ->
                     return $ Left $ "Parse error: " <> show err
                 Right mod' -> do
-                    typetree <- Typecheck.run $ AST.mDecls mod'
-                    typetree' <- Typecheck.flattenProgram typetree
-                    return $ Right $ AST.Module { AST.mDecls = typetree' }
+                    typetree <- Typecheck.run mod'
+                    typetree' <- Typecheck.flattenModule typetree
+                    return $ Right typetree'
 
 loadModuleFromFile :: FilePath -> IO (Either String (AST.Module AST.ImmutableTypeVar))
 loadModuleFromFile filename = do

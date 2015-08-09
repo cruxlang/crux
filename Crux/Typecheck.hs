@@ -465,9 +465,10 @@ flattenDecl decl = case decl of
         body' <- flatten body
         return $ DFun ty' name params body'
 
-flattenProgram :: [Declaration TypeVar] -> IO [Declaration ImmutableTypeVar]
-flattenProgram decls =
-    mapM flattenDecl decls
+flattenModule :: Module TypeVar -> IO (Module ImmutableTypeVar)
+flattenModule Module{..} = do
+    decls <- mapM flattenDecl mDecls
+    return $ Module{mDecls=decls}
 
 unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
 unificationError message a b = do
@@ -719,7 +720,8 @@ resolveTypeIdent env qvarTable typeIdent =
                 Nothing -> error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
                 Just t -> t
 
-run :: [Declaration Pos] -> IO [Declaration TypeVar]
-run decls = do
-    env <- buildTypeEnvironment decls
-    forM decls (checkDecl env)
+run :: Module Pos -> IO (Module TypeVar)
+run Module{..} = do
+    env <- buildTypeEnvironment mDecls
+    decls <- forM mDecls (checkDecl env)
+    return Module{mDecls=decls}

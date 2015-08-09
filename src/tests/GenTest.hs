@@ -11,25 +11,19 @@ import TestJesus
 import qualified Crux.AST as AST
 import qualified Crux.Lex
 import qualified Crux.Parse
+import qualified Crux.Module
 import qualified Crux.Typecheck as Typecheck
 import qualified Crux.Gen as Gen
 
 genDoc' :: Text -> IO (Either String [Gen.Computation])
 genDoc' src = do
     let fn = "<string>"
-    let l = Crux.Lex.lexSource fn src
-    case l of
+    mod' <- Crux.Module.loadModuleFromSource "<string>" src
+    case mod' of
         Left err ->
-            return $ Left $ "Lex error: " <> show err
-        Right l' -> do
-            p <- Crux.Parse.parse fn l'
-            case p of
-                Left err ->
-                    return $ Left $ "Parse error: " <> show err
-                Right p' -> do
-                    typetree <- Typecheck.run $ AST.mDecls p'
-                    typetree' <- forM typetree Typecheck.flattenDecl
-                    fmap Right $ Gen.generateModule typetree'
+            return $ Left err
+        Right m -> do
+            fmap Right $ Gen.generateModule m
 
 genDoc :: Text -> IO [Gen.Computation]
 genDoc src = do

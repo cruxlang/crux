@@ -256,18 +256,48 @@ expression = do
     _ <- token TSemicolon
     return s
 
+recordTypeIdent :: Parser TypeIdent
+recordTypeIdent =
+    let propTypePair = do
+            name <- anyIdentifier
+            _ <- token TColon
+            ty <- typeIdent
+            return (name, ty)
+    in do
+        _ <- P.try $ token TOpenBrace
+        props <- P.sepBy propTypePair (token TComma)
+        _ <- P.optional $ token TComma
+        _ <- P.try $ token TCloseBrace
+        return $ RecordIdent props
+
+dataDeclTypeIdent :: Parser TypeIdent
+dataDeclTypeIdent =
+    let parenthesized =
+            P.between (P.try $ token TOpenParen) (token TCloseParen) sumIdent
+        justOne = do
+            name <- anyIdentifier
+            return $ TypeIdent name []
+        sumIdent = do
+            name <- anyIdentifier
+            params <- P.many (parenthesized <|> justOne)
+            return $ TypeIdent name params
+    in recordTypeIdent <|> parenthesized <|> justOne
+
 typeIdent :: Parser TypeIdent
 typeIdent =
     let parenthesized = do
             _ <- P.try $ token TOpenParen
-            name <- anyIdentifier
-            params <- P.many typeIdent
+            r <- sumIdent
             _ <- token TCloseParen
-            return $ TypeIdent name params
+            return r
         justOne = do
             name <- anyIdentifier
             return $ TypeIdent name []
-    in parenthesized <|> justOne
+        sumIdent = do
+            name <- anyIdentifier
+            params <- P.many (parenthesized <|> justOne)
+            return $ TypeIdent name params
+    in sumIdent <|> recordTypeIdent
 
 typeName :: Parser Text
 typeName = do
@@ -296,7 +326,7 @@ dataDeclaration = do
     _ <- token TOpenBrace
     variants <- P.many $ do
         ctorname <- anyIdentifier
-        ctordata <- P.many typeIdent
+        ctordata <- P.many dataDeclTypeIdent
         _ <- token TSemicolon
         return (Variant ctorname ctordata)
     _ <- token TCloseBrace

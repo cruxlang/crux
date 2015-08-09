@@ -63,6 +63,10 @@ case_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"
         (ELet () "a" (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
+case_let_with_record_annotation = do
+    assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
+        (ELet () "a" (Just (RecordIdent [("x",TypeIdent "Number" []),("y",TypeIdent "Number" [])])) (ELiteral () LUnit))
+
 case_pattern = do
     assertParseOk pattern "Cons a (Cons b Nil)"
         (PConstructor "Cons" [PPlaceholder "a", PConstructor "Cons" [PPlaceholder "b", PConstructor "Nil" []]]) id

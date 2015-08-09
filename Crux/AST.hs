@@ -10,7 +10,9 @@ type TypeName = Text
 type TypeVariable = Text -- :)
 type Pattern = Name -- Temporary
 
-data TypeIdent = TypeIdent TypeName [TypeIdent]
+data TypeIdent
+    = TypeIdent TypeName [TypeIdent]
+    | RecordIdent [(Name, TypeIdent)]
     deriving (Show, Eq)
 
 data Literal

@@ -5,8 +5,6 @@ module Crux.Lex where
 import Data.Char
 import Crux.Tokens
 import qualified Text.Parsec as P
-import qualified Data.ByteString as BS
-import qualified Data.Text.Encoding as DTE
 import Data.Text (Text)
 import qualified Data.Text as T
 import Control.Monad.Identity (Identity)
@@ -105,8 +103,3 @@ document = do
 lexSource :: FilePath -> Text -> Either P.ParseError [Token Pos]
 lexSource fileName text =
     P.runParser document () fileName text
-
-lex :: FilePath -> IO (Either P.ParseError [Token Pos])
-lex fileName = do
-    bytes <- BS.readFile fileName
-    return $ lexSource fileName (DTE.decodeUtf8 bytes)

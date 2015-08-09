@@ -247,8 +247,8 @@ generateExpr env expr = case expr of
         Writer.tell s
         return $ JS.EIdentifier tempName
 
-generateDocument :: Show t => [Declaration t] -> IO [JS.Statement]
-generateDocument decls = do
+generateDocument :: Show t => Module t -> IO [JS.Statement]
+generateDocument Module{..} = do
     eNames <- IORef.newIORef HashMap.empty
     let env = Env{..}
 
@@ -257,13 +257,13 @@ generateDocument decls = do
             , JS.SVar "False" (Just $ JS.EIdentifier "false")
             ]
 
-    d <- mapM (generateDecl env) decls
+    d <- mapM (generateDecl env) $ mDecls
     return $ prelude ++ (concat d)
 
-generateDocumentWithoutPrelude :: Show t => [Declaration t] -> IO [JS.Statement]
-generateDocumentWithoutPrelude decls = do
+generateDocumentWithoutPrelude :: Show t => Module t -> IO [JS.Statement]
+generateDocumentWithoutPrelude Module{..} = do
     eNames <- IORef.newIORef HashMap.empty
     let env = Env{..}
 
-    d <- mapM (generateDecl env) decls
+    d <- mapM (generateDecl env) mDecls
     return $ concat d

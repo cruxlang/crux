@@ -4,12 +4,9 @@ module Crux.Main (main) where
 import           Control.Applicative
 import           Data.Monoid
 import qualified Data.Text as Text
-import           Crux.AST (mDecls)
 import           Crux.JSGen
 import qualified Crux.JSTree        as JSTree
-import           Crux.Lex
-import           Crux.Parse hiding (module')
-import qualified Crux.Typecheck     as Typecheck
+import           Crux.Module (loadModuleFromFile)
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 --import qualified System.FilePath    as F
@@ -48,23 +45,17 @@ main = do
         [] -> help
         (_:_:_) -> help
         [fn] -> do
+            mod' <- loadModuleFromFile fn
             --let outfile = F.replaceExtension fn "js"
-            l <- Crux.Lex.lex fn
-            case l of
-                Left err -> failed $ "Lex error: " ++ show err
-                Right l' -> do
-                    p <- Crux.Parse.parse fn l'
-                    case p of
-                        Left err -> failed $ "Parse error: " ++ show err
-                        Right module' -> do
-                            -- putStrLn $ ppShow p'
-                            typetree <- Typecheck.run $ mDecls module'
-                            typetree' <- Typecheck.flattenProgram typetree
-                            if ast options then
-                                putStrLn $ ppShow typetree'
-                            else do
-                                doc <- generateDocument typetree'
-                                putStr $ Text.unpack $ JSTree.renderDocument doc
-                            -- putStrLn $ ppShow (concatMap generateDecl typetree')
-                             --T.writeFile outfile $ JSTree.renderDocument doc
-                            exitWith ExitSuccess
+            case mod' of
+                Left err -> do
+                    failed $ show err
+                Right module' -> do
+                    if ast options then
+                        putStrLn $ ppShow module'
+                    else do
+                        doc <- generateDocument module'
+                        putStr $ Text.unpack $ JSTree.renderDocument doc
+                    -- putStrLn $ ppShow (concatMap generateDecl typetree')
+                     --T.writeFile outfile $ JSTree.renderDocument doc
+                    exitWith ExitSuccess

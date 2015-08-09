@@ -43,6 +43,7 @@ data Module edata = Module
     -- , mExports
     { mDecls :: [Declaration edata]
     }
+    deriving (Show, Eq)
 
 data Pattern2
     = PConstructor Name [Pattern2]

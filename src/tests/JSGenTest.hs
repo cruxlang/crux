@@ -14,23 +14,16 @@ import Crux.JSGen (generateDocumentWithoutPrelude)
 import qualified Crux.JSTree as JS
 import qualified Crux.Typecheck as Typecheck
 import qualified Crux.AST as AST
+import qualified Crux.Module as Module
 
 genDoc' :: Text -> IO (Either String [JS.Statement])
 genDoc' src = do
-    let fn = "<string>"
-    let l = Crux.Lex.lexSource fn src
-    case l of
+    mod' <- Module.loadModuleFromSource "<string>" src
+    case mod' of
         Left err ->
-            return $ Left $ "Lex error: " <> show err
-        Right l' -> do
-            p <- Crux.Parse.parse fn l'
-            case p of
-                Left err ->
-                    return $ Left $ "Parse error: " <> show err
-                Right mod' -> do
-                    typetree <- Typecheck.run $ AST.mDecls mod'
-                    typetree' <- forM typetree Typecheck.flattenDecl
-                    fmap Right $ generateDocumentWithoutPrelude typetree'
+            return $ Left err
+        Right mod -> do
+            fmap Right $ generateDocumentWithoutPrelude $ mod
 
 genDoc :: Text -> IO [JS.Statement]
 genDoc src = do

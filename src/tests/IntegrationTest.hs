@@ -9,6 +9,7 @@ import qualified Crux.JSGen     as JSGen
 import qualified Crux.JSTree    as JSTree
 import           Crux.Lex
 import           Crux.Parse
+import qualified Crux.Module
 import qualified Crux.Typecheck as Typecheck
 import           Data.Text      (Text)
 import qualified Data.Text      as T
@@ -28,23 +29,16 @@ run src = do
 
 run' :: Text -> IO (Either String Text)
 run' src = do
-    let fn = "<string>"
-    let l = Crux.Lex.lexSource fn src
-    case l of
-        Left err ->
-            return $ Left $ "Lex error: " <> show err
-        Right l' -> do
-            p <- Crux.Parse.parse fn l'
-            case p of
-                Left err -> return $ Left $ "Parse error: " ++ show err
-                Right p' -> do
-                    typetree <- Typecheck.run $ AST.mDecls p'
-                    typetree' <- forM typetree Typecheck.flattenDecl
-                    js <- JSGen.generateDocument typetree'
-                    withSystemTempFile "crux.js" $ \path handle -> do
-                        T.hPutStr handle $ JSTree.renderDocument js
-                        hFlush handle
-                        fmap (Right . T.pack) $ readProcess "node" [path] ""
+    p <- Crux.Module.loadModuleFromSource "<string>" src
+    case p of
+        Left err -> do
+            return $ Left err
+        Right m -> do
+            js <- JSGen.generateDocument m
+            withSystemTempFile "crux.js" $ \path handle -> do
+                T.hPutStr handle $ JSTree.renderDocument js
+                hFlush handle
+                fmap (Right . T.pack) $ readProcess "node" [path] ""
 
 case_hello_world = do
     result <- run $ T.unlines

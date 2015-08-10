@@ -66,6 +66,9 @@ generate' env expr = case expr of
     AST.ELiteral _ lit -> do
         newComputation env $ Literal lit
 
+    AST.EIdentifier _ name -> do
+        return name
+
     AST.EIntrinsic _ iid -> do
         iid' <- AST.mapIntrinsicInputs (generate' env) iid
         newComputation env $ Intrinsic iid'
@@ -78,8 +81,18 @@ generate' env expr = case expr of
         rv' <- generate' env rv
         newComputation env $ Return rv'
 
+    AST.EIfThenElse _ cond ifTrue ifFalse -> do
+        cond' <- generate' env cond
+        ifTrue' <- subBlock env ifTrue
+        ifFalse' <- subBlock env ifFalse
+        newComputation env $ If cond' ifTrue' ifFalse'
+
     _ -> do
         error $ "Unexpected expression: " <> show expr
+
+subBlock :: Show t => Env -> AST.Expression t -> GenWriter [Computation]
+subBlock env expr = do
+    fmap snd $ lift $ runWriterT $ generate' env expr
 
 generate :: Show t => AST.Expression t -> IO [Computation]
 generate expr = do
@@ -94,7 +107,7 @@ generateDecl env decl = do
             writeComputation name $ LetBinding name output
             return ()
         AST.DFun (AST.FunDef _ name params body) -> do
-            body' <- fmap snd $ lift $ runWriterT $ generate' env body
+            body' <- subBlock env body
             writeComputation name $ Function params body'
             return ()
 

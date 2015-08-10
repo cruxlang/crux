@@ -55,15 +55,19 @@ case_return_from_function = do
         ]
         doc
 
-{-
-xcase_return_from_branch = do
+case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
-        [ JS.SFunction "f" []
-            [ JS.SVar
-            ]
+        [ Gen.Computation "f" $ Gen.Function []
+            [ Gen.Computation "temp_4" (Gen.If "True"
+                [ Gen.Computation "temp_0" (Gen.Literal (AST.LInteger 1))
+                , Gen.Computation "temp_1" (Gen.Return "temp_0")
+                ]
+                [ Gen.Computation "temp_2" (Gen.Literal (AST.LInteger 2))
+                , Gen.Computation "temp_3" (Gen.Return "temp_2")
+                ]
+            )]
         ]
         result
--}
 
 tests = $(testGroupGenerator)

@@ -17,7 +17,7 @@ type Input = Name
 
 data Step
     -- values
-    = LetBinding Name Input
+    = Reference Input
     | Function [Name] [Computation]
     | Literal AST.Literal
 
@@ -104,7 +104,7 @@ generateDecl env decl = do
     case decl of
         AST.DLet _ name _ defn -> do
             output <- generate' env defn
-            writeComputation name $ LetBinding name output
+            writeComputation name $ Reference output
             return ()
         AST.DFun (AST.FunDef _ name params body) -> do
             body' <- subBlock env body

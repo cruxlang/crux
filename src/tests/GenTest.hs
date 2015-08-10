@@ -37,7 +37,7 @@ case_direct_prints = do
     assertEqual "single print expression"
         [ Gen.Computation "temp_0" $ Gen.Literal $ AST.LInteger 10
         , Gen.Computation "temp_1" $ Gen.Intrinsic (AST.IPrint ["temp_0"])
-        , Gen.Computation "_" $ Gen.LetBinding "_" "temp_1"
+        , Gen.Computation "_" $ Gen.Reference "temp_1"
         ]
         doc
 

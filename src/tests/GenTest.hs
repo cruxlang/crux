@@ -59,14 +59,30 @@ case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
         [ Gen.FunctionLiteral "f" []
-            [ Gen.If "True"
-                [ Gen.Literal "temp_0" $ AST.LInteger 1
-                , Gen.Return "temp_0"
-                ]
-                [ Gen.Literal "temp_1" $ AST.LInteger 2
+            [ Gen.EmptyLet "temp_0"
+            , Gen.If "True"
+                [ Gen.Literal "temp_1" $ AST.LInteger 1
                 , Gen.Return "temp_1"
                 ]
+                [ Gen.Literal "temp_2" $ AST.LInteger 2
+                , Gen.Return "temp_2"
+                ]
             ]
+        ]
+        result
+
+case_branch_with_value = do
+    result <- genDoc "let x = if True then 1 else 2;"
+    assertEqual "statements"
+        [ Gen.EmptyLet "temp_0"
+        , Gen.If "True"
+            [ Gen.Literal "temp_1" $ AST.LInteger 1
+            , Gen.Assign "temp_0" "temp_1"
+            ]
+            [ Gen.Literal "temp_2" $ AST.LInteger 2
+            , Gen.Assign "temp_0" "temp_2"
+            ]
+        , Gen.LetBinding "x" "temp_0"
         ]
         result
 

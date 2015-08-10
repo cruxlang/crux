@@ -21,12 +21,14 @@ type Input = Name
 
 data Instruction
     -- binding
-    = LetBinding Output Name
+    = EmptyLet Output
+    | LetBinding Output Name
     -- values
     | FunctionLiteral Output [Name] [Instruction]
     | Literal Output AST.Literal
 
     -- operations
+    | Assign Output Input
     | Intrinsic Output (AST.Intrinsic Input)
     | Call Output Input [Input]
 
@@ -96,12 +98,14 @@ generate env expr = case expr of
 
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
         cond' <- generate env cond
-        ifTrue' <- subBlock env ifTrue
-        ifFalse' <- subBlock env ifFalse
+        output <- lift $ newTempOutput env
+        writeInstruction $ EmptyLet output
+        ifTrue' <- subBlockWithOutput env output ifTrue
+        ifFalse' <- subBlockWithOutput env output ifFalse
         case cond' of
             Just cond'' -> do
                 writeInstruction $ If cond'' ifTrue' ifFalse'
-                return Nothing
+                return $ Just output
             Nothing -> do
                 return Nothing
 
@@ -111,6 +115,13 @@ generate env expr = case expr of
 subBlock :: Show t => Env -> AST.Expression t -> GenWriter [Instruction]
 subBlock env expr = do
     fmap snd $ lift $ runWriterT $ generate env expr
+
+subBlockWithOutput :: Show t => Env -> Output -> AST.Expression t -> GenWriter [Instruction]
+subBlockWithOutput env output expr = do
+    (output', instrs) <- lift $ runWriterT $ generate env expr
+    return $ case output' of
+        Just output'' -> instrs ++ [Assign output output'']
+        Nothing -> instrs
 
 generateDecl :: Show t => Env -> AST.Declaration t -> GenWriter ()
 generateDecl env decl = do

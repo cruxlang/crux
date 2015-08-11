@@ -3,7 +3,8 @@
 {-# LANGUAGE RecordWildCards            #-}
 
 module Crux.Gen
-    ( Instruction(..)
+    ( Value(..)
+    , Instruction(..)
     , generateModule
     ) where
 
@@ -16,16 +17,15 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 
 type Name = Text
-type Output = Text
-type Input = Name
+type Output = Name
+data Value = Reference Name | Literal AST.Literal | FunctionLiteral [Name] [Instruction]
+    deriving (Show, Eq)
+type Input = Value
 
 data Instruction
     -- binding
     = EmptyLet Output
-    | LetBinding Output Name
-    -- values
-    | FunctionLiteral Output [Name] [Instruction]
-    | Literal Output AST.Literal
+    | LetBinding Output Input
 
     -- operations
     | Assign Output Input
@@ -41,7 +41,7 @@ type Env = IORef Int
 
 type Module = [Instruction]
 
-newTempOutput :: Env -> IO Name
+newTempOutput :: Env -> IO Output
 newTempOutput env = do
     value <- readIORef env
     writeIORef env (value + 1)
@@ -52,13 +52,13 @@ type GenWriter a = WriterT [Instruction] IO a
 writeInstruction :: Instruction -> GenWriter ()
 writeInstruction i = tell [i]
 
-newInstruction :: Env -> (Output -> Instruction) -> GenWriter (Maybe Output)
+newInstruction :: Env -> (Output -> Instruction) -> GenWriter (Maybe Value)
 newInstruction env instr = do
     output <- lift $ newTempOutput env
     writeInstruction $ instr output
-    return $ Just output
+    return $ Just $ Reference output
 
-generate :: Show t => Env -> AST.Expression t -> GenWriter (Maybe Output)
+generate :: Show t => Env -> AST.Expression t -> GenWriter (Maybe Value)
 generate env expr = case expr of
     AST.EApp _ fn args -> do
         fn' <- generate env fn
@@ -70,10 +70,10 @@ generate env expr = case expr of
                 return Nothing
 
     AST.ELiteral _ lit -> do
-        newInstruction env $ \output -> Literal output lit
+        return $ Just $ Literal lit
 
     AST.EIdentifier _ name -> do
-        return $ Just name
+        return $ Just $ Reference name
 
     AST.EIntrinsic _ iid -> do
         iid' <- runMaybeT $ AST.mapIntrinsicInputs (MaybeT . generate env) iid
@@ -105,7 +105,7 @@ generate env expr = case expr of
         case cond' of
             Just cond'' -> do
                 writeInstruction $ If cond'' ifTrue' ifFalse'
-                return $ Just output
+                return $ Just $ Reference output
             Nothing -> do
                 return Nothing
 
@@ -133,7 +133,7 @@ generateDecl env decl = do
             return ()
         AST.DFun (AST.FunDef _ name params body) -> do
             body' <- subBlock env body
-            writeInstruction $ FunctionLiteral name params body'
+            writeInstruction $ LetBinding name $ FunctionLiteral params body'
             return ()
 
 generateModule :: Show t => AST.Module t -> IO Module

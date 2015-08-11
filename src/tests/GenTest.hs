@@ -35,9 +35,8 @@ genDoc src = do
 case_direct_prints = do
     doc <- genDoc "let _ = print(10);"
     assertEqual "single print expression"
-        [ Gen.Literal "temp_0" $ AST.LInteger 10
-        , Gen.Intrinsic "temp_1" $ AST.IPrint ["temp_0"]
-        , Gen.LetBinding "_" "temp_1"
+        [ Gen.Intrinsic "temp_0" $ AST.IPrint [Gen.Literal $ AST.LInteger 10]
+        , Gen.LetBinding "_" $ Gen.Reference "temp_0"
         ]
         doc
 
@@ -48,9 +47,8 @@ case_return_at_top_level_is_error = do
 case_return_from_function = do
     doc <- genDoc "fun f() { return 1; };"
     assertEqual "statements"
-        [ Gen.FunctionLiteral "f" []
-            [ Gen.Literal "temp_0" $ AST.LInteger 1
-            , Gen.Return "temp_0"
+        [ Gen.LetBinding "f" $ Gen.FunctionLiteral []
+            [ Gen.Return $ Gen.Literal $ AST.LInteger 1
             ]
         ]
         doc
@@ -58,14 +56,12 @@ case_return_from_function = do
 case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
-        [ Gen.FunctionLiteral "f" []
+        [ Gen.LetBinding "f" $ Gen.FunctionLiteral []
             [ Gen.EmptyLet "temp_0"
-            , Gen.If "True"
-                [ Gen.Literal "temp_1" $ AST.LInteger 1
-                , Gen.Return "temp_1"
+            , Gen.If (Gen.Reference "True")
+                [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
-                [ Gen.Literal "temp_2" $ AST.LInteger 2
-                , Gen.Return "temp_2"
+                [ Gen.Return $ Gen.Literal $ AST.LInteger 2
                 ]
             ]
         ]
@@ -75,14 +71,12 @@ case_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual "statements"
         [ Gen.EmptyLet "temp_0"
-        , Gen.If "True"
-            [ Gen.Literal "temp_1" $ AST.LInteger 1
-            , Gen.Assign "temp_0" "temp_1"
+        , Gen.If (Gen.Reference "True")
+            [ Gen.Assign "temp_0" $ Gen.Literal $ AST.LInteger 1
             ]
-            [ Gen.Literal "temp_2" $ AST.LInteger 2
-            , Gen.Assign "temp_0" "temp_2"
+            [ Gen.Assign "temp_0" $ Gen.Literal $ AST.LInteger 2
             ]
-        , Gen.LetBinding "x" "temp_0"
+        , Gen.LetBinding "x" $ Gen.Reference "temp_0"
         ]
         result
 

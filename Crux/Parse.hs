@@ -270,6 +270,15 @@ recordTypeIdent =
         _ <- P.try $ token TCloseBrace
         return $ RecordIdent props
 
+functionTypeIdent :: Parser TypeIdent
+functionTypeIdent = P.try $ do
+    _ <- token TOpenParen
+    argTypes <- P.sepBy typeIdent (token TComma)
+    _ <- token TCloseParen
+    _ <- token TRightArrow
+    retType <- typeIdent
+    return $ FunctionIdent argTypes retType
+
 dataDeclTypeIdent :: Parser TypeIdent
 dataDeclTypeIdent =
     let parenthesized =
@@ -297,7 +306,7 @@ typeIdent =
             name <- anyIdentifier
             params <- P.many (parenthesized <|> justOne)
             return $ TypeIdent name params
-    in sumIdent <|> recordTypeIdent
+    in functionTypeIdent <|> sumIdent <|> recordTypeIdent
 
 typeName :: Parser Text
 typeName = do

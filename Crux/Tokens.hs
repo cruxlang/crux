@@ -26,6 +26,7 @@ data Token tdata
     | TComma tdata
     | TEqual tdata
     | TDot tdata
+    | TRightArrow tdata
     | TFatRightArrow tdata
     | TPlus tdata
     | TMinus tdata
@@ -55,6 +56,7 @@ instance Eq (Token a) where
         (TColon _,          TColon _)          -> True
         (TComma _,          TComma _)          -> True
         (TDot _,            TDot _)            -> True
+        (TRightArrow _,     TRightArrow _)     -> True
         (TFatRightArrow _,  TFatRightArrow _)  -> True
         (TEqual _,          TEqual _)          -> True
         (TPlus _,           TPlus _)           -> True
@@ -89,6 +91,7 @@ tokenData tok = case tok of
     TMinus tdata -> tdata
     TMultiply tdata -> tdata
     TDivide tdata -> tdata
+    TRightArrow tdata -> tdata
     TFatRightArrow tdata -> tdata
     TFun tdata -> tdata
     TLet tdata -> tdata

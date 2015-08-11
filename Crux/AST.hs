@@ -10,11 +10,6 @@ type TypeName = Text
 type TypeVariable = Text -- :)
 type Pattern = Name -- Temporary
 
-data TypeIdent
-    = TypeIdent TypeName [TypeIdent]
-    | RecordIdent [(Name, TypeIdent)]
-    deriving (Show, Eq)
-
 data Literal
     = LInteger Integer
     | LString Text
@@ -147,6 +142,12 @@ edata expr = case expr of
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
     EReturn ed _ -> ed
+
+data TypeIdent
+    = TypeIdent TypeName [TypeIdent]
+    | RecordIdent [(Name, TypeIdent)]
+    | FunctionIdent [TypeIdent] TypeIdent
+    deriving (Show, Eq)
 
 data Type
     = Number

@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TupleSections #-}
 
 module Crux.Typecheck where
 
@@ -23,6 +24,11 @@ import qualified Data.Text             as Text
 import           Data.Traversable      (forM)
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
+
+copyIORef :: IORef a -> IO (IORef a)
+copyIORef ior = do
+    v <- IORef.readIORef ior
+    IORef.newIORef v
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
@@ -216,7 +222,7 @@ check env expr = case expr of
         HashTable.insert name ty (eBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
-            let annotTy = resolveTypeIdent env [] annotation
+            annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
         return $ ELet (TType Unit) name maybeAnnot expr''
 
@@ -330,7 +336,15 @@ instantiate' subst env ty = case ty of
     TUserType def tyVars -> do
         typeVars' <- mapM (instantiate' subst env) tyVars
         return $ TUserType def typeVars'
-    _ -> return ty
+    TRecord openRef rowsRef -> do
+        rows <- readIORef rowsRef
+        rows' <- forM rows $ \(name, rowTy) -> do
+            rowTy' <- instantiate' subst env rowTy
+            return (name, rowTy')
+        openRef' <- copyIORef openRef
+        rowsRef' <- IORef.newIORef rows'
+        return $ TRecord openRef' rowsRef'
+    TType {} -> return ty
 
 instantiate :: Env -> TypeVar -> IO TypeVar
 instantiate env t = do
@@ -599,10 +613,10 @@ checkDecl env decl = case decl of
         expr' <- check env expr
         let ty = edata expr'
         HashTable.insert name ty (eBindings env)
-        quantify ty
         forM_ maybeAnnot $ \annotation -> do
-            let annotTy = resolveTypeIdent env [] annotation
+            annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
+        quantify ty
         return $ DLet (edata expr') name maybeAnnot expr'
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
@@ -657,15 +671,16 @@ buildTypeEnvironment decls = do
             forM_ (zip variants tvariants) $ \(v, tv) -> do
                 forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
                     let Just qv = HashMap.lookup name qvars
-                    let t = resolveTypeIdent env qv typeIdent
+                    t <- resolveTypeIdent env qv typeIdent
                     unify typeVar t
         _ -> return ()
 
     let computeVariantType ty qvarNames _name argTypeIdents = case argTypeIdents of
-            [] -> ty
-            _ ->
-                let resolvedArgTypes = map (resolveTypeIdent env qvarNames) argTypeIdents
-                in TFun resolvedArgTypes ty
+            [] ->
+                return ty
+            _ -> do
+                resolvedArgTypes <- mapM (resolveTypeIdent env qvarNames) argTypeIdents
+                return $ TFun resolvedArgTypes ty
 
     forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
@@ -678,13 +693,13 @@ buildTypeEnvironment decls = do
             let Just userType = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
-                let ctorType = computeVariantType userType qvarTable vname vdata
+                ctorType <- computeVariantType userType qvarTable vname vdata
                 HashTable.insert vname ctorType (eBindings env)
         _ -> return ()
 
     return env{eTypeBindings=te}
 
-resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> TypeVar
+resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> IO TypeVar
 resolveTypeIdent env qvarTable typeIdent =
     go typeIdent
   where
@@ -696,18 +711,33 @@ resolveTypeIdent env qvarTable typeIdent =
                 Just t@(TType {}) ->
                     if [] /= typeParameters
                         then error "Primitive types don't take type parameters"
-                        else t
+                        else return t
                 Just (TUserType def _) ->
                     if length qvarTable /= length typeParameters
                         then
                             error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
-                        else
-                            TUserType def (map go typeParameters)
+                        else do
+                            params <- mapM go typeParameters
+                            return $ TUserType def params
                 Just t ->
-                    t
+                    return $ t
             else case lookup typeName qvarTable of
-                Nothing -> error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
-                Just t -> t
+                Nothing ->
+                    error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
+                Just t ->
+                    return t
+
+    go (RecordIdent rows) = do
+        open <- IORef.newIORef RecordClose
+        rows' <- forM rows $ \(rowName, rowTy) ->
+            fmap (rowName,) (go rowTy)
+        rows'' <- IORef.newIORef rows'
+        return $ TRecord open rows''
+
+    go (FunctionIdent argTypes retType) = do
+        argTypes' <- mapM go argTypes
+        retType' <- go retType
+        return $ TFun argTypes' retType'
 
 run :: Module Pos -> IO (Module TypeVar)
 run Module{..} = do

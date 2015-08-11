@@ -67,6 +67,10 @@ case_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
         (ELet () "a" (Just (RecordIdent [("x",TypeIdent "Number" []),("y",TypeIdent "Number" [])])) (ELiteral () LUnit))
 
+case_let_with_function_annotation = do
+    assertExprParses letExpression "let a : (Number) -> Unit = _unsafe_js(\"console.log\")"
+        (ELet () "a" (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
+
 case_pattern = do
     assertParseOk pattern "Cons a (Cons b Nil)"
         (PConstructor "Cons" [PPlaceholder "a", PConstructor "Cons" [PPlaceholder "b", PConstructor "Nil" []]]) id

@@ -173,4 +173,15 @@ case_annotation_is_checked = do
 
     assertEqual "" (Left "Unification error:  TType String and TType Number") result
 
+case_record_annotation_is_checked = do
+    result <- run $ T.unlines
+        [ "let c : {log:(String) -> Unit} = _unsafe_js(\"console\");"
+        , "fun main() {"
+        , "    c.log(\"Hoop\");"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Right "Hoop\n") result
+
 tests = $(testGroupGenerator)

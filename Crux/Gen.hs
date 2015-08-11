@@ -4,28 +4,29 @@
 
 module Crux.Gen
     ( Value(..)
+    , Output(..)
     , Instruction(..)
     , generateModule
     ) where
 
 import Crux.Prelude
 import Data.IORef (newIORef, readIORef, writeIORef)
-import qualified Data.Text as Text
 import qualified Crux.AST as AST
 import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 
 type Name = Text
-type Output = Name
-data Value = Reference Name | Literal AST.Literal | FunctionLiteral [Name] [Instruction]
+data Output = Binding Name | Temporary Int
+    deriving (Show, Eq)
+data Value = Reference Output | Literal AST.Literal | FunctionLiteral [Name] [Instruction]
     deriving (Show, Eq)
 type Input = Value
 
 data Instruction
     -- binding
     = EmptyLet Output
-    | LetBinding Output Input
+    | LetBinding Name Input
 
     -- operations
     | Assign Output Input
@@ -45,7 +46,7 @@ newTempOutput :: Env -> IO Output
 newTempOutput env = do
     value <- readIORef env
     writeIORef env (value + 1)
-    return $ "temp_" <> Text.pack (show value)
+    return $ Temporary value
 
 type GenWriter a = WriterT [Instruction] IO a
 
@@ -73,7 +74,7 @@ generate env expr = case expr of
         return $ Just $ Literal lit
 
     AST.EIdentifier _ name -> do
-        return $ Just $ Reference name
+        return $ Just $ Reference $ Binding name
 
     AST.EIntrinsic _ iid -> do
         iid' <- runMaybeT $ AST.mapIntrinsicInputs (MaybeT . generate env) iid

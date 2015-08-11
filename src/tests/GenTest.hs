@@ -35,8 +35,8 @@ genDoc src = do
 case_direct_prints = do
     doc <- genDoc "let _ = print(10);"
     assertEqual "single print expression"
-        [ Gen.Intrinsic "temp_0" $ AST.IPrint [Gen.Literal $ AST.LInteger 10]
-        , Gen.LetBinding "_" $ Gen.Reference "temp_0"
+        [ Gen.Intrinsic (Gen.Temporary 0) $ AST.IPrint [Gen.Literal $ AST.LInteger 10]
+        , Gen.LetBinding "_" $ Gen.Reference (Gen.Temporary 0)
         ]
         doc
 
@@ -57,8 +57,8 @@ case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
         [ Gen.LetBinding "f" $ Gen.FunctionLiteral []
-            [ Gen.EmptyLet "temp_0"
-            , Gen.If (Gen.Reference "True")
+            [ Gen.EmptyLet (Gen.Temporary 0)
+            , Gen.If (Gen.Reference $ Gen.Binding "True")
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
@@ -70,13 +70,13 @@ case_return_from_branch = do
 case_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual "statements"
-        [ Gen.EmptyLet "temp_0"
-        , Gen.If (Gen.Reference "True")
-            [ Gen.Assign "temp_0" $ Gen.Literal $ AST.LInteger 1
+        [ Gen.EmptyLet (Gen.Temporary 0)
+        , Gen.If (Gen.Reference $ Gen.Binding "True")
+            [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 1
             ]
-            [ Gen.Assign "temp_0" $ Gen.Literal $ AST.LInteger 2
+            [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 2
             ]
-        , Gen.LetBinding "x" $ Gen.Reference "temp_0"
+        , Gen.LetBinding "x" $ Gen.Reference $ Gen.Temporary 0
         ]
         result
 

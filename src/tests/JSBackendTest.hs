@@ -39,46 +39,23 @@ case_direct_prints = do
     assertEqual "single print expression"
         "var $0 = console.log(10);\nvar _ = $0;\n"
         doc
-{-
-xcase_return_at_top_level_is_error = do
-    result <- try $! genDoc "let _ = return 1;"
-    assertEqual "exception matches" (Left $ ErrorCall "Cannot return outside of functions") $ result
 
-xcase_return_from_function = do
+case_return_from_function = do
     doc <- genDoc "fun f() { return 1; };"
     assertEqual "statements"
-        [ Gen.LetBinding "f" $ Gen.FunctionLiteral []
-            [ Gen.Return $ Gen.Literal $ AST.LInteger 1
-            ]
-        ]
+        "var f = (function (){\nreturn 1;\n}\n);\n"
         doc
 
-xcase_return_from_branch = do
+case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
-        [ Gen.LetBinding "f" $ Gen.FunctionLiteral []
-            [ Gen.EmptyLet (Gen.Temporary 0)
-            , Gen.If (Gen.Reference $ Gen.Binding "True")
-                [ Gen.Return $ Gen.Literal $ AST.LInteger 1
-                ]
-                [ Gen.Return $ Gen.Literal $ AST.LInteger 2
-                ]
-            ]
-        ]
+        "var f = (function (){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\n}\n);\n"
         result
 
-xcase_branch_with_value = do
+case_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual "statements"
-        [ Gen.EmptyLet (Gen.Temporary 0)
-        , Gen.If (Gen.Reference $ Gen.Binding "True")
-            [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 1
-            ]
-            [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 2
-            ]
-        , Gen.LetBinding "x" $ Gen.Reference $ Gen.Temporary 0
-        ]
+        "var $0;\nif(True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nvar x = $0;\n"
         result
--}
 
 tests = $(testGroupGenerator)

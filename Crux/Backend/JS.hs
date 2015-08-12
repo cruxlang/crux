@@ -19,9 +19,12 @@ renderOutput (Gen.Binding name) = name
 renderOutput (Gen.Temporary i) = Text.pack $ "$" <> show i
 
 renderValue :: Gen.Value -> JSTree.Expression
-renderValue (Gen.Reference output) = JSTree.EIdentifier $ renderOutput output
-renderValue (Gen.Literal lit) = case lit of
-    LInteger i -> JSTree.ELiteral $ JSTree.LInteger i
+renderValue value = case value of
+    Gen.Reference output -> JSTree.EIdentifier $ renderOutput output
+    Gen.Literal lit -> case lit of
+        LInteger i -> JSTree.ELiteral $ JSTree.LInteger i
+    Gen.FunctionLiteral args body -> JSTree.EFunction args $
+        map renderInstruction body
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
@@ -44,6 +47,13 @@ renderInstruction instr = case instr of
                 arg' <- generateExpr env arg
                 return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) arg'
             -}
+    Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
+    Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
+    Gen.If cond ifTrue ifFalse ->
+        JSTree.SIf
+            (renderValue cond)
+            (JSTree.SBlock $ map renderInstruction ifTrue)
+            (Just $ JSTree.SBlock $ map renderInstruction ifFalse)
     i -> error $ "Unknown instruction: " <> show i
 
 generateJS :: Gen.Module -> Text

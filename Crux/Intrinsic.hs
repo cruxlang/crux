@@ -9,6 +9,7 @@ import qualified Crux.JSGen.Types    as JSGen
 import qualified Crux.JSTree         as JS
 import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
+import Data.IORef (newIORef)
 
 data Intrinsic = Intrinsic
     { iType :: AST.TypeVar
@@ -22,11 +23,14 @@ genPlus JSGen.GenVTable{..} env (AST.EApp _ (AST.EIdentifier _ "+") [lhs, rhs]) 
     return $ JS.EBinOp "+" lhs' rhs'
 genPlus _ _ _ = error "Unexpected: Only pass EApp to genPlus"
 
-intrinsics :: HashMap AST.Name Intrinsic
-intrinsics = HashMap.fromList
-    [ ("+", Intrinsic
-        { iType = AST.TFun [AST.TType AST.Number, AST.TType AST.Number] (AST.TType AST.Number)
-        , iGen = genPlus
-        }
-      )
-    ]
+intrinsics :: IO (HashMap AST.Name Intrinsic)
+intrinsics = do
+    numTy <- newIORef $ AST.TType AST.Number
+    plusTy <- newIORef $ AST.TFun [numTy, numTy] numTy
+    return $ HashMap.fromList
+        [ ("+", Intrinsic
+            { iType = plusTy
+            , iGen = genPlus
+            }
+          )
+        ]

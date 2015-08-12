@@ -155,11 +155,6 @@ data Type
     | Boolean
     deriving (Show, Eq)
 
-data VarLink a
-    = Unbound
-    | Link a
-    deriving (Show, Eq)
-
 data TVariant typevar = TVariant
     { tvName       :: Name
     , tvParameters :: [typevar]
@@ -189,12 +184,19 @@ This yields {x:Number, y:Number, z:Number}
 data RecordOpen = RecordOpen | RecordClose
     deriving (Show, Eq)
 
-data TypeVar
-    = TVar Int (IORef (VarLink TypeVar))
+type TypeVar = IORef MutableTypeVar
+
+data VarLink a
+    = Unbound Int
+    | Link a
+    deriving (Show, Eq)
+
+data MutableTypeVar
+    = TVar Int (VarLink TypeVar)
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
-    | TRecord (IORef RecordOpen) (IORef [TypeRow TypeVar])
+    | TRecord RecordOpen [TypeRow TypeVar]
     | TType Type
 
 data ImmutableTypeVar

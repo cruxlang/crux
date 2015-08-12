@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
-module IntegrationTest (run, tests) where
+module IntegrationTest
+    -- (run, tests)
+    where
 
 import           Control.Monad  (forM)
 import Control.Exception (catch, SomeException)

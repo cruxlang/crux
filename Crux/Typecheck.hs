@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Crux.Typecheck where
 
@@ -12,12 +12,13 @@ import qualified Crux.Intrinsic        as Intrinsic
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Text             (isCapitalized)
 import           Crux.Tokens           (Pos (..))
+import           Data.Foldable         (foldlM)
 import           Data.Foldable         (forM_)
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
-import           Data.List             (foldl', intercalate, nub, sort)
+import           Data.List             (intercalate, nub, sort)
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
@@ -38,11 +39,12 @@ data Env = Env
     }
 
 showTypeVarIO :: TypeVar -> IO [Char]
-showTypeVarIO tvar = case tvar of
-    TVar i o -> do
-        o' <- readIORef o
+showTypeVarIO tvar = do
+  tvar' <- readIORef tvar
+  case tvar' of
+    TVar i o' -> do
         os <- case o' of
-            Unbound -> return "Unbound"
+            Unbound j -> return $ "Unbound " ++ show j
             Link x -> showTypeVarIO x
         return $ "(TVar " ++ show i ++ " " ++ os ++ ")"
     TQuant i ->
@@ -54,9 +56,7 @@ showTypeVarIO tvar = case tvar of
     TUserType def tvars -> do
         tvs <- mapM showTypeVarIO tvars
         return $ (show $ tuName def) ++ " " ++ (intercalate " " tvs)
-    TRecord open rows -> do
-        open' <- readIORef open
-        rows' <- readIORef rows
+    TRecord open' rows' -> do
         let rowNames = map fst rows'
         rowTypes <- mapM (showTypeVarIO . snd) rows'
         let showRow (name, ty) = Text.unpack name <> ": " <> ty
@@ -83,21 +83,24 @@ freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
     IORef.modifyIORef' eNextTypeIndex (+1)
     index <- IORef.readIORef eNextTypeIndex
-    link <- IORef.newIORef Unbound
-    return $ TVar index link
+    IORef.newIORef $ TVar index (Unbound index)
 
-typeFromConstructor :: Env -> Name -> Maybe (TypeVar, TVariant TypeVar)
-typeFromConstructor env cname =
+typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
+typeFromConstructor env cname = do
     let fold acc ty = case (acc, ty) of
-            (Just a, _) -> Just a
-            (Nothing, ut@(TUserType def _)) ->
-                let TUserTypeDef { tuVariants = variants } = def
-                in case [v | v@(TVariant vname _) <- variants, vname == cname] of
-                    [v] -> Just (ut, v)
-                    [] -> Nothing
-                    _ -> error "This should never happen: Type has multiple variants with the same constructor name"
-            _ -> Nothing
-    in foldl' fold Nothing (HashMap.elems $ eTypeBindings env)
+            (Just a, _) -> return $ Just a
+            (Nothing, ut) -> do
+                ut' <- IORef.readIORef ut
+                case ut' of
+                    TUserType def _ -> do
+                        let TUserTypeDef { tuVariants = variants } = def
+                        case [v | v@(TVariant vname _) <- variants, vname == cname] of
+                            [v] -> return $ Just (ut, v)
+                            [] -> return Nothing
+                            _ -> error "This should never happen: Type has multiple variants with the same constructor name"
+                    _ ->
+                        return Nothing
+    foldlM fold Nothing (HashMap.elems $ eTypeBindings env)
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -107,25 +110,30 @@ buildPatternEnv exprType env patt = case patt of
         HashTable.insert pname exprType (eBindings env)
 
     PConstructor cname cargs -> do
-        case typeFromConstructor env cname of
-            Just (TUserType def tyVars, _) -> do
-                subst <- HashTable.new
-                (ty', variants) <- instantiateUserType subst env def tyVars
-                unify exprType ty'
+        ctor <- typeFromConstructor env cname
+        case ctor of
+            Just (ctorTy, _) -> do
+                t <- readIORef ctorTy
+                case t of
+                    TUserType def tyVars -> do
+                        subst <- HashTable.new
+                        (ty', variants) <- instantiateUserType subst env def tyVars
+                        unify exprType ty'
 
-                let findVariant [] = error "findVariant: This should never happen"
-                    findVariant (v:rest)
-                        | tvName v == cname = Just v
-                        | otherwise = findVariant rest
+                        let findVariant [] = error "findVariant: This should never happen"
+                            findVariant (v:rest)
+                                | tvName v == cname = Just v
+                                | otherwise = findVariant rest
 
-                let Just variant = findVariant variants
-                let TVariant{tvParameters} = variant
+                        let Just variant = findVariant variants
+                        let TVariant{tvParameters} = variant
 
-                when (length tvParameters /= length cargs) $
-                    error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
+                        when (length tvParameters /= length cargs) $
+                            error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
 
-                forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
-                    buildPatternEnv vp env arg
+                        forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
+                            buildPatternEnv vp env arg
+                    _ -> error "buildPatternEnv: Pattern for non-sum type??  This should never happen."
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
 check :: Env -> Expression Pos -> IO (Expression TypeVar)
@@ -142,7 +150,8 @@ check env expr = case expr of
         let env' = env{eBindings=bindings', eReturnType=Just returnType}
         body' <- check env' body
         unify returnType $ edata body'
-        return $ EFun (TFun paramTypes returnType) params body'
+        ty <- IORef.newIORef $ TFun paramTypes returnType
+        return $ EFun ty params body'
 
     EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
         t <- freshType env
@@ -159,11 +168,13 @@ check env expr = case expr of
 
     EApp _ (EIdentifier _ "print") args -> do
         args' <- mapM (check env) args
-        return $ EIntrinsic (TType Unit) (IPrint args')
+        ty <- IORef.newIORef $ TType Unit
+        return $ EIntrinsic ty (IPrint args')
 
     EApp _ (EIdentifier _ "toString") [arg] -> do
         arg' <- check env arg
-        return $ EIntrinsic (TType String) (IToString arg')
+        ty <- IORef.newIORef $ TType String
+        return $ EIntrinsic ty (IToString arg')
 
     EApp _ (EIdentifier _ "toString") _ ->
         error "toString takes just one argument"
@@ -172,7 +183,8 @@ check env expr = case expr of
         lhs' <- check env lhs
         rhs' <- mapM (check env) rhs
         result <- freshType env
-        unify (edata lhs') (TFun (map edata rhs') result)
+        ty <- IORef.newIORef $ TFun (map edata rhs') result
+        unify (edata lhs') ty
         return $ EApp result lhs' rhs'
 
     EIntrinsic {} -> do
@@ -187,18 +199,13 @@ check env expr = case expr of
 
         let fieldTypes = map (\(name, ex) -> (name, edata ex)) fields'
 
-        open <- IORef.newIORef RecordClose
-        props <- IORef.newIORef fieldTypes
-
-        let recordTy = TRecord open props
+        recordTy <- IORef.newIORef $ TRecord RecordClose fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
         ty <- freshType env
-        open <- IORef.newIORef RecordOpen
-        props <- IORef.newIORef [(propName, ty)]
-        let recTy = TRecord open props
+        recTy <- IORef.newIORef $ TRecord RecordOpen [(propName, ty)]
         unify (edata lhs') recTy
         return $ ELookup ty lhs' propName
 
@@ -224,10 +231,12 @@ check env expr = case expr of
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
-        return $ ELet (TType Unit) name maybeAnnot expr''
+
+        unitTy <- IORef.newIORef $ TType Unit
+        return $ ELet unitTy name maybeAnnot expr''
 
     ELiteral _ lit -> do
-        let litType = case lit of
+        litType <- IORef.newIORef $ case lit of
                 LInteger _ -> TType Number
                 LString _ -> TType String
                 LUnit -> TType Unit
@@ -255,17 +264,20 @@ check env expr = case expr of
 
     -- TEMP: For now, all binary intrinsics are Number -> Number -> Number
     EBinIntrinsic _ bi lhs rhs -> do
+        numTy <- IORef.newIORef $ TType Number
+
         lhs' <- check env lhs
-        unify (TType Number) (edata lhs')
+        unify numTy (edata lhs')
 
         rhs' <- check env rhs
-        unify (TType Number) (edata rhs')
+        unify numTy (edata rhs')
 
-        return $ EBinIntrinsic (TType Number) bi lhs' rhs'
+        return $ EBinIntrinsic numTy bi lhs' rhs'
 
     EIfThenElse _ condition ifTrue ifFalse -> do
         condition' <- check env condition
-        unify (TType Boolean) (edata condition')
+        boolTy <- IORef.newIORef $ TType Boolean
+        unify boolTy (edata condition')
         ifTrue' <- check env ifTrue
         ifFalse' <- check env ifFalse
 
@@ -284,29 +296,29 @@ check env expr = case expr of
 
 quantify :: TypeVar -> IO ()
 quantify ty = do
-    case ty of
-        TVar i tv -> do
-            tv' <- readIORef tv
+    ty' <- readIORef ty
+    case ty' of
+        TVar i tv' -> do
             case tv' of
-                Unbound -> do
-                    writeIORef tv (Link $ TQuant i)
+                Unbound j -> do
+                    qTy <- IORef.newIORef $ TQuant j
+                    writeIORef ty (TVar i $ Link qTy)
                 Link t' ->
                     quantify t'
         TFun param ret -> do
             mapM_ quantify param
             quantify ret
-        TRecord open rows -> do
-            writeIORef open RecordOpen
-            rows' <- readIORef rows
+        TRecord _open rows' -> do
             forM_ rows' $ \(_key, val) -> do
                 quantify val
+            writeIORef ty $ TRecord RecordOpen rows'
         _ ->
             return ()
 
 instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
     typeVars' <- mapM (instantiate' subst env) tyVars
-    let userType = TUserType def typeVars'
+    userType <- IORef.newIORef $ TUserType def typeVars'
     variants <- forM (tuVariants def) $ \variant -> do
         paramTypes <- forM (tvParameters variant) $ \param -> do
             instantiate' subst env param
@@ -314,7 +326,9 @@ instantiateUserType subst env def tyVars = do
     return (userType, variants)
 
 instantiate' :: IORef (HashMap Int TypeVar) -> Crux.Typecheck.Env -> TypeVar -> IO TypeVar
-instantiate' subst env ty = case ty of
+instantiate' subst env ty = do
+  ty' <- readIORef ty
+  case ty' of
     TQuant name -> do
         mv <- HashTable.lookup name subst
         case mv of
@@ -324,26 +338,22 @@ instantiate' subst env ty = case ty of
                 tv <- freshType env
                 HashTable.insert name tv subst
                 return tv
-    TVar _ tv -> do
-        vl <- readIORef tv
+    TVar _ vl -> do
         case vl of
-            Link tv' -> instantiate' subst env tv'
-            Unbound  -> return ty
+            Link tv'  -> instantiate' subst env tv'
+            Unbound _ -> return ty
     TFun param ret -> do
         ty1 <- mapM (instantiate' subst env) param
         ty2 <- instantiate' subst env ret
-        return $ TFun ty1 ty2
+        IORef.newIORef $ TFun ty1 ty2
     TUserType def tyVars -> do
         typeVars' <- mapM (instantiate' subst env) tyVars
-        return $ TUserType def typeVars'
-    TRecord openRef rowsRef -> do
-        rows <- readIORef rowsRef
+        IORef.newIORef $ TUserType def typeVars'
+    TRecord open rows -> do
         rows' <- forM rows $ \(name, rowTy) -> do
             rowTy' <- instantiate' subst env rowTy
             return (name, rowTy')
-        openRef' <- copyIORef openRef
-        rowsRef' <- IORef.newIORef rows'
-        return $ TRecord openRef' rowsRef'
+        IORef.newIORef $ TRecord open rows'
     TType {} -> return ty
 
 instantiate :: Env -> TypeVar -> IO TypeVar
@@ -360,34 +370,33 @@ flattenTypeDef TUserTypeDef{..} = do
     return td
 
 flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
-flattenTypeVar tv = case tv of
-    TVar i ior -> do
-        t <- IORef.readIORef ior
-        case t of
-            Unbound ->
-                return $ IVar i Unbound
-            Link tv' -> do
-                flattenTypeVar tv'
-    TQuant i ->
-        return $ IQuant i
-    TFun arg body -> do
-        arg' <- mapM flattenTypeVar arg
-        body' <- flattenTypeVar body
-        return $ IFun arg' body'
-    TUserType def tvars -> do
-        tvars' <- mapM flattenTypeVar tvars
-        def' <- flattenTypeDef def
-        return $ IUserType def' tvars'
-    TRecord open rows -> do
-        rows' <- readIORef rows
-        let flattenRow (name, ty) = do
-                ty' <- flattenTypeVar ty
-                return (name, ty')
-        rows'' <- mapM flattenRow rows'
-        open' <- readIORef open
-        return $ IRecord open' rows''
-    TType t ->
-        return $ IType t
+flattenTypeVar tv = do
+    tv' <- IORef.readIORef tv
+    case tv' of
+        TVar i t -> do
+            case t of
+                Unbound j ->
+                    return $ IVar i (Unbound j)
+                Link tv'' -> do
+                    flattenTypeVar tv''
+        TQuant i ->
+            return $ IQuant i
+        TFun arg body -> do
+            arg' <- mapM flattenTypeVar arg
+            body' <- flattenTypeVar body
+            return $ IFun arg' body'
+        TUserType def tvars -> do
+            tvars' <- mapM flattenTypeVar tvars
+            def' <- flattenTypeDef def
+            return $ IUserType def' tvars'
+        TRecord open' rows' -> do
+            let flattenRow (name, ty) = do
+                    ty' <- flattenTypeVar ty
+                    return (name, ty')
+            rows'' <- mapM flattenRow rows'
+            return $ IRecord open' rows''
+        TType t ->
+            return $ IType t
 
 flattenIntrinsic :: IntrinsicId TypeVar -> IO (IntrinsicId ImmutableTypeVar)
 flattenIntrinsic = mapIntrinsicInputs flatten
@@ -480,47 +489,44 @@ unificationError message a b = do
     error $ "Unification error: " ++ message ++ " " ++ sa ++ " and " ++ sb
 
 unify :: TypeVar -> TypeVar -> IO ()
-unify a b = case (a, b) of
+unify av bv = do
+  a <- readIORef av
+  b <- readIORef bv
+  case (a, b) of
     (TVar aid _, TVar bid _)
         | aid == bid ->
             return ()
-    (TVar _ ar, _) -> do
-        a' <- readIORef ar
+    (TVar i a', _) -> do
         case a' of
-            Unbound -> do
-                occurs ar b
-                writeIORef ar (Link b)
+            Unbound _ -> do
+                occurs a' bv
+                writeIORef av (TVar i $ Link bv)
             Link a'' ->
-                unify a'' b
+                unify a'' bv
 
     (_, TVar {}) -> do
-        unify b a
+        unify bv av
 
     (TType aType, TType bType)
         | aType == bType ->
             return ()
         | otherwise -> do
-            unificationError "" a b
+            unificationError "" av bv
 
     (TUserType ad atv, TUserType bd btv)
         | tuName ad == tuName bd -> do
             mapM_ (uncurry unify) (zip atv btv)
         | otherwise -> do
-            unificationError "" a b
+            unificationError "" av bv
 
-    (TRecord aOpen aRows, TRecord bOpen bRows) -> do
-        aOpen' <- readIORef aOpen
-        aRows' <- readIORef aRows
-        bOpen' <- readIORef bOpen
-        bRows' <- readIORef bRows
-
+    (TRecord aOpen' aRows', TRecord bOpen' bRows') -> do
         let aFields = sort $ map fst aRows'
         let bFields = sort $ map fst bRows'
 
         case (aOpen', bOpen') of
             (RecordClose, RecordClose) -> do
                 when (aFields /= bFields) $ do
-                    unificationError "Record fields do not match" a b
+                    unificationError "Record fields do not match" av bv
 
                 forM_ aFields $ \propName ->
                     let Just at = lookup propName aRows'
@@ -530,14 +536,16 @@ unify a b = case (a, b) of
             (RecordClose, RecordOpen) -> do
                 forM_ aRows' $ \(field, aTy) -> do
                     case lookup field bRows' of
-                        Nothing -> unificationError "Required record field missing" a b
+                        Nothing -> unificationError "Required record field missing" av bv
                         Just bTy ->
                             unify aTy bTy
 
-                writeIORef bOpen RecordClose
+                -- writeIORef bOpen RecordClose
+                let i = 888 -- hack.  Probably doesn't matter.
+                writeIORef bv (TVar i $ Link av)
 
             (RecordOpen, RecordClose) ->
-                unify b a
+                unify bv av
 
             (RecordOpen, RecordOpen) -> do
                 let allKeys = nub $ sort (aFields ++ bFields)
@@ -553,48 +561,54 @@ unify a b = case (a, b) of
                         (Nothing, Nothing) ->
                             error "Unifying rows: This should super never happen"
 
-                writeIORef aRows newFields
-                writeIORef bRows newFields
+                writeIORef av $ TRecord RecordOpen newFields
+
+                let i = 888 -- hack
+                writeIORef bv (TVar i $ Link av)
 
     (TFun aa ar, TFun ba br) -> do
         when (length aa /= length ba) $
-            unificationError "" a b
+            unificationError "" av bv
 
         mapM_ (uncurry unify) (zip aa ba)
         unify ar br
 
     (TFun {}, TType {}) ->
-        unificationError "" a b
+        unificationError "" av bv
     (TType {}, TFun {}) ->
-        unificationError "" a b
+        unificationError "" av bv
 
     -- These should never happen: Quantified type variables should be instantiated before we get here.
     (TQuant {}, _) -> do
-        lt <- showTypeVarIO a
-        rt <- showTypeVarIO b
+        lt <- showTypeVarIO av
+        rt <- showTypeVarIO bv
         error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
     (_, TQuant {}) -> do
-        lt <- showTypeVarIO a
-        rt <- showTypeVarIO b
+        lt <- showTypeVarIO av
+        rt <- showTypeVarIO bv
         error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
 
     _ ->
-        unificationError "" a b
+        unificationError "" av bv
 
-occurs :: IORef (VarLink TypeVar) -> TypeVar -> IO ()
-occurs tvr ty = case ty of
-    TVar _ ty'
-        | tvr == ty' -> error "Occurs check"
-        | otherwise -> do
-            ty'' <- readIORef ty'
-            case ty'' of
-                Link ty''' -> occurs tvr ty'''
-                _ -> return ()
-    TFun arg ret -> do
-        mapM_ (occurs tvr) arg
-        occurs tvr ret
-    _ ->
-        return ()
+occurs :: VarLink TypeVar -> TypeVar -> IO ()
+occurs tvr ty = do
+    tyy <- readIORef ty
+    case tyy of
+        TVar _ ty''
+            | tvr == ty'' -> do
+                error $ "Occurs check failed"
+            | otherwise -> do
+                case ty'' of
+                    Link ty''' -> occurs tvr ty'''
+                    _ -> return ()
+
+        TFun arg ret -> do
+            mapM_ (occurs tvr) arg
+            occurs tvr ret
+        -- FIXME: Occurs checks for TUserType and TRecord
+        _ ->
+            return ()
 
 checkDecl :: Env -> Declaration Pos -> IO (Declaration TypeVar)
 checkDecl env decl = case decl of
@@ -621,16 +635,22 @@ checkDecl env decl = case decl of
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
+    numTy <- IORef.newIORef $ TType Number
+    unitTy <- IORef.newIORef $ TType Unit
+    strTy <- IORef.newIORef $ TType String
+    boolTy <- IORef.newIORef $ TType Boolean
+
     e <- newEnv Nothing
     typeEnv <- IORef.newIORef $ HashMap.fromList
-        [ ("Number", TType Number)
-        , ("Unit", TType Unit)
-        , ("String", TType String)
-        , ("Boolean", TType Boolean)
+        [ ("Number", numTy)
+        , ("Unit", unitTy)
+        , ("String", strTy)
+        , ("Boolean", boolTy)
         ]
 
-    HashTable.insert "True" (TType Boolean) (eBindings e)
-    HashTable.insert "False" (TType Boolean) (eBindings e)
+
+    HashTable.insert "True" boolTy (eBindings e)
+    HashTable.insert "False" boolTy (eBindings e)
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new
@@ -655,7 +675,7 @@ buildTypeEnvironment decls = do
                     , tuParameters = typeVars
                     , tuVariants = variants'
                     }
-            let userType = TUserType typeDef typeVars
+            userType <- IORef.newIORef $ TUserType typeDef typeVars
             IORef.modifyIORef' typeEnv (HashMap.insert name userType)
         _ -> return ()
 
@@ -666,7 +686,9 @@ buildTypeEnvironment decls = do
     -- Second, unify parameter types
     forM_ decls $ \decl -> case decl of
         DData name _typeVarNames variants -> do
-            Just (TUserType typeDef _) <- HashTable.lookup name typeEnv
+            Just ty <- HashTable.lookup name typeEnv
+            TUserType typeDef _ <- readIORef ty
+
             let TUserTypeDef { tuVariants = tvariants } = typeDef
             forM_ (zip variants tvariants) $ \(v, tv) -> do
                 forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
@@ -680,9 +702,11 @@ buildTypeEnvironment decls = do
                 return ty
             _ -> do
                 resolvedArgTypes <- mapM (resolveTypeIdent env qvarNames) argTypeIdents
-                return $ TFun resolvedArgTypes ty
+                IORef.newIORef $ TFun resolvedArgTypes ty
 
-    forM_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
+    intrinsics <- Intrinsic.intrinsics
+
+    forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
         HashTable.insert name iType (eBindings env)
 
@@ -708,19 +732,22 @@ resolveTypeIdent env qvarTable typeIdent =
         if isCapitalized typeName
             then case HashMap.lookup typeName te of
                 Nothing -> error $ printf "Constructor uses nonexistent type %s" (show typeName)
-                Just t@(TType {}) ->
-                    if [] /= typeParameters
-                        then error "Primitive types don't take type parameters"
-                        else return t
-                Just (TUserType def _) ->
-                    if length qvarTable /= length typeParameters
-                        then
-                            error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
-                        else do
-                            params <- mapM go typeParameters
-                            return $ TUserType def params
-                Just t ->
-                    return $ t
+                Just ty -> do
+                    ty' <- readIORef ty
+                    case ty' of
+                        TType {} ->
+                            if [] /= typeParameters
+                                then error "Primitive types don't take type parameters"
+                                else return ty
+                        TUserType def _ ->
+                            if length qvarTable /= length typeParameters
+                                then
+                                    error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
+                                else do
+                                    params <- mapM go typeParameters
+                                    IORef.newIORef $ TUserType def params
+                        _ ->
+                            return ty
             else case lookup typeName qvarTable of
                 Nothing ->
                     error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
@@ -728,16 +755,14 @@ resolveTypeIdent env qvarTable typeIdent =
                     return t
 
     go (RecordIdent rows) = do
-        open <- IORef.newIORef RecordClose
         rows' <- forM rows $ \(rowName, rowTy) ->
             fmap (rowName,) (go rowTy)
-        rows'' <- IORef.newIORef rows'
-        return $ TRecord open rows''
+        IORef.newIORef $ TRecord RecordClose rows'
 
     go (FunctionIdent argTypes retType) = do
         argTypes' <- mapM go argTypes
         retType' <- go retType
-        return $ TFun argTypes' retType'
+        IORef.newIORef $ TFun argTypes' retType'
 
 run :: Module Pos -> IO (Module TypeVar)
 run Module{..} = do

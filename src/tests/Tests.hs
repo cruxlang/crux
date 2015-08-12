@@ -4,6 +4,7 @@ import qualified ParseTest
 import qualified IntegrationTest
 import qualified JSGenTest
 import qualified GenTest
+import qualified JSBackendTest
 
 import Test.Framework
 import Test.HUnit
@@ -14,4 +15,5 @@ main = defaultMain
         , IntegrationTest.tests
         , JSGenTest.tests
         , GenTest.tests
+        , JSBackendTest.tests
         ]

@@ -6,6 +6,7 @@ module Crux.Gen
     ( Value(..)
     , Output(..)
     , Instruction(..)
+    , Module
     , generateModule
     ) where
 
@@ -19,7 +20,10 @@ import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 type Name = Text
 data Output = Binding Name | Temporary Int
     deriving (Show, Eq)
-data Value = Reference Output | Literal AST.Literal | FunctionLiteral [Name] [Instruction]
+data Value
+    = Reference Output
+    | Literal AST.Literal
+    | FunctionLiteral [Name] [Instruction]
     deriving (Show, Eq)
 type Input = Value
 

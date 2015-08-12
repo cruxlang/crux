@@ -6,7 +6,7 @@
 
 module Crux.Parse where
 
-import           Control.Applicative ((<*), (<|>))
+import           Control.Applicative ((<|>))
 import           Control.Monad       (unless, when)
 import           Control.Monad.Trans (liftIO)
 import           Crux.AST            as AST

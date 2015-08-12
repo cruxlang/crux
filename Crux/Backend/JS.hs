@@ -21,12 +21,20 @@ renderValue value = case value of
         _ -> error $ "unknown literal: " <> show lit
     Gen.FunctionLiteral args body -> JSTree.EFunction args $
         map renderInstruction body
+    Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
     Gen.EmptyLet name -> JSTree.SVar (renderOutput name) Nothing
     Gen.LetBinding name value -> JSTree.SVar name $ Just $ renderValue value
     Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
+    Gen.BinIntrinsic output op lhs rhs ->
+        let sym = case op of
+                BIPlus     -> "+"
+                BIMinus    -> "-"
+                BIMultiply -> "*"
+                BIDivide   -> "/"
+        in JSTree.SVar (renderOutput output) $ Just $ JSTree.EBinOp sym (renderValue lhs) (renderValue rhs)
     Gen.Intrinsic output intrin ->
         JSTree.SVar (renderOutput output) $ Just $ case intrin of
             IUnsafeJs txt ->

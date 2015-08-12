@@ -2,10 +2,9 @@
 
 module Crux.JSTree where
 
+import Crux.Prelude
 import           Data.HashMap.Strict    (HashMap)
 import qualified Data.HashMap.Strict    as HashMap
-import           Data.Monoid            (Monoid, mconcat, mempty, (<>))
-import           Data.Text              (Text)
 import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as B

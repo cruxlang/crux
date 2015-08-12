@@ -16,6 +16,7 @@ import qualified Crux.AST as AST
 import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import Data.HashMap.Strict (HashMap)
 
 type Name = Text
 data Output = Binding Name | Temporary Int
@@ -24,6 +25,7 @@ data Value
     = Reference Output
     | Literal AST.Literal
     | FunctionLiteral [Name] [Instruction]
+    | RecordLiteral (HashMap Name Value)
     deriving (Show, Eq)
 type Input = Value
 
@@ -34,6 +36,7 @@ data Instruction
 
     -- operations
     | Assign Output Input
+    | BinIntrinsic Output (AST.BinIntrinsic) Input Input
     | Intrinsic Output (AST.Intrinsic Input)
     | Call Output Input [Input]
     | Lookup Output Input Name
@@ -66,6 +69,14 @@ newInstruction env instr = do
 
 generate :: Show t => Env -> AST.Expression t -> GenWriter (Maybe Value)
 generate env expr = case expr of
+    AST.ERecordLiteral _ props -> do
+        props' <- runMaybeT $ mapM (MaybeT . generate env) props
+        case props' of
+            Just props'' -> do
+                return $ Just $ RecordLiteral props''
+            Nothing -> do
+                return Nothing
+
     AST.ELookup _ value propertyName -> do
         v <- generate env value
         case v of
@@ -89,6 +100,14 @@ generate env expr = case expr of
     AST.EIdentifier _ name -> do
         return $ Just $ Reference $ Binding name
 
+    AST.EBinIntrinsic _ bi lhs rhs -> do
+        lhs' <- generate env lhs
+        rhs' <- generate env rhs
+        case (lhs', rhs') of
+            (Just lhs'', Just rhs'') -> do
+                newInstruction env $ \output -> BinIntrinsic output bi lhs'' rhs''
+            _ -> do
+                return Nothing
     AST.EIntrinsic _ iid -> do
         iid' <- runMaybeT $ AST.mapIntrinsicInputs (MaybeT . generate env) iid
         case iid' of

@@ -36,6 +36,7 @@ data Instruction
     | Assign Output Input
     | Intrinsic Output (AST.Intrinsic Input)
     | Call Output Input [Input]
+    | Lookup Output Input Name
 
     -- control flow
     | Return Input
@@ -65,13 +66,21 @@ newInstruction env instr = do
 
 generate :: Show t => Env -> AST.Expression t -> GenWriter (Maybe Value)
 generate env expr = case expr of
+    AST.ELookup _ value propertyName -> do
+        v <- generate env value
+        case v of
+            Just v' -> do
+                newInstruction env $ \output -> Lookup output v' propertyName
+            Nothing -> do
+                return Nothing
+
     AST.EApp _ fn args -> do
         fn' <- generate env fn
         args' <- runMaybeT $ mapM (MaybeT . generate env) args
-        case (,) <$> fn' <*> args' of
-            Just (fn'', args'') -> do
+        case (fn', args') of
+            (Just fn'', Just args'') -> do
                 newInstruction env $ \output -> Call output fn'' args''
-            Nothing -> do
+            _ -> do
                 return Nothing
 
     AST.ELiteral _ lit -> do
@@ -92,15 +101,6 @@ generate env expr = case expr of
         _ <- generate env lhs
         generate env rhs
 
-    AST.EReturn _ rv -> do
-        rv' <- generate env rv
-        case rv' of
-            Just rv'' -> do
-                writeInstruction $ Return rv''
-                return Nothing
-            Nothing -> do
-                return Nothing
-
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
         cond' <- generate env cond
         output <- lift $ newTempOutput env
@@ -111,6 +111,15 @@ generate env expr = case expr of
             Just cond'' -> do
                 writeInstruction $ If cond'' ifTrue' ifFalse'
                 return $ Just $ Reference output
+            Nothing -> do
+                return Nothing
+
+    AST.EReturn _ rv -> do
+        rv' <- generate env rv
+        case rv' of
+            Just rv'' -> do
+                writeInstruction $ Return rv''
+                return Nothing
             Nothing -> do
                 return Nothing
 

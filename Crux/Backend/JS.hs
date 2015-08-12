@@ -2,17 +2,11 @@
 
 module Crux.Backend.JS where
 
+import Crux.Prelude
 import           Crux.AST
 import qualified Crux.Gen as Gen
 import qualified Crux.JSTree as JSTree
-import           Data.HashMap.Strict    (HashMap)
-import qualified Data.HashMap.Strict    as HashMap
-import           Data.Monoid            (Monoid, mconcat, mempty, (<>))
-import           Data.Text              (Text)
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy         as TL
-import           Data.Text.Lazy.Builder (Builder)
-import qualified Data.Text.Lazy.Builder as B
 
 renderOutput :: Gen.Output -> JSTree.Name
 renderOutput (Gen.Binding name) = name
@@ -23,6 +17,8 @@ renderValue value = case value of
     Gen.Reference output -> JSTree.EIdentifier $ renderOutput output
     Gen.Literal lit -> case lit of
         LInteger i -> JSTree.ELiteral $ JSTree.LInteger i
+        LString s -> JSTree.ELiteral $ JSTree.LString s
+        _ -> error $ "unknown literal: " <> show lit
     Gen.FunctionLiteral args body -> JSTree.EFunction args $
         map renderInstruction body
 
@@ -30,6 +26,7 @@ renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
     Gen.EmptyLet name -> JSTree.SVar (renderOutput name) Nothing
     Gen.LetBinding name value -> JSTree.SVar name $ Just $ renderValue value
+    Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
     Gen.Intrinsic output intrin ->
         JSTree.SVar (renderOutput output) $ Just $ case intrin of
             IUnsafeJs txt ->
@@ -47,7 +44,8 @@ renderInstruction instr = case instr of
                 arg' <- generateExpr env arg
                 return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) arg'
             -}
-    Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
+    Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args
+    Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
     Gen.If cond ifTrue ifFalse ->
         JSTree.SIf

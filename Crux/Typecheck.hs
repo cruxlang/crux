@@ -55,7 +55,7 @@ showTypeVarIO tvar = do
         return $ "TFun " ++ show as  ++ " -> " ++ rs
     TUserType def tvars -> do
         tvs <- mapM showTypeVarIO tvars
-        return $ (show $ tuName def) ++ " " ++ (intercalate " " tvs)
+        return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
     TRecord open' rows' -> do
         let rowNames = map fst rows'
         rowTypes <- mapM (showTypeVarIO . snd) rows'
@@ -492,6 +492,7 @@ unify :: TypeVar -> TypeVar -> IO ()
 unify av bv = do
   a <- readIORef av
   b <- readIORef bv
+
   case (a, b) of
     (TVar aid _, TVar bid _)
         | aid == bid ->
@@ -602,12 +603,17 @@ occurs tvr ty = do
                 case ty'' of
                     Link ty''' -> occurs tvr ty'''
                     _ -> return ()
-
         TFun arg ret -> do
             mapM_ (occurs tvr) arg
             occurs tvr ret
-        -- FIXME: Occurs checks for TUserType and TRecord
-        _ ->
+        TUserType _ tvars -> do
+            mapM_ (occurs tvr) tvars
+        TRecord _ rows -> do
+            forM_ rows $ \(_, rowTy) ->
+                occurs tvr rowTy
+        TType {} ->
+            return ()
+        TQuant {} ->
             return ()
 
 checkDecl :: Env -> Declaration Pos -> IO (Declaration TypeVar)

@@ -131,6 +131,28 @@ case_recursive_data = do
         ]
     assertEqual "" (Right "3\n") result
 
+case_occurs_on_fun = do
+    result <- run $ T.unlines
+        [ "fun bad() { bad; };"
+        ]
+
+    assertEqual "" (Left "Occurs check failed") result
+
+case_occurs_on_sum = do
+    result <- run $ T.unlines
+        [ "data List a { Cons a (List a); Nil; };"
+        , "fun bad(a) { Cons(a, a); };"
+        ]
+
+    assertEqual "" (Left "Occurs check failed") result
+
+case_occurs_on_record = do
+    result <- run $ T.unlines
+        [ "fun bad(p) { { field: bad(p) }; };"
+        ]
+
+    assertEqual "" (Left "Occurs check failed") result
+
 case_row_polymorphic_records = do
     result <- run $ T.unlines
         [ "fun manhattan(p) { p.x + p.y; };"

@@ -1,7 +1,6 @@
 
 module Crux.Main (main) where
 
-import           Control.Applicative
 import           Data.Monoid
 import qualified Data.Text as Text
 import           Crux.JSGen

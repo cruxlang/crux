@@ -25,7 +25,7 @@ renderValue value = case value of
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
-generateMatchCond :: JSTree.Expression -> Pattern2 -> JSTree.Expression
+generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression
 generateMatchCond matchVar patt = case patt of
     PPlaceholder _ ->
         JSTree.ELiteral JSTree.LTrue
@@ -43,7 +43,7 @@ generateMatchCond matchVar patt = case patt of
             _ -> JSTree.EBinOp "&&" testIt
                 (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
 
-generateMatchVars :: JSTree.Expression -> Pattern2 -> [JSTree.Statement]
+generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
 generateMatchVars matchVar patt = case patt of
     -- TODO: ignore _ let bindings in the IR or sugar
     PPlaceholder "_" -> []

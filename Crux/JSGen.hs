@@ -83,7 +83,7 @@ generateBlock env dest exprs = do
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
-generateMatchCond :: JS.Expression -> Pattern2 -> JS.Expression
+generateMatchCond :: JS.Expression -> Pattern -> JS.Expression
 generateMatchCond matchVar patt = case patt of
     PPlaceholder _ ->
         JS.ELiteral JS.LTrue
@@ -101,7 +101,7 @@ generateMatchCond matchVar patt = case patt of
             _ -> JS.EBinOp "&&" testIt
                 (foldl' buildTestCascade (JS.ELiteral JS.LTrue) (zip [1..] subpatterns))
 
-generateMatchVars :: JS.Expression -> Pattern2 -> [JS.Statement]
+generateMatchVars :: JS.Expression -> Pattern -> [JS.Statement]
 generateMatchVars matchVar patt = case patt of
     PPlaceholder "_" -> []
     PPlaceholder pname ->

@@ -43,7 +43,7 @@ data Instruction
 
     -- control flow
     | Return Input
-    | Match Input [(AST.Pattern2, [Instruction])]
+    | Match Input [(AST.Pattern, [Instruction])]
     | If Input [Instruction] [Instruction]
     deriving (Show, Eq)
 

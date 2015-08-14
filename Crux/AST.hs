@@ -8,7 +8,6 @@ import           Data.Text           (Text)
 type Name = Text -- Temporary
 type TypeName = Text
 type TypeVariable = Text -- :)
-type Pattern = Name -- Temporary
 
 data Literal
     = LInteger Integer
@@ -49,12 +48,12 @@ data Module edata = Module
     }
     deriving (Show, Eq)
 
-data Pattern2
-    = PConstructor Name [Pattern2]
+data Pattern
+    = PConstructor Name [Pattern]
     | PPlaceholder Name
     deriving (Show, Eq)
 
-data Case edata = Case Pattern2 (Expression edata)
+data Case edata = Case Pattern (Expression edata)
     deriving (Show, Eq)
 
 instance Functor Case where
@@ -92,7 +91,7 @@ mapIntrinsicInputs action intrin = do
 type IntrinsicId edata = Intrinsic (Expression edata)
 
 data Expression edata
-    = ELet edata Pattern (Maybe TypeIdent) (Expression edata)
+    = ELet edata Name (Maybe TypeIdent) (Expression edata)
     | EFun edata [Text] (Expression edata)
     | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name

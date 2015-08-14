@@ -101,7 +101,7 @@ typeFromConstructor env cname =
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
-buildPatternEnv :: TypeVar -> Env -> Pattern2 -> IO ()
+buildPatternEnv :: TypeVar -> Env -> Pattern -> IO ()
 buildPatternEnv exprType env patt = case patt of
     PPlaceholder pname -> do
         HashTable.insert pname exprType (eBindings env)

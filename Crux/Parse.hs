@@ -116,7 +116,7 @@ functionExpression = do
 
     return $ EFun (tokenData tfun) args body
 
-pattern :: Parser Pattern2
+pattern :: Parser Pattern
 pattern =
     let parenPattern = do
             _ <- P.try $ token TOpenParen
@@ -126,7 +126,7 @@ pattern =
 
     in parenPattern <|> noParenPattern
 
-noParenPattern :: Parser Pattern2
+noParenPattern :: Parser Pattern
 noParenPattern = do
     txt <- anyIdentifier
     if isCapitalized txt

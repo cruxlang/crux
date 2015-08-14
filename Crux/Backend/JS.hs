@@ -71,19 +71,14 @@ renderInstruction instr = case instr of
         JSTree.SVar (renderOutput output) $ Just $ case intrin of
             IUnsafeJs txt ->
                 JSTree.ERaw txt
-            {-
             IUnsafeCoerce arg -> do
-                generateExpr env arg
-            -}
+                renderValue arg
             IPrint args -> do
                 JSTree.EApplication
                     (JSTree.EIdentifier "console.log")
                     (map renderValue args)
-            {-
             IToString arg -> do
-                arg' <- generateExpr env arg
-                return $ JS.EBinOp "+" (JS.ELiteral (JS.LString "")) arg'
-            -}
+                JSTree.EBinOp "+" (JSTree.ELiteral (JSTree.LString "")) $ renderValue arg
     Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args
     Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
@@ -105,7 +100,6 @@ renderInstruction instr = case instr of
             (renderValue cond)
             (JSTree.SBlock $ map renderInstruction ifTrue)
             (Just $ JSTree.SBlock $ map renderInstruction ifFalse)
-    i -> error $ "Unknown instruction: " <> show i
 
 generateJS :: Gen.Module -> Text
 generateJS modul = do

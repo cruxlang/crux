@@ -70,6 +70,16 @@ newInstruction env instr = do
 
 generate :: Show t => Env -> AST.Expression t -> GenWriter (Maybe Value)
 generate env expr = case expr of
+    AST.ELet _ name _ v -> do
+        v' <- generate env v
+        case v' of
+            Just v'' -> do
+                writeInstruction $ LetBinding name v''
+                return $ Just $ Literal AST.LUnit
+            Nothing -> return Nothing
+    AST.EFun _ params body -> do
+        body' <- subBlock env body
+        return $ Just $ FunctionLiteral params body'
     AST.ERecordLiteral _ props -> do
         props' <- runMaybeT $ mapM (MaybeT . generate env) props
         case props' of
@@ -156,9 +166,6 @@ generate env expr = case expr of
                 return Nothing
             Nothing -> do
                 return Nothing
-
-    _ -> do
-        error $ "Unexpected expression: " <> show expr
 
 subBlock :: Show t => Env -> AST.Expression t -> GenWriter [Instruction]
 subBlock env expr = do

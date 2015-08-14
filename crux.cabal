@@ -25,7 +25,6 @@ library
                    , Crux.Module
                    , Crux.Gen
                    , Crux.Backend.JS
-                   , Crux.JSGen
                    , Crux.JSGen.Types
                    , Crux.JSTree
                    , Crux.Text

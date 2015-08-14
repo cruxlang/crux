@@ -14,6 +14,7 @@ import qualified Crux.Parse
 import qualified Crux.Module
 import qualified Crux.Typecheck as Typecheck
 import qualified Crux.Gen as Gen
+import qualified Crux.Backend.JS as JS
 
 genDoc' :: Text -> IO (Either String [Gen.Instruction])
 genDoc' src = do
@@ -57,12 +58,13 @@ case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
         [ Gen.LetBinding "f" $ Gen.FunctionLiteral []
-            [ Gen.EmptyLet (Gen.Temporary 0)
+            [ Gen.EmptyLet $ Gen.Temporary 0
             , Gen.If (Gen.Reference $ Gen.Binding "True")
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
                 ]
+            , Gen.Return $ Gen.Reference $ Gen.Temporary 0
             ]
         ]
         result

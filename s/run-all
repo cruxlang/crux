@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")"/..
+
+for fn in test_data/*.crux; do
+    echo "running $fn:"
+    dist/build/crux/crux "$fn" | nodejs
+    echo
+done

@@ -1,13 +1,13 @@
 
 module Crux.Main (main) where
 
-import           Data.Monoid
+import Crux.Prelude
 import qualified Data.Text as Text
-import           Crux.JSGen
-import qualified Crux.JSTree        as JSTree
 import           Crux.Module (loadModuleFromFile)
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
+import qualified Crux.Gen as Gen
+import qualified Crux.Backend.JS as JS
 --import qualified System.FilePath    as F
 import System.IO (stderr, hPutStr)
 import qualified Options.Applicative as Opt
@@ -53,8 +53,8 @@ main = do
                     if ast options then
                         putStrLn $ ppShow module'
                     else do
-                        doc <- generateDocument module'
-                        putStr $ Text.unpack $ JSTree.renderDocument doc
+                        module'' <- Gen.generateModule module'
+                        putStr $ Text.unpack $ JS.generateJS module''
                     -- putStrLn $ ppShow (concatMap generateDecl typetree')
                      --T.writeFile outfile $ JSTree.renderDocument doc
                     exitWith ExitSuccess

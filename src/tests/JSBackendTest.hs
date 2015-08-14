@@ -25,7 +25,7 @@ genDoc' src = do
             return $ Left err
         Right m -> do
             modul <- Gen.generateModule m
-            return $ Right $ JS.generateJS modul
+            return $ Right $ JS.generateJSWithoutPrelude modul
 
 genDoc :: Text -> IO Text
 genDoc src = do
@@ -49,7 +49,7 @@ case_return_from_function = do
 case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
-        "var f = (function (){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\n}\n);\n"
+        "var f = (function (){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n);\n"
         result
 
 case_branch_with_value = do

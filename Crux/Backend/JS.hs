@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Crux.Backend.JS where
 
@@ -55,8 +55,20 @@ generateMatchVars matchVar patt = case patt of
             | (index, subPattern) <- zip [1..] subpatterns
             ]
 
+renderVariant :: Variant -> JSTree.Statement
+renderVariant Variant{..} = case vparameters of
+    [] ->
+        JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString vname])
+    _ ->
+        let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
+        in JSTree.SFunction vname argNames $
+            [ JSTree.SReturn $ Just $ JSTree.EArray $
+              [JSTree.ELiteral $ JSTree.LString vname] ++ (map JSTree.EIdentifier argNames)
+            ]
+
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
+    Gen.DefineVariant v -> renderVariant v
     Gen.EmptyLet name -> JSTree.SVar (renderOutput name) Nothing
     Gen.LetBinding name value -> JSTree.SVar name $ Just $ renderValue value
     Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
@@ -103,5 +115,15 @@ renderInstruction instr = case instr of
 
 generateJS :: Gen.Module -> Text
 generateJS modul = do
+    -- hack
+    let prelude =
+            [ JSTree.SVar "True" (Just $ JSTree.EIdentifier "true")
+            , JSTree.SVar "False" (Just $ JSTree.EIdentifier "false")
+            ]
     let statements = map renderInstruction modul
-    JSTree.renderDocument statements
+    JSTree.renderDocument $ prelude <> statements
+
+generateJSWithoutPrelude :: Gen.Module -> Text
+generateJSWithoutPrelude modul = do
+    let statements = map renderInstruction modul
+    JSTree.renderDocument $ statements

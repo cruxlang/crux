@@ -5,8 +5,9 @@ module IntegrationTest (run, tests) where
 import           Control.Monad  (forM)
 import Control.Exception (catch, SomeException)
 import qualified Crux.AST       as AST
-import qualified Crux.JSGen     as JSGen
 import qualified Crux.JSTree    as JSTree
+import qualified Crux.Backend.JS as JS
+import qualified Crux.Gen       as Gen
 import           Crux.Lex
 import           Crux.Parse
 import qualified Crux.Module
@@ -34,9 +35,10 @@ run' src = do
         Left err -> do
             return $ Left err
         Right m -> do
-            js <- JSGen.generateDocument m
+            m' <- Gen.generateModule m
+            let js = JS.generateJS m'
             withSystemTempFile "crux.js" $ \path handle -> do
-                T.hPutStr handle $ JSTree.renderDocument js
+                T.hPutStr handle $ js
                 hFlush handle
                 fmap (Right . T.pack) $ readProcess "node" [path] ""
 

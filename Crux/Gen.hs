@@ -31,7 +31,8 @@ type Input = Value
 
 data Instruction
     -- binding
-    = EmptyLet Output
+    = DefineVariant AST.Variant
+    | EmptyLet Output
     | LetBinding Name Input
 
     -- operations
@@ -78,7 +79,7 @@ generate env expr = case expr of
                 return $ Just $ Literal AST.LUnit
             Nothing -> return Nothing
     AST.EFun _ params body -> do
-        body' <- subBlock env body
+        body' <- subBlockWithReturn env body
         return $ Just $ FunctionLiteral params body'
     AST.ERecordLiteral _ props -> do
         props' <- runMaybeT $ mapM (MaybeT . generate env) props
@@ -167,9 +168,18 @@ generate env expr = case expr of
             Nothing -> do
                 return Nothing
 
+{-
 subBlock :: Show t => Env -> AST.Expression t -> GenWriter [Instruction]
 subBlock env expr = do
     fmap snd $ lift $ runWriterT $ generate env expr
+-}
+
+subBlockWithReturn :: Show t => Env -> AST.Expression t -> GenWriter [Instruction]
+subBlockWithReturn env expr = do
+    (output, instrs) <- lift $ runWriterT $ generate env expr
+    return $ case output of
+        Just output' -> instrs ++ [Return output']
+        Nothing -> instrs
 
 subBlockWithOutput :: Show t => Env -> Output -> AST.Expression t -> GenWriter [Instruction]
 subBlockWithOutput env output expr = do
@@ -185,13 +195,12 @@ generateDecl env decl = do
             -- error if output has no return value
             (Just output) <- generate env defn
             writeInstruction $ LetBinding name output
-            return ()
         AST.DFun (AST.FunDef _ name params body) -> do
-            body' <- subBlock env body
+            body' <- subBlockWithReturn env body
             writeInstruction $ LetBinding name $ FunctionLiteral params body'
-            return ()
-        AST.DData _ _ _ -> do
-            return ()
+        AST.DData _name _ variants -> do
+            forM_ variants $ \variant -> do
+                writeInstruction $ DefineVariant variant
 
 generateModule :: Show t => AST.Module t -> IO Module
 generateModule AST.Module{..} = do

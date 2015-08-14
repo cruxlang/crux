@@ -1,9 +1,8 @@
-fn pn(n) {
-    if (n < 0) {
-        return -1;
-    } else {
-        return 1;
-    }
-}
+fun pn(n) {
+    if n then
+        return 1
+    else
+        return 2;
+};
 
-let _ = print(pn(5))
+let _ = print(pn(True));

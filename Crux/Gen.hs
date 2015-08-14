@@ -43,6 +43,7 @@ data Instruction
 
     -- control flow
     | Return Input
+    | Match Input [(AST.Pattern2, [Instruction])]
     | If Input [Instruction] [Instruction]
     deriving (Show, Eq)
 
@@ -120,6 +121,20 @@ generate env expr = case expr of
         _ <- generate env lhs
         generate env rhs
 
+    AST.EMatch _ value cases -> do
+        value' <- generate env value
+        case value' of
+            Just value'' -> do
+                output <- lift $ newTempOutput env
+                writeInstruction $ EmptyLet output
+                cases' <- forM cases $ \(AST.Case pat expr') -> do
+                    expr'' <- subBlockWithOutput env output expr'
+                    return (pat, expr'')
+                writeInstruction $ Match value'' cases'
+                return $ Just $ Reference output
+            Nothing -> do
+                return Nothing
+
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
         cond' <- generate env cond
         output <- lift $ newTempOutput env
@@ -167,6 +182,8 @@ generateDecl env decl = do
         AST.DFun (AST.FunDef _ name params body) -> do
             body' <- subBlock env body
             writeInstruction $ LetBinding name $ FunctionLiteral params body'
+            return ()
+        AST.DData _ _ _ -> do
             return ()
 
 generateModule :: Show t => AST.Module t -> IO Module

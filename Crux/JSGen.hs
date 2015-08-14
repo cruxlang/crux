@@ -14,7 +14,6 @@ import           Crux.Prelude
 import           Data.Foldable         (foldlM)
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.IORef            as IORef
-import           Data.List             (foldl')
 import qualified Data.Text             as T
 
 -- When rendering an expression, what should we do with the result?

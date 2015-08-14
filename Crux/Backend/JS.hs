@@ -18,10 +18,42 @@ renderValue value = case value of
     Gen.Literal lit -> case lit of
         LInteger i -> JSTree.ELiteral $ JSTree.LInteger i
         LString s -> JSTree.ELiteral $ JSTree.LString s
-        _ -> error $ "unknown literal: " <> show lit
+        LUnit -> JSTree.ELiteral $ JSTree.LUndefined
     Gen.FunctionLiteral args body -> JSTree.EFunction args $
         map renderInstruction body
     Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
+
+-- | Generate an expression which produces the boolean "true" if the variable "matchVar"
+-- matches the pattern "patt"
+generateMatchCond :: JSTree.Expression -> Pattern2 -> JSTree.Expression
+generateMatchCond matchVar patt = case patt of
+    PPlaceholder _ ->
+        JSTree.ELiteral JSTree.LTrue
+    PConstructor name subpatterns ->
+        let testIt = JSTree.EBinOp "=="
+                (JSTree.ELiteral $ JSTree.LString name)
+                (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
+            buildTestCascade acc (index, subpattern) = case subpattern of
+                PPlaceholder _ -> acc
+                _ -> JSTree.EBinOp "&&"
+                    acc
+                    (generateMatchCond (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
+        in case subpatterns of
+            [] -> testIt
+            _ -> JSTree.EBinOp "&&" testIt
+                (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
+
+generateMatchVars :: JSTree.Expression -> Pattern2 -> [JSTree.Statement]
+generateMatchVars matchVar patt = case patt of
+    -- TODO: ignore _ let bindings in the IR or sugar
+    PPlaceholder "_" -> []
+    PPlaceholder pname ->
+        [ JSTree.SVar pname $ Just matchVar ]
+    PConstructor _ subpatterns ->
+        concat
+            [ generateMatchVars (JSTree.ESubscript matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
+            | (index, subPattern) <- zip [1..] subpatterns
+            ]
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
@@ -55,6 +87,19 @@ renderInstruction instr = case instr of
     Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args
     Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
+    Gen.Match value cases ->
+        let value' = renderValue value
+
+            genIfElse (pattern, body) um =
+                JSTree.SIf
+                    (generateMatchCond value' pattern)
+                    (JSTree.SBlock $ generateMatchVars value' pattern <> map renderInstruction body)
+                    (Just um)
+
+            -- TODO: throw "unreachable"
+            unmatched = JSTree.SBlock []
+        in foldr genIfElse unmatched cases
+
     Gen.If cond ifTrue ifFalse ->
         JSTree.SIf
             (renderValue cond)

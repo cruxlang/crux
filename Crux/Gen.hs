@@ -201,6 +201,8 @@ generateDecl env decl = do
         AST.DData _name _ variants -> do
             forM_ variants $ \variant -> do
                 writeInstruction $ DefineVariant variant
+        AST.DType {} ->
+            return ()
 
 generateModule :: Show t => AST.Module t -> IO Module
 generateModule AST.Module{..} = do

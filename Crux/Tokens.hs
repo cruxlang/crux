@@ -36,6 +36,7 @@ data Token tdata
     | TFun tdata
     | TLet tdata
     | TData tdata
+    | TType tdata
     | TMatch tdata
     | TIf tdata
     | TThen tdata
@@ -66,6 +67,7 @@ instance Eq (Token a) where
         (TFun _,            TFun _)            -> True
         (TLet _,            TLet _)            -> True
         (TData _,           TData _)           -> True
+        (TType _,           TType _)           -> True
         (TMatch _,          TMatch _)          -> True
         (TIf _,             TIf _)             -> True
         (TThen _,           TThen _)           -> True
@@ -96,6 +98,7 @@ tokenData tok = case tok of
     TFun tdata -> tdata
     TLet tdata -> tdata
     TData tdata -> tdata
+    TType tdata -> tdata
     TMatch tdata -> tdata
     TIf tdata -> tdata
     TThen tdata -> tdata

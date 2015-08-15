@@ -48,14 +48,17 @@ Working:
 * Sums
 * Pattern matching
 * Row-polymorphic records
+* `if-then-else`
+* `return`
 
 Not done:
 
 * Modules
-* Conditionals
-* `break`, `continue`, `return`
+* Loops
+* `break`, `continue`
 * Mutability
-* Asynchrony
+* Exceptions
 * JS FFI
+* Asynchrony
 * Type aliasing
 * Class definitions

@@ -31,6 +31,7 @@ data Declaration edata
     = DLet edata Name (Maybe TypeIdent) (Expression edata)
     | DFun (FunDef edata)
     | DData Name [TypeVariable] [Variant]
+    | DType Name [TypeVariable] TypeIdent
     deriving (Show, Eq)
 
 instance Functor Declaration where
@@ -38,6 +39,7 @@ instance Functor Declaration where
         DLet ddata name typeAnn subExpr -> DLet (f ddata) name typeAnn (fmap f subExpr)
         DFun fd -> DFun $ fmap f fd
         DData name vars variants -> DData name vars variants
+        DType name vars ident -> DType name vars ident
 
 data Module edata = Module
     -- { mName :: Text
@@ -148,7 +150,7 @@ data TypeIdent
     | FunctionIdent [TypeIdent] TypeIdent
     deriving (Show, Eq)
 
-data Type
+data PrimitiveType
     = Number
     | String
     | Unit
@@ -203,7 +205,7 @@ data MutableTypeVar
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TRecord (RecordType TypeVar)
-    | TType Type
+    | TPrimitive PrimitiveType
 
 data ImmutableTypeVar
     = IVar Int (VarLink ImmutableTypeVar)
@@ -211,5 +213,5 @@ data ImmutableTypeVar
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar)
-    | IType Type
+    | IType PrimitiveType
     deriving (Show, Eq)

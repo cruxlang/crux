@@ -65,7 +65,7 @@ showTypeVarIO tvar = do
                 RecordQuantified -> ["q..."]
                 RecordClose -> []
         return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
-    TType ty ->
+    TPrimitive ty ->
         return $ show ty
 
 newEnv :: Maybe TypeVar -> IO Env
@@ -169,12 +169,12 @@ check env expr = case expr of
 
     EApp _ (EIdentifier _ "print") args -> do
         args' <- mapM (check env) args
-        ty <- IORef.newIORef $ TType Unit
+        ty <- IORef.newIORef $ TPrimitive Unit
         return $ EIntrinsic ty (IPrint args')
 
     EApp _ (EIdentifier _ "toString") [arg] -> do
         arg' <- check env arg
-        ty <- IORef.newIORef $ TType String
+        ty <- IORef.newIORef $ TPrimitive String
         return $ EIntrinsic ty (IToString arg')
 
     EApp _ (EIdentifier _ "toString") _ ->
@@ -233,14 +233,14 @@ check env expr = case expr of
             annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
 
-        unitTy <- IORef.newIORef $ TType Unit
+        unitTy <- IORef.newIORef $ TPrimitive Unit
         return $ ELet unitTy name maybeAnnot expr''
 
     ELiteral _ lit -> do
         litType <- IORef.newIORef $ case lit of
-                LInteger _ -> TType Number
-                LString _ -> TType String
-                LUnit -> TType Unit
+                LInteger _ -> TPrimitive Number
+                LString _ -> TPrimitive String
+                LUnit -> TPrimitive Unit
         return $ ELiteral litType lit
     EIdentifier _ "print" ->
         error "Intrinsic print is not a value"
@@ -265,7 +265,7 @@ check env expr = case expr of
 
     -- TEMP: For now, all binary intrinsics are Number -> Number -> Number
     EBinIntrinsic _ bi lhs rhs -> do
-        numTy <- IORef.newIORef $ TType Number
+        numTy <- IORef.newIORef $ TPrimitive Number
 
         lhs' <- check env lhs
         unify numTy (edata lhs')
@@ -277,7 +277,7 @@ check env expr = case expr of
 
     EIfThenElse _ condition ifTrue ifFalse -> do
         condition' <- check env condition
-        boolTy <- IORef.newIORef $ TType Boolean
+        boolTy <- IORef.newIORef $ TPrimitive Boolean
         unify boolTy (edata condition')
         ifTrue' <- check env ifTrue
         ifFalse' <- check env ifFalse
@@ -369,7 +369,7 @@ instantiate' subst env ty = do
                     _ -> (False, open)
             tr <- IORef.newIORef $ TRecord $ RecordType open' (map snd rows')
             return (changedOpen || or (map fst rows'), tr)
-        TType {} -> return (False, ty)
+        TPrimitive {} -> return (False, ty)
 
 instantiate :: Env -> TypeVar -> IO TypeVar
 instantiate env t = do
@@ -413,7 +413,7 @@ flattenTypeVar tv = do
                     return (name, ty')
             rows'' <- mapM flattenRow rows'
             return $ IRecord $ RecordType open' rows''
-        TType t ->
+        TPrimitive t ->
             return $ IType t
 
 flattenIntrinsic :: IntrinsicId TypeVar -> IO (IntrinsicId ImmutableTypeVar)
@@ -486,6 +486,8 @@ flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl decl = case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
+    DType name typeVars ident ->
+        return $ DType name typeVars ident
     DLet ty name typeAnn expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
@@ -526,7 +528,7 @@ unify av bv = do
     (_, TVar {}) -> do
         unify bv av
 
-    (TType aType, TType bType)
+    (TPrimitive aType, TPrimitive bType)
         | aType == bType ->
             return ()
         | otherwise -> do
@@ -548,9 +550,9 @@ unify av bv = do
         mapM_ (uncurry unify) (zip aa ba)
         unify ar br
 
-    (TFun {}, TType {}) ->
+    (TFun {}, TPrimitive {}) ->
         unificationError "" av bv
-    (TType {}, TFun {}) ->
+    (TPrimitive {}, TFun {}) ->
         unificationError "" av bv
 
     -- These should never happen: Quantified type variables should be instantiated before we get here.
@@ -633,7 +635,7 @@ occurs tvr ty = do
         TRecord (RecordType _ rows) -> do
             forM_ rows $ \(_, rowTy) ->
                 occurs tvr rowTy
-        TType {} ->
+        TPrimitive {} ->
             return ()
         TQuant {} ->
             return ()
@@ -643,6 +645,8 @@ checkDecl env decl = case decl of
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
+    DType name typeVars ident ->
+        return $ DType name typeVars ident
     DFun (FunDef pos name args body) -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
@@ -663,10 +667,10 @@ checkDecl env decl = case decl of
 
 buildTypeEnvironment :: [Declaration a] -> IO Env
 buildTypeEnvironment decls = do
-    numTy <- IORef.newIORef $ TType Number
-    unitTy <- IORef.newIORef $ TType Unit
-    strTy <- IORef.newIORef $ TType String
-    boolTy <- IORef.newIORef $ TType Boolean
+    numTy  <- IORef.newIORef $ TPrimitive Number
+    unitTy <- IORef.newIORef $ TPrimitive Unit
+    strTy  <- IORef.newIORef $ TPrimitive String
+    boolTy <- IORef.newIORef $ TPrimitive Boolean
 
     e <- newEnv Nothing
     typeEnv <- IORef.newIORef $ HashMap.fromList
@@ -690,8 +694,7 @@ buildTypeEnvironment decls = do
                 ft <- freshType e
                 quantify ft
                 return ft
-            let typeVarTable = zip typeVarNames typeVars
-            HashTable.insert name typeVarTable qvarsRef
+            HashTable.insert name (zip typeVarNames typeVars) qvarsRef
 
             variants' <- forM variants $ \Variant{..} -> do
                 tvParameters <- forM vparameters $ const $ freshType e
@@ -705,6 +708,14 @@ buildTypeEnvironment decls = do
                     }
             userType <- IORef.newIORef $ TUserType typeDef typeVars
             IORef.modifyIORef' typeEnv (HashMap.insert name userType)
+        DType name typeVarNames _ident -> do
+            ty <- freshType e
+            typeVars <- forM typeVarNames $ const $ do
+                ft <- freshType e
+                quantify ft
+                return ft
+            HashTable.insert name (zip typeVarNames typeVars) qvarsRef
+            IORef.modifyIORef' typeEnv (HashMap.insert name ty)
         _ -> return ()
 
     qvars <- IORef.readIORef qvarsRef
@@ -723,9 +734,14 @@ buildTypeEnvironment decls = do
                     let Just qv = HashMap.lookup name qvars
                     t <- resolveTypeIdent env qv typeIdent
                     unify typeVar t
+        DType name _ ident -> do
+            Just ty <- HashTable.lookup name typeEnv
+            let Just qv = HashMap.lookup name qvars
+            t <- resolveTypeIdent env qv ident
+            unify t ty
         _ -> return ()
 
-    let computeVariantType ty qvarNames _name argTypeIdents = case argTypeIdents of
+    let computeVarianTPrimitive ty qvarNames _name argTypeIdents = case argTypeIdents of
             [] ->
                 return ty
             _ -> do
@@ -745,7 +761,7 @@ buildTypeEnvironment decls = do
             let Just userType = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
-                ctorType <- computeVariantType userType qvarTable vname vdata
+                ctorType <- computeVarianTPrimitive userType qvarTable vname vdata
                 HashTable.insert vname ctorType (eBindings env)
         _ -> return ()
 
@@ -763,7 +779,7 @@ resolveTypeIdent env qvarTable typeIdent =
                 Just ty -> do
                     ty' <- readIORef ty
                     case ty' of
-                        TType {} ->
+                        TPrimitive {} ->
                             if [] /= typeParameters
                                 then error "Primitive types don't take type parameters"
                                 else return ty
@@ -787,10 +803,10 @@ resolveTypeIdent env qvarTable typeIdent =
             fmap (rowName,) (go rowTy)
         IORef.newIORef $ TRecord $ RecordType RecordClose rows'
 
-    go (FunctionIdent argTypes retType) = do
+    go (FunctionIdent argTypes reTPrimitive) = do
         argTypes' <- mapM go argTypes
-        retType' <- go retType
-        IORef.newIORef $ TFun argTypes' retType'
+        reTPrimitive' <- go reTPrimitive
+        IORef.newIORef $ TFun argTypes' reTPrimitive'
 
 run :: Module Pos -> IO (Module TypeVar)
 run Module{..} = do

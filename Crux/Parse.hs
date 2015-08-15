@@ -341,6 +341,15 @@ dataDeclaration = do
     _ <- token TCloseBrace
     return $ DData name typeVars variants
 
+typeDeclaration :: Parser ParseDeclaration
+typeDeclaration = do
+    _ <- P.try $ token TType
+    name <- typeName
+    vars <- P.many typeVariableName
+    _ <- token TEqual
+    ty <- typeIdent
+    return $ DType name vars ty
+
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- P.try $ token Tokens.TFun
@@ -361,6 +370,7 @@ funDeclaration = do
 declaration :: Parser ParseDeclaration
 declaration =
     dataDeclaration <|>
+    typeDeclaration <|>
     funDeclaration <|>
     letDeclaration
 

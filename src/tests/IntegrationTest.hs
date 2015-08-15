@@ -221,4 +221,14 @@ case_record_annotation_is_checked2 = do
 
     assertEqual "" (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TVar 4 Unbound 4),f...}") result
 
+case_type_alias = do
+    result <- run $ T.unlines
+        [ "type Hoot = Number;"
+        , "type Boast = Number;"
+        , "let a : Hoot = 55;"
+        , "let b : Boast = 4;"
+        , "let _ = print(a + b);"
+        ]
+    assertEqual "" (Right "59\n") result
+
 tests = $(testGroupGenerator)

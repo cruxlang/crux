@@ -56,6 +56,7 @@ keyword = P.try $ do
         "let" -> return $ TLet p
         "fun" -> return $ TFun p
         "data" -> return $ TData p
+        "type" -> return $ TType p
         "match" -> return $ TMatch p
         "if" -> return $ TIf p
         "then" -> return $ TThen p

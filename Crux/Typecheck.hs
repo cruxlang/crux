@@ -19,7 +19,6 @@ import qualified Data.HashMap.Strict   as HashMap
 import           Data.IORef            (IORef, readIORef, writeIORef)
 import qualified Data.IORef            as IORef
 import           Data.List             (intercalate, nub, sort)
-import           Data.Maybe            (catMaybes)
 import           Data.Monoid           ((<>))
 import           Data.Text             (Text)
 import qualified Data.Text             as Text
@@ -57,7 +56,7 @@ showTypeVarIO tvar = do
     TUserType def tvars -> do
         tvs <- mapM showTypeVarIO tvars
         return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
-    TRecord open' rows' -> do
+    TRecord (RecordType open' rows') -> do
         let rowNames = map fst rows'
         rowTypes <- mapM (showTypeVarIO . snd) rows'
         let showRow (name, ty) = Text.unpack name <> ": " <> ty
@@ -201,13 +200,13 @@ check env expr = case expr of
 
         let fieldTypes = map (\(name, ex) -> (name, edata ex)) fields'
 
-        recordTy <- IORef.newIORef $ TRecord RecordClose fieldTypes
+        recordTy <- IORef.newIORef $ TRecord $ RecordType RecordClose fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
         ty <- freshType env
-        recTy <- IORef.newIORef $ TRecord RecordFree [(propName, ty)]
+        recTy <- IORef.newIORef $ TRecord $ RecordType RecordFree [(propName, ty)]
         unify (edata lhs') recTy
         return $ ELookup ty lhs' propName
 
@@ -310,13 +309,13 @@ quantify ty = do
         TFun param ret -> do
             mapM_ quantify param
             quantify ret
-        TRecord open rows' -> do
+        TRecord (RecordType open rows') -> do
             forM_ rows' $ \(_key, val) -> do
                 quantify val
             let open' = case open of
                     RecordFree -> RecordQuantified
                     _ -> open
-            writeIORef ty $ TRecord open' rows'
+            writeIORef ty $ TRecord $ RecordType open' rows'
         _ ->
             return ()
 
@@ -360,7 +359,7 @@ instantiate' subst env ty = do
             typeVars' <- mapM (instantiate' subst env) tyVars
             tut <- IORef.newIORef $ TUserType def (map snd typeVars')
             return (and (map fst typeVars'), tut)
-        TRecord open rows -> do
+        TRecord (RecordType open rows) -> do
             rows' <- forM rows $ \(name, rowTy) -> do
                 (b, rowTy') <- instantiate' subst env rowTy
                 return (b, (name, rowTy'))
@@ -368,7 +367,7 @@ instantiate' subst env ty = do
             let (changedOpen, open') = case open of
                     RecordQuantified -> (True, RecordFree)
                     _ -> (False, open)
-            tr <- IORef.newIORef $ TRecord open' (map snd rows')
+            tr <- IORef.newIORef $ TRecord $ RecordType open' (map snd rows')
             return (changedOpen || or (map fst rows'), tr)
         TType {} -> return (False, ty)
 
@@ -408,12 +407,12 @@ flattenTypeVar tv = do
             tvars' <- mapM flattenTypeVar tvars
             def' <- flattenTypeDef def
             return $ IUserType def' tvars'
-        TRecord open' rows' -> do
+        TRecord (RecordType open' rows') -> do
             let flattenRow (name, ty) = do
                     ty' <- flattenTypeVar ty
                     return (name, ty')
             rows'' <- mapM flattenRow rows'
-            return $ IRecord open' rows''
+            return $ IRecord $ RecordType open' rows''
         TType t ->
             return $ IType t
 
@@ -539,105 +538,8 @@ unify av bv = do
         | otherwise -> do
             unificationError "" av bv
 
-    (TRecord aOpen' aRows', TRecord bOpen' bRows') -> do
-        let aFields = sort $ map fst aRows'
-        let bFields = sort $ map fst bRows'
-
-        case (aOpen', bOpen') of
-            (RecordClose, RecordClose) -> do
-                when (aFields /= bFields) $ do
-                    unificationError "Record fields do not match" av bv
-
-                forM_ aFields $ \propName ->
-                    let Just at = lookup propName aRows'
-                        Just bt = lookup propName bRows'
-                    in unify at bt
-
-            (RecordClose, RecordFree) -> do
-                -- We can infer that rhs must have all the properties of lhs and no more.  Further, the intersection must unify.
-                forM_ aRows' $ \(field, aTy) -> do
-                    case lookup field bRows' of
-                        Nothing ->
-                            return ()
-                        Just bTy ->
-                            unify aTy bTy
-
-                let i = 888 -- hack.  Probably doesn't matter.
-                writeIORef bv (TVar i $ Link av)
-
-            (RecordFree, RecordClose) ->
-                unify bv av
-
-            (RecordFree, RecordFree) -> do
-                -- fields of lhs and rhs must unify.  Result is free record containing the union of fields in lhs and rhs
-                let allKeys = nub $ sort (aFields ++ bFields)
-                newFields <- forM allKeys $ \key -> do
-                    case (lookup key aRows', lookup key bRows') of
-                        (Just t, Nothing) ->
-                            return (key, t)
-                        (Nothing, Just t) ->
-                            return (key, t)
-                        (Just t1, Just t2) -> do
-                            unify t1 t2
-                            return (key, t1)
-                        (Nothing, Nothing) ->
-                            error "Unifying rows: This should super never happen"
-
-                writeIORef av $ TRecord RecordFree newFields
-
-                let i = 888 -- hack
-                writeIORef bv (TVar i $ Link av)
-
-            (RecordQuantified, RecordFree) -> do
-                -- Fields of rhs must appear in lhs.  Result is quantified record having fields of lhs
-                let allKeys = nub $ sort (aFields ++ bFields)
-                newFields <- fmap catMaybes $ forM allKeys $ \key -> do
-                    case (lookup key aRows', lookup key bRows') of
-                        (Just t1, Just t2) -> do
-                            unify t1 t2
-                            return $ Just (key, t1)
-                        (Just t1, Nothing) ->
-                            return $ Just (key, t1)
-                        (Nothing, Just _) -> do
-                            as <- showTypeVarIO av
-                            unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record " ++ as) av bv
-                        _ ->
-                            error "Unifying rows (q): This should super never happen"
-
-                writeIORef av $ TRecord RecordQuantified newFields
-
-                let i = 888 -- hack
-                writeIORef bv (TVar i $ Link av)
-
-            (RecordQuantified, RecordQuantified) -> do
-                -- Fields of rhs must overlap exactly with lhs.  Result is quantified record having fields of lhs
-                let allKeys = nub $ sort (aFields ++ bFields)
-                newFields <- fmap catMaybes $ forM allKeys $ \key -> do
-                    case (lookup key aRows', lookup key bRows') of
-                        (Just t1, Just t2) -> do
-                            unify t1 t2
-                            return $ Just (key, t1)
-                        (Just _, Nothing) -> do
-                            bs <- showTypeVarIO bv
-                            unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record " ++ bs) av bv
-                        (Nothing, Just _) -> do
-                            as <- showTypeVarIO av
-                            unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record " ++ as) av bv
-                        _ ->
-                            error "Unifying rows (q): This should super never happen"
-
-                writeIORef av $ TRecord RecordQuantified newFields
-
-                let i = 888 -- hack
-                writeIORef bv (TVar i $ Link av)
-
-            (RecordFree, RecordQuantified) ->
-                unify bv av
-
-            (RecordClose, RecordQuantified) ->
-                unificationError "" av bv
-            (RecordQuantified, RecordClose) ->
-                unificationError "" av bv
+    (TRecord {}, TRecord {}) ->
+        unifyRecord av bv
 
     (TFun aa ar, TFun ba br) -> do
         when (length aa /= length ba) $
@@ -664,6 +566,54 @@ unify av bv = do
     _ ->
         unificationError "" av bv
 
+unifyRecord :: TypeVar -> TypeVar -> IO ()
+unifyRecord av bv = do
+    TRecord a <- readIORef av
+    TRecord b <- readIORef bv
+    let RecordType aOpen aRows = a
+        RecordType bOpen bRows = b
+    let aFields = sort $ map fst aRows
+    let bFields = sort $ map fst bRows
+
+    when (aOpen == RecordQuantified || bOpen == RecordQuantified) $
+        error "Internal error: Encountered a quantified record.  This should have been instantiated away"
+
+    let aRequired = RecordClose == aOpen
+        bRequired = RecordClose == bOpen
+
+    let allKeys = nub $ sort (aFields ++ bFields)
+    newFields <- forM allKeys $ \key -> do
+        case (aRequired, lookup key aRows, bRequired, lookup key bRows) of
+            (_, Just t1, _, Just t2) -> do
+                unify t1 t2
+                return (key, t1)
+
+            (_    , Just t1, False, Nothing) ->
+                return (key, t1)
+            (False, Nothing, _    , Just t2) ->
+                return (key, t2)
+
+            (True, Nothing, _, _) ->
+                unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
+
+            (_, _, True, Nothing) ->
+                unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
+
+            (False, Nothing, False, Nothing) -> do
+                error "Internal error in unifyRecord: This should be very impossible"
+
+    let open' = case (aOpen, bOpen) of
+            (RecordClose, _)         -> RecordClose
+            (_, RecordClose)         -> RecordClose
+            (RecordQuantified, _)    -> RecordQuantified
+            (_, RecordQuantified)    -> RecordQuantified
+            (RecordFree, RecordFree) -> RecordFree
+
+    writeIORef av $ TRecord $ RecordType open' newFields
+
+    let i = 888 -- hack
+    writeIORef bv (TVar i $ Link av)
+
 occurs :: VarLink TypeVar -> TypeVar -> IO ()
 occurs tvr ty = do
     tyy <- readIORef ty
@@ -680,7 +630,7 @@ occurs tvr ty = do
             occurs tvr ret
         TUserType _ tvars -> do
             mapM_ (occurs tvr) tvars
-        TRecord _ rows -> do
+        TRecord (RecordType _ rows) -> do
             forM_ rows $ \(_, rowTy) ->
                 occurs tvr rowTy
         TType {} ->
@@ -835,7 +785,7 @@ resolveTypeIdent env qvarTable typeIdent =
     go (RecordIdent rows) = do
         rows' <- forM rows $ \(rowName, rowTy) ->
             fmap (rowName,) (go rowTy)
-        IORef.newIORef $ TRecord RecordClose rows'
+        IORef.newIORef $ TRecord $ RecordType RecordClose rows'
 
     go (FunctionIdent argTypes retType) = do
         argTypes' <- mapM go argTypes

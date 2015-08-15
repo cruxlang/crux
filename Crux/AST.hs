@@ -194,12 +194,15 @@ data VarLink a
     | Link a
     deriving (Show, Eq)
 
+data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
+    deriving (Show, Eq)
+
 data MutableTypeVar
     = TVar Int (VarLink TypeVar)
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
-    | TRecord RecordOpen [TypeRow TypeVar]
+    | TRecord (RecordType TypeVar)
     | TType Type
 
 data ImmutableTypeVar
@@ -207,6 +210,6 @@ data ImmutableTypeVar
     | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
-    | IRecord RecordOpen [TypeRow ImmutableTypeVar]
+    | IRecord (RecordType ImmutableTypeVar)
     | IType Type
     deriving (Show, Eq)

@@ -178,10 +178,13 @@ This yields {x:Number, y:Number, z:Number}
 -}
 
 -- An open record can be unified with another record type that has extra properties.
--- Open u Open == open record combining properties
--- Open u Closed == Assert that lhs has all the fields of the rhs, unify their types, and unify to the closed record
--- Closed u Closed == All properties must exist in both types and unify.
-data RecordOpen = RecordOpen | RecordClose
+-- F u F == Free record with union of properties
+-- F u Q == Verify that LHS fields are all present in RHS.  Unifies to RHS.
+-- Q u Q == Quantified record with intersecting properties only
+-- C u C == Fields must intersect exactly.  Types unify.  Closed record.
+-- F u C == Fields of free record must be present in the closed record and they must unify.  Closed record.
+-- Q u C == I think this always fails to unify.
+data RecordOpen = RecordFree | RecordQuantified | RecordClose
     deriving (Show, Eq)
 
 type TypeVar = IORef MutableTypeVar

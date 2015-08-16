@@ -35,25 +35,25 @@ getToken predicate = P.tokenPrim showTok nextPos predicate
 anyToken :: Parser (Token Pos)
 anyToken = getToken Just
 
-token :: (Pos -> Token Pos) -> Parser (Token Pos)
+token :: TokenType -> Parser (Token Pos)
 token expected = getToken testTok
   where
-    testTok tok
-        | (expected (Pos 0 0)) == tok = Just tok
+    testTok tok@(Token _ ttype)
+        | expected == ttype = Just tok
         | otherwise = Nothing
 
 identifier :: Text -> Parser (Token Pos)
 identifier name = getToken testTok
   where
-    testTok tok = case tok of
-        TIdentifier _ t | t == name -> Just tok
+    testTok tok@(Token _ ttype) = case ttype of
+        TIdentifier t | t == name -> Just tok
         _ -> Nothing
 
 anyIdentifier :: Parser Text
 anyIdentifier = getToken testTok
   where
-    testTok tok = case tok of
-        TIdentifier _ t -> Just t
+    testTok (Token _ ttype) = case ttype of
+        TIdentifier t -> Just t
         _ -> Nothing
 
 peekAndShow :: Show msg => msg -> Parser ()
@@ -89,15 +89,15 @@ literalExpression = (P.try unitLiteralExpression) <|> P.tokenPrim showTok nextPo
   where
     showTok = show
     nextPos pos _ _ = pos
-    testTok tok = case tok of
-        TInteger pos i -> Just $ ELiteral pos $ LInteger i
-        TString pos s -> Just $ ELiteral pos $ LString s
+    testTok (Token pos ttype) = case ttype of
+        TInteger i -> Just $ ELiteral pos $ LInteger i
+        TString s -> Just $ ELiteral pos $ LString s
         _ -> Nothing
 
 identifierExpression :: Parser ParseExpression
 identifierExpression = getToken testTok
   where
-    testTok (TIdentifier pos txt) = Just $ EIdentifier pos txt
+    testTok (Token pos (TIdentifier txt)) = Just $ EIdentifier pos txt
     testTok _ = Nothing
 
 functionExpression :: Parser ParseExpression

@@ -19,7 +19,7 @@ integerLiteral :: P.ParsecT Text u Identity (Token Pos)
 integerLiteral = do
     p <- pos
     digits <- P.many1 P.digit
-    return $ TInteger p $ read digits
+    return $ Token p $ TInteger $ read digits
 
 stringLiteral :: P.ParsecT Text u Identity (Token Pos)
 stringLiteral = do
@@ -27,7 +27,7 @@ stringLiteral = do
     _ <- P.char '"'
     chars <- P.many $ P.satisfy (/= '"')
     _ <- P.char '"'
-    return $ TString p $ T.pack chars
+    return $ Token p $ TString $ T.pack chars
 
 parseIdentifier :: P.ParsecT Text u Identity (Token Pos)
 parseIdentifier = do
@@ -39,7 +39,7 @@ parseIdentifier = do
 
     first <- P.satisfy isIdentifierStart
     rest <- P.many $ P.satisfy isIdentifierChar
-    return $ TIdentifier p $ T.pack (first:rest)
+    return $ Token p $ TIdentifier $ T.pack (first:rest)
 
 token :: P.ParsecT Text u Identity (Token Pos)
 token =
@@ -51,17 +51,17 @@ token =
 
 keyword :: P.ParsecT Text u Identity (Token Pos)
 keyword = P.try $ do
-    TIdentifier p i <- parseIdentifier
-    case i of
-        "let" -> return $ TLet p
-        "fun" -> return $ TFun p
-        "data" -> return $ TData p
-        "type" -> return $ TType p
-        "match" -> return $ TMatch p
-        "if" -> return $ TIf p
-        "then" -> return $ TThen p
-        "else" -> return $ TElse p
-        "return" -> return $ TReturn p
+    Token p (TIdentifier i) <- parseIdentifier
+    fmap (Token p) $ case i of
+        "let" -> return TLet
+        "fun" -> return TFun
+        "data" -> return TData
+        "type" -> return TType
+        "match" -> return TMatch
+        "if" -> return TIf
+        "then" -> return TThen
+        "else" -> return TElse
+        "return" -> return TReturn
         _ -> fail ""
 
 symbol :: P.ParsecT Text u Identity (Token Pos)
@@ -84,12 +84,12 @@ symbol = sym2 '=' '>' TFatRightArrow
     sym ch tok = do
         p <- pos
         _ <- P.char ch
-        return (tok p)
+        return (Token p tok)
     sym2 c1 c2 tok = P.try $ do
         p <- pos
         _ <- P.char c1
         _ <- P.char c2
-        return (tok p)
+        return (Token p tok)
 
 whitespace :: P.ParsecT Text u Identity ()
 whitespace = P.spaces

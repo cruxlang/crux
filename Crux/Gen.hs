@@ -57,18 +57,18 @@ newTempOutput env = do
     writeIORef env (value + 1)
     return $ Temporary value
 
-type GenWriter a = WriterT [Instruction] IO a
+type InstructionWriter a = WriterT [Instruction] IO a
 
-writeInstruction :: Instruction -> GenWriter ()
+writeInstruction :: Instruction -> InstructionWriter ()
 writeInstruction i = tell [i]
 
-newInstruction :: Env -> (Output -> Instruction) -> GenWriter (Maybe Value)
+newInstruction :: Env -> (Output -> Instruction) -> InstructionWriter (Maybe Value)
 newInstruction env instr = do
     output <- lift $ newTempOutput env
     writeInstruction $ instr output
     return $ Just $ Reference output
 
-generate :: Show t => Env -> AST.Expression t -> GenWriter (Maybe Value)
+generate :: Show t => Env -> AST.Expression t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
     AST.ELet _ name _ v -> do
         v' <- generate env v
@@ -168,26 +168,26 @@ generate env expr = case expr of
                 return Nothing
 
 {-
-subBlock :: Show t => Env -> AST.Expression t -> GenWriter [Instruction]
+subBlock :: Show t => Env -> AST.Expression t -> InstructionWriter [Instruction]
 subBlock env expr = do
     fmap snd $ lift $ runWriterT $ generate env expr
 -}
 
-subBlockWithReturn :: Show t => Env -> AST.Expression t -> GenWriter [Instruction]
+subBlockWithReturn :: (MonadIO m, Show t) => Env -> AST.Expression t -> m [Instruction]
 subBlockWithReturn env expr = do
-    (output, instrs) <- lift $ runWriterT $ generate env expr
+    (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
         Just output' -> instrs ++ [Return output']
         Nothing -> instrs
 
-subBlockWithOutput :: Show t => Env -> Output -> AST.Expression t -> GenWriter [Instruction]
+subBlockWithOutput :: (MonadIO m, Show t) => Env -> Output -> AST.Expression t -> m [Instruction]
 subBlockWithOutput env output expr = do
-    (output', instrs) <- lift $ runWriterT $ generate env expr
+    (output', instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output' of
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Show t => Env -> AST.Declaration t -> GenWriter ()
+generateDecl :: Show t => Env -> AST.Declaration t -> InstructionWriter ()
 generateDecl env decl = do
     case decl of
         AST.DLet _ name _ defn -> do

@@ -113,6 +113,10 @@ renderInstruction instr = case instr of
             (JSTree.SBlock $ map renderInstruction ifTrue)
             (Just $ JSTree.SBlock $ map renderInstruction ifFalse)
 
+wrapInModule :: [JSTree.Statement] -> JSTree.Statement
+wrapInModule body =
+    JSTree.SExpression $ JSTree.EApplication (JSTree.EFunction [] body) []
+
 generateJS :: Gen.Module -> Text
 generateJS modul = do
     -- hack
@@ -121,7 +125,7 @@ generateJS modul = do
             , JSTree.SVar "False" (Just $ JSTree.EIdentifier "false")
             ]
     let statements = map renderInstruction modul
-    JSTree.renderDocument $ prelude <> statements
+    JSTree.renderDocument [wrapInModule $ prelude <> statements]
 
 generateJSWithoutPrelude :: Gen.Module -> Text
 generateJSWithoutPrelude modul = do

@@ -33,6 +33,7 @@ data TokenType
     | TMultiply
     | TDivide
     -- Keywords
+    | TExport
     | TFun
     | TLet
     | TData
@@ -46,11 +47,6 @@ data TokenType
 
 data Token tdata = Token tdata TokenType
       deriving (Show)
-
-{-
-instance Eq (Token a) where
-    (Token _ lhs) == (Token _ rhs) = lhs == rhs
--}
 
 tokenData :: Token tdata -> tdata
 tokenData (Token tdata _) = tdata

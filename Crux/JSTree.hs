@@ -170,3 +170,6 @@ renderExpr expr = case expr of
 
 renderDocument :: [Statement] -> Text
 renderDocument statements = TL.toStrict $ B.toLazyText $ mconcat (map render statements)
+
+iife :: [Statement] -> Expression
+iife body = EApplication (EFunction [] body) []

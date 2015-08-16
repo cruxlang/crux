@@ -6,22 +6,19 @@
 
 module Crux.Parse where
 
+import Crux.Prelude
 import           Control.Applicative ((<|>))
 import           Control.Monad       (unless, when)
-import           Control.Monad.Trans (liftIO)
 import           Crux.AST            as AST
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
-import           Data.List           (foldl')
-import           Data.Monoid         ((<>))
-import           Data.Text           (Text)
 import qualified Text.Parsec         as P
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = Pos
 type ParseExpression = Expression ParseData
-type ParseDeclaration = Declaration ParseData
+type ParseDeclaration = DeclarationType ParseData
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -367,12 +364,15 @@ funDeclaration = do
 
     return $ DFun $ FunDef (tokenData tfun) name params body
 
-declaration :: Parser ParseDeclaration
-declaration =
-    dataDeclaration <|>
-    typeDeclaration <|>
-    funDeclaration <|>
-    letDeclaration
+declaration :: Parser (Declaration ParseData)
+declaration = do
+    export <- P.optionMaybe $ token Tokens.TExport
+    let exportFlag = case export of
+            Just _ -> Export
+            Nothing -> NoExport
+
+    declType <- dataDeclaration <|> typeDeclaration <|> funDeclaration <|> letDeclaration
+    return $ Declaration exportFlag declType
 
 module' :: Parser (Module Pos)
 module' = do

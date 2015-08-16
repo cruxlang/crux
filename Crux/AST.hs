@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 module Crux.AST where
 
 import           Data.HashMap.Strict (HashMap)
@@ -26,20 +26,20 @@ data FunDef edata = FunDef edata Name [Name] (Expression edata)
 instance Functor FunDef where
     fmap f (FunDef ed name params body) = FunDef (f ed) name params (fmap f body)
 
+data ExportFlag = Export | NoExport
+    deriving (Show, Eq)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
-data Declaration edata
+-- note that individual functions in a function group can be exported.
+data DeclarationType edata
     = DLet edata Name (Maybe TypeIdent) (Expression edata)
     | DFun (FunDef edata)
     | DData Name [TypeVariable] [Variant]
     | DType Name [TypeVariable] TypeIdent
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor)
 
-instance Functor Declaration where
-    fmap f d = case d of
-        DLet ddata name typeAnn subExpr -> DLet (f ddata) name typeAnn (fmap f subExpr)
-        DFun fd -> DFun $ fmap f fd
-        DData name vars variants -> DData name vars variants
-        DType name vars ident -> DType name vars ident
+data Declaration edata = Declaration ExportFlag (DeclarationType edata)
+    deriving (Show, Eq, Functor)
 
 data Module edata = Module
     -- { mName :: Text

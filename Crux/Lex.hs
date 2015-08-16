@@ -10,18 +10,20 @@ import qualified Data.Text as T
 import Control.Monad.Identity (Identity)
 import Text.Parsec ((<|>))
 
-pos :: P.ParsecT Text u Identity Pos
+type Parser u a = P.ParsecT Text u Identity a
+
+pos :: Parser u Pos
 pos = do
     p <- P.getPosition
     return $ Pos (P.sourceLine p) (P.sourceColumn p)
 
-integerLiteral :: P.ParsecT Text u Identity (Token Pos)
+integerLiteral :: Parser u (Token Pos)
 integerLiteral = do
     p <- pos
     digits <- P.many1 P.digit
     return $ Token p $ TInteger $ read digits
 
-stringLiteral :: P.ParsecT Text u Identity (Token Pos)
+stringLiteral :: Parser u (Token Pos)
 stringLiteral = do
     p <- pos
     _ <- P.char '"'
@@ -29,7 +31,7 @@ stringLiteral = do
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
 
-parseIdentifier :: P.ParsecT Text u Identity (Token Pos)
+parseIdentifier :: Parser u (Token Pos)
 parseIdentifier = do
     p <- pos
     let isIdentifierStart '_' = True
@@ -41,7 +43,7 @@ parseIdentifier = do
     rest <- P.many $ P.satisfy isIdentifierChar
     return $ Token p $ TIdentifier $ T.pack (first:rest)
 
-token :: P.ParsecT Text u Identity (Token Pos)
+token :: Parser u (Token Pos)
 token =
     P.try keyword
     <|> P.try integerLiteral
@@ -49,10 +51,11 @@ token =
     <|> P.try parseIdentifier
     <|> P.try symbol
 
-keyword :: P.ParsecT Text u Identity (Token Pos)
+keyword :: Parser u (Token Pos)
 keyword = P.try $ do
     Token p (TIdentifier i) <- parseIdentifier
     fmap (Token p) $ case i of
+        "export" -> return TExport
         "let" -> return TLet
         "fun" -> return TFun
         "data" -> return TData
@@ -64,7 +67,7 @@ keyword = P.try $ do
         "return" -> return TReturn
         _ -> fail ""
 
-symbol :: P.ParsecT Text u Identity (Token Pos)
+symbol :: Parser u (Token Pos)
 symbol = sym2 '=' '>' TFatRightArrow
      <|> sym2 '-' '>' TRightArrow
      <|> sym ';' TSemicolon
@@ -91,10 +94,10 @@ symbol = sym2 '=' '>' TFatRightArrow
         _ <- P.char c2
         return (Token p tok)
 
-whitespace :: P.ParsecT Text u Identity ()
+whitespace :: Parser u ()
 whitespace = P.spaces
 
-document :: P.ParsecT Text u Identity [Token Pos]
+document :: Parser u [Token Pos]
 document = do
     whitespace
     r <- P.many1 $ P.try (whitespace >> token)

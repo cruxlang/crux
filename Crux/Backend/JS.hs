@@ -23,52 +23,8 @@ renderValue value = case value of
         map renderInstruction body
     Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
 
--- | Generate an expression which produces the boolean "true" if the variable "matchVar"
--- matches the pattern "patt"
-generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression
-generateMatchCond matchVar patt = case patt of
-    PPlaceholder _ ->
-        JSTree.ELiteral JSTree.LTrue
-    PConstructor name subpatterns ->
-        let testIt = JSTree.EBinOp "=="
-                (JSTree.ELiteral $ JSTree.LString name)
-                (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
-            buildTestCascade acc (index, subpattern) = case subpattern of
-                PPlaceholder _ -> acc
-                _ -> JSTree.EBinOp "&&"
-                    acc
-                    (generateMatchCond (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
-        in case subpatterns of
-            [] -> testIt
-            _ -> JSTree.EBinOp "&&" testIt
-                (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
-
-generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
-generateMatchVars matchVar patt = case patt of
-    -- TODO: ignore _ let bindings in the IR or sugar
-    PPlaceholder "_" -> []
-    PPlaceholder pname ->
-        [ JSTree.SVar pname $ Just matchVar ]
-    PConstructor _ subpatterns ->
-        concat
-            [ generateMatchVars (JSTree.ESubscript matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
-            | (index, subPattern) <- zip [1..] subpatterns
-            ]
-
-renderVariant :: Variant -> JSTree.Statement
-renderVariant Variant{..} = case vparameters of
-    [] ->
-        JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString vname])
-    _ ->
-        let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
-        in JSTree.SFunction vname argNames $
-            [ JSTree.SReturn $ Just $ JSTree.EArray $
-              [JSTree.ELiteral $ JSTree.LString vname] ++ (map JSTree.EIdentifier argNames)
-            ]
-
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
-    Gen.DefineVariant v -> renderVariant v
     Gen.EmptyLet name -> JSTree.SVar (renderOutput name) Nothing
     Gen.LetBinding name value -> JSTree.SVar name $ Just $ renderValue value
     Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
@@ -113,9 +69,67 @@ renderInstruction instr = case instr of
             (JSTree.SBlock $ map renderInstruction ifTrue)
             (Just $ JSTree.SBlock $ map renderInstruction ifFalse)
 
+-- | Generate an expression which produces the boolean "true" if the variable "matchVar"
+-- matches the pattern "patt"
+generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression
+generateMatchCond matchVar patt = case patt of
+    PPlaceholder _ ->
+        JSTree.ELiteral JSTree.LTrue
+    PConstructor name subpatterns ->
+        let testIt = JSTree.EBinOp "=="
+                (JSTree.ELiteral $ JSTree.LString name)
+                (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
+            buildTestCascade acc (index, subpattern) = case subpattern of
+                PPlaceholder _ -> acc
+                _ -> JSTree.EBinOp "&&"
+                    acc
+                    (generateMatchCond (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
+        in case subpatterns of
+            [] -> testIt
+            _ -> JSTree.EBinOp "&&" testIt
+                (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
+
+generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
+generateMatchVars matchVar patt = case patt of
+    -- TODO: ignore _ let bindings in the IR or sugar
+    PPlaceholder "_" -> []
+    PPlaceholder pname ->
+        [ JSTree.SVar pname $ Just matchVar ]
+    PConstructor _ subpatterns ->
+        concat
+            [ generateMatchVars (JSTree.ESubscript matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
+            | (index, subPattern) <- zip [1..] subpatterns
+            ]
+
+renderVariant :: Variant -> JSTree.Statement
+renderVariant Variant{..} = case vparameters of
+    [] ->
+        JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString vname])
+    _ ->
+        let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
+        in JSTree.SFunction vname argNames $
+            [ JSTree.SReturn $ Just $ JSTree.EArray $
+              [JSTree.ELiteral $ JSTree.LString vname] ++ (map JSTree.EIdentifier argNames)
+            ]
+
+renderDeclaration :: Gen.Declaration -> [JSTree.Statement]
+renderDeclaration (Gen.Declaration export decl) = case decl of
+    Gen.DData _name variants ->
+        map renderVariant variants
+        -- TODO: export data. and type??
+    Gen.DFun name params body ->
+        let func = JSTree.SFunction name params $ map renderInstruction body in
+        func : case export of
+            Export ->
+                [ JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "exports") name) $ JSTree.EIdentifier name
+                ]
+            NoExport -> []
+
+    Gen.DLet name defn ->
+        [JSTree.SVar name $ Just $ JSTree.iife $ map renderInstruction defn]
+
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
-wrapInModule body =
-    JSTree.SExpression $ JSTree.EApplication (JSTree.EFunction [] body) []
+wrapInModule body = JSTree.SExpression $ JSTree.iife body
 
 generateJS :: Gen.Module -> Text
 generateJS modul = do
@@ -124,10 +138,10 @@ generateJS modul = do
             [ JSTree.SVar "True" (Just $ JSTree.EIdentifier "true")
             , JSTree.SVar "False" (Just $ JSTree.EIdentifier "false")
             ]
-    let statements = map renderInstruction modul
+    let statements = concat $ map renderDeclaration modul
     JSTree.renderDocument [wrapInModule $ prelude <> statements]
 
 generateJSWithoutPrelude :: Gen.Module -> Text
 generateJSWithoutPrelude modul = do
-    let statements = map renderInstruction modul
+    let statements = concat $ map renderDeclaration modul
     JSTree.renderDocument $ statements

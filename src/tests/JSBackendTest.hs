@@ -37,25 +37,31 @@ genDoc src = do
 case_direct_prints = do
     doc <- genDoc "let _ = print(10);"
     assertEqual "single print expression"
-        "var $0 = console.log(10);\nvar _ = $0;\n"
+        "var _ = (function (){\nvar $0 = console.log(10);\nreturn $0;\n}\n)();\n"
         doc
 
 case_return_from_function = do
     doc <- genDoc "fun f() { return 1; };"
     assertEqual "statements"
-        "var f = (function (){\nreturn 1;\n}\n);\n"
+        "function f(){\nreturn 1;\n}\n"
+        doc
+
+case_export_function = do
+    doc <- genDoc "export fun f() { 1; };"
+    assertEqual "statements"
+        "function f(){\nreturn 1;\n}\n(exports).f = f;\n"
         doc
 
 case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; };"
     assertEqual "statements"
-        "var f = (function (){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n);\n"
+        "function f(){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n"
         result
 
 case_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual "statements"
-        "var $0;\nif(True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nvar x = $0;\n"
+        "var x = (function (){\nvar $0;\nif(True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nreturn $0;\n}\n)();\n"
         result
 
 tests = $(testGroupGenerator)

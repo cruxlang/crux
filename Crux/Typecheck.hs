@@ -483,7 +483,7 @@ flatten expr = case expr of
         return $ EReturn td' rv'
 
 flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
-flattenDecl decl = case decl of
+flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
     DType name typeVars ident ->
@@ -641,7 +641,7 @@ occurs tvr ty = do
             return ()
 
 checkDecl :: Env -> Declaration Pos -> IO (Declaration TypeVar)
-checkDecl env decl = case decl of
+checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
@@ -688,7 +688,7 @@ buildTypeEnvironment decls = do
     qvarsRef <- HashTable.new
 
     -- First, populate the type environment.  Variant parameter types are all initially free.
-    forM_ decls $ \decl -> case decl of
+    forM_ decls $ \(Declaration _ decl) -> case decl of
         DData name typeVarNames variants -> do
             typeVars <- forM typeVarNames $ const $ do
                 ft <- freshType e
@@ -723,7 +723,7 @@ buildTypeEnvironment decls = do
     let env = e{eTypeBindings=te}
 
     -- Second, unify parameter types
-    forM_ decls $ \decl -> case decl of
+    forM_ decls $ \(Declaration _ decl) -> case decl of
         DData name _typeVarNames variants -> do
             Just ty <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
@@ -756,7 +756,7 @@ buildTypeEnvironment decls = do
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
-    forM_ decls $ \decl -> case decl of
+    forM_ decls $ \(Declaration _ decl) -> case decl of
         DData name _ variants -> do
             let Just userType = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars

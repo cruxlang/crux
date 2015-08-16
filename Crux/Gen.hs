@@ -5,6 +5,8 @@ module Crux.Gen
     ( Value(..)
     , Output(..)
     , Instruction(..)
+    , DeclarationType(..)
+    , Declaration(..)
     , Module
     , generateModule
     ) where
@@ -30,8 +32,7 @@ type Input = Value
 
 data Instruction
     -- binding
-    = DefineVariant AST.Variant
-    | EmptyLet Output
+    = EmptyLet Output
     | LetBinding Name Input
 
     -- operations
@@ -49,13 +50,27 @@ data Instruction
 
 type Env = IORef Int
 
-type Module = [Instruction]
+data DeclarationType
+    = DData Name [AST.Variant]
+    | DFun Name [Name] [Instruction]
+    | DLet Name [Instruction]
+    deriving (Show, Eq)
+
+data Declaration = Declaration AST.ExportFlag DeclarationType
+    deriving (Show, Eq)
+
+type Module = [Declaration]
 
 newTempOutput :: Env -> IO Output
 newTempOutput env = do
     value <- readIORef env
     writeIORef env (value + 1)
     return $ Temporary value
+
+type DeclarationWriter a = WriterT [Declaration] IO a
+
+writeDeclaration :: Declaration -> DeclarationWriter ()
+writeDeclaration d = tell [d]
 
 type InstructionWriter a = WriterT [Instruction] IO a
 
@@ -167,12 +182,6 @@ generate env expr = case expr of
             Nothing -> do
                 return Nothing
 
-{-
-subBlock :: Show t => Env -> AST.Expression t -> InstructionWriter [Instruction]
-subBlock env expr = do
-    fmap snd $ lift $ runWriterT $ generate env expr
--}
-
 subBlockWithReturn :: (MonadIO m, Show t) => Env -> AST.Expression t -> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
@@ -187,20 +196,20 @@ subBlockWithOutput env output expr = do
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Show t => Env -> AST.Declaration t -> InstructionWriter ()
-generateDecl env decl = do
+generateDecl :: Show t => Env -> AST.Declaration t -> DeclarationWriter ()
+generateDecl env (AST.Declaration export decl) = do
     case decl of
-        AST.DLet _ name _ defn -> do
-            -- error if output has no return value
-            (Just output) <- generate env defn
-            writeInstruction $ LetBinding name output
+        AST.DData name _ variants -> do
+            writeDeclaration $ Declaration export $ DData name variants
         AST.DFun (AST.FunDef _ name params body) -> do
             body' <- subBlockWithReturn env body
-            writeInstruction $ LetBinding name $ FunctionLiteral params body'
-        AST.DData _name _ variants -> do
-            forM_ variants $ \variant -> do
-                writeInstruction $ DefineVariant variant
+            writeDeclaration $ Declaration export $ DFun name params body'
+        AST.DLet _ name _ defn -> do
+            -- error if output has no return value
+            defn' <- subBlockWithReturn env defn
+            writeDeclaration $ Declaration export $ DLet name defn'
         AST.DType {} ->
+            -- type aliases are not reflected into the IR
             return ()
 
 generateModule :: Show t => AST.Module t -> IO Module

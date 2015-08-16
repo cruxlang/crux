@@ -11,6 +11,8 @@ http://computer-programming-forum.com/44-ada/ce9b904c11b18fd6.htm
 
 A common workaround that may not be so bad: http://stackoverflow.com/questions/36260/dealing-with-circular-dependencies-in-ocaml
 
+Also google "untying the recursive knot" for many more discussions on this.
+
 
 # ES6 syntax
 

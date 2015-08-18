@@ -29,13 +29,16 @@ instance Functor FunDef where
 data ExportFlag = Export | NoExport
     deriving (Show, Eq)
 
+data TypeAlias = TypeAlias Name [Name] TypeIdent
+    deriving (Show, Eq)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType edata
     = DLet edata Name (Maybe TypeIdent) (Expression edata)
     | DFun (FunDef edata)
     | DData Name [TypeVariable] [Variant]
-    | DType Name [TypeVariable] TypeIdent
+    | DType TypeAlias
     deriving (Show, Eq, Functor)
 
 data Declaration edata = Declaration ExportFlag (DeclarationType edata)

@@ -35,6 +35,7 @@ data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap Text TypeVar)
     , eTypeBindings  :: HashMap Text TypeVar
+    , eTypeAliases   :: HashMap Text TypeAlias
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     }
 
@@ -73,6 +74,7 @@ newEnv eReturnType = do
     eNextTypeIndex <- IORef.newIORef 0
     eBindings <- IORef.newIORef HashMap.empty
     let eTypeBindings = HashMap.empty
+        eTypeAliases = HashMap.empty
     return Env {..}
 
 childEnv :: Env -> IO Env
@@ -486,8 +488,8 @@ flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
-    DType name typeVars ident ->
-        return $ DType name typeVars ident
+    DType (TypeAlias name typeVars ident) ->
+        return $ DType $ TypeAlias name typeVars ident
     DLet ty name typeAnn expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
@@ -645,8 +647,8 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
-    DType name typeVars ident ->
-        return $ DType name typeVars ident
+    DType (TypeAlias name typeVars ident) ->
+        return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args body) -> do
         ty <- freshType env
         HashTable.insert name ty (eBindings env)
@@ -680,12 +682,13 @@ buildTypeEnvironment decls = do
         , ("Boolean", boolTy)
         ]
 
-
     HashTable.insert "True" boolTy (eBindings e)
     HashTable.insert "False" boolTy (eBindings e)
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new
+
+    typeAliasesRef <- HashTable.new
 
     -- First, populate the type environment.  Variant parameter types are all initially free.
     forM_ decls $ \(Declaration _ decl) -> case decl of
@@ -708,19 +711,14 @@ buildTypeEnvironment decls = do
                     }
             userType <- IORef.newIORef $ TUserType typeDef typeVars
             IORef.modifyIORef' typeEnv (HashMap.insert name userType)
-        DType name typeVarNames _ident -> do
-            ty <- freshType e
-            typeVars <- forM typeVarNames $ const $ do
-                ft <- freshType e
-                quantify ft
-                return ft
-            HashTable.insert name (zip typeVarNames typeVars) qvarsRef
-            IORef.modifyIORef' typeEnv (HashMap.insert name ty)
+        DType ty@(TypeAlias name _ _) -> do
+            HashTable.insert name ty typeAliasesRef
         _ -> return ()
 
     qvars <- IORef.readIORef qvarsRef
     te <- IORef.readIORef typeEnv
-    let env = e{eTypeBindings=te}
+    ta <- IORef.readIORef typeAliasesRef
+    let env = e{eTypeBindings=te, eTypeAliases=ta}
 
     -- Second, unify parameter types
     forM_ decls $ \(Declaration _ decl) -> case decl of
@@ -734,11 +732,6 @@ buildTypeEnvironment decls = do
                     let Just qv = HashMap.lookup name qvars
                     t <- resolveTypeIdent env qv typeIdent
                     unify typeVar t
-        DType name _ ident -> do
-            Just ty <- HashTable.lookup name typeEnv
-            let Just qv = HashMap.lookup name qvars
-            t <- resolveTypeIdent env qv ident
-            unify t ty
         _ -> return ()
 
     let computeVarianTPrimitive ty qvarNames _name argTypeIdents = case argTypeIdents of
@@ -765,17 +758,16 @@ buildTypeEnvironment decls = do
                 HashTable.insert vname ctorType (eBindings env)
         _ -> return ()
 
-    return env{eTypeBindings=te}
+    return env{eTypeBindings=te} -- just env?
 
 resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> IO TypeVar
 resolveTypeIdent env qvarTable typeIdent =
     go typeIdent
   where
-    te = eTypeBindings env
+    Env{..} = env
     go (TypeIdent typeName typeParameters) =
         if isCapitalized typeName
-            then case HashMap.lookup typeName te of
-                Nothing -> error $ printf "Constructor uses nonexistent type %s" (show typeName)
+            then case HashMap.lookup typeName eTypeBindings of
                 Just ty -> do
                     ty' <- readIORef ty
                     case ty' of
@@ -792,6 +784,17 @@ resolveTypeIdent env qvarTable typeIdent =
                                     IORef.newIORef $ TUserType def params
                         _ ->
                             return ty
+                Nothing -> case HashMap.lookup typeName eTypeAliases of
+                    Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
+                        when (length aliasParams /= length typeParameters) $
+                            error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
+
+                        argTypes <- mapM (resolveTypeIdent env qvarTable) typeParameters
+                        let qtab = zip aliasParams argTypes
+
+                        resolveTypeIdent env qtab aliasedIdent
+                    Nothing ->
+                        error $ printf "Constructor uses nonexistent type %s" (show typeName)
             else case lookup typeName qvarTable of
                 Nothing ->
                     error $ printf "Constructor uses nonexistent type variable %s" (show typeName)

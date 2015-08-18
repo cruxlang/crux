@@ -231,4 +231,12 @@ case_type_alias = do
         ]
     assertEqual "" (Right "59\n") result
 
+case_parameterized_type_alias = do
+    result <- run $ T.unlines
+        [ "data List a { Nil; Cons a (List a); };"
+        , "type Bogo a = List a;"
+        , "let hoop : Bogo Number = Cons(5, Nil);"
+        ]
+    assertEqual "" (Right "") result
+
 tests = $(testGroupGenerator)

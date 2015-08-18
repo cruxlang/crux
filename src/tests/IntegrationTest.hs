@@ -254,6 +254,14 @@ case_if_then_else = do
 
     assertEqual "" (Right "Falso!\n") result
 
+case_if_then_else_2 = do
+    result <- run $ T.unlines
+        [ "let _ = if False then if True then print(\"True!\")"
+        , "        else print(\"This should not run\");"
+        ]
+
+    assertEqual "" (Right "") result
+
 case_line_comments = do
     result <- run $ T.unlines
         [ "// A list is either Nil, the empty case, or"

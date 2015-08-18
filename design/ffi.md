@@ -35,7 +35,18 @@ data jsffi ReadyState {
     DONE = 4,
 }
 
-Many types will have direct, obvious representations in JavaScript: Int, Double, functions.  Tuples are represented as arrays.
+Many types will have direct, obvious representations in JavaScript.
+
+Type | JS Type
+-- | --
+Int | Number truncated with &#124;0
+Int | Number truncated with >>>0
+Double | Number
+String | String
+functions | Function
+() | undefined
+records | Object
+tuples | Array
 
 ## Option Types
 

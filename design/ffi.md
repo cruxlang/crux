@@ -115,3 +115,6 @@ do_jQuery_thing :: Nullable (Number -> Number -> IO ()) a => a -> IO ()
 
 In this way, the first parameter to the `Nullable` trait hammers down what type of value may be used if `null` is not
 desired.
+
+Pros: It could concievably work.
+Cons: Multi-param type classes are very heavyweight type system features.

@@ -20,7 +20,22 @@ The enum cases should be represented in JS as 0, 1, 2, 3, and 4 to match the XHR
 
 There are also enums that should be represented in JS as string constants.
 
-Many types will have direct, obvious representations in JavaScript: Int, Double, functions.  Tuples can be represented as arrays.
+Thus, we will need a mechanism for specifying the JavaScript representation of cases in sum types.
+
+data jsffi Bool {
+    True = true,
+    False = false,
+}
+
+data jsffi ReadyState {
+    UNSENT = 0,
+    OPENED = 1,
+    HEADERS_RECEIVED = 2,
+    LOADING = 3,
+    DONE = 4,
+}
+
+Many types will have direct, obvious representations in JavaScript: Int, Double, functions.  Tuples are represented as arrays.
 
 ## Option Types
 

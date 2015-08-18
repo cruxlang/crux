@@ -50,6 +50,7 @@ Working:
 * Row-polymorphic records
 * `if-then-else`
 * `return`
+* Type aliasing
 
 Not done:
 
@@ -60,5 +61,4 @@ Not done:
 * Exceptions
 * JS FFI
 * Asynchrony
-* Type aliasing
 * Class definitions

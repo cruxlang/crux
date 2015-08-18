@@ -8,6 +8,7 @@ should be represented in JS with `false` and `true`.
 
 Consider this example:
 
+```
 data ReadyState {
     UNSENT,
     OPENED,
@@ -15,6 +16,7 @@ data ReadyState {
     LOADING,
     DONE,
 }
+```
 
 The enum cases should be represented in JS as 0, 1, 2, 3, and 4 to match the XHR spec.
 
@@ -22,6 +24,7 @@ There are also enums that should be represented in JS as string constants.
 
 Thus, we will need a mechanism for specifying the JavaScript representation of cases in sum types.
 
+```
 data jsffi Bool {
     True = true,
     False = false,
@@ -34,6 +37,34 @@ data jsffi ReadyState {
     LOADING = 3,
     DONE = 4,
 }
+```
+
+If jsffi is unspecified, simple enumerations compile into sequential integers (i.e. 0, 1, 2...)
+
+Enumerations with associated data, as in the following example...
+
+```
+data Option a {
+    None,
+    Some(a),
+}
+```
+
+... will compile into JavaScript something like this:
+
+```
+function Option() {}
+function None() {}
+None.prototype = Object.create(Option.prototype);
+None.prototype.tag = 1;
+function Some(a) {this.a = a;}
+Some.prototype = Object.create(Option.prototype);
+Some.prototype.tag = 2;
+```
+
+This allows for simple, efficient pattern matching by switching on the .tag property.  It also allows data to look good in the debugger without significant runtime overhead.
+
+Note: to be even more efficient, we might consider representing values with a single no-data case as 'null'.  However, this is not very useful for the FFI: see the option type discussion below.
 
 Many types will have direct, obvious representations in JavaScript.
 

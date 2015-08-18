@@ -239,6 +239,21 @@ case_parameterized_type_alias = do
         ]
     assertEqual "" (Right "") result
 
+case_if_then = do
+    result <- run $ T.unlines
+        [ "let _ = if True then print(\"True!\");"
+        ]
+
+    assertEqual "" (Right "True!\n") result
+
+case_if_then_else = do
+    result <- run $ T.unlines
+        [ "let _ = if False then print(\"This should not run\")"
+        , "        else print(\"Falso!\");"
+        ]
+
+    assertEqual "" (Right "Falso!\n") result
+
 case_line_comments = do
     result <- run $ T.unlines
         [ "// A list is either Nil, the empty case, or"

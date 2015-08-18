@@ -65,8 +65,8 @@ ifThenElseExpression = do
     condition <- noSemiExpression
     _ <- token TThen
     ifTrue <- noSemiExpression
-    _ <- token TElse
-    ifFalse <- noSemiExpression
+    ifFalse <- P.option (ELiteral (tokenData pr) LUnit)
+        (P.try (token TElse) >> noSemiExpression)
     return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
 
 returnExpression :: Parser ParseExpression

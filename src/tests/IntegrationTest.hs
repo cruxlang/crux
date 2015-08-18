@@ -239,4 +239,18 @@ case_parameterized_type_alias = do
         ]
     assertEqual "" (Right "") result
 
+case_line_comments = do
+    result <- run $ T.unlines
+        [ "// A list is either Nil, the empty case, or"
+        , "// it is Cons an element and another list."
+        , "data List a { Nil; Cons a (List a); };"
+        , ""
+        , "/* TODO: Decide on an optimal name for this type alias"
+        , " type Bogo = List; */"
+        , "type Bogo a = List a;"
+        , ""
+        , "let hoop : Bogo Number = Cons(5, Nil);"
+        ]
+    assertEqual "" (Right "") result
+
 tests = $(testGroupGenerator)

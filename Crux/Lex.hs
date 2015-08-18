@@ -2,6 +2,7 @@
 
 module Crux.Lex where
 
+import Control.Monad (void)
 import Data.Char
 import Crux.Tokens
 import qualified Text.Parsec as P
@@ -97,10 +98,24 @@ symbol = sym2 '=' '>' TFatRightArrow
 whitespace :: Parser u ()
 whitespace = P.spaces
 
+lineComment :: Parser u ()
+lineComment = do
+    void $ P.try $ P.char '/' >> P.char '/'
+    void $ P.manyTill P.anyChar (P.eof <|> void (P.char '\n'))
+
+blockComment :: Parser u ()
+blockComment = do
+    void $ P.try $ P.char '/' >> P.char '*'
+    void $ P.manyTill P.anyChar (P.char '*' >> P.char '/')
+
+comments :: Parser u ()
+comments =
+    whitespace >> void (P.many $ (lineComment <|> blockComment) >> whitespace)
+
 document :: Parser u [Token Pos]
 document = do
     whitespace
-    r <- P.many1 $ P.try (whitespace >> token)
+    r <- P.many1 $ P.try (comments >> token)
     whitespace
     P.eof
     return r

@@ -86,4 +86,14 @@ case_branch_with_value = do
         ]
         result
 
+case_method_call = do
+    result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
+    assertEqual "statements"
+        [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.Temporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
+        , Gen.Return (Gen.Reference (Gen.Temporary 0))])
+        , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.Temporary 1) (Gen.Reference (Gen.Binding "hoop")) "woop" []
+            , Gen.Return (Gen.Reference (Gen.Temporary 1))])
+        ]
+        result
+
 tests = $(testGroupGenerator)

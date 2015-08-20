@@ -40,6 +40,7 @@ data Instruction
     | BinIntrinsic Output (AST.BinIntrinsic) Input Input
     | Intrinsic Output (AST.Intrinsic Input)
     | Call Output Input [Input]
+    | MethodCall Output Input Name [Input]
     | Lookup Output Input Name
 
     -- control flow
@@ -109,6 +110,15 @@ generate env expr = case expr of
             Just v' -> do
                 newInstruction env $ \output -> Lookup output v' propertyName
             Nothing -> do
+                return Nothing
+
+    AST.EApp _ (AST.ELookup _ this methodName) args -> do
+        this' <- generate env this
+        args' <- runMaybeT $ mapM (MaybeT . generate env) args
+        case (this', args') of
+            (Just this'', Just args'') -> do
+                newInstruction env $ \output -> MethodCall output this'' methodName args''
+            _ ->
                 return Nothing
 
     AST.EApp _ fn args -> do

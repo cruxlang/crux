@@ -48,6 +48,11 @@ renderInstruction instr = case instr of
             IToString arg -> do
                 JSTree.EBinOp "+" (JSTree.ELiteral (JSTree.LString "")) $ renderValue arg
     Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args
+    Gen.MethodCall output this methodName args ->
+        JSTree.SVar (renderOutput output) $
+            Just $ JSTree.EApplication
+                (JSTree.ELookup (renderValue this) methodName)
+                (map renderValue args)
     Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
     Gen.Match value cases ->

@@ -53,6 +53,7 @@ type Env = IORef Int
 
 data DeclarationType
     = DData Name [AST.Variant]
+    | DJSData Name [AST.JSVariant]
     | DFun Name [Name] [Instruction]
     | DLet Name [Instruction]
     deriving (Show, Eq)
@@ -211,6 +212,8 @@ generateDecl env (AST.Declaration export decl) = do
     case decl of
         AST.DData name _ variants -> do
             writeDeclaration $ Declaration export $ DData name variants
+        AST.DJSData name variants -> do
+            writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun (AST.FunDef _ name params body) -> do
             body' <- subBlockWithReturn env body
             writeDeclaration $ Declaration export $ DFun name params body'

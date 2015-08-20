@@ -64,4 +64,10 @@ case_branch_with_value = do
         "var x = (function (){\nvar $0;\nif(True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nreturn $0;\n}\n)();\n"
         result
 
+case_jsffi_data = do
+    result <- genDoc "data jsffi JST { A = undefined; B = null; C = true; D = false; E = 10; F = \"hi\"; };"
+    assertEqual "statements"
+        "var A = (void 0);\nvar B = null;\nvar C = true;\nvar D = false;\nvar E = 10;\nvar F = \"hi\";\n"
+        result
+
 tests = $(testGroupGenerator)

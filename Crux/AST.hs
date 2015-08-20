@@ -4,6 +4,7 @@ module Crux.AST where
 import           Data.HashMap.Strict (HashMap)
 import           Data.IORef          (IORef)
 import           Data.Text           (Text)
+import qualified Crux.JSTree as JSTree
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -21,12 +22,9 @@ data Variant = Variant
     } deriving (Show, Eq)
 
 data FunDef edata = FunDef edata Name [Name] (Expression edata)
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor)
 
-instance Functor FunDef where
-    fmap f (FunDef ed name params body) = FunDef (f ed) name params (fmap f body)
-
-data ExportFlag = Export | NoExport
+data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
 
 data TypeAlias = TypeAlias Name [Name] TypeIdent
@@ -38,8 +36,12 @@ data DeclarationType edata
     = DLet edata Name (Maybe TypeIdent) (Expression edata)
     | DFun (FunDef edata)
     | DData Name [TypeVariable] [Variant]
+    | DJSData Name [JSVariant]
     | DType TypeAlias
     deriving (Show, Eq, Functor)
+
+data ExportFlag = Export | NoExport
+    deriving (Show, Eq)
 
 data Declaration edata = Declaration ExportFlag (DeclarationType edata)
     deriving (Show, Eq, Functor)

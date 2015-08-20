@@ -14,6 +14,7 @@ import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
+import qualified Crux.JSTree         as JSTree
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = Pos
@@ -89,6 +90,20 @@ literalExpression = (P.try unitLiteralExpression) <|> P.tokenPrim showTok nextPo
     testTok (Token pos ttype) = case ttype of
         TInteger i -> Just $ ELiteral pos $ LInteger i
         TString s -> Just $ ELiteral pos $ LString s
+        _ -> Nothing
+
+parseInt :: Parser Integer
+parseInt = P.tokenPrim show (\pos _ _ -> pos) test
+  where
+    test (Token _ ttype) = case ttype of
+        TInteger i -> Just i
+        _ -> Nothing
+
+parseString :: Parser Text
+parseString = P.tokenPrim show (\pos _ _ -> pos) test
+  where
+    test (Token _ ttype) = case ttype of
+        TString s -> Just s
         _ -> Nothing
 
 identifierExpression :: Parser ParseExpression
@@ -322,21 +337,53 @@ letDeclaration = do
     ELet ed name typeAnn expr <- letExpression
     return $ DLet ed name typeAnn expr
 
-dataDeclaration :: Parser ParseDeclaration
-dataDeclaration = do
-    _ <- P.try $ token TData
+variantDefinition :: Parser Variant
+variantDefinition = do
+    ctorname <- anyIdentifier
+    ctordata <- P.many dataDeclTypeIdent
+    _ <- token TSemicolon
+    return $ Variant ctorname ctordata
 
+cruxDataDeclaration :: Parser ParseDeclaration
+cruxDataDeclaration = do
     name <- typeName
     typeVars <- P.many typeVariableName
 
     _ <- token TOpenBrace
-    variants <- P.many $ do
-        ctorname <- anyIdentifier
-        ctordata <- P.many dataDeclTypeIdent
-        _ <- token TSemicolon
-        return (Variant ctorname ctordata)
+    variants <- P.many variantDefinition
     _ <- token TCloseBrace
     return $ DData name typeVars variants
+
+jsValue :: Parser JSTree.Literal
+jsValue =
+    (fmap (const JSTree.LUndefined) $ identifier "undefined") <|>
+    (fmap (const JSTree.LNull) $ identifier "null") <|>
+    (fmap (const JSTree.LTrue) $ identifier "true") <|>
+    (fmap (const JSTree.LFalse) $ identifier "false") <|>
+    (fmap JSTree.LInteger $ parseInt) <|>
+    (fmap JSTree.LString $ parseString)
+
+jsVariantDefinition :: Parser JSVariant
+jsVariantDefinition = do
+    ctorname <- anyIdentifier
+    _ <- token TEqual
+    ctorvalue <- jsValue
+    _ <- token TSemicolon
+    return $ JSVariant ctorname ctorvalue
+
+jsDataDeclaration :: Parser ParseDeclaration
+jsDataDeclaration = do
+    _ <- P.try $ token TJSFFI
+    name <- typeName
+    _ <- token TOpenBrace
+    variants <- P.many jsVariantDefinition
+    _ <- token TCloseBrace
+    return $ DJSData name variants
+
+dataDeclaration :: Parser ParseDeclaration
+dataDeclaration = do
+    _ <- P.try $ token TData
+    jsDataDeclaration <|> cruxDataDeclaration
 
 typeDeclaration :: Parser ParseDeclaration
 typeDeclaration = do

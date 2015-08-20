@@ -488,6 +488,8 @@ flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
 flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
+    DJSData name variants ->
+        return $ DJSData name variants
     DType (TypeAlias name typeVars ident) ->
         return $ DType $ TypeAlias name typeVars ident
     DLet ty name typeAnn expr -> do
@@ -647,6 +649,8 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
+    DJSData name variants ->
+        return $ DJSData name variants
     DType (TypeAlias name typeVars ident) ->
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args body) -> do

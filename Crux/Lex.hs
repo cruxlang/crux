@@ -60,6 +60,7 @@ keyword = P.try $ do
         "let" -> return TLet
         "fun" -> return TFun
         "data" -> return TData
+        "jsffi" -> return TJSFFI
         "type" -> return TType
         "match" -> return TMatch
         "if" -> return TIf

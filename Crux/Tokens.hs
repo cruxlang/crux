@@ -37,6 +37,7 @@ data TokenType
     | TFun
     | TLet
     | TData
+    | TJSFFI
     | TType
     | TMatch
     | TIf

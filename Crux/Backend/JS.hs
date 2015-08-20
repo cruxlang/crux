@@ -117,11 +117,17 @@ renderVariant Variant{..} = case vparameters of
               [JSTree.ELiteral $ JSTree.LString vname] ++ (map JSTree.EIdentifier argNames)
             ]
 
+renderJSVariant :: JSVariant -> JSTree.Statement
+renderJSVariant (JSVariant name value) =
+    JSTree.SVar name $ Just $ JSTree.ELiteral value
+
 renderDeclaration :: Gen.Declaration -> [JSTree.Statement]
 renderDeclaration (Gen.Declaration export decl) = case decl of
     Gen.DData _name variants ->
         map renderVariant variants
         -- TODO: export data. and type??
+    Gen.DJSData _name variants ->
+        map renderJSVariant variants
     Gen.DFun name params body ->
         let func = JSTree.SFunction name params $ map renderInstruction body in
         func : case export of

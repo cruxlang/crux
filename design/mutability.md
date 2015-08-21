@@ -4,18 +4,16 @@ Crux is at its heart a practical, functional language, and first-class mutabilit
 
 Crux offers mutable data via two mechanisms:  let bindings and record fields.
 
-# `let mutable`
+## Mutable `let` Bindings
 
-A mutable binding can be introduced with the syntax
-
-Mutable values can be updated with the `=` operator.
+A mutable binding can be introduced with the syntax `let mutable`.  Mutable values can be updated with the `=` operator.
 
 ```js
 let mutable x = value;
 x = x + 5;
 ```
 
-# Mutable record fields
+## Mutable record fields
 
 Crux record fields can be denoted as mutable.  This is part of the row-variable.
 
@@ -108,7 +106,7 @@ fun move_to_origin(p) {
 };
 ```
 
-# Mutable fields in immutable records
+## Mutable fields in immutable records
 
 The rule here is very simple: Mutability is in no way transitive.
 

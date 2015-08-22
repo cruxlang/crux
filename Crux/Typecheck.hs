@@ -6,6 +6,7 @@
 module Crux.Typecheck where
 
 import Crux.Prelude
+import Control.Exception (throwIO, ErrorCall(..))
 import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
@@ -270,9 +271,12 @@ check env expr = case expr of
         return $ EBinIntrinsic numTy bi lhs' rhs'
 
     EIfThenElse _ condition ifTrue ifFalse -> do
+        booleanType <- case HashMap.lookup "Boolean" $ eTypeBindings env of
+            Just t -> return t
+            Nothing -> throwIO $ ErrorCall "FATAL: Environment does not contain a Boolean type"
+
         condition' <- check env condition
-        boolTy <- newIORef $ TPrimitive Boolean
-        unify boolTy (edata condition')
+        unify booleanType (edata condition')
         ifTrue' <- check env ifTrue
         ifFalse' <- check env ifFalse
 
@@ -663,23 +667,35 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DLet (edata expr') name maybeAnnot expr'
 
-buildTypeEnvironment :: [Declaration a] -> IO Env
-buildTypeEnvironment decls = do
+buildTypeEnvironment :: Maybe (Module ImmutableTypeVar) -> [Declaration a] -> IO Env
+buildTypeEnvironment prelude decls = do
     numTy  <- newIORef $ TPrimitive Number
     unitTy <- newIORef $ TPrimitive Unit
     strTy  <- newIORef $ TPrimitive String
-    boolTy <- newIORef $ TPrimitive Boolean
 
     e <- newEnv Nothing
     typeEnv <- newIORef $ HashMap.fromList
         [ ("Number", numTy)
         , ("Unit", unitTy)
         , ("String", strTy)
-        , ("Boolean", boolTy)
         ]
 
-    HashTable.insert "True" boolTy (eBindings e)
-    HashTable.insert "False" boolTy (eBindings e)
+    -- inject stuff from the prelude into this global environment
+    -- TODO: rather than injecting symbols, we may need a mechanism to refer
+    -- to imported symbols
+    case prelude of
+      Just prelude' ->
+        forM_ (mDecls prelude') $ \(Declaration _ decl) -> case decl of
+            DJSData name variants -> do
+                let encodeJSVariant (JSVariant n _) = TVariant n []
+                tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
+                HashTable.insert name tr typeEnv
+
+                forM_ variants $ \(JSVariant vname _) -> do
+                    HashTable.insert vname tr (eBindings e)
+
+            _ -> return ()
+      _ -> return ()
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new
@@ -807,8 +823,8 @@ resolveTypeIdent env qvarTable typeIdent =
         reTPrimitive' <- go reTPrimitive
         newIORef $ TFun argTypes' reTPrimitive'
 
-run :: Module Pos -> IO (Module TypeVar)
-run Module{..} = do
-    env <- buildTypeEnvironment mDecls
+run :: Maybe (Module ImmutableTypeVar) -> Module Pos -> IO (Module TypeVar)
+run prelude Module{..} = do
+    env <- buildTypeEnvironment prelude mDecls
     decls <- forM mDecls (checkDecl env)
     return Module{mDecls=decls}

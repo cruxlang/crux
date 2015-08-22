@@ -19,7 +19,6 @@ import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
 import           System.Process (readProcess)
 import           TestJesus
--- import           Text.Show.Pretty   (ppShow)
 import           Data.Monoid    ((<>))
 import           System.IO (hFlush)
 import           System.IO.Temp (withSystemTempFile)

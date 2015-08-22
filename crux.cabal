@@ -40,6 +40,7 @@ library
                  , unordered-containers
                  , pretty-show
                  , filepath
+                 , raw-strings-qq
                  , optparse-applicative
 
     ghc-options: -Wall

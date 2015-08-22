@@ -144,7 +144,7 @@ wrapInModule body = JSTree.SExpression $ JSTree.iife body
 
 generateJS :: Gen.Module -> Text
 generateJS modul = do
-    -- hack
+    -- TODO: this is a hack. actually codegen the prelude.
     let prelude =
             [ JSTree.SVar "True" (Just $ JSTree.EIdentifier "true")
             , JSTree.SVar "False" (Just $ JSTree.EIdentifier "false")

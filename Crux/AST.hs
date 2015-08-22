@@ -159,7 +159,6 @@ data PrimitiveType
     = Number
     | String
     | Unit
-    | Boolean
     deriving (Show, Eq)
 
 data TVariant typevar = TVariant

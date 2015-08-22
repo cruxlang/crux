@@ -8,7 +8,6 @@ module Crux.Parse where
 
 import Crux.Prelude
 import           Control.Applicative ((<|>))
-import           Control.Monad       (unless, when)
 import           Crux.AST            as AST
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
@@ -323,7 +322,7 @@ typeIdent =
 typeName :: Parser Text
 typeName = do
     name <- anyIdentifier
-    unless (isCapitalized name) $ P.parserFail $ "Expected type name, but got " <> (show name)
+    when (not $ isCapitalized name) $ P.parserFail $ "Expected type name, but got " <> (show name)
     return name
 
 typeVariableName :: Parser Text

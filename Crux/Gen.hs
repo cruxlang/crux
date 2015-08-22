@@ -12,12 +12,10 @@ module Crux.Gen
     ) where
 
 import Crux.Prelude
-import Data.IORef (newIORef, readIORef, writeIORef)
 import qualified Crux.AST as AST
 import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
-import Data.HashMap.Strict (HashMap)
 
 type Name = Text
 data Output = Binding Name | Temporary Int

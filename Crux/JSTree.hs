@@ -3,7 +3,6 @@
 module Crux.JSTree where
 
 import Crux.Prelude
-import           Data.HashMap.Strict    (HashMap)
 import qualified Data.HashMap.Strict    as HashMap
 import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder (Builder)

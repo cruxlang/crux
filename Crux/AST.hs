@@ -46,12 +46,13 @@ data ExportFlag = Export | NoExport
 data Declaration edata = Declaration ExportFlag (DeclarationType edata)
     deriving (Show, Eq, Functor)
 
+type ModuleName = Text
+data Import = UnqualifiedImport ModuleName
+    deriving (Show, Eq)
+
 data Module edata = Module
-    -- { mName :: Text
-    -- , mFileName
-    -- , mImports
-    -- , mExports
-    { mDecls :: [Declaration edata]
+    { mImports :: [Import]
+    , mDecls :: [Declaration edata]
     }
     deriving (Show, Eq)
 

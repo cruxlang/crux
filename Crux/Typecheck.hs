@@ -500,7 +500,10 @@ flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
 flattenModule :: Module TypeVar -> IO (Module ImmutableTypeVar)
 flattenModule Module{..} = do
     decls <- mapM flattenDecl mDecls
-    return $ Module{mDecls=decls}
+    return $ Module
+        { mImports=mImports
+        , mDecls=decls
+        }
 
 unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
 unificationError message a b = do

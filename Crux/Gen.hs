@@ -129,6 +129,16 @@ generate env expr = case expr of
             _ -> do
                 return Nothing
 
+    AST.EAssign _ lhs rhs -> do
+        lhs' <- generate env lhs
+        rhs' <- generate env rhs
+        case (lhs', rhs') of
+            (Just (Reference lhs''), Just rhs'') -> do
+                writeInstruction $ Assign lhs'' rhs''
+                return Nothing
+            _ ->
+                return Nothing
+
     AST.ELiteral _ lit -> do
         return $ Just $ Literal lit
 

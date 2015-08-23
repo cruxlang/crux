@@ -26,7 +26,7 @@ copyIORef ior = do
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
-    , eBindings      :: IORef (HashMap Text TypeVar)
+    , eBindings      :: IORef (HashMap Text (LetMutability, TypeVar))
     , eTypeBindings  :: HashMap Text TypeVar
     , eTypeAliases   :: HashMap Text TypeAlias
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
@@ -103,7 +103,7 @@ typeFromConstructor env cname = do
 buildPatternEnv :: TypeVar -> Env -> Pattern -> IO ()
 buildPatternEnv exprType env patt = case patt of
     PPlaceholder pname -> do
-        HashTable.insert pname exprType (eBindings env)
+        HashTable.insert pname (LImmutable, exprType) (eBindings env)
 
     PConstructor cname cargs -> do
         ctor <- typeFromConstructor env cname
@@ -132,13 +132,22 @@ buildPatternEnv exprType env patt = case patt of
                     _ -> error "buildPatternEnv: Pattern for non-sum type??  This should never happen."
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
+isLVar :: Env -> Expression t -> IO Bool
+isLVar env expr = case expr of
+    EIdentifier _ name -> do
+        l <- HashTable.lookup name (eBindings env)
+        return $ case l of
+            Just (LMutable, _) -> True
+            _ -> False
+    _ -> return False
+
 check :: Env -> Expression Pos -> IO (Expression TypeVar)
 check env expr = case expr of
     EFun _ params body -> do
         bindings' <- HashTable.clone (eBindings env)
         paramTypes <- forM params $ \p -> do
             pt <- freshType env
-            HashTable.insert p pt bindings'
+            HashTable.insert p (LImmutable, pt) bindings'
             return pt
 
         returnType <- freshType env
@@ -222,7 +231,7 @@ check env expr = case expr of
     ELet _ mut name maybeAnnot expr' -> do
         ty <- freshType env
         expr'' <- check env expr'
-        HashTable.insert name ty (eBindings env)
+        HashTable.insert name (mut, ty) (eBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env [] annotation
@@ -230,6 +239,19 @@ check env expr = case expr of
 
         unitTy <- newIORef $ TPrimitive Unit
         return $ ELet unitTy mut name maybeAnnot expr''
+
+    EAssign _ lhs rhs -> do
+        lhs' <- check env lhs
+        rhs' <- check env rhs
+
+        unify (edata lhs') (edata rhs')
+
+        islvalue <- isLVar env lhs'
+        when (not islvalue) $ do
+            lhs'' <- flatten lhs'
+            error $ printf "Not an lvar: %s" (show lhs'')
+
+        return $ EAssign (edata lhs') lhs' rhs'
 
     ELiteral _ lit -> do
         litType <- newIORef $ case lit of
@@ -250,7 +272,7 @@ check env expr = case expr of
         case result of
             Nothing -> do
                 error $ "Unbound symbol " ++ show (pos, txt)
-            Just tyref -> do
+            Just (_, tyref) -> do
                 tyref' <- instantiate env tyref
                 return $ EIdentifier tyref' txt
     ESemi _ lhs rhs -> do
@@ -453,6 +475,11 @@ flatten expr = case expr of
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
         return $ ELet td' mut name typeAnn expr''
+    EAssign td lhs rhs -> do
+        td' <- flattenTypeVar td
+        lhs' <- flatten lhs
+        rhs' <- flatten rhs
+        return $ EAssign td' lhs' rhs'
     ELiteral td lit -> do
         td' <- flattenTypeVar td
         return $ ELiteral td' lit
@@ -654,7 +681,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args body) -> do
         ty <- freshType env
-        HashTable.insert name ty (eBindings env)
+        HashTable.insert name (LImmutable, ty) (eBindings env)
         let expr = EFun pos args body
         expr'@(EFun _ _ body') <- check env expr
         unify (edata expr') ty
@@ -663,7 +690,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
     DLet _ mut name maybeAnnot expr -> do
         expr' <- check env expr
         let ty = edata expr'
-        HashTable.insert name ty (eBindings env)
+        HashTable.insert name (mut, ty) (eBindings env)
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
@@ -695,7 +722,7 @@ buildTypeEnvironment prelude decls = do
                 HashTable.insert name tr typeEnv
 
                 forM_ variants $ \(JSVariant vname _) -> do
-                    HashTable.insert vname tr (eBindings e)
+                    HashTable.insert vname (LImmutable, tr) (eBindings e)
 
             _ -> return ()
       _ -> return ()
@@ -760,7 +787,7 @@ buildTypeEnvironment prelude decls = do
 
     forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        HashTable.insert name iType (eBindings env)
+        HashTable.insert name (LImmutable, iType) (eBindings env)
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
@@ -770,7 +797,7 @@ buildTypeEnvironment prelude decls = do
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
                 ctorType <- computeVarianTPrimitive userType qvarTable vname vdata
-                HashTable.insert vname ctorType (eBindings env)
+                HashTable.insert vname (LImmutable, ctorType) (eBindings env)
         _ -> return ()
 
     return env{eTypeBindings=te} -- just env?

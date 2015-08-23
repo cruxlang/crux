@@ -275,4 +275,16 @@ case_line_comments = do
         ]
     assertEqual "" (Right "") result
 
+case_let_mutable = do
+    result <- run $ T.unlines
+        [ "fun main() {"
+        , "    let mutable x = 2;"
+        , "    x = x + 1;"
+        , "    print(x);"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Right "3\n") result
+
 tests = $(testGroupGenerator)

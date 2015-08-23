@@ -214,6 +214,12 @@ addExpression = do
     let op = (token TPlus >> return BIPlus) <|> (token TMinus >> return BIMinus)
     infixExpression op multiplyExpression
 
+assignExpression :: Parser ParseExpression
+assignExpression = do
+    lhs <- P.try (basicExpression <* token TEqual)
+    rhs <- addExpression
+    return $ EAssign (edata lhs) lhs rhs
+
 letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- P.try $ token TLet
@@ -261,6 +267,7 @@ noSemiExpression =
     <|> P.try returnExpression
     <|> P.try functionExpression
     <|> P.try recordLiteralExpression
+    <|> assignExpression
     <|> addExpression
 
 expression :: Parser ParseExpression

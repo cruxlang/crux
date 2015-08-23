@@ -13,6 +13,20 @@ import qualified Crux.Lex as Lex
 import qualified Crux.Parse as Parse
 import qualified Crux.Typecheck as Typecheck
 
+{-
+newtype IVal a = IVal (IORef a)
+    deriving (Eq)
+
+mkIVal :: a -> IO (IVal a)
+mkIVal = IVal <$> newIORef a
+
+rdIVal :: IVal a -> a
+rdIVal (IVal r) = unsafeDuplablePerformIO r
+
+instance Show a => Show (IVal a) where
+    show v = "IVal " ++ show (rdIVal v)
+-}
+
 preludeSource :: Text
 preludeSource = Text.pack $ [r|
 data jsffi Boolean {
@@ -20,6 +34,8 @@ data jsffi Boolean {
     False = false;
 };
 |]
+
+type LoadedModules = HashMap AST.ModuleName 
 
 type LoadedModule = AST.Module AST.ModuleName AST.ImmutableTypeVar
 type ModuleLoader = AST.ModuleName -> IO (Either String Parse.ParseModule)

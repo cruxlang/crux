@@ -2,7 +2,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE Rank2Types        #-}
 
-module Crux.Intrinsic where
+module Crux.Intrinsic
+    ( Intrinsic(..)
+    , intrinsics
+    ) where
 
 import qualified Crux.AST as AST
 import qualified Crux.JSGen.Types    as JSGen

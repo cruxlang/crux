@@ -497,7 +497,7 @@ flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
         body' <- flatten body
         return $ DFun $ FunDef ty' name params body'
 
-flattenModule :: Module TypeVar -> IO (Module ImmutableTypeVar)
+flattenModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
 flattenModule Module{..} = do
     decls <- mapM flattenDecl mDecls
     return $ Module
@@ -670,7 +670,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DLet (edata expr') name maybeAnnot expr'
 
-buildTypeEnvironment :: Maybe (Module ImmutableTypeVar) -> [Declaration a] -> IO Env
+buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration a] -> IO Env
 buildTypeEnvironment prelude decls = do
     numTy  <- newIORef $ TPrimitive Number
     unitTy <- newIORef $ TPrimitive Unit
@@ -826,8 +826,11 @@ resolveTypeIdent env qvarTable typeIdent =
         reTPrimitive' <- go reTPrimitive
         newIORef $ TFun argTypes' reTPrimitive'
 
-run :: Maybe (Module ImmutableTypeVar) -> Module Pos -> IO (Module TypeVar)
+run :: Maybe (Module i ImmutableTypeVar) -> Module i Pos -> IO (Module i TypeVar)
 run prelude Module{..} = do
     env <- buildTypeEnvironment prelude mDecls
     decls <- forM mDecls (checkDecl env)
-    return Module{mDecls=decls}
+    return Module
+        { mImports=mImports
+        , mDecls=decls
+        }

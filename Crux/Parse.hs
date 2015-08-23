@@ -19,7 +19,7 @@ type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = Pos
 type ParseExpression = Expression ParseData
 type ParseDeclaration = DeclarationType ParseData
-type ParseModule = Module ParseData
+type ParseModule = Module ModuleName ParseData
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a

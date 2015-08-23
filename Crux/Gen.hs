@@ -223,7 +223,7 @@ generateDecl env (AST.Declaration export decl) = do
             -- type aliases are not reflected into the IR
             return ()
 
-generateModule :: Show t => AST.Module t -> IO Module
+generateModule :: Show t => AST.Module i t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
     fmap snd $ runWriterT $ do

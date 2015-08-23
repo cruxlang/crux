@@ -21,7 +21,9 @@ data jsffi Boolean {
 };
 |]
 
-preludeModule :: IO (AST.Module AST.ImmutableTypeVar)
+type LoadedModule = AST.Module AST.ModuleName AST.ImmutableTypeVar
+
+preludeModule :: IO LoadedModule
 preludeModule = do
     rv <- loadModuleFromSource' Nothing "Prelude" preludeSource
     case rv of
@@ -29,7 +31,7 @@ preludeModule = do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
         Right m -> return m
 
-loadModuleFromSource' :: Maybe (AST.Module AST.ImmutableTypeVar) -> FilePath -> Text -> IO (Either String (AST.Module AST.ImmutableTypeVar))
+loadModuleFromSource' :: Maybe LoadedModule -> FilePath -> Text -> IO (Either String LoadedModule)
 loadModuleFromSource' prelude filename source = do
     let l = Lex.lexSource filename source
     case l of
@@ -45,12 +47,12 @@ loadModuleFromSource' prelude filename source = do
                     typetree' <- Typecheck.flattenModule typetree
                     return $ Right typetree'
 
-loadModuleFromSource :: FilePath -> Text -> IO (Either String (AST.Module AST.ImmutableTypeVar))
+loadModuleFromSource :: FilePath -> Text -> IO (Either String LoadedModule)
 loadModuleFromSource filename source = do
     prelude <- preludeModule
     loadModuleFromSource' (Just prelude) filename source
 
-loadModuleFromFile :: FilePath -> IO (Either String (AST.Module AST.ImmutableTypeVar))
+loadModuleFromFile :: FilePath -> IO (Either String LoadedModule)
 loadModuleFromFile filename = do
     source <- BS.readFile filename
     loadModuleFromSource filename $ TE.decodeUtf8 source

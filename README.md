@@ -10,12 +10,6 @@ does not compromise on rock-solid fundamentals.
 * Clean mapping to JS
 * Solid asynchronous programming
 
-# Feature Wishlist
-
-* Typeclasses
-* Fast compiles
-* Debuggability
-
 # What does it look like?
 
 Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-Strawman)

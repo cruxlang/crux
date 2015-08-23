@@ -33,7 +33,7 @@ data TypeAlias = TypeAlias Name [Name] TypeIdent
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType edata
-    = DLet edata Name (Maybe TypeIdent) (Expression edata)
+    = DLet edata LetMutability Name (Maybe TypeIdent) (Expression edata)
     | DFun (FunDef edata)
     | DData Name [TypeVariable] [Variant]
     | DJSData Name [JSVariant]
@@ -98,8 +98,13 @@ mapIntrinsicInputs action intrin = do
 
 type IntrinsicId edata = Intrinsic (Expression edata)
 
+data LetMutability
+    = LMutable
+    | LImmutable
+    deriving (Show, Eq)
+
 data Expression edata
-    = ELet edata Name (Maybe TypeIdent) (Expression edata)
+    = ELet edata LetMutability Name (Maybe TypeIdent) (Expression edata)
     | EFun edata [Text] (Expression edata)
     | ERecordLiteral edata (HashMap Name (Expression edata))
     | ELookup edata (Expression edata) Name
@@ -116,7 +121,7 @@ data Expression edata
 
 instance Functor Expression where
     fmap f expr = case expr of
-        ELet d pat typeAnn subExpr -> ELet (f d) pat typeAnn (fmap f subExpr)
+        ELet d mut pat typeAnn subExpr -> ELet (f d) mut pat typeAnn (fmap f subExpr)
         EFun d argNames body -> EFun (f d) argNames (fmap f body)
         ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
@@ -136,7 +141,7 @@ instance Functor Expression where
 
 edata :: Expression edata -> edata
 edata expr = case expr of
-    ELet ed _ _ _ -> ed
+    ELet ed _ _ _ _ -> ed
     EFun ed _ _ -> ed
     ERecordLiteral ed _ -> ed
     ELookup ed _ _ -> ed

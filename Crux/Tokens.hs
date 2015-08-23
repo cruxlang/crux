@@ -44,6 +44,8 @@ data TokenType
     | TThen
     | TElse
     | TReturn
+    | TConst
+    | TMutable
     deriving (Show, Eq)
 
 data Token tdata = Token tdata TokenType

@@ -219,7 +219,7 @@ check env expr = case expr of
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet _ name maybeAnnot expr' -> do
+    ELet _ mut name maybeAnnot expr' -> do
         ty <- freshType env
         expr'' <- check env expr'
         HashTable.insert name ty (eBindings env)
@@ -229,7 +229,7 @@ check env expr = case expr of
             unify ty annotTy
 
         unitTy <- newIORef $ TPrimitive Unit
-        return $ ELet unitTy name maybeAnnot expr''
+        return $ ELet unitTy mut name maybeAnnot expr''
 
     ELiteral _ lit -> do
         litType <- newIORef $ case lit of
@@ -449,10 +449,10 @@ flatten expr = case expr of
         cases' <- forM cases $ \(Case pattern subExpr) ->
             fmap (Case pattern) (flatten subExpr)
         return $ EMatch td' expr' cases'
-    ELet td name typeAnn expr' -> do
+    ELet td mut name typeAnn expr' -> do
         td' <- flattenTypeVar td
         expr'' <- flatten expr'
-        return $ ELet td' name typeAnn expr''
+        return $ ELet td' mut name typeAnn expr''
     ELiteral td lit -> do
         td' <- flattenTypeVar td
         return $ ELiteral td' lit
@@ -488,10 +488,10 @@ flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
         return $ DJSData name variants
     DType (TypeAlias name typeVars ident) ->
         return $ DType $ TypeAlias name typeVars ident
-    DLet ty name typeAnn expr -> do
+    DLet ty mut name typeAnn expr -> do
         ty' <- flattenTypeVar ty
         expr' <- flatten expr
-        return $ DLet ty' name typeAnn expr'
+        return $ DLet ty' mut name typeAnn expr'
     DFun (FunDef ty name params body) -> do
         ty' <- flattenTypeVar ty
         body' <- flatten body
@@ -660,7 +660,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         unify (edata expr') ty
         quantify ty
         return $ DFun $ FunDef (edata expr') name args body'
-    DLet _ name maybeAnnot expr -> do
+    DLet _ mut name maybeAnnot expr -> do
         expr' <- check env expr
         let ty = edata expr'
         HashTable.insert name ty (eBindings env)
@@ -668,7 +668,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
             annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
         quantify ty
-        return $ DLet (edata expr') name maybeAnnot expr'
+        return $ DLet (edata expr') mut name maybeAnnot expr'
 
 buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration a] -> IO Env
 buildTypeEnvironment prelude decls = do

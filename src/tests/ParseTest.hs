@@ -53,23 +53,27 @@ case_application_association = do
 
 case_let = do
     assertExprParses letExpression "let a = \"Hello\""
-        (ELet () "a" Nothing (ELiteral () (LString "Hello")))
+        (ELet () LImmutable "a" Nothing (ELiteral () (LString "Hello")))
 
 case_let2 = do
     assertExprParses letExpression "let a = (5)"
-        (ELet () "a" Nothing (ELiteral () (LInteger 5)))
+        (ELet () LImmutable "a" Nothing (ELiteral () (LInteger 5)))
 
 case_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"
-        (ELet () "a" (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
+        (ELet () LImmutable "a" (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 case_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
-        (ELet () "a" (Just (RecordIdent [("x",TypeIdent "Number" []),("y",TypeIdent "Number" [])])) (ELiteral () LUnit))
+        (ELet () LImmutable "a" (Just (RecordIdent [("x",TypeIdent "Number" []),("y",TypeIdent "Number" [])])) (ELiteral () LUnit))
 
 case_let_with_function_annotation = do
     assertExprParses letExpression "let a : (Number) -> Unit = _unsafe_js(\"console.log\")"
-        (ELet () "a" (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
+        (ELet () LImmutable "a" (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
+
+case_mutable_let = do
+    assertExprParses letExpression "let mutable x = 22"
+        (ELet () LMutable "x" Nothing (ELiteral () (LInteger 22)))
 
 case_pattern = do
     assertParseOk pattern "Cons a (Cons b Nil)"

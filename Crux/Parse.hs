@@ -217,13 +217,14 @@ addExpression = do
 letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- P.try $ token TLet
+    mut <- P.option LImmutable (token TMutable >> return LMutable)
     name <- anyIdentifier
     typeAnn <- P.optionMaybe $ do
         _ <- P.try $ token TColon
         typeIdent
     _ <- token TEqual
     expr <- noSemiExpression
-    return (ELet (tokenData tlet) name typeAnn expr)
+    return $ ELet (tokenData tlet) mut name typeAnn expr
 
 semiExpression :: Parser ParseExpression
 semiExpression = do
@@ -334,8 +335,8 @@ typeVariableName = do
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
-    ELet ed name typeAnn expr <- letExpression
-    return $ DLet ed name typeAnn expr
+    ELet ed mut name typeAnn expr <- letExpression
+    return $ DLet ed mut name typeAnn expr
 
 variantDefinition :: Parser Variant
 variantDefinition = do

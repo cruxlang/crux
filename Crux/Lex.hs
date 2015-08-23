@@ -67,6 +67,8 @@ keyword = P.try $ do
         "then" -> return TThen
         "else" -> return TElse
         "return" -> return TReturn
+        "const" -> return TConst
+        "mutable" -> return TMutable
         _ -> fail ""
 
 symbol :: Parser u (Token Pos)

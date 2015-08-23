@@ -85,7 +85,7 @@ newInstruction env instr = do
 
 generate :: Show t => Env -> AST.Expression t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
-    AST.ELet _ name _ v -> do
+    AST.ELet _ _mut name _ v -> do
         v' <- generate env v
         case v' of
             Just v'' -> do
@@ -215,7 +215,7 @@ generateDecl env (AST.Declaration export decl) = do
         AST.DFun (AST.FunDef _ name params body) -> do
             body' <- subBlockWithReturn env body
             writeDeclaration $ Declaration export $ DFun name params body'
-        AST.DLet _ name _ defn -> do
+        AST.DLet _ _mut name _ defn -> do
             -- error if output has no return value
             defn' <- subBlockWithReturn env defn
             writeDeclaration $ Declaration export $ DLet name defn'

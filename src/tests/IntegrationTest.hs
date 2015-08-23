@@ -287,4 +287,16 @@ case_let_mutable = do
 
     assertEqual "" (Right "3\n") result
 
+case_cannot_assign_to_immutable_binding = do
+    result <- run $ T.unlines
+        [ "fun main() {"
+        , "    let x = 2;"
+        , "    x = x + 1;"
+        , "    print(x);"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Left "Not an lvar: EIdentifier (IType Number) \"x\"") result
+
 tests = $(testGroupGenerator)

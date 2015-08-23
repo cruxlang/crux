@@ -22,6 +22,14 @@ data jsffi Boolean {
 |]
 
 type LoadedModule = AST.Module AST.ModuleName AST.ImmutableTypeVar
+type ModuleLoader = AST.ModuleName -> IO (Either String Parse.ParseModule)
+
+defaultModuleLoader :: ModuleLoader
+defaultModuleLoader name = do
+    if name == "Prelude" then
+        parseModuleFromSource "Prelude" preludeSource
+    else
+        return $ Left $ "unknown module"
 
 preludeModule :: IO LoadedModule
 preludeModule = do
@@ -31,8 +39,8 @@ preludeModule = do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
         Right m -> return m
 
-loadModuleFromSource' :: Maybe LoadedModule -> FilePath -> Text -> IO (Either String LoadedModule)
-loadModuleFromSource' prelude filename source = do
+parseModuleFromSource :: FilePath -> Text -> IO (Either String Parse.ParseModule)
+parseModuleFromSource filename source = do
     let l = Lex.lexSource filename source
     case l of
         Left err ->
@@ -42,10 +50,19 @@ loadModuleFromSource' prelude filename source = do
             case p of
                 Left err ->
                     return $ Left $ "Parse error: " <> show err
-                Right mod' -> do
-                    typetree <- Typecheck.run prelude mod'
-                    typetree' <- Typecheck.flattenModule typetree
-                    return $ Right typetree'
+                Right mod' ->
+                    return $ Right mod'
+
+loadModuleFromSource' :: Maybe LoadedModule -> FilePath -> Text -> IO (Either String LoadedModule)
+loadModuleFromSource' prelude filename source = do
+    p <- parseModuleFromSource filename source
+    case p of
+        Left err ->
+            return $ Left err
+        Right mod' -> do
+            typetree <- Typecheck.run prelude mod'
+            typetree' <- Typecheck.flattenModule typetree
+            return $ Right typetree'
 
 loadModuleFromSource :: FilePath -> Text -> IO (Either String LoadedModule)
 loadModuleFromSource filename source = do

@@ -43,11 +43,9 @@ Crux's type checker infers mutability of record fields from how the records them
 
 A record field can be mutable, immutable, or _quantified_, with the following rules:
 
-Mutable and immutable rows are never type-compatible.
-
-If a function parameter is a record with a quantified field, either an immutable or a mutable field will work.
-
-If the type solver cannot infer either mutability or immutability of a top-level system, it is quantified.
+* Mutable and immutable rows are never type-compatible.
+* If a function parameter is a record with a quantified field, either an immutable or a mutable field will work.
+* If the type solver cannot infer either mutability or immutability of a top-level binding, it is quantified.
 If you let the type solver do most of the heavy lifting, this will actually be the most common case.
 
 For instance, this function will accept either mutable or immutable record fields for its argument:

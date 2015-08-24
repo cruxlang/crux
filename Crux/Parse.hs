@@ -17,9 +17,9 @@ import qualified Crux.JSTree         as JSTree
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = Pos
-type ParseExpression = Expression ParseData
-type ParseDeclaration = DeclarationType ParseData
-type ParseModule = Module ModuleName ParseData
+type ParseExpression = Expression Name ParseData
+type ParseDeclaration = DeclarationType Name ParseData
+type ParseModule = Module Name ParseData
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -420,7 +420,7 @@ funDeclaration = do
 
     return $ DFun $ FunDef (tokenData tfun) name params body
 
-declaration :: Parser (Declaration ParseData)
+declaration :: Parser (Declaration Name ParseData)
 declaration = do
     export <- P.optionMaybe $ token Tokens.TExport
     let exportFlag = case export of

@@ -21,7 +21,7 @@ data Variant = Variant
     , vparameters :: [TypeIdent]
     } deriving (Show, Eq)
 
-data FunDef edata = FunDef edata Name [Name] (Expression edata)
+data FunDef idtype edata = FunDef edata Name [Name] (Expression idtype edata)
     deriving (Show, Eq, Functor)
 
 data JSVariant = JSVariant Name JSTree.Literal
@@ -32,9 +32,9 @@ data TypeAlias = TypeAlias Name [Name] TypeIdent
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
-data DeclarationType edata
-    = DLet edata LetMutability Name (Maybe TypeIdent) (Expression edata)
-    | DFun (FunDef edata)
+data DeclarationType idtype edata
+    = DLet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
+    | DFun (FunDef idtype edata)
     | DData Name [TypeVariable] [Variant]
     | DJSData Name [JSVariant]
     | DType TypeAlias
@@ -43,16 +43,26 @@ data DeclarationType edata
 data ExportFlag = Export | NoExport
     deriving (Show, Eq)
 
-data Declaration edata = Declaration ExportFlag (DeclarationType edata)
+data Declaration idtype edata = Declaration ExportFlag (DeclarationType idtype edata)
     deriving (Show, Eq, Functor)
 
 type ModuleName = Text
-data Import ref = UnqualifiedImport ref
+type UnresolvedReference = Text -- TODO: allow qualified references
+data ResolvedReference = Local Text | ThisModule Text | OtherModule ModuleName Text | Builtin Text
     deriving (Show, Eq)
 
-data Module importref edata = Module
-    { mImports :: [Import importref]
-    , mDecls :: [Declaration edata]
+resolvedReferenceName :: ResolvedReference -> Text
+resolvedReferenceName (Local t) = t
+resolvedReferenceName (ThisModule t) = t
+resolvedReferenceName (OtherModule _ t) = t
+resolvedReferenceName (Builtin t) = t
+
+data Import = UnqualifiedImport ModuleName
+    deriving (Show, Eq)
+
+data Module idtype edata = Module
+    { mImports :: [Import]
+    , mDecls :: [Declaration idtype edata]
     }
     deriving (Show, Eq)
 
@@ -61,10 +71,10 @@ data Pattern
     | PPlaceholder Name
     deriving (Show, Eq)
 
-data Case edata = Case Pattern (Expression edata)
+data Case idtype edata = Case Pattern (Expression idtype edata)
     deriving (Show, Eq)
 
-instance Functor Case where
+instance Functor (Case idtype) where
     fmap f (Case patt subExpr) = Case patt (fmap f subExpr)
 
 data BinIntrinsic
@@ -96,31 +106,31 @@ mapIntrinsicInputs action intrin = do
             input' <- action input
             return $ IToString input'
 
-type IntrinsicId edata = Intrinsic (Expression edata)
+type IntrinsicId idtype edata = Intrinsic (Expression idtype edata)
 
 data LetMutability
     = LMutable
     | LImmutable
     deriving (Show, Eq)
 
-data Expression edata
-    = ELet edata LetMutability Name (Maybe TypeIdent) (Expression edata)
-    | EFun edata [Text] (Expression edata)
-    | ERecordLiteral edata (HashMap Name (Expression edata))
-    | ELookup edata (Expression edata) Name
-    | EApp edata (Expression edata) [Expression edata]
-    | EMatch edata (Expression edata) [Case edata]
-    | EAssign edata (Expression edata) (Expression edata)
+data Expression idtype edata
+    = ELet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
+    | EFun edata [Text] (Expression idtype edata)
+    | ERecordLiteral edata (HashMap Name (Expression idtype edata))
+    | ELookup edata (Expression idtype edata) Name
+    | EApp edata (Expression idtype edata) [Expression idtype edata]
+    | EMatch edata (Expression idtype edata) [Case idtype edata]
+    | EAssign edata (Expression idtype edata) (Expression idtype edata)
     | ELiteral edata Literal
-    | EIdentifier edata Text
-    | ESemi edata (Expression edata) (Expression edata)
-    | EBinIntrinsic edata BinIntrinsic (Expression edata) (Expression edata)
-    | EIntrinsic edata (IntrinsicId edata)
-    | EIfThenElse edata (Expression edata) (Expression edata) (Expression edata)
-    | EReturn edata (Expression edata)
+    | EIdentifier edata idtype
+    | ESemi edata (Expression idtype edata) (Expression idtype edata)
+    | EBinIntrinsic edata BinIntrinsic (Expression idtype edata) (Expression idtype edata)
+    | EIntrinsic edata (IntrinsicId idtype edata)
+    | EIfThenElse edata (Expression idtype edata) (Expression idtype edata) (Expression idtype edata)
+    | EReturn edata (Expression idtype edata)
     deriving (Show, Eq)
 
-instance Functor Expression where
+instance Functor (Expression idtype) where
     fmap f expr = case expr of
         ELet d mut pat typeAnn subExpr -> ELet (f d) mut pat typeAnn (fmap f subExpr)
         EFun d argNames body -> EFun (f d) argNames (fmap f body)
@@ -141,7 +151,7 @@ instance Functor Expression where
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
         EReturn d rv -> EReturn (f d) (fmap f rv)
 
-edata :: Expression edata -> edata
+edata :: Expression idtype edata -> edata
 edata expr = case expr of
     ELet ed _ _ _ _ -> ed
     EFun ed _ _ -> ed

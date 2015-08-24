@@ -7,19 +7,18 @@ module Crux.Intrinsic
     , intrinsics
     ) where
 
+import Crux.Prelude
 import qualified Crux.AST as AST
 import qualified Crux.JSGen.Types    as JSGen
 import qualified Crux.JSTree         as JS
-import           Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
-import Data.IORef (newIORef)
 
 data Intrinsic = Intrinsic
     { iType :: AST.TypeVar
-    , iGen  :: forall a. JSGen.GenVTable -> JSGen.Env -> AST.Expression a -> JSGen.JSWrite JS.Expression
+    , iGen  :: forall a. JSGen.GenVTable -> JSGen.Env -> AST.Expression Text a -> JSGen.JSWrite JS.Expression
     }
 
-genPlus :: JSGen.GenVTable -> JSGen.Env -> AST.Expression t -> JSGen.JSWrite JS.Expression
+genPlus :: JSGen.GenVTable -> JSGen.Env -> AST.Expression Text t -> JSGen.JSWrite JS.Expression
 genPlus JSGen.GenVTable{..} env (AST.EApp _ (AST.EIdentifier _ "+") [lhs, rhs]) = do
     lhs' <- vGenerateExpr env lhs
     rhs' <- vGenerateExpr env rhs

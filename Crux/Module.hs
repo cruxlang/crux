@@ -35,9 +35,9 @@ data jsffi Boolean {
 };
 |]
 
-type LoadedModules = HashMap AST.ModuleName 
+type LoadedModules = HashMap AST.ModuleName
 
-type LoadedModule = AST.Module AST.ModuleName AST.ImmutableTypeVar
+type LoadedModule = AST.Module AST.ResolvedReference AST.ImmutableTypeVar
 type ModuleLoader = AST.ModuleName -> IO (Either String Parse.ParseModule)
 
 defaultModuleLoader :: ModuleLoader

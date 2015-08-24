@@ -95,7 +95,7 @@ case_arithmetic = do
 
 case_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
-    assertEqual "" (Left "Unbound symbol (1:21,\"foo\")") result
+    assertEqual "" result $ Left "FATAL: Unbound symbol (1:21,\"foo\")"
 
 case_recursive = do
     result <- run $ T.unlines
@@ -297,7 +297,7 @@ case_cannot_assign_to_immutable_binding = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Left "Not an lvar: EIdentifier (IType Number) \"x\"") result
+    assertEqual "" (Left "Not an lvar: EIdentifier (IType Number) (Local \"x\")") result
 
 case_assign_to_mutable_record_field = do
     result <- run $ T.unlines
@@ -322,7 +322,7 @@ case_cannot_assign_to_immutable_record_field = do
         ]
 
     assertEqual ""
-        (Left "Not an lvar: ELookup (IType Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IType Number}])) \"a\") \"x\"")
+        (Left "Not an lvar: ELookup (IType Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IType Number}])) (Local \"a\")) \"x\"")
         result
 
 tests = $(testGroupGenerator)

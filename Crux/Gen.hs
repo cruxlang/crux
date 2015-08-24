@@ -18,7 +18,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 
 type Name = Text
-data Output = Binding Name | Temporary Int
+data Output = Binding Name | Temporary Int | OutputProperty Output Name
     deriving (Show, Eq)
 data Value
     = Reference Output
@@ -127,6 +127,16 @@ generate env expr = case expr of
             (Just fn'', Just args'') -> do
                 newInstruction env $ \output -> Call output fn'' args''
             _ -> do
+                return Nothing
+
+    AST.EAssign _ (AST.ELookup _ lhs propName) rhs -> do
+        lhs' <- generate env lhs
+        rhs' <- generate env rhs
+        case (lhs', rhs') of
+            (Just (Reference lhs''), Just rhs'') -> do
+                writeInstruction $ Assign (OutputProperty lhs'' propName) rhs''
+                return Nothing
+            _ ->
                 return Nothing
 
     AST.EAssign _ lhs rhs -> do

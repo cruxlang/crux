@@ -160,7 +160,7 @@ edata expr = case expr of
 
 data TypeIdent
     = TypeIdent TypeName [TypeIdent]
-    | RecordIdent [(Name, TypeIdent)]
+    | RecordIdent [(Name, Maybe LetMutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     deriving (Show, Eq)
 
@@ -181,7 +181,18 @@ data TUserTypeDef typevar = TUserTypeDef
     , tuVariants   :: [TVariant typevar]
     } deriving (Show, Eq)
 
-type TypeRow typevar = (Name, typevar)
+data RowMutability
+    = RMutable
+    | RImmutable
+    | RQuantified
+    | RFree
+    deriving (Show, Eq)
+
+data TypeRow typevar = TypeRow
+    { trName :: Name
+    , trMut :: RowMutability
+    , trTyVar :: typevar
+    } deriving (Show, Eq)
 
 {-
 fun hypot(p) { sqrt(p.x * p.x + p.y * p.y); };

@@ -299,4 +299,30 @@ case_cannot_assign_to_immutable_binding = do
 
     assertEqual "" (Left "Not an lvar: EIdentifier (IType Number) \"x\"") result
 
+case_assign_to_mutable_record_field = do
+    result <- run $ T.unlines
+        [ "fun main() {"
+        , "    let a : {x:Number} = {x:44};"
+        , "    a.x = 22;"
+        , "    print(a);"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Right "{ x: 22 }\n") result
+
+case_cannot_assign_to_immutable_record_field = do
+    result <- run $ T.unlines
+        [ "fun main() {"
+        , "    let a : {const x: Number} = {x:44};"
+        , "    a.x = 22;"
+        , "    print(a);"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual ""
+        (Left "Not an lvar: ELookup (IType Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IType Number}])) \"a\") \"x\"")
+        result
+
 tests = $(testGroupGenerator)

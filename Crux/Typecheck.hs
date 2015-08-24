@@ -5,6 +5,7 @@
 
 module Crux.Typecheck where
 
+import qualified Prelude
 import Crux.Prelude
 import Control.Exception (throwIO, ErrorCall(..))
 import           Crux.AST
@@ -51,8 +52,8 @@ showTypeVarIO tvar = do
         tvs <- mapM showTypeVarIO tvars
         return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
     TRecord (RecordType open' rows') -> do
-        let rowNames = map fst rows'
-        rowTypes <- mapM (showTypeVarIO . snd) rows'
+        let rowNames = map trName rows'
+        rowTypes <- mapM (showTypeVarIO . trTyVar) rows'
         let showRow (name, ty) = Text.unpack name <> ": " <> ty
         let dotdotdot = case open' of
                 RecordFree -> ["f..."]
@@ -132,13 +133,43 @@ buildPatternEnv exprType env patt = case patt of
                     _ -> error "buildPatternEnv: Pattern for non-sum type??  This should never happen."
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
-isLVar :: Env -> Expression t -> IO Bool
-isLVar env expr = case expr of
+walkMutableTypeVar :: TypeVar -> IO TypeVar
+walkMutableTypeVar tyvar = do
+    tyvar' <- readIORef tyvar
+    case tyvar' of
+        TVar _ (Link tv) -> do
+            walkMutableTypeVar tv
+        _ ->
+            return tyvar
+
+isLValue :: Crux.Typecheck.Env -> Expression TypeVar -> IO Bool
+isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- HashTable.lookup name (eBindings env)
         return $ case l of
             Just (LMutable, _) -> True
             _ -> False
+    ELookup _ lhs propName -> do
+        lty <- walkMutableTypeVar (edata lhs)
+        lty' <- readIORef lty
+        case lty' of
+            TRecord (RecordType _ rows) -> do
+                case lookupTypeRow propName rows of
+                    Just (RMutable, _) ->
+                        return True
+                    Just (RQuantified, _) -> do
+                        return False
+                    Just (RImmutable, _) -> do
+                        return False
+                    Just (RFree, _) -> do
+                        -- Update this record field to be a mutable field
+                        return True
+                    Nothing -> do
+                        -- This should  be impossible because type inference should have either failed, or
+                        -- caused this record type to include the field by now.
+                        error "Internal compiler error: calling isLValue on a nonexistent property"
+            _ ->
+                error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
     _ -> return False
 
 check :: Env -> Expression Pos -> IO (Expression TypeVar)
@@ -202,7 +233,7 @@ check env expr = case expr of
             unify ty (edata fieldExpr')
             return (name, fieldExpr')
 
-        let fieldTypes = map (\(name, ex) -> (name, edata ex)) fields'
+        let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
 
         recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
@@ -210,7 +241,7 @@ check env expr = case expr of
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
         ty <- freshType env
-        recTy <- newIORef $ TRecord $ RecordType RecordFree [(propName, ty)]
+        recTy <- newIORef $ TRecord $ RecordType RecordFree [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
         unify (edata lhs') recTy
         return $ ELookup ty lhs' propName
 
@@ -246,7 +277,7 @@ check env expr = case expr of
 
         unify (edata lhs') (edata rhs')
 
-        islvalue <- isLVar env lhs'
+        islvalue <- isLValue env lhs'
         when (not islvalue) $ do
             lhs'' <- flatten lhs'
             error $ printf "Not an lvar: %s" (show lhs'')
@@ -330,8 +361,8 @@ quantify ty = do
             mapM_ quantify param
             quantify ret
         TRecord (RecordType open rows') -> do
-            forM_ rows' $ \(_key, val) -> do
-                quantify val
+            forM_ rows' $ \TypeRow{..} -> do
+                quantify trTyVar
             let open' = case open of
                     RecordFree -> RecordQuantified
                     _ -> open
@@ -380,9 +411,12 @@ instantiate' subst env ty = do
             tut <- newIORef $ TUserType def (map snd typeVars')
             return (and (map fst typeVars'), tut)
         TRecord (RecordType open rows) -> do
-            rows' <- forM rows $ \(name, rowTy) -> do
-                (b, rowTy') <- instantiate' subst env rowTy
-                return (b, (name, rowTy'))
+            rows' <- forM rows $ \TypeRow{..} -> do
+                (b, rowTy') <- instantiate' subst env trTyVar
+                let mut' = case trMut of
+                        RQuantified -> RFree
+                        _ -> trMut
+                return (b, TypeRow{trName, trMut=mut', trTyVar=rowTy'})
 
             let (changedOpen, open') = case open of
                     RecordQuantified -> (True, RecordFree)
@@ -428,9 +462,9 @@ flattenTypeVar tv = do
             def' <- flattenTypeDef def
             return $ IUserType def' tvars'
         TRecord (RecordType open' rows') -> do
-            let flattenRow (name, ty) = do
-                    ty' <- flattenTypeVar ty
-                    return (name, ty')
+            let flattenRow TypeRow{..} = do
+                    trTyVar' <- flattenTypeVar trTyVar
+                    return TypeRow{trName, trMut, trTyVar=trTyVar'}
             rows'' <- mapM flattenRow rows'
             return $ IRecord $ RecordType open' rows''
         TPrimitive t ->
@@ -598,14 +632,35 @@ unify av bv = do
     _ ->
         unificationError "" av bv
 
+unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
+unifyRecordMutability m1 m2 = case (m1, m2) of
+        (RImmutable, RImmutable) -> Right RImmutable
+        (RImmutable, RMutable) -> Left "Record field mutability does not match"
+        (RImmutable, RFree) -> Right RImmutable
+        (RMutable, RMutable) -> Right RMutable
+        (RMutable, RImmutable) -> Left "Record field mutability does not match"
+        (RMutable, RFree) -> Right RMutable
+        (RFree, RFree) -> Right RFree
+        (RFree, RImmutable) -> Right RImmutable
+        (RFree, RMutable) -> Right RMutable
+        (RQuantified, _) -> Left "Quant!! D:"
+        (_, RQuantified) -> Left "Quant2!! D:"
+
+lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
+lookupTypeRow name rows = case rows of
+    [] -> Nothing
+    (TypeRow{..}:rest)
+        | trName == name -> Just (trMut, trTyVar)
+        | otherwise -> lookupTypeRow name rest
+
 unifyRecord :: TypeVar -> TypeVar -> IO ()
 unifyRecord av bv = do
     TRecord a <- readIORef av
     TRecord b <- readIORef bv
     let RecordType aOpen aRows = a
         RecordType bOpen bRows = b
-    let aFields = sort $ map fst aRows
-    let bFields = sort $ map fst bRows
+    let aFields = sort $ map trName aRows
+    let bFields = sort $ map trName bRows
 
     when (aOpen == RecordQuantified || bOpen == RecordQuantified) $
         error "Internal error: Encountered a quantified record.  This should have been instantiated away"
@@ -615,15 +670,18 @@ unifyRecord av bv = do
 
     let allKeys = nub $ sort (aFields ++ bFields)
     newFields <- forM allKeys $ \key -> do
-        case (aRequired, lookup key aRows, bRequired, lookup key bRows) of
-            (_, Just t1, _, Just t2) -> do
-                unify t1 t2
-                return (key, t1)
+        case (aRequired, lookupTypeRow key aRows, bRequired, lookupTypeRow key bRows) of
+            (_, Just (m1, t1), _, Just (m2, t2)) -> do
+                case unifyRecordMutability m1 m2 of
+                    Left err -> error $ printf "Could not unify mutability of record field %s: %s" (show key) err
+                    Right mut -> do
+                        unify t1 t2
+                        return TypeRow{trName=key, trMut=mut, trTyVar=t1}
 
-            (_    , Just t1, False, Nothing) ->
-                return (key, t1)
-            (False, Nothing, _    , Just t2) ->
-                return (key, t2)
+            (_    , Just (m1, t1), False, Nothing) ->
+                return TypeRow{trName=key, trMut=m1, trTyVar=t1}
+            (False, Nothing, _    , Just (m2, t2)) ->
+                return TypeRow{trName=key, trMut=m2, trTyVar=t2}
 
             (True, Nothing, _, _) ->
                 unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
@@ -663,8 +721,8 @@ occurs tvr ty = do
         TUserType _ tvars -> do
             mapM_ (occurs tvr) tvars
         TRecord (RecordType _ rows) -> do
-            forM_ rows $ \(_, rowTy) ->
-                occurs tvr rowTy
+            forM_ rows $ \TypeRow{..} ->
+                occurs tvr trTyVar
         TPrimitive {} ->
             return ()
         TQuant {} ->
@@ -844,8 +902,13 @@ resolveTypeIdent env qvarTable typeIdent =
                     return t
 
     go (RecordIdent rows) = do
-        rows' <- forM rows $ \(rowName, rowTy) ->
-            fmap (rowName,) (go rowTy)
+        rows' <- forM rows $ \(trName, mut, rowTypeIdent) -> do
+            let trMut = case mut of
+                    Nothing -> RFree
+                    Just LMutable -> RMutable
+                    Just LImmutable -> RImmutable
+            trTyVar <- go rowTypeIdent
+            return TypeRow{..}
         newIORef $ TRecord $ RecordType RecordClose rows'
 
     go (FunctionIdent argTypes reTPrimitive) = do

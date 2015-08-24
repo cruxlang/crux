@@ -216,7 +216,7 @@ addExpression = do
 
 assignExpression :: Parser ParseExpression
 assignExpression = do
-    lhs <- P.try (basicExpression <* token TEqual)
+    lhs <- P.try (lookupExpression <* token TEqual)
     rhs <- addExpression
     return $ EAssign (edata lhs) lhs rhs
 
@@ -279,10 +279,11 @@ expression = do
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent =
     let propTypePair = do
+            mut <- P.optionMaybe ((token TMutable *> pure LMutable) <|> (token TConst *> pure LImmutable))
             name <- anyIdentifier
             _ <- token TColon
             ty <- typeIdent
-            return (name, ty)
+            return (name, mut, ty)
     in do
         _ <- P.try $ token TOpenBrace
         props <- P.sepBy propTypePair (token TComma)

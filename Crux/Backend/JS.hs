@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 
 renderOutput :: Gen.Output -> JSTree.Name
 renderOutput (Gen.Binding name) = name
+renderOutput (Gen.OutputProperty lhs propName) = renderOutput lhs <> Text.pack "." <> propName
 renderOutput (Gen.Temporary i) = Text.pack $ "$" <> show i
 
 renderValue :: Gen.Value -> JSTree.Expression

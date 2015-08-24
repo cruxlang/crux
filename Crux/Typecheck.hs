@@ -27,8 +27,8 @@ copyIORef ior = do
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
-    , eBindings      :: IORef (HashMap Text (LetMutability, TypeVar))
-    , eTypeBindings  :: HashMap Text TypeVar
+    , eBindings      :: IORef (HashMap UnresolvedReference (ResolvedReference, LetMutability, TypeVar))
+    , eTypeBindings  :: HashMap UnresolvedReference (ResolvedReference, TypeVar)
     , eTypeAliases   :: HashMap Text TypeAlias
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     }
@@ -97,14 +97,14 @@ typeFromConstructor env cname = do
                             _ -> error "This should never happen: Type has multiple variants with the same constructor name"
                     _ ->
                         return Nothing
-    foldlM fold Nothing (HashMap.elems $ eTypeBindings env)
+    foldlM fold Nothing (fmap snd $ HashMap.elems $ eTypeBindings env)
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 buildPatternEnv :: TypeVar -> Env -> Pattern -> IO ()
 buildPatternEnv exprType env patt = case patt of
     PPlaceholder pname -> do
-        HashTable.insert pname (LImmutable, exprType) (eBindings env)
+        HashTable.insert pname (ThisModule pname, LImmutable, exprType) (eBindings env)
 
     PConstructor cname cargs -> do
         ctor <- typeFromConstructor env cname
@@ -142,12 +142,12 @@ walkMutableTypeVar tyvar = do
         _ ->
             return tyvar
 
-isLValue :: Crux.Typecheck.Env -> Expression TypeVar -> IO Bool
+isLValue :: Crux.Typecheck.Env -> Expression ResolvedReference TypeVar -> IO Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
-        l <- HashTable.lookup name (eBindings env)
+        l <- HashTable.lookup (resolvedReferenceName name) (eBindings env)
         return $ case l of
-            Just (LMutable, _) -> True
+            Just (_, LMutable, _) -> True
             _ -> False
     ELookup _ lhs propName -> do
         lty <- walkMutableTypeVar (edata lhs)
@@ -172,13 +172,26 @@ isLValue env expr = case expr of
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
     _ -> return False
 
-check :: Env -> Expression Pos -> IO (Expression TypeVar)
+resolveType :: Pos -> Env -> UnresolvedReference -> IO TypeVar
+resolveType pos env name = do
+    case HashMap.lookup name $ eTypeBindings env of
+        Just (_, t) -> return t
+        Nothing -> throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos
+
+resolveName :: Pos -> Env -> UnresolvedReference -> IO (ResolvedReference, TypeVar)
+resolveName pos env name = do
+    result <- HashTable.lookup name (eBindings env)
+    case result of
+        Just (rr, _, t) -> return (rr, t)
+        Nothing -> throwIO $ ErrorCall $ "FATAL: Unbound symbol " ++ show (pos, name)
+
+check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check env expr = case expr of
     EFun _ params body -> do
         bindings' <- HashTable.clone (eBindings env)
         paramTypes <- forM params $ \p -> do
             pt <- freshType env
-            HashTable.insert p (LImmutable, pt) bindings'
+            HashTable.insert p (Local p, LImmutable, pt) bindings'
             return pt
 
         returnType <- freshType env
@@ -262,7 +275,7 @@ check env expr = case expr of
     ELet _ mut name maybeAnnot expr' -> do
         ty <- freshType env
         expr'' <- check env expr'
-        HashTable.insert name (mut, ty) (eBindings env)
+        HashTable.insert name (Local name, mut, ty) (eBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env [] annotation
@@ -299,13 +312,9 @@ check env expr = case expr of
     EIdentifier _ "_unsafe_coerce" ->
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
-        result <- HashTable.lookup txt (eBindings env)
-        case result of
-            Nothing -> do
-                error $ "Unbound symbol " ++ show (pos, txt)
-            Just (_, tyref) -> do
-                tyref' <- instantiate env tyref
-                return $ EIdentifier tyref' txt
+        (rr, tyref) <- resolveName pos env txt
+        tyref' <- instantiate env tyref
+        return $ EIdentifier tyref' rr
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
@@ -324,9 +333,7 @@ check env expr = case expr of
         return $ EBinIntrinsic numTy bi lhs' rhs'
 
     EIfThenElse _ condition ifTrue ifFalse -> do
-        booleanType <- case HashMap.lookup "Boolean" $ eTypeBindings env of
-            Just t -> return t
-            Nothing -> throwIO $ ErrorCall "FATAL: Environment does not contain a Boolean type"
+        booleanType <- resolveType (edata expr) env "Boolean"
 
         condition' <- check env condition
         unify booleanType (edata condition')
@@ -470,10 +477,10 @@ flattenTypeVar tv = do
         TPrimitive t ->
             return $ IType t
 
-flattenIntrinsic :: IntrinsicId TypeVar -> IO (IntrinsicId ImmutableTypeVar)
+flattenIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
 flattenIntrinsic = mapIntrinsicInputs flatten
 
-flatten :: Expression TypeVar -> IO (Expression ImmutableTypeVar)
+flatten :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
 flatten expr = case expr of
     EFun td params body -> do
         td' <- flattenTypeVar td
@@ -541,7 +548,7 @@ flatten expr = case expr of
         rv' <- flatten rv
         return $ EReturn td' rv'
 
-flattenDecl :: Declaration TypeVar -> IO (Declaration ImmutableTypeVar)
+flattenDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
 flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
@@ -728,7 +735,7 @@ occurs tvr ty = do
         TQuant {} ->
             return ()
 
-checkDecl :: Env -> Declaration Pos -> IO (Declaration TypeVar)
+checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
@@ -739,7 +746,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args body) -> do
         ty <- freshType env
-        HashTable.insert name (LImmutable, ty) (eBindings env)
+        HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
         let expr = EFun pos args body
         expr'@(EFun _ _ body') <- check env expr
         unify (edata expr') ty
@@ -748,14 +755,14 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
     DLet _ mut name maybeAnnot expr -> do
         expr' <- check env expr
         let ty = edata expr'
-        HashTable.insert name (mut, ty) (eBindings env)
+        HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
 
-buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration a] -> IO Env
+buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration i a] -> IO Env
 buildTypeEnvironment prelude decls = do
     numTy  <- newIORef $ TPrimitive Number
     unitTy <- newIORef $ TPrimitive Unit
@@ -763,9 +770,9 @@ buildTypeEnvironment prelude decls = do
 
     e <- newEnv Nothing
     typeEnv <- newIORef $ HashMap.fromList
-        [ ("Number", numTy)
-        , ("Unit", unitTy)
-        , ("String", strTy)
+        [ ("Number", (Builtin "Number", numTy))
+        , ("Unit", (Builtin "Unit", unitTy))
+        , ("String", (Builtin "String", strTy))
         ]
 
     -- inject stuff from the prelude into this global environment
@@ -777,10 +784,10 @@ buildTypeEnvironment prelude decls = do
             DJSData name variants -> do
                 let encodeJSVariant (JSVariant n _) = TVariant n []
                 tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
-                HashTable.insert name tr typeEnv
+                HashTable.insert name (OtherModule "Prelude" name, tr) typeEnv
 
                 forM_ variants $ \(JSVariant vname _) -> do
-                    HashTable.insert vname (LImmutable, tr) (eBindings e)
+                    HashTable.insert vname (OtherModule "Prelude" vname, LImmutable, tr) (eBindings e)
 
             _ -> return ()
       _ -> return ()
@@ -810,7 +817,7 @@ buildTypeEnvironment prelude decls = do
                     , tuVariants = variants'
                     }
             userType <- newIORef $ TUserType typeDef typeVars
-            modifyIORef' typeEnv (HashMap.insert name userType)
+            modifyIORef' typeEnv $ HashMap.insert name (ThisModule name, userType)
         DType ty@(TypeAlias name _ _) -> do
             HashTable.insert name ty typeAliasesRef
         _ -> return ()
@@ -823,7 +830,7 @@ buildTypeEnvironment prelude decls = do
     -- Second, unify parameter types
     forM_ decls $ \(Declaration _ decl) -> case decl of
         DData name _typeVarNames variants -> do
-            Just ty <- HashTable.lookup name typeEnv
+            Just (_, ty) <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
 
             let TUserTypeDef { tuVariants = tvariants } = typeDef
@@ -845,17 +852,17 @@ buildTypeEnvironment prelude decls = do
 
     forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        HashTable.insert name (LImmutable, iType) (eBindings env)
+        HashTable.insert name (Builtin name, LImmutable, iType) (eBindings env)
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
     forM_ decls $ \(Declaration _ decl) -> case decl of
         DData name _ variants -> do
-            let Just userType = HashMap.lookup name te
+            let Just (_, userType) = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
                 ctorType <- computeVarianTPrimitive userType qvarTable vname vdata
-                HashTable.insert vname (LImmutable, ctorType) (eBindings env)
+                HashTable.insert vname (ThisModule vname, LImmutable, ctorType) (eBindings env)
         _ -> return ()
 
     return env{eTypeBindings=te} -- just env?
@@ -868,7 +875,7 @@ resolveTypeIdent env qvarTable typeIdent =
     go (TypeIdent typeName typeParameters) =
         if isCapitalized typeName
             then case HashMap.lookup typeName eTypeBindings of
-                Just ty -> do
+                Just (_, ty) -> do
                     ty' <- readIORef ty
                     case ty' of
                         TPrimitive {} ->
@@ -911,12 +918,12 @@ resolveTypeIdent env qvarTable typeIdent =
             return TypeRow{..}
         newIORef $ TRecord $ RecordType RecordClose rows'
 
-    go (FunctionIdent argTypes reTPrimitive) = do
+    go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- mapM go argTypes
-        reTPrimitive' <- go reTPrimitive
-        newIORef $ TFun argTypes' reTPrimitive'
+        retPrimitive' <- go retPrimitive
+        newIORef $ TFun argTypes' retPrimitive'
 
-run :: Maybe (Module i ImmutableTypeVar) -> Module i Pos -> IO (Module i TypeVar)
+run :: Maybe (Module UnresolvedReference ImmutableTypeVar) -> Module UnresolvedReference Pos -> IO (Module ResolvedReference TypeVar)
 run prelude Module{..} = do
     env <- buildTypeEnvironment prelude mDecls
     decls <- forM mDecls (checkDecl env)

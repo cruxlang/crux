@@ -762,7 +762,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
 
-buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration i a] -> IO Env
+buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration j a] -> IO Env
 buildTypeEnvironment prelude decls = do
     numTy  <- newIORef $ TPrimitive Number
     unitTy <- newIORef $ TPrimitive Unit
@@ -923,7 +923,7 @@ resolveTypeIdent env qvarTable typeIdent =
         retPrimitive' <- go retPrimitive
         newIORef $ TFun argTypes' retPrimitive'
 
-run :: Maybe (Module UnresolvedReference ImmutableTypeVar) -> Module UnresolvedReference Pos -> IO (Module ResolvedReference TypeVar)
+run :: Maybe (Module ResolvedReference ImmutableTypeVar) -> Module UnresolvedReference Pos -> IO (Module ResolvedReference TypeVar)
 run prelude Module{..} = do
     env <- buildTypeEnvironment prelude mDecls
     decls <- forM mDecls (checkDecl env)

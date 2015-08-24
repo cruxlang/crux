@@ -61,7 +61,7 @@ case_return_from_branch = do
     assertEqual "statements"
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyLet $ Gen.Temporary 0
-            , Gen.If (Gen.Reference $ Gen.Binding "True")
+            , Gen.If (Gen.Reference $ Gen.Binding $ AST.OtherModule "Prelude" "True")
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
@@ -76,7 +76,7 @@ case_branch_with_value = do
     assertEqual "statements"
         [ Gen.Declaration AST.NoExport $ Gen.DLet "x"
             [ Gen.EmptyLet (Gen.Temporary 0)
-            , Gen.If (Gen.Reference $ Gen.Binding "True")
+            , Gen.If (Gen.Reference $ Gen.Binding $ AST.OtherModule "Prelude" "True")
                 [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 2
@@ -91,7 +91,7 @@ case_method_call = do
     assertEqual "statements"
         [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.Temporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
         , Gen.Return (Gen.Reference (Gen.Temporary 0))])
-        , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.Temporary 1) (Gen.Reference (Gen.Binding "hoop")) "woop" []
+        , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.Temporary 1) (Gen.Reference (Gen.Binding $ AST.ThisModule "hoop")) "woop" []
             , Gen.Return (Gen.Reference (Gen.Temporary 1))])
         ]
         result

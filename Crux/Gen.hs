@@ -18,7 +18,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 
 type Name = Text
-data Output = Binding Name | Temporary Int | OutputProperty Output Name
+data Output = Binding AST.ResolvedReference | Temporary Int | OutputProperty Output Name
     deriving (Show, Eq)
 data Value
     = Reference Output
@@ -83,7 +83,7 @@ newInstruction env instr = do
     writeInstruction $ instr output
     return $ Just $ Reference output
 
-generate :: Show t => Env -> AST.Expression Name t -> InstructionWriter (Maybe Value)
+generate :: Show t => Env -> AST.Expression AST.ResolvedReference t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
     AST.ELet _ _mut name _ v -> do
         v' <- generate env v
@@ -211,21 +211,21 @@ generate env expr = case expr of
             Nothing -> do
                 return Nothing
 
-subBlockWithReturn :: (MonadIO m, Show t) => Env -> AST.Expression AST.UnresolvedReference t -> m [Instruction]
+subBlockWithReturn :: (MonadIO m, Show t) => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
         Just output' -> instrs ++ [Return output']
         Nothing -> instrs
 
-subBlockWithOutput :: (MonadIO m, Show t) => Env -> Output -> AST.Expression AST.UnresolvedReference t -> m [Instruction]
+subBlockWithOutput :: (MonadIO m, Show t) => Env -> Output -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlockWithOutput env output expr = do
     (output', instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output' of
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Show t => Env -> AST.Declaration AST.UnresolvedReference t -> DeclarationWriter ()
+generateDecl :: Show t => Env -> AST.Declaration AST.ResolvedReference t -> DeclarationWriter ()
 generateDecl env (AST.Declaration export decl) = do
     case decl of
         AST.DData name _ variants -> do
@@ -243,7 +243,7 @@ generateDecl env (AST.Declaration export decl) = do
             -- type aliases are not reflected into the IR
             return ()
 
-generateModule :: Show t => AST.Module AST.UnresolvedReference t -> IO Module
+generateModule :: Show t => AST.Module AST.ResolvedReference t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
     fmap snd $ runWriterT $ do

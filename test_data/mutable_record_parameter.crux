@@ -1,0 +1,11 @@
+fun swap(p) {
+    let t = p.x;
+    p.x = p.y;
+    p.y = t;
+};
+
+fun main() {
+    let a = {x:44, y:0};
+    swap(a);
+};
+let _ = main();

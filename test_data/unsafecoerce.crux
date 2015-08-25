@@ -1,0 +1,3 @@
+let message = "ohai";
+let coerced = _unsafe_coerce(message);
+let _ = print(5 + coerced);

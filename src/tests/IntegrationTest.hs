@@ -343,4 +343,22 @@ case_mutable_record_field_requirement_is_inferred = do
         (Left "Could not unify mutability of record field \"x\": Record field mutability does not match")
         result
 
+case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
+    result <- run $ T.unlines
+        [ "fun manhattan(p) {"
+        , "    p.x + p.y;"
+        , "};"
+        , ""
+        , "fun main() {"
+        , "    let a : {const x:Number, const y:Number} = {x:44, y:0};"
+        , "    print(manhattan(a));"
+        , ""
+        , "    let b : {mutable x:Number, mutable y:Number} = {x:0, y:0};"
+        , "    print(manhattan(b));"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Right "44\n0\n") result
+
 tests = $(testGroupGenerator)

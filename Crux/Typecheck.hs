@@ -593,17 +593,15 @@ unify av bv = do
     (TVar aid _, TVar bid _)
         | aid == bid ->
             return ()
-    (TVar _ (Link al), _) ->
-        unify al bv
+
     (_, TVar _ (Link bl)) ->
         unify av bl
-    (TVar i a', _) -> do
-        case a' of
-            Unbound _ -> do
-                occurs a' bv
-                writeIORef av (TVar i $ Link bv)
-            Link a'' ->
-                unify a'' bv
+    (TVar _ (Link al), _) ->
+        unify al bv
+
+    (TVar i a'@(Unbound _), _) -> do
+        occurs a' bv
+        writeIORef av (TVar i $ Link bv)
 
     (_, TVar {}) -> do
         unify bv av

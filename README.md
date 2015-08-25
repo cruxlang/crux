@@ -41,17 +41,17 @@ Working:
 * Type inference
 * Sums
 * Pattern matching
-* Row-polymorphic records
+* [Row-polymorphic records](https://github.com/andyfriesen/Crux/blob/master/design/objects.md)
 * `if-then-else`
 * `return`
 * Type aliasing
+* [Mutability](https://github.com/andyfriesen/Crux/blob/master/design/mutability.md)
 
 Not done:
 
 * Modules
 * Loops
 * `break`, `continue`
-* Mutability
 * Exceptions
 * JS FFI
 * Asynchrony

@@ -769,8 +769,9 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
 
-buildTypeEnvironment :: Maybe (Module i ImmutableTypeVar) -> [Declaration j a] -> IO Env
-buildTypeEnvironment prelude decls = do
+buildTypeEnvironment :: HashMap ModuleName LoadedModule -> [Declaration j a] -> IO Env
+buildTypeEnvironment loadedModules decls = do
+    -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
     unitTy <- newIORef $ TPrimitive Unit
     strTy  <- newIORef $ TPrimitive String
@@ -785,7 +786,7 @@ buildTypeEnvironment prelude decls = do
     -- inject stuff from the prelude into this global environment
     -- TODO: rather than injecting symbols, we may need a mechanism to refer
     -- to imported symbols
-    case prelude of
+    case HashMap.lookup "Prelude" loadedModules of
       Just prelude' ->
         forM_ (mDecls prelude') $ \(Declaration _ decl) -> case decl of
             DJSData name variants -> do
@@ -930,9 +931,9 @@ resolveTypeIdent env qvarTable typeIdent =
         retPrimitive' <- go retPrimitive
         newIORef $ TFun argTypes' retPrimitive'
 
-run :: Maybe (Module ResolvedReference ImmutableTypeVar) -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
-run prelude Module{..} = do
-    env <- buildTypeEnvironment prelude mDecls
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
+run loadedModules Module{..} = do
+    env <- buildTypeEnvironment loadedModules mDecls
     decls <- forM mDecls (checkDecl env)
     flattenModule Module
         { mImports=mImports

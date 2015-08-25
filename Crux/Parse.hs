@@ -19,7 +19,6 @@ type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = Pos
 type ParseExpression = Expression Name ParseData
 type ParseDeclaration = DeclarationType Name ParseData
-type ParseModule = Module Name ParseData
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -430,7 +429,7 @@ declaration = do
     declType <- dataDeclaration <|> typeDeclaration <|> funDeclaration <|> letDeclaration
     return $ Declaration exportFlag declType
 
-parseModule :: Parser ParseModule
+parseModule :: Parser ParsedModule
 parseModule = do
     doc <- P.many1 $ declaration <* token TSemicolon
     P.eof
@@ -439,5 +438,5 @@ parseModule = do
         , mDecls = doc
         }
 
-parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParseModule)
+parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
 parse fileName tokens = P.runParserT parseModule () fileName tokens

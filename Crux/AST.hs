@@ -1,10 +1,9 @@
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 module Crux.AST where
 
-import           Data.HashMap.Strict (HashMap)
-import           Data.IORef          (IORef)
-import           Data.Text           (Text)
+import Crux.Prelude
 import qualified Crux.JSTree as JSTree
+import qualified Crux.Tokens as Tokens
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -65,6 +64,9 @@ data Module idtype edata = Module
     , mDecls :: [Declaration idtype edata]
     }
     deriving (Show, Eq)
+
+type ParsedModule = Module UnresolvedReference Tokens.Pos
+type LoadedModule = Module ResolvedReference ImmutableTypeVar
 
 data Pattern
     = PConstructor Name [Pattern]

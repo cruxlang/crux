@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists, QuasiQuotes #-}
 
 module Crux.Module where
 
@@ -13,20 +13,6 @@ import qualified Crux.Lex as Lex
 import qualified Crux.Parse as Parse
 import qualified Crux.Typecheck as Typecheck
 
-{-
-newtype IVal a = IVal (IORef a)
-    deriving (Eq)
-
-mkIVal :: a -> IO (IVal a)
-mkIVal = IVal <$> newIORef a
-
-rdIVal :: IVal a -> a
-rdIVal (IVal r) = unsafeDuplablePerformIO r
-
-instance Show a => Show (IVal a) where
-    show v = "IVal " ++ show (rdIVal v)
--}
-
 preludeSource :: Text
 preludeSource = Text.pack $ [r|
 data jsffi Boolean {
@@ -37,8 +23,7 @@ data jsffi Boolean {
 
 type LoadedModules = HashMap AST.ModuleName
 
-type LoadedModule = AST.Module AST.ResolvedReference AST.ImmutableTypeVar
-type ModuleLoader = AST.ModuleName -> IO (Either String Parse.ParseModule)
+type ModuleLoader = AST.ModuleName -> IO (Either String AST.ParsedModule)
 
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
@@ -47,15 +32,15 @@ defaultModuleLoader name = do
     else
         return $ Left $ "unknown module"
 
-preludeModule :: IO LoadedModule
+preludeModule :: IO AST.LoadedModule
 preludeModule = do
-    rv <- loadModuleFromSource' Nothing "Prelude" preludeSource
+    rv <- loadModuleFromSource' [] "Prelude" preludeSource
     case rv of
         Left err -> do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
         Right m -> return m
 
-parseModuleFromSource :: FilePath -> Text -> IO (Either String Parse.ParseModule)
+parseModuleFromSource :: FilePath -> Text -> IO (Either String AST.ParsedModule)
 parseModuleFromSource filename source = do
     let l = Lex.lexSource filename source
     case l of
@@ -69,21 +54,21 @@ parseModuleFromSource filename source = do
                 Right mod' ->
                     return $ Right mod'
 
-loadModuleFromSource' :: Maybe LoadedModule -> FilePath -> Text -> IO (Either String LoadedModule)
-loadModuleFromSource' prelude filename source = do
+loadModuleFromSource' :: HashMap AST.ModuleName AST.LoadedModule -> FilePath -> Text -> IO (Either String AST.LoadedModule)
+loadModuleFromSource' loadedModules filename source = do
     p <- parseModuleFromSource filename source
     case p of
         Left err ->
             return $ Left err
         Right mod' -> do
-            fmap Right $ Typecheck.run prelude mod'
+            fmap Right $ Typecheck.run loadedModules mod'
 
-loadModuleFromSource :: FilePath -> Text -> IO (Either String LoadedModule)
+loadModuleFromSource :: FilePath -> Text -> IO (Either String AST.LoadedModule)
 loadModuleFromSource filename source = do
     prelude <- preludeModule
-    loadModuleFromSource' (Just prelude) filename source
+    loadModuleFromSource' [("Prelude", prelude)] filename source
 
-loadModuleFromFile :: FilePath -> IO (Either String LoadedModule)
+loadModuleFromFile :: FilePath -> IO (Either String AST.LoadedModule)
 loadModuleFromFile filename = do
     source <- BS.readFile filename
     loadModuleFromSource filename $ TE.decodeUtf8 source

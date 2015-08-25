@@ -325,4 +325,22 @@ case_cannot_assign_to_immutable_record_field = do
         (Left "Not an lvar: ELookup (IType Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IType Number}])) (Local \"a\")) \"x\"")
         result
 
+case_mutable_record_field_requirement_is_inferred = do
+    result <- run $ T.unlines
+        [ "fun swap(p) {"
+        , "    let t = p.x;"
+        , "    p.x = p.y;"
+        , "    p.y = t;"
+        , "};"
+        , "fun main() {"
+        , "    let a : {const x: Number, const y: Number} = {x:44, y:0};"
+        , "    swap(a);"
+        , "};"
+        , "let _ = main();"
+        ]
+
+    assertEqual ""
+        (Left "Could not unify mutability of record field \"x\": Record field mutability does not match")
+        result
+
 tests = $(testGroupGenerator)

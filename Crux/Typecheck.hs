@@ -153,7 +153,7 @@ isLValue env expr = case expr of
         lty <- walkMutableTypeVar (edata lhs)
         lty' <- readIORef lty
         case lty' of
-            TRecord (RecordType _ rows) -> do
+            TRecord (RecordType recordEData rows) -> do
                 case lookupTypeRow propName rows of
                     Just (RMutable, _) ->
                         return True
@@ -161,8 +161,13 @@ isLValue env expr = case expr of
                         return False
                     Just (RImmutable, _) -> do
                         return False
-                    Just (RFree, _) -> do
+                    Just (RFree, rowTy) -> do
                         -- Update this record field to be a mutable field
+                        let newRow = TypeRow{trName=propName, trMut=RMutable, trTyVar=rowTy}
+                        let newFields = newRow:[tr | tr <- rows, trName tr /= propName]
+
+                        writeIORef lty (TRecord $ RecordType recordEData newFields)
+
                         return True
                     Nothing -> do
                         -- This should  be impossible because type inference should have either failed, or
@@ -588,6 +593,10 @@ unify av bv = do
     (TVar aid _, TVar bid _)
         | aid == bid ->
             return ()
+    (TVar _ (Link al), _) ->
+        unify al bv
+    (_, TVar _ (Link bl)) ->
+        unify av bl
     (TVar i a', _) -> do
         case a' of
             Unbound _ -> do

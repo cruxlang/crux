@@ -930,11 +930,11 @@ resolveTypeIdent env qvarTable typeIdent =
         retPrimitive' <- go retPrimitive
         newIORef $ TFun argTypes' retPrimitive'
 
-run :: Maybe (Module ResolvedReference ImmutableTypeVar) -> Module UnresolvedReference Pos -> IO (Module ResolvedReference TypeVar)
+run :: Maybe (Module ResolvedReference ImmutableTypeVar) -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
 run prelude Module{..} = do
     env <- buildTypeEnvironment prelude mDecls
     decls <- forM mDecls (checkDecl env)
-    return Module
+    flattenModule Module
         { mImports=mImports
         , mDecls=decls
         }

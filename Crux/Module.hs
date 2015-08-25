@@ -76,9 +76,7 @@ loadModuleFromSource' prelude filename source = do
         Left err ->
             return $ Left err
         Right mod' -> do
-            typetree <- Typecheck.run prelude mod'
-            typetree' <- Typecheck.flattenModule typetree
-            return $ Right typetree'
+            fmap Right $ Typecheck.run prelude mod'
 
 loadModuleFromSource :: FilePath -> Text -> IO (Either String LoadedModule)
 loadModuleFromSource filename source = do

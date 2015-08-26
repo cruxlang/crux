@@ -356,7 +356,8 @@ check env expr = case expr of
                 error "Cannot return outside of functions"
             Just rt -> do
                 unify rt $ edata rv'
-                return $ EReturn (edata rv') rv'
+                retTy <- freshType env
+                return $ EReturn retTy rv'
 
 quantify :: TypeVar -> IO ()
 quantify ty = do

@@ -372,4 +372,17 @@ case_jsffi_data_type_names_and_values_can_be_used = do
 
     assertEqual "" (Right "GET\n") result
 
+case_return_unifies_with_anything = do
+    result <- run $ T.unlines
+        [ "fun a() {"
+        , "    let p ="
+        , "        if True"
+        , "            then return \"hody\""
+        , "            else 22;"
+        , "    toString(p);"
+        , "};"
+        ]
+
+    assertEqual "" (Right "") result
+
 tests = $(testGroupGenerator)

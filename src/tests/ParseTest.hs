@@ -63,6 +63,9 @@ case_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"
         (ELet () LImmutable "a" (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
+case_record_types_can_have_trailing_comma = do
+    assertParseOk typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])]) id
+
 case_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
         (ELet () LImmutable "a" (Just (RecordIdent

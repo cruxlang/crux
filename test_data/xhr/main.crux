@@ -24,7 +24,7 @@ type XMLHttpRequest = {
     open : (Method, Url) -> Unit,
     addEventListener : (EventName, EventHandler) -> Unit,
     setRequestHeader : (String, String) -> Unit,
-    responseText : String
+    responseText : String,
     //getRequestHeader : (String) -> Unityped
 };
 

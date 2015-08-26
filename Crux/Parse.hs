@@ -6,14 +6,14 @@
 
 module Crux.Parse where
 
-import Crux.Prelude
 import           Control.Applicative ((<|>))
 import           Crux.AST            as AST
+import qualified Crux.JSTree         as JSTree
+import           Crux.Prelude
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
-import qualified Crux.JSTree         as JSTree
 
 type Parser = P.ParsecT [Token Pos] () IO
 type ParseData = Pos
@@ -275,20 +275,38 @@ expression = do
     _ <- token TSemicolon
     return s
 
+-- Parse elements separated by a delimiter.  Differs from P.many in that a dangling delimiter is permitted.
+delimited :: Parser a -> Parser b -> Parser [a]
+delimited parseElement delim = do
+    let go acc = do
+            d <- P.optionMaybe delim
+            case d of
+                Nothing -> return acc
+                Just _ -> do
+                    next <- P.optionMaybe parseElement
+                    case next of
+                        Nothing -> return acc
+                        Just n -> go (n:acc)
+
+    first <- P.optionMaybe parseElement
+    case first of
+        Nothing -> return []
+        Just f -> fmap reverse $ go [f]
+
 recordTypeIdent :: Parser TypeIdent
-recordTypeIdent =
+recordTypeIdent = do
     let propTypePair = do
             mut <- P.optionMaybe ((token TMutable *> pure LMutable) <|> (token TConst *> pure LImmutable))
             name <- anyIdentifier
             _ <- token TColon
             ty <- typeIdent
             return (name, mut, ty)
-    in do
-        _ <- P.try $ token TOpenBrace
-        props <- P.sepBy propTypePair (token TComma)
-        _ <- P.optional $ token TComma
-        _ <- P.try $ token TCloseBrace
-        return $ RecordIdent props
+
+    _ <- P.try $ token TOpenBrace
+    props <- delimited propTypePair (token TComma)
+    _ <- P.optional $ token TComma
+    _ <- P.try $ token TCloseBrace
+    return $ RecordIdent props
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = P.try $ do

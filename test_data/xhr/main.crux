@@ -7,7 +7,13 @@ data jsffi ReadyState {
     Done=4;
 };
 
-type Method = String;
+data jsffi Method {
+    Get="GET";
+    Post="POST";
+    Put="PUT";
+    Delete="DELETE";
+};
+
 type Url = String;
 type EventName = String;
 type EventHandler = () -> Unit;
@@ -35,7 +41,7 @@ fun http_get(url, onLoaded) {
     };
 
     xhr.addEventListener("load", loadProc);
-    xhr.open("GET", url);
+    xhr.open(Get, url);
     xhr.send();
     xhr;
 };

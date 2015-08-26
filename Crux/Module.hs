@@ -37,7 +37,7 @@ defaultModuleLoader name = do
     if name == "Prelude" then
         parseModuleFromSource "Prelude" preludeSource
     else
-        return $ Left $ "unknown module: " <> Text.unpack name
+        return $ Left $ "unknown module: " <> (Text.unpack $ AST.printModuleName name)
 
 loadPrelude :: IO AST.LoadedModule
 loadPrelude = do
@@ -124,16 +124,23 @@ loadProgram loader main = do
         , pOtherModules = otherModules
         }
 
+moduleNameToPath :: AST.ModuleName -> FilePath
+moduleNameToPath (AST.ModuleName prefix m) =
+    let toPathSegment (AST.ModuleSegment t) = Text.unpack t in
+    FP.combine
+        (FP.joinPath $ map toPathSegment prefix)
+        (toPathSegment m <> ".crux")
+
 newFSModuleLoader :: FilePath -> ModuleLoader
 newFSModuleLoader root moduleName = do
-    parseModuleFromFile $ FP.combine root $ Text.unpack moduleName <> ".crux"
+    parseModuleFromFile $ FP.combine root $ moduleNameToPath moduleName
 
 loadProgramFromFile :: FilePath -> IO Program
 loadProgramFromFile path = do
     let (dirname, basename) = FP.splitFileName path
     let loader = newFSModuleLoader dirname
     rootModuleName <- case FP.splitExtension basename of
-        (rootModuleName, ".crux") -> return $ Text.pack rootModuleName
+        (rootModuleName, ".crux") -> return $ fromString rootModuleName
         _ -> fail "Please load .crux file"
 
     loadProgram loader rootModuleName

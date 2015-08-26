@@ -1,7 +1,8 @@
-{-# LANGUAGE RecordWildCards, DeriveFunctor #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveGeneric #-}
 module Crux.AST where
 
 import Crux.Prelude
+import qualified Data.Text as Text
 import qualified Crux.JSTree as JSTree
 import qualified Crux.Tokens as Tokens
 
@@ -45,7 +46,29 @@ data ExportFlag = Export | NoExport
 data Declaration idtype edata = Declaration ExportFlag (DeclarationType idtype edata)
     deriving (Show, Eq, Functor)
 
-type ModuleName = Text
+newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }
+    deriving (Show, Eq, Generic)
+instance Hashable ModuleSegment
+
+data ModuleName = ModuleName [ModuleSegment] ModuleSegment
+    deriving (Show, Eq, Generic)
+instance Hashable ModuleName
+
+-- TODO: assert that first letter is capitalized, remainder are alphanumeric
+toModuleSegment :: Text -> ModuleSegment
+toModuleSegment = ModuleSegment
+
+instance IsString ModuleName where
+    fromString s =
+        let t = Text.pack s in
+        let p = Text.splitOn "." t in
+        case map toModuleSegment p of
+            [] -> error "Invalid module name"
+            xs -> ModuleName (init xs) (last xs)
+
+printModuleName :: ModuleName -> Text
+printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $ a <> [b]
+
 type UnresolvedReference = Text -- TODO: allow qualified references
 data ResolvedReference = Local Text | ThisModule Text | OtherModule ModuleName Text | Builtin Text
     deriving (Show, Eq)

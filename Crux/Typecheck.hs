@@ -800,7 +800,7 @@ buildTypeEnvironment loadedModules modul = do
                         HashTable.insert vname (OtherModule importName vname, LImmutable, tr) (eBindings e)
 
                 _ -> return ()
-        _ -> fail $ "dependent module not loaded: " <> Text.unpack importName
+        _ -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new

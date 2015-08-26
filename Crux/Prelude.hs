@@ -8,6 +8,9 @@ module Crux.Prelude
     , module Control.Monad.IO.Class
     , module Control.Applicative
     , module Data.HashMap.Strict
+    , module Data.Hashable
+    , module GHC.Generics
+    , module Data.String
     ) where
 
 import Data.Foldable (foldl', foldlM)
@@ -19,3 +22,6 @@ import Control.Monad (forM, forM_, when, foldM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Applicative ((<$>), (<*>))
 import Data.HashMap.Strict (HashMap)
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
+import Data.String (IsString(..))

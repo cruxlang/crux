@@ -826,6 +826,22 @@ buildTypeEnvironment loadedModules decls = do
                     }
             userType <- newIORef $ TUserType typeDef typeVars
             modifyIORef' typeEnv $ HashMap.insert name (ThisModule name, userType)
+
+        DJSData name variants -> do
+            -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
+            variants' <- forM variants $ \(JSVariant variantName _value) -> do
+                let tvParameters = []
+                let tvName = variantName
+                return TVariant{..}
+
+            let typeDef = TUserTypeDef
+                    { tuName = name
+                    , tuParameters = []
+                    , tuVariants = variants'
+                    }
+            userType <- newIORef $ TUserType typeDef []
+            modifyIORef' typeEnv $ HashMap.insert name (ThisModule name, userType)
+
         DType ty@(TypeAlias name _ _) -> do
             HashTable.insert name ty typeAliasesRef
         _ -> return ()
@@ -871,6 +887,10 @@ buildTypeEnvironment loadedModules decls = do
             forM_ variants $ \(Variant vname vdata) -> do
                 ctorType <- computeVarianTPrimitive userType qvarTable vname vdata
                 HashTable.insert vname (ThisModule vname, LImmutable, ctorType) (eBindings env)
+        DJSData name variants -> do
+            let Just (_, userType) = HashMap.lookup name te
+            forM_ variants $ \(JSVariant variantName _value) -> do
+                HashTable.insert variantName (ThisModule variantName, LImmutable, userType) (eBindings env)
         _ -> return ()
 
     return env{eTypeBindings=te} -- just env?

@@ -361,4 +361,15 @@ case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
 
     assertEqual "" (Right "44\n0\n") result
 
+case_jsffi_data_type_names_and_values_can_be_used = do
+    result <- run $ T.unlines
+        [ "data jsffi Method {"
+        , "    Get=\"GET\";"
+        , "};"
+        , "let result : Method = Get;"
+        , "let _ = print(result);"
+        ]
+
+    assertEqual "" (Right "GET\n") result
+
 tests = $(testGroupGenerator)

@@ -1,0 +1,51 @@
+
+data jsffi ReadyState {
+    Unsent=0;
+    Opened=1;
+    HeadersReceived=2;
+    Loading=3;
+    Done=4;
+};
+
+type Method = String;
+type Url = String;
+type EventName = String;
+type EventHandler = () -> Unit;
+
+type XMLHttpRequest = {
+    send : () -> Unit,
+    abort: () -> Unit,
+    open : (Method, Url) -> Unit,
+    addEventListener : (EventName, EventHandler) -> Unit,
+    setRequestHeader : (String, String) -> Unit,
+    responseText : String
+    //getRequestHeader : (String) -> Unityped
+};
+
+fun newXhr() {
+    let result : XMLHttpRequest = _unsafe_js("new XMLHttpRequest");
+    result;
+};
+
+fun http_get(url, onLoaded) {
+    let xhr = newXhr();
+
+    let loadProc = fun() {
+        onLoaded(xhr);
+    };
+
+    xhr.addEventListener("load", loadProc);
+    xhr.open("GET", url);
+    xhr.send();
+    xhr;
+};
+
+fun main() {
+    let document = _unsafe_js("window.document");
+    http_get("main.crux", fun (xhr) {
+        print("Got response :D");
+        document.write(xhr.responseText);
+    });
+};
+
+let _ = main();

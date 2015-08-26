@@ -41,7 +41,7 @@ defaultModuleLoader name = do
 
 loadPrelude :: IO AST.LoadedModule
 loadPrelude = do
-    rv <- loadModuleFromSource' [] "Prelude" preludeSource
+    rv <- loadModuleFromSource' id [] "Prelude" preludeSource
     case rv of
         Left err -> do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
@@ -66,19 +66,20 @@ parseModuleFromFile filename = do
     source <- BS.readFile filename
     parseModuleFromSource filename $ TE.decodeUtf8 source
 
-loadModuleFromSource' :: HashMap AST.ModuleName AST.LoadedModule -> FilePath -> Text -> IO (Either String AST.LoadedModule)
-loadModuleFromSource' loadedModules filename source = do
+loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> FilePath -> Text -> IO (Either String AST.LoadedModule)
+loadModuleFromSource' adjust loadedModules filename source = do
     p <- parseModuleFromSource filename source
     case p of
         Left err ->
             return $ Left err
         Right mod' -> do
-            fmap Right $ Typecheck.run loadedModules mod'
+            fmap Right $ Typecheck.run loadedModules $ adjust mod'
 
 loadModuleFromSource :: FilePath -> Text -> IO (Either String AST.LoadedModule)
 loadModuleFromSource filename source = do
     prelude <- loadPrelude
-    loadModuleFromSource' [("Prelude", prelude)] filename source
+    let lm = [("Prelude", prelude)]
+    loadModuleFromSource' addPrelude lm filename source
 
 loadModuleFromFile :: FilePath -> IO (Either String AST.LoadedModule)
 loadModuleFromFile filename = do
@@ -88,6 +89,9 @@ loadModuleFromFile filename = do
 importsOf :: AST.Module a b -> [AST.ModuleName]
 importsOf m = do
     map (\(AST.UnqualifiedImport i) -> i) $ AST.mImports m
+
+addPrelude :: AST.Module a b -> AST.Module a b
+addPrelude m = m { AST.mImports = AST.UnqualifiedImport "Prelude" : AST.mImports m }
 
 loadModule :: ModuleLoader -> IORef (HashMap AST.ModuleName AST.LoadedModule) -> AST.ModuleName -> IO AST.LoadedModule
 loadModule loader loadedModules moduleName = do
@@ -99,7 +103,7 @@ loadModule loader loadedModules moduleName = do
             parsedModuleResult <- loader moduleName
             parsedModule <- case parsedModuleResult of
                 Left err -> fail $ "Error loading module: " <> err
-                Right m -> return m
+                Right m -> return $ addPrelude m
             forM_ (importsOf parsedModule) $ \referencedModule ->
                 loadModule loader loadedModules referencedModule
             lm <- readIORef loadedModules

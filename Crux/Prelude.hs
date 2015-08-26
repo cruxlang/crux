@@ -3,6 +3,7 @@ module Crux.Prelude
     , module Data.Text
     , module Data.IORef
     , module Data.Monoid
+    , module Debug.Trace
     , module Control.Monad
     , module Control.Monad.IO.Class
     , module Control.Applicative
@@ -13,6 +14,7 @@ import Data.Foldable (foldl', foldlM)
 import Data.Text (Text)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef, modifyIORef')
 import Data.Monoid ((<>), mempty)
+import Debug.Trace (traceShow, traceShowM)
 import Control.Monad (forM, forM_, when, foldM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Applicative ((<$>), (<*>))

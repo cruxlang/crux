@@ -769,8 +769,8 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
 
-buildTypeEnvironment :: HashMap ModuleName LoadedModule -> [Declaration j a] -> IO Env
-buildTypeEnvironment loadedModules decls = do
+buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
+buildTypeEnvironment loadedModules modul = do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
     unitTy <- newIORef $ TPrimitive Unit
@@ -786,19 +786,20 @@ buildTypeEnvironment loadedModules decls = do
     -- inject stuff from the prelude into this global environment
     -- TODO: rather than injecting symbols, we may need a mechanism to refer
     -- to imported symbols
-    case HashMap.lookup "Prelude" loadedModules of
-      Just prelude' ->
-        forM_ (mDecls prelude') $ \(Declaration _ decl) -> case decl of
-            DJSData name variants -> do
-                let encodeJSVariant (JSVariant n _) = TVariant n []
-                tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
-                HashTable.insert name (OtherModule "Prelude" name, tr) typeEnv
+    forM_ (mImports modul) $ \(UnqualifiedImport importName) -> do
+      case HashMap.lookup importName loadedModules of
+        Just prelude' ->
+            forM_ (mDecls prelude') $ \(Declaration _ decl) -> case decl of
+                DJSData name variants -> do
+                    let encodeJSVariant (JSVariant n _) = TVariant n []
+                    tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
+                    HashTable.insert name (OtherModule importName name, tr) typeEnv
 
-                forM_ variants $ \(JSVariant vname _) -> do
-                    HashTable.insert vname (OtherModule "Prelude" vname, LImmutable, tr) (eBindings e)
+                    forM_ variants $ \(JSVariant vname _) -> do
+                        HashTable.insert vname (OtherModule importName vname, LImmutable, tr) (eBindings e)
 
-            _ -> return ()
-      _ -> return ()
+                _ -> return ()
+        _ -> fail $ "dependent module not loaded: " <> Text.unpack importName
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new
@@ -806,7 +807,7 @@ buildTypeEnvironment loadedModules decls = do
     typeAliasesRef <- HashTable.new
 
     -- First, populate the type environment.  Variant parameter types are all initially free.
-    forM_ decls $ \(Declaration _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
         DData name typeVarNames variants -> do
             typeVars <- forM typeVarNames $ const $ do
                 ft <- freshType e
@@ -852,7 +853,7 @@ buildTypeEnvironment loadedModules decls = do
     let env = e{eTypeBindings=te, eTypeAliases=ta}
 
     -- Second, unify parameter types
-    forM_ decls $ \(Declaration _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
         DData name _typeVarNames variants -> do
             Just (_, ty) <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
@@ -880,7 +881,7 @@ buildTypeEnvironment loadedModules decls = do
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
-    forM_ decls $ \(Declaration _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
         DData name _ variants -> do
             let Just (_, userType) = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
@@ -952,10 +953,9 @@ resolveTypeIdent env qvarTable typeIdent =
         newIORef $ TFun argTypes' retPrimitive'
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
-run loadedModules Module{..} = do
-    env <- buildTypeEnvironment loadedModules mDecls
-    decls <- forM mDecls (checkDecl env)
-    flattenModule Module
-        { mImports=mImports
-        , mDecls=decls
+run loadedModules modul = do
+    env <- buildTypeEnvironment loadedModules modul
+    decls <- forM (mDecls modul) (checkDecl env)
+    flattenModule modul
+        { mDecls=decls
         }

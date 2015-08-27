@@ -1,45 +1,103 @@
-One key component of the FFI is specifying precisely how data structures are represented in JavaScript.  For example:
+Crux is intended to be a practical, productive browser language.  As such, a clean FFI is an important
+feature of its design.
 
-```
-data Bool { False, True }
-```
+## Primitives
 
-should be represented in JS with `false` and `true`.
+Crux primitive data maps to JS data types relatively directly.
 
-Consider this example:
+The Crux data types `Number`, `Boolean`, and `String` all directly map to the equivalent JS data types.
 
-```
-data ReadyState {
-    UNSENT,
-    OPENED,
-    HEADERS_RECEIVED,
-    LOADING,
-    DONE,
-}
-```
+Crux's `Unit` type is always represented at runtime with `undefined` (where the generated code produces any
+value at all)
 
-The enum cases should be represented in JS as 0, 1, 2, 3, and 4 to match the XHR spec.
+Crux functions also map directly to JS functions at the moment. (this may conceivably change when certain language
+features are introduced)
 
-There are also enums that should be represented in JS as string constants.
+Crux records map directly to JS objects.  Property names are carried through as-written by the programmer.
 
-Thus, we will need a mechanism for specifying the JavaScript representation of enums.  Note: jsffi enums cannot have associated data.
+## Enumerations
+
+The `jsffi` keyword can be used to create enumeration data types that ascribe an exact JS representation
+to each variant.  Because of this, `jsffi` enums obviously cannot have associated data.
 
 ```
 data jsffi Bool {
     True = true,
     False = false,
-}
+};
 
 data jsffi ReadyState {
-    UNSENT = 0,
-    OPENED = 1,
-    HEADERS_RECEIVED = 2,
-    LOADING = 3,
-    DONE = 4,
-}
+    Unsent = 0,
+    Opened = 1,
+    HeadersReceived = 2,
+    Loading = 3,
+    Done = 4,
+};
 ```
 
-If jsffi is unspecified, simple enumerations compile into sequential integers (i.e. 0, 1, 2...)
+## Objects
+
+Crux is not particularly object-oriented, but the browser API and popular JS frameworks are.  Crux affords a simple way
+to use these APIs.
+
+Crux records map exactly to JS objects.  Further, if an attribute of a record is a function, applying that function
+is guaranteed to generate valid JS for a method call. (ie `this` will be properly set to a reference to the record)
+
+There is a small sleight of hand going on here as we promise to the compiler that a value has properties which are
+actually properties of the object's prototype.  Crux itself has no particular awareness of JS prototypes.
+
+For instance, the following code can be used to fabricate an `XMLHttpRequest` object in Crux.
+
+```js
+data jsffi ReadyState {
+    Unsent=0,
+    Opened=1,
+    HeadersReceived=2,
+    Loading=3,
+    Done=4,
+};
+
+data jsffi Method {
+    Get="GET",
+    Post="POST",
+    Put="PUT",
+    Delete="DELETE",
+};
+
+type Url = String;
+type EventName = String;
+type EventHandler = () -> Unit;
+
+type XMLHttpRequest = {
+    send : () -> Unit,
+    open : (Method, Url) -> Unit,
+    addEventListener : (EventName, EventHandler) -> Unit,
+    setRequestHeader : (String, String) -> Unit,
+    responseText : String,
+};
+
+fun newXhr() {
+    let result : XMLHttpRequest = _unsafe_js("new XMLHttpRequest");
+    result;
+};
+
+fun http_get(url, onLoaded) {
+    let xhr = newXhr();
+
+    let loadProc = fun() {
+        onLoaded(xhr);
+    };
+
+    xhr.addEventListener("load", loadProc);
+    xhr.open(Get, url);
+    xhr.send();
+    xhr;
+};
+```
+
+## Future work
+
+If jsffi is unspecified, we should represent simple enumerations as sequential integers (i.e. 0, 1, 2...)
 
 Enumerations with associated data, as in the following example...
 

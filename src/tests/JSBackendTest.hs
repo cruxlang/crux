@@ -65,7 +65,7 @@ case_branch_with_value = do
         result
 
 case_jsffi_data = do
-    result <- genDoc "data jsffi JST { A = undefined; B = null; C = true; D = false; E = 10; F = \"hi\"; };"
+    result <- genDoc "data jsffi JST { A = undefined, B = null, C = true, D = false, E = 10, F = \"hi\", };"
     assertEqual "statements"
         "var A = (void 0);\nvar B = null;\nvar C = true;\nvar D = false;\nvar E = 10;\nvar F = \"hi\";\n"
         result

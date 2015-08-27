@@ -60,8 +60,8 @@ case_integer = do
 case_data_types = do
     result <- run $ T.unlines
         [ "data IntList {"
-        , "    Element Number IntList;"
-        , "    Nil;"
+        , "    Element Number IntList,"
+        , "    Nil"
         , "};"
         , "let mylist = Element(1, Element(2, Nil));"
         , "let _ = print(mylist);"
@@ -72,8 +72,8 @@ case_data_types = do
 case_pattern_matches_can_be_expressions_that_yield_values = do
     result <- run $ T.unlines
         [ "data IntList {"
-        , "    Element Number IntList;"
-        , "    Nil;"
+        , "    Element Number IntList,"
+        , "    Nil,"
         , "};"
         , ""
         , "let list = Element(1, Element(2, Nil));"
@@ -99,7 +99,7 @@ case_let_is_not_recursive_by_default = do
 
 case_recursive = do
     result <- run $ T.unlines
-        [ "data IntList { Cons Number IntList; Nil; };"
+        [ "data IntList { Cons Number IntList, Nil };"
         , "fun len(l) {"
         , "    match l {"
         , "        Nil => 0;"
@@ -113,8 +113,8 @@ case_recursive = do
 case_recursive_data = do
     result <- run $ T.unlines
         [ "data List a {"
-        , "    Cons a (List a);"
-        , "    Nil;"
+        , "    Cons a (List a),"
+        , "    Nil"
         , "};"
         , ""
         , "let s = Cons(5, Cons(6, Cons(7, Nil)));"
@@ -139,7 +139,7 @@ case_occurs_on_fun = do
 
 case_occurs_on_sum = do
     result <- run $ T.unlines
-        [ "data List a { Cons a (List a); Nil; };"
+        [ "data List a { Cons a (List a), Nil };"
         , "fun bad(a) { Cons(a, a); };"
         ]
 
@@ -232,7 +232,7 @@ case_type_alias = do
 
 case_parameterized_type_alias = do
     result <- run $ T.unlines
-        [ "data List a { Nil; Cons a (List a); };"
+        [ "data List a { Nil, Cons a (List a) };"
         , "type Bogo a = List a;"
         , "let hoop : Bogo Number = Cons(5, Nil);"
         ]
@@ -265,7 +265,7 @@ case_line_comments = do
     result <- run $ T.unlines
         [ "// A list is either Nil, the empty case, or"
         , "// it is Cons an element and another list."
-        , "data List a { Nil; Cons a (List a); };"
+        , "data List a { Nil, Cons a (List a), };"
         , ""
         , "/* TODO: Decide on an optimal name for this type alias"
         , " type Bogo = List; */"
@@ -364,7 +364,8 @@ case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
 case_jsffi_data_type_names_and_values_can_be_used = do
     result <- run $ T.unlines
         [ "data jsffi Method {"
-        , "    Get=\"GET\";"
+        , "    Get=\"GET\","
+        , "    Post=\"POST\","
         , "};"
         , "let result : Method = Get;"
         , "let _ = print(result);"

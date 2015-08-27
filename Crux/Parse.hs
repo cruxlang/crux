@@ -367,7 +367,6 @@ variantDefinition :: Parser Variant
 variantDefinition = do
     ctorname <- anyIdentifier
     ctordata <- P.many dataDeclTypeIdent
-    _ <- token TSemicolon
     return $ Variant ctorname ctordata
 
 cruxDataDeclaration :: Parser ParseDeclaration
@@ -376,7 +375,7 @@ cruxDataDeclaration = do
     typeVars <- P.many typeVariableName
 
     _ <- token TOpenBrace
-    variants <- P.many variantDefinition
+    variants <- delimited variantDefinition (token TComma)
     _ <- token TCloseBrace
     return $ DData name typeVars variants
 
@@ -394,7 +393,6 @@ jsVariantDefinition = do
     ctorname <- anyIdentifier
     _ <- token TEqual
     ctorvalue <- jsValue
-    _ <- token TSemicolon
     return $ JSVariant ctorname ctorvalue
 
 jsDataDeclaration :: Parser ParseDeclaration
@@ -402,7 +400,7 @@ jsDataDeclaration = do
     _ <- P.try $ token TJSFFI
     name <- typeName
     _ <- token TOpenBrace
-    variants <- P.many jsVariantDefinition
+    variants <- delimited jsVariantDefinition (token TComma)
     _ <- token TCloseBrace
     return $ DJSData name variants
 

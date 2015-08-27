@@ -101,7 +101,7 @@ case_times = do
         (EBinIntrinsic () BIMultiply (ELiteral () $ LInteger 8) (ELiteral () $ LInteger 8))
 
 case_polymorphic_data = do
-    assertExprParses dataDeclaration "data Maybe a { Some a; None; };"
+    assertExprParses dataDeclaration "data Maybe a { Some a, None, };"
         (DData "Maybe" ["a"] [Variant {vname = "Some", vparameters = [TypeIdent "a" []]},Variant {vname = "None", vparameters = []}])
 
 case_empty_fun_decl = do

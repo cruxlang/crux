@@ -18,8 +18,8 @@ Summary:
 
 ```ocaml
 data List a {
-    Cons a (List a);
-    Nil;
+    Cons a (List a),
+    Nil
 };
 
 let s = Cons(5, Cons(6, Cons(7, Nil)));

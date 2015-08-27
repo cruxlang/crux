@@ -18,8 +18,8 @@ import qualified System.FilePath as FP
 preludeSource :: Text
 preludeSource = Text.pack $ [r|
 data jsffi Boolean {
-    True = true;
-    False = false;
+    True = true,
+    False = false,
 };
 |]
 

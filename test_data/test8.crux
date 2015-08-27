@@ -1,7 +1,7 @@
 
 data IntList {
-    Element Number IntList;
-    Nil;
+    Element Number IntList,
+    Nil
 };
 
 fun length(list) {

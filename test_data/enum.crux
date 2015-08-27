@@ -1,7 +1,7 @@
 
 data IntList {
-    Element Number IntList;
-    Nil;
+    Element Number IntList,
+    Nil,
 };
 
 let list = Element(1, Element(2, Nil));

@@ -1,7 +1,7 @@
 
 data Bool {
-    True;
-    False;
+    True,
+    False
 };
 
 let main = fun (x) {

@@ -1,6 +1,6 @@
 data IntList {
-    Cons Number IntList;
-    Nil;
+    Cons Number IntList,
+    Nil
 };
 
 fun len(l) {

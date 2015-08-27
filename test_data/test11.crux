@@ -1,6 +1,6 @@
 data Option a {
-    Some a;
-    None;
+    Some a,
+    None
 };
 
 let s = Some(5);

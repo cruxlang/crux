@@ -586,66 +586,69 @@ unificationError message a b = do
     error $ "Unification error: " ++ message ++ " " ++ sa ++ " and " ++ sb
 
 unify :: TypeVar -> TypeVar -> IO ()
-unify av bv = do
-  a <- readIORef av
-  b <- readIORef bv
+unify av bv
+    | av == bv =
+        return ()
+    | otherwise = do
+        a <- readIORef av
+        b <- readIORef bv
 
-  case (a, b) of
-    (TVar aid _, TVar bid _)
-        | aid == bid ->
-            return ()
+        case (a, b) of
+            (TVar aid _, TVar bid _)
+                | aid == bid ->
+                    return ()
 
-    (_, TVar _ (Link bl)) ->
-        unify av bl
-    (TVar _ (Link al), _) ->
-        unify al bv
+            (_, TVar _ (Link bl)) ->
+                unify av bl
+            (TVar _ (Link al), _) ->
+                unify al bv
 
-    (TVar i a'@(Unbound _), _) -> do
-        occurs a' bv
-        writeIORef av (TVar i $ Link bv)
+            (TVar i a'@(Unbound _), _) -> do
+                occurs a' bv
+                writeIORef av (TVar i $ Link bv)
 
-    (_, TVar {}) -> do
-        unify bv av
+            (_, TVar {}) -> do
+                unify bv av
 
-    (TPrimitive aType, TPrimitive bType)
-        | aType == bType ->
-            return ()
-        | otherwise -> do
-            unificationError "" av bv
+            (TPrimitive aType, TPrimitive bType)
+                | aType == bType ->
+                    return ()
+                | otherwise -> do
+                    unificationError "" av bv
 
-    (TUserType ad atv, TUserType bd btv)
-        | tuName ad == tuName bd -> do
-            mapM_ (uncurry unify) (zip atv btv)
-        | otherwise -> do
-            unificationError "" av bv
+            (TUserType ad atv, TUserType bd btv)
+                | tuName ad == tuName bd -> do
+                    mapM_ (uncurry unify) (zip atv btv)
+                | otherwise -> do
+                    unificationError "" av bv
 
-    (TRecord {}, TRecord {}) ->
-        unifyRecord av bv
+            (TRecord {}, TRecord {}) ->
+                unifyRecord av bv
 
-    (TFun aa ar, TFun ba br) -> do
-        when (length aa /= length ba) $
-            unificationError "" av bv
+            (TFun aa ar, TFun ba br) -> do
+                when (length aa /= length ba) $
+                    unificationError "" av bv
 
-        mapM_ (uncurry unify) (zip aa ba)
-        unify ar br
+                mapM_ (uncurry unify) (zip aa ba)
+                unify ar br
 
-    (TFun {}, TPrimitive {}) ->
-        unificationError "" av bv
-    (TPrimitive {}, TFun {}) ->
-        unificationError "" av bv
+            (TFun {}, TPrimitive {}) ->
+                unificationError "" av bv
+            (TPrimitive {}, TFun {}) ->
+                unificationError "" av bv
 
-    -- These should never happen: Quantified type variables should be instantiated before we get here.
-    (TQuant {}, _) -> do
-        lt <- showTypeVarIO av
-        rt <- showTypeVarIO bv
-        error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
-    (_, TQuant {}) -> do
-        lt <- showTypeVarIO av
-        rt <- showTypeVarIO bv
-        error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
+            -- These should never happen: Quantified type variables should be instantiated before we get here.
+            (TQuant {}, _) -> do
+                lt <- showTypeVarIO av
+                rt <- showTypeVarIO bv
+                error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
+            (_, TQuant {}) -> do
+                lt <- showTypeVarIO av
+                rt <- showTypeVarIO bv
+                error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
 
-    _ ->
-        unificationError "" av bv
+            _ ->
+                unificationError "" av bv
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of

@@ -372,6 +372,17 @@ case_jsffi_data_type_names_and_values_can_be_used = do
 
     assertEqual "" (Right "GET\n") result
 
+case_record_self_unification = do
+    result <- run $ T.unlines
+        [ "let r = {};"
+        , "fun main(o) {"
+        , "    if False then o else r;"
+        , "};"
+        , "let _ = main(r);"
+        ]
+
+    assertEqual "" (Right "") result
+
 case_return_unifies_with_anything = do
     result <- run $ T.unlines
         [ "fun a() {"

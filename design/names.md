@@ -13,6 +13,7 @@ boa - nice extension, easy to say
 sneak
 
 fox
+starscript
 
 three-letter animal names
 positive words

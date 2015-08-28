@@ -19,6 +19,8 @@ library
                    , Crux.Parse
                    , Crux.Tokens
                    , Crux.Typecheck
+                   , Crux.Typecheck.Types
+                   , Crux.Typecheck.Unify
                    , Crux.Intrinsic
                    , Crux.Lex
                    , Crux.Main

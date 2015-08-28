@@ -19,19 +19,13 @@ import           Data.List             (intercalate, nub, sort)
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
+import Crux.Typecheck.Types
+import Crux.Typecheck.Unify
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
     v <- readIORef ior
     newIORef v
-
-data Env = Env
-    { eNextTypeIndex :: IORef Int
-    , eBindings      :: IORef (HashMap UnresolvedReference (ResolvedReference, LetMutability, TypeVar))
-    , eTypeBindings  :: HashMap UnresolvedReference (ResolvedReference, TypeVar)
-    , eTypeAliases   :: HashMap Text TypeAlias
-    , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
-    }
 
 showTypeVarIO :: TypeVar -> IO [Char]
 showTypeVarIO tvar = do
@@ -75,12 +69,6 @@ childEnv :: Env -> IO Env
 childEnv env = do
     bindings' <- HashTable.clone (eBindings env)
     return env{eBindings=bindings'}
-
-freshType :: Env -> IO TypeVar
-freshType Env{eNextTypeIndex} = do
-    modifyIORef' eNextTypeIndex (+1)
-    index <- readIORef eNextTypeIndex
-    newIORef $ TVar index (Unbound index)
 
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
@@ -142,7 +130,7 @@ walkMutableTypeVar tyvar = do
         _ ->
             return tyvar
 
-isLValue :: Crux.Typecheck.Env -> Expression ResolvedReference TypeVar -> IO Bool
+isLValue :: Env -> Expression ResolvedReference TypeVar -> IO Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- HashTable.lookup (resolvedReferenceName name) (eBindings env)
@@ -382,61 +370,6 @@ quantify ty = do
             writeIORef ty $ TRecord $ RecordType open' rows'
         _ ->
             return ()
-
-instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
-instantiateUserType subst env def tyVars = do
-    typeVars' <- mapM (instantiate' subst env) tyVars
-    let typeVars'' = if and (map fst typeVars')
-            then map snd typeVars'
-            else tyVars
-    userType <- newIORef $ TUserType def typeVars''
-    variants <- forM (tuVariants def) $ \variant -> do
-        paramTypes <- forM (tvParameters variant) $ \param -> do
-            instantiate' subst env param
-        return variant{tvParameters=map snd paramTypes}
-    return (userType, variants)
-
-instantiate' :: IORef (HashMap Int TypeVar) -> Crux.Typecheck.Env -> TypeVar -> IO (Bool, TypeVar)
-instantiate' subst env ty = do
-    ty' <- readIORef ty
-    case ty' of
-        TQuant name -> do
-            mv <- HashTable.lookup name subst
-            case mv of
-                Just v ->
-                    return (True, v)
-                Nothing -> do
-                    tv <- freshType env
-                    HashTable.insert name tv subst
-                    return (True, tv)
-        TVar _ vl -> do
-            case vl of
-                Link tv'  -> instantiate' subst env tv'
-                Unbound _ -> return (False, ty)
-        TFun param ret -> do
-            ty1 <- mapM (instantiate' subst env) param
-            (b2, ty2) <- instantiate' subst env ret
-            let b = b2 || and (map fst ty1)
-            tfun <- newIORef $ TFun (map snd ty1) ty2
-            return (b, tfun)
-        TUserType def tyVars -> do
-            typeVars' <- mapM (instantiate' subst env) tyVars
-            tut <- newIORef $ TUserType def (map snd typeVars')
-            return (and (map fst typeVars'), tut)
-        TRecord (RecordType open rows) -> do
-            rows' <- forM rows $ \TypeRow{..} -> do
-                (b, rowTy') <- instantiate' subst env trTyVar
-                let mut' = case trMut of
-                        RQuantified -> RFree
-                        _ -> trMut
-                return (b, TypeRow{trName, trMut=mut', trTyVar=rowTy'})
-
-            let (changedOpen, open') = case open of
-                    RecordQuantified -> (True, RecordFree)
-                    _ -> (False, open)
-            tr <- newIORef $ TRecord $ RecordType open' (map snd rows')
-            return (changedOpen || or (map fst rows'), tr)
-        TPrimitive {} -> return (False, ty)
 
 instantiate :: Env -> TypeVar -> IO TypeVar
 instantiate env t = do

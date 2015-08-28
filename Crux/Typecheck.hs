@@ -5,7 +5,6 @@
 
 module Crux.Typecheck where
 
-import qualified Prelude
 import Crux.Prelude
 import Control.Exception (throwIO, ErrorCall(..))
 import           Crux.AST
@@ -15,7 +14,6 @@ import qualified Crux.MutableHashTable as HashTable
 import           Crux.Text             (isCapitalized)
 import           Crux.Tokens           (Pos (..))
 import qualified Data.HashMap.Strict   as HashMap
-import           Data.List             (intercalate, nub, sort)
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
@@ -26,36 +24,6 @@ copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
     v <- readIORef ior
     newIORef v
-
-showTypeVarIO :: TypeVar -> IO [Char]
-showTypeVarIO tvar = do
-  tvar' <- readIORef tvar
-  case tvar' of
-    TVar i o' -> do
-        os <- case o' of
-            Unbound j -> return $ "Unbound " ++ show j
-            Link x -> showTypeVarIO x
-        return $ "(TVar " ++ show i ++ " " ++ os ++ ")"
-    TQuant i ->
-        return $ "TQuant " ++ show i
-    TFun arg ret -> do
-        as <- mapM showTypeVarIO arg
-        rs <- showTypeVarIO ret
-        return $ "TFun (" ++ intercalate "," as ++ ") -> " ++ rs
-    TUserType def tvars -> do
-        tvs <- mapM showTypeVarIO tvars
-        return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
-    TRecord (RecordType open' rows') -> do
-        let rowNames = map trName rows'
-        rowTypes <- mapM (showTypeVarIO . trTyVar) rows'
-        let showRow (name, ty) = Text.unpack name <> ": " <> ty
-        let dotdotdot = case open' of
-                RecordFree -> ["f..."]
-                RecordQuantified -> ["q..."]
-                RecordClose -> []
-        return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
-    TPrimitive ty ->
-        return $ show ty
 
 newEnv :: Maybe TypeVar -> IO Env
 newEnv eReturnType = do
@@ -347,38 +315,6 @@ check env expr = case expr of
                 retTy <- freshType env
                 return $ EReturn retTy rv'
 
-quantify :: TypeVar -> IO ()
-quantify ty = do
-    ty' <- readIORef ty
-    case ty' of
-        TVar i tv' -> do
-            case tv' of
-                Unbound j -> do
-                    qTy <- newIORef $ TQuant j
-                    writeIORef ty (TVar i $ Link qTy)
-                Link t' ->
-                    quantify t'
-        TFun param ret -> do
-            mapM_ quantify param
-            quantify ret
-        TRecord (RecordType open rows') -> do
-            forM_ rows' $ \TypeRow{..} -> do
-                quantify trTyVar
-            let open' = case open of
-                    RecordFree -> RecordQuantified
-                    _ -> open
-            writeIORef ty $ TRecord $ RecordType open' rows'
-        _ ->
-            return ()
-
-instantiate :: Env -> TypeVar -> IO TypeVar
-instantiate env t = do
-    subst <- HashTable.new
-    (didAnything, t') <- instantiate' subst env t
-    return $ if didAnything
-        then t'
-        else t
-
 flattenTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
 flattenTypeDef TUserTypeDef{..} = do
     parameters' <- mapM flattenTypeVar tuParameters
@@ -511,173 +447,6 @@ flattenModule Module{..} = do
         { mImports=mImports
         , mDecls=decls
         }
-
-unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
-unificationError message a b = do
-    sa <- showTypeVarIO a
-    sb <- showTypeVarIO b
-    error $ "Unification error: " ++ message ++ " " ++ sa ++ " and " ++ sb
-
-unify :: TypeVar -> TypeVar -> IO ()
-unify av bv
-    | av == bv =
-        return ()
-    | otherwise = do
-        a <- readIORef av
-        b <- readIORef bv
-
-        case (a, b) of
-            (TVar aid _, TVar bid _)
-                | aid == bid ->
-                    return ()
-
-            (_, TVar _ (Link bl)) ->
-                unify av bl
-            (TVar _ (Link al), _) ->
-                unify al bv
-
-            (TVar i a'@(Unbound _), _) -> do
-                occurs a' bv
-                writeIORef av (TVar i $ Link bv)
-
-            (_, TVar {}) -> do
-                unify bv av
-
-            (TPrimitive aType, TPrimitive bType)
-                | aType == bType ->
-                    return ()
-                | otherwise -> do
-                    unificationError "" av bv
-
-            (TUserType ad atv, TUserType bd btv)
-                | tuName ad == tuName bd -> do
-                    mapM_ (uncurry unify) (zip atv btv)
-                | otherwise -> do
-                    unificationError "" av bv
-
-            (TRecord {}, TRecord {}) ->
-                unifyRecord av bv
-
-            (TFun aa ar, TFun ba br) -> do
-                when (length aa /= length ba) $
-                    unificationError "" av bv
-
-                mapM_ (uncurry unify) (zip aa ba)
-                unify ar br
-
-            (TFun {}, TPrimitive {}) ->
-                unificationError "" av bv
-            (TPrimitive {}, TFun {}) ->
-                unificationError "" av bv
-
-            -- These should never happen: Quantified type variables should be instantiated before we get here.
-            (TQuant {}, _) -> do
-                lt <- showTypeVarIO av
-                rt <- showTypeVarIO bv
-                error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
-            (_, TQuant {}) -> do
-                lt <- showTypeVarIO av
-                rt <- showTypeVarIO bv
-                error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
-
-            _ ->
-                unificationError "" av bv
-
-unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
-unifyRecordMutability m1 m2 = case (m1, m2) of
-        (RImmutable, RImmutable) -> Right RImmutable
-        (RImmutable, RMutable) -> Left "Record field mutability does not match"
-        (RImmutable, RFree) -> Right RImmutable
-        (RMutable, RMutable) -> Right RMutable
-        (RMutable, RImmutable) -> Left "Record field mutability does not match"
-        (RMutable, RFree) -> Right RMutable
-        (RFree, RFree) -> Right RFree
-        (RFree, RImmutable) -> Right RImmutable
-        (RFree, RMutable) -> Right RMutable
-        (RQuantified, _) -> Left "Quant!! D:"
-        (_, RQuantified) -> Left "Quant2!! D:"
-
-lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
-lookupTypeRow name rows = case rows of
-    [] -> Nothing
-    (TypeRow{..}:rest)
-        | trName == name -> Just (trMut, trTyVar)
-        | otherwise -> lookupTypeRow name rest
-
-unifyRecord :: TypeVar -> TypeVar -> IO ()
-unifyRecord av bv = do
-    TRecord a <- readIORef av
-    TRecord b <- readIORef bv
-    let RecordType aOpen aRows = a
-        RecordType bOpen bRows = b
-    let aFields = sort $ map trName aRows
-    let bFields = sort $ map trName bRows
-
-    when (aOpen == RecordQuantified || bOpen == RecordQuantified) $
-        error "Internal error: Encountered a quantified record.  This should have been instantiated away"
-
-    let aRequired = RecordClose == aOpen
-        bRequired = RecordClose == bOpen
-
-    let allKeys = nub $ sort (aFields ++ bFields)
-    newFields <- forM allKeys $ \key -> do
-        case (aRequired, lookupTypeRow key aRows, bRequired, lookupTypeRow key bRows) of
-            (_, Just (m1, t1), _, Just (m2, t2)) -> do
-                case unifyRecordMutability m1 m2 of
-                    Left err -> error $ printf "Could not unify mutability of record field %s: %s" (show key) err
-                    Right mut -> do
-                        unify t1 t2
-                        return TypeRow{trName=key, trMut=mut, trTyVar=t1}
-
-            (_    , Just (m1, t1), False, Nothing) ->
-                return TypeRow{trName=key, trMut=m1, trTyVar=t1}
-            (False, Nothing, _    , Just (m2, t2)) ->
-                return TypeRow{trName=key, trMut=m2, trTyVar=t2}
-
-            (True, Nothing, _, _) ->
-                unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
-
-            (_, _, True, Nothing) ->
-                unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
-
-            (False, Nothing, False, Nothing) -> do
-                error "Internal error in unifyRecord: This should be very impossible"
-
-    let open' = case (aOpen, bOpen) of
-            (RecordClose, _)         -> RecordClose
-            (_, RecordClose)         -> RecordClose
-            (RecordQuantified, _)    -> RecordQuantified
-            (_, RecordQuantified)    -> RecordQuantified
-            (RecordFree, RecordFree) -> RecordFree
-
-    writeIORef av $ TRecord $ RecordType open' newFields
-
-    let i = 888 -- hack
-    writeIORef bv (TVar i $ Link av)
-
-occurs :: VarLink TypeVar -> TypeVar -> IO ()
-occurs tvr ty = do
-    tyy <- readIORef ty
-    case tyy of
-        TVar _ ty''
-            | tvr == ty'' -> do
-                error $ "Occurs check failed"
-            | otherwise -> do
-                case ty'' of
-                    Link ty''' -> occurs tvr ty'''
-                    _ -> return ()
-        TFun arg ret -> do
-            mapM_ (occurs tvr) arg
-            occurs tvr ret
-        TUserType _ tvars -> do
-            mapM_ (occurs tvr) tvars
-        TRecord (RecordType _ rows) -> do
-            forM_ rows $ \TypeRow{..} ->
-                occurs tvr trTyVar
-        TPrimitive {} ->
-            return ()
-        TQuant {} ->
-            return ()
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of

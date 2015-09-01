@@ -45,6 +45,7 @@ data Instruction
     | Return Input
     | Match Input [(AST.Pattern, [Instruction])]
     | If Input [Instruction] [Instruction]
+    | While Input [Instruction]
     deriving (Show, Eq)
 
 type Env = IORef Int
@@ -202,6 +203,16 @@ generate env expr = case expr of
             Nothing -> do
                 return Nothing
 
+    AST.EWhile _ cond body -> do
+        cond' <- generate env cond
+        body' <- subBlock env body
+        case cond' of
+            Just cond'' -> do
+                writeInstruction $ While cond'' body'
+                return Nothing
+            Nothing ->
+                error "Gen.hs internal error: while condition does not produce a value"
+
     AST.EReturn _ rv -> do
         rv' <- generate env rv
         case rv' of
@@ -210,6 +221,11 @@ generate env expr = case expr of
                 return Nothing
             Nothing -> do
                 return Nothing
+
+subBlock :: (MonadIO m, Show t) => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
+subBlock env expr = do
+    (_output, instructions) <- liftIO $ runWriterT $ generate env expr
+    return instructions
 
 subBlockWithReturn :: (MonadIO m, Show t) => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlockWithReturn env expr = do

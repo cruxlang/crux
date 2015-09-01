@@ -43,6 +43,8 @@ data TokenType
     | TIf
     | TThen
     | TElse
+    | TWhile
+    | TDo
     | TReturn
     | TConst
     | TMutable

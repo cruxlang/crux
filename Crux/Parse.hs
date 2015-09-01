@@ -69,6 +69,14 @@ ifThenElseExpression = do
         (P.try (token TElse) >> noSemiExpression)
     return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
 
+whileExpression :: Parser ParseExpression
+whileExpression = do
+    pr <- P.try $ token TWhile
+    c <- noSemiExpression
+    _ <- token TDo
+    body <- noSemiExpression
+    return $ EWhile (tokenData pr) c body
+
 returnExpression :: Parser ParseExpression
 returnExpression = do
     pr <- P.try $ token TReturn
@@ -216,7 +224,7 @@ addExpression = do
 assignExpression :: Parser ParseExpression
 assignExpression = do
     lhs <- P.try (lookupExpression <* token TEqual)
-    rhs <- addExpression
+    rhs <- noSemiExpression
     return $ EAssign (edata lhs) lhs rhs
 
 letExpression :: Parser ParseExpression
@@ -234,14 +242,17 @@ letExpression = do
 semiExpression :: Parser ParseExpression
 semiExpression = do
     e <- noSemiExpression
-    _ <- token TSemicolon
-    e2 <- noSemiExpression
-    return $ ESemi (edata e) e e2
+    e2 <- P.optionMaybe (token TSemicolon *> semiExpression)
+    case e2 of
+        Nothing ->
+            return e
+        Just e2' ->
+            return (ESemi (edata e) e e2')
 
 parenExpression :: Parser ParseExpression
 parenExpression = do
     _ <- token $ TOpenParen
-    e <- P.try semiExpression <|> noSemiExpression
+    e <- P.try semiExpression
     _ <- token $ TCloseParen
     return e
 
@@ -262,7 +273,8 @@ noSemiExpression :: Parser ParseExpression
 noSemiExpression =
     P.try letExpression
     <|> matchExpression
-    <|> P.try ifThenElseExpression
+    <|> ifThenElseExpression
+    <|> whileExpression
     <|> P.try returnExpression
     <|> P.try functionExpression
     <|> P.try recordLiteralExpression

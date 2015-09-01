@@ -17,6 +17,7 @@ data Statement
     | SExpression Expression
     | SReturn (Maybe Expression)
     | SIf Expression Statement (Maybe Statement) -- if (e1) { s1 } else { s2 }
+    | SWhile Expression Statement
     | SAssign Expression Expression
     deriving (Show, Eq)
 
@@ -106,6 +107,11 @@ render stmt = case stmt of
         <> (case elseStatement of
             Just elseStmt -> B.fromText "else " <> render elseStmt
             Nothing -> mempty)
+    SWhile expr body ->
+        B.fromText "while("
+        <> renderExpr expr
+        <> B.fromText")"
+        <> render body
 
 renderExpr :: Expression -> Builder
 renderExpr expr = case expr of

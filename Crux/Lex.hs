@@ -66,6 +66,8 @@ keyword = P.try $ do
         "if" -> return TIf
         "then" -> return TThen
         "else" -> return TElse
+        "while" -> return TWhile
+        "do" -> return TDo
         "return" -> return TReturn
         "const" -> return TConst
         "mutable" -> return TMutable

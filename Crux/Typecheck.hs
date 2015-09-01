@@ -305,6 +305,17 @@ check env expr = case expr of
 
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
+    EWhile _ cond body -> do
+        booleanType <- resolveType (edata expr) env "Boolean"
+        unitType <- newIORef $ TPrimitive Unit
+
+        condition' <- check env cond
+        unify booleanType (edata condition')
+        body' <- check env body
+        unify unitType (edata body')
+
+        return $ EWhile unitType condition' body'
+
     EReturn _ rv -> do
         rv' <- check env rv
         case eReturnType env of
@@ -418,6 +429,11 @@ flatten expr = case expr of
         ifTrue' <- flatten ifTrue
         ifFalse' <- flatten ifFalse
         return $ EIfThenElse td' condition' ifTrue' ifFalse'
+    EWhile td cond body -> do
+        td' <- flattenTypeVar td
+        cond' <- flatten cond
+        body' <- flatten body
+        return $ EWhile td' cond' body'
     EReturn td rv -> do
         td' <- flattenTypeVar td
         rv' <- flatten rv

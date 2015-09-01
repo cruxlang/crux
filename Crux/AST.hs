@@ -152,6 +152,7 @@ data Expression idtype edata
     | EBinIntrinsic edata BinIntrinsic (Expression idtype edata) (Expression idtype edata)
     | EIntrinsic edata (IntrinsicId idtype edata)
     | EIfThenElse edata (Expression idtype edata) (Expression idtype edata) (Expression idtype edata)
+    | EWhile edata (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
     deriving (Show, Eq)
 
@@ -174,6 +175,7 @@ instance Functor (Expression idtype) where
             IPrint args -> EIntrinsic (f d) (IPrint $ map (fmap f) args)
             IToString arg -> EIntrinsic (f d) (IToString $ fmap f arg)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
+        EWhile d cond body -> EWhile (f d) (fmap f cond) (fmap f body)
         EReturn d rv -> EReturn (f d) (fmap f rv)
 
 edata :: Expression idtype edata -> edata
@@ -191,6 +193,7 @@ edata expr = case expr of
     EBinIntrinsic ed _ _ _ -> ed
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
+    EWhile ed _ _ -> ed
     EReturn ed _ -> ed
 
 data TypeIdent

@@ -76,6 +76,11 @@ renderInstruction instr = case instr of
             (JSTree.SBlock $ map renderInstruction ifTrue)
             (Just $ JSTree.SBlock $ map renderInstruction ifFalse)
 
+    Gen.While cond body ->
+        JSTree.SWhile
+            (renderValue cond)
+            (JSTree.SBlock $ map renderInstruction body)
+
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
 generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression

@@ -112,6 +112,7 @@ data BinIntrinsic
 data Intrinsic input
     = IUnsafeJs Text
     | IUnsafeCoerce input
+    | INot input
     | IPrint [input]
     | IToString input
     deriving (Show, Eq)
@@ -119,17 +120,16 @@ data Intrinsic input
 mapIntrinsicInputs :: Monad m => (a -> m b) -> Intrinsic a -> m (Intrinsic b)
 mapIntrinsicInputs action intrin = do
     case intrin of
-        IUnsafeJs text -> do
+        IUnsafeJs text ->
             return $ IUnsafeJs text
-        IUnsafeCoerce input -> do
-            input' <- action input
-            return $ IUnsafeCoerce input'
-        IPrint inputs -> do
-            inputs' <- mapM action inputs
-            return $ IPrint inputs'
-        IToString input -> do
-            input' <- action input
-            return $ IToString input'
+        IUnsafeCoerce input ->
+            fmap IUnsafeCoerce $ action input
+        INot input ->
+            fmap INot $ action input
+        IPrint inputs ->
+            fmap IPrint $ mapM action inputs
+        IToString input ->
+            fmap IToString $ action input
 
 type IntrinsicId idtype edata = Intrinsic (Expression idtype edata)
 
@@ -154,6 +154,7 @@ data Expression idtype edata
     | EIfThenElse edata (Expression idtype edata) (Expression idtype edata) (Expression idtype edata)
     | EWhile edata (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
+    | EBreak edata
     deriving (Show, Eq)
 
 instance Functor (Expression idtype) where
@@ -172,11 +173,13 @@ instance Functor (Expression idtype) where
         EIntrinsic d i -> case i of
             IUnsafeJs txt -> EIntrinsic (f d) (IUnsafeJs txt)
             IUnsafeCoerce subExpr -> EIntrinsic (f d) (IUnsafeCoerce $ fmap f subExpr)
+            INot subExpr -> EIntrinsic (f d) (INot (fmap f subExpr))
             IPrint args -> EIntrinsic (f d) (IPrint $ map (fmap f) args)
             IToString arg -> EIntrinsic (f d) (IToString $ fmap f arg)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
         EWhile d cond body -> EWhile (f d) (fmap f cond) (fmap f body)
         EReturn d rv -> EReturn (f d) (fmap f rv)
+        EBreak d -> EBreak (f d)
 
 edata :: Expression idtype edata -> edata
 edata expr = case expr of
@@ -195,6 +198,7 @@ edata expr = case expr of
     EIfThenElse ed _ _ _ -> ed
     EWhile ed _ _ -> ed
     EReturn ed _ -> ed
+    EBreak ed -> ed
 
 data TypeIdent
     = TypeIdent TypeName [TypeIdent]

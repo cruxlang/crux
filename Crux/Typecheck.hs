@@ -31,6 +31,7 @@ newEnv eReturnType = do
     eBindings <- newIORef HashMap.empty
     let eTypeBindings = HashMap.empty
         eTypeAliases = HashMap.empty
+    let eInLoop = False
     return Env {..}
 
 childEnv :: Env -> IO Env
@@ -157,7 +158,11 @@ check env expr = case expr of
 
         returnType <- freshType env
 
-        let env' = env{eBindings=bindings', eReturnType=Just returnType}
+        let env' = env
+                { eBindings=bindings'
+                , eReturnType=Just returnType
+                , eInLoop=False
+                }
         body' <- check env' body
         unify returnType $ edata body'
         ty <- newIORef $ TFun paramTypes returnType
@@ -256,7 +261,9 @@ check env expr = case expr of
             lhs'' <- flatten lhs'
             error $ printf "Not an lvar: %s" (show lhs'')
 
-        return $ EAssign (edata lhs') lhs' rhs'
+        unitType <- newIORef $ TPrimitive Unit
+
+        return $ EAssign unitType lhs' rhs'
 
     ELiteral _ lit -> do
         litType <- newIORef $ case lit of
@@ -311,7 +318,9 @@ check env expr = case expr of
 
         condition' <- check env cond
         unify booleanType (edata condition')
-        body' <- check env body
+
+        let env' = env { eInLoop = True }
+        body' <- check env' body
         unify unitType (edata body')
 
         return $ EWhile unitType condition' body'
@@ -325,6 +334,12 @@ check env expr = case expr of
                 unify rt $ edata rv'
                 retTy <- freshType env
                 return $ EReturn retTy rv'
+
+    EBreak _ -> do
+        when (not $ eInLoop env) $
+            error "Cannot use 'break' outside of a loop"
+        t <- freshType env
+        return $ EBreak t
 
 flattenTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
 flattenTypeDef TUserTypeDef{..} = do
@@ -438,6 +453,9 @@ flatten expr = case expr of
         td' <- flattenTypeVar td
         rv' <- flatten rv
         return $ EReturn td' rv'
+    EBreak td -> do
+        td' <- flattenTypeVar td
+        return $ EBreak td'
 
 flattenDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
 flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of

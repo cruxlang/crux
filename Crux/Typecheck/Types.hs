@@ -14,6 +14,7 @@ data Env = Env
     , eTypeBindings  :: HashMap UnresolvedReference (ResolvedReference, TypeVar)
     , eTypeAliases   :: HashMap Text TypeAlias
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
+    , eInLoop        :: !Bool
     }
 
 showTypeVarIO :: TypeVar -> IO [Char]

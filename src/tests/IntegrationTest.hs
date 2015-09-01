@@ -397,4 +397,36 @@ case_return_unifies_with_anything = do
 
     assertEqual "" (Right "") result
 
+case_while_loops = do
+    result <- run $ T.unlines
+        [ "let nonzero = _unsafe_js(\"function(n){return 0!=n;}\");"
+        , "let less = _unsafe_js(\"function(a,b) {return a < b;}\");"
+        , ""
+        , "fun fib(n) {"
+        , "    let mutable count = n;"
+        , "    let mutable a = 0;"
+        , "    let mutable b = 1;"
+        , ""
+        , "    while nonzero(count) do ("
+        , "        let t = a;"
+        , "        a = b;"
+        , "        b = b + t;"
+        , "        count = count - 1"
+        , "    );"
+        , "    a;"
+        , "};"
+        , ""
+        , "fun main() {"
+        , "    let mutable i = 1;"
+        , "    while less(i, 10) do ("
+        , "        print(fib(i));"
+        , "        i = i + 1"
+        , "    );"
+        , "};"
+        , ""
+        , "let _ = main();"
+        ]
+
+    assertEqual "" (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
+
 tests = $(testGroupGenerator)

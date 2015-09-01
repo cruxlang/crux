@@ -16,6 +16,7 @@ data Statement
     | SFunction Name [Name] [Statement] -- function name(arg, arg, arg, ...) { statements }
     | SExpression Expression
     | SReturn (Maybe Expression)
+    | SBreak
     | SIf Expression Statement (Maybe Statement) -- if (e1) { s1 } else { s2 }
     | SWhile Expression Statement
     | SAssign Expression Expression
@@ -34,6 +35,7 @@ data Expression
     = EApplication Expression [Expression]
     | EFunction [Name] [Statement] -- function(args) { statements }
     | EObject (HashMap Name Expression)
+    | EPrefixOp Text Expression
     | EBinOp Text Expression Expression -- lhs <op> rhs
     | ESubscript Expression Expression
     | ELookup Expression Name
@@ -99,6 +101,8 @@ render stmt = case stmt of
         B.fromText "return "
             <> maybe mempty renderExpr expr
             <> B.fromText ";\n"
+    SBreak ->
+        B.fromText "break;\n"
     SIf expr thenStmt elseStatement ->
         B.fromText "if("
         <> renderExpr expr
@@ -129,6 +133,11 @@ renderExpr expr = case expr of
         in B.fromText "{"
         <> (intercalate (B.fromText ", ") $ map renderKeyValuePair (HashMap.toList fields))
         <> B.fromText "}"
+    EPrefixOp op arg ->
+        B.fromText "("
+        <> B.fromText op
+        <> renderExpr arg
+        <> B.fromText ")"
     EBinOp op lhs rhs ->
         B.fromText "("
             <> renderExpr lhs

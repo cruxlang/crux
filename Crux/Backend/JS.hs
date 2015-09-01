@@ -43,6 +43,8 @@ renderInstruction instr = case instr of
                 JSTree.ERaw txt
             IUnsafeCoerce arg -> do
                 renderValue arg
+            INot arg ->
+                JSTree.EPrefixOp "!" (renderValue arg)
             IPrint args -> do
                 JSTree.EApplication
                     (JSTree.EIdentifier "console.log")
@@ -57,6 +59,7 @@ renderInstruction instr = case instr of
                 (map renderValue args)
     Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
+    Gen.Break -> JSTree.SBreak
     Gen.Match value cases ->
         let value' = renderValue value
 

@@ -45,7 +45,7 @@ data Instruction
     | Return Input
     | Match Input [(AST.Pattern, [Instruction])]
     | If Input [Instruction] [Instruction]
-    | While Input [Instruction]
+    | Loop [Instruction]
     | Break
     deriving (Show, Eq)
 
@@ -207,7 +207,6 @@ generate env expr = case expr of
     AST.EWhile _ cond body -> do
         let boolType = AST.edata cond
         let unitType = AST.edata body
-        Just whileCond <- generate env (AST.EIdentifier boolType $ AST.Builtin "True")
         body' <- subBlock env $
             AST.ESemi unitType
                 (AST.EIfThenElse unitType
@@ -215,7 +214,7 @@ generate env expr = case expr of
                     (AST.EBreak unitType)
                     (AST.ELiteral unitType $ AST.LUnit))
                 body
-        writeInstruction $ While whileCond body'
+        writeInstruction $ Loop body'
         return Nothing
 
     AST.EReturn _ rv -> do

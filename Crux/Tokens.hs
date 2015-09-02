@@ -33,6 +33,7 @@ data TokenType
     | TMultiply
     | TDivide
     -- Keywords
+    | TImport
     | TExport
     | TFun
     | TLet

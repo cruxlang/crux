@@ -459,7 +459,7 @@ declaration = do
 
 parseModule :: Parser ParsedModule
 parseModule = do
-    doc <- P.many1 $ declaration <* token TSemicolon
+    doc <- P.many $ declaration <* token TSemicolon
     P.eof
     return Module
         { mImports = []

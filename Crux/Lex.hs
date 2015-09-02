@@ -56,6 +56,7 @@ keyword :: Parser u (Token Pos)
 keyword = P.try $ do
     Token p (TIdentifier i) <- parseIdentifier
     fmap (Token p) $ case i of
+        "import" -> return TImport
         "export" -> return TExport
         "let" -> return TLet
         "fun" -> return TFun
@@ -120,7 +121,7 @@ comments =
 document :: Parser u [Token Pos]
 document = do
     whitespace
-    r <- P.many1 $ P.try (comments >> token)
+    r <- P.many $ P.try (comments >> token)
     whitespace
     P.eof
     return r

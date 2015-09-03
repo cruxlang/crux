@@ -373,6 +373,7 @@ typeVariableName = do
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
     ELet ed mut name typeAnn expr <- letExpression
+    _ <- token TSemicolon
     return $ DLet ed mut name typeAnn expr
 
 variantDefinition :: Parser Variant
@@ -428,6 +429,7 @@ typeDeclaration = do
     vars <- P.many typeVariableName
     _ <- token TEqual
     ty <- typeIdent
+    _ <- token TSemicolon
     return $ DType $ TypeAlias name vars ty
 
 funDeclaration :: Parser ParseDeclaration
@@ -459,7 +461,7 @@ declaration = do
 
 parseModule :: Parser ParsedModule
 parseModule = do
-    doc <- P.many $ declaration <* token TSemicolon
+    doc <- P.many $ declaration
     P.eof
     return Module
         { mImports = []

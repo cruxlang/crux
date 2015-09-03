@@ -41,19 +41,19 @@ case_direct_prints = do
         doc
 
 case_return_from_function = do
-    doc <- genDoc "fun f() { return 1; };"
+    doc <- genDoc "fun f() { return 1; }"
     assertEqual "statements"
         "function f(){\nreturn 1;\n}\n"
         doc
 
 case_export_function = do
-    doc <- genDoc "export fun f() { 1; };"
+    doc <- genDoc "export fun f() { 1; }"
     assertEqual "statements"
         "function f(){\nreturn 1;\n}\n(exports).f = f;\n"
         doc
 
 case_return_from_branch = do
-    result <- genDoc "fun f() { if True then return 1 else return 2; };"
+    result <- genDoc "fun f() { if True then return 1 else return 2; }"
     assertEqual "statements"
         "function f(){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n"
         result
@@ -65,7 +65,7 @@ case_branch_with_value = do
         result
 
 case_jsffi_data = do
-    result <- genDoc "data jsffi JST { A = undefined, B = null, C = true, D = false, E = 10, F = \"hi\", };"
+    result <- genDoc "data jsffi JST { A = undefined, B = null, C = true, D = false, E = 10, F = \"hi\", }"
     assertEqual "statements"
         "var A = (void 0);\nvar B = null;\nvar C = true;\nvar D = false;\nvar E = 10;\nvar F = \"hi\";\n"
         result

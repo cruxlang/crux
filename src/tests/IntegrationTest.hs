@@ -38,10 +38,10 @@ run' src = do
         Right m -> do
             m' <- Gen.generateModule m
             let js = JS.generateJS m'
-            withSystemTempFile "Sneak.js" $ \path handle -> do
+            withSystemTempFile "Sneak.js" $ \path' handle -> do
                 T.hPutStr handle $ js
                 hFlush handle
-                fmap (Right . T.pack) $ readProcess "node" [path] ""
+                fmap (Right . T.pack) $ readProcess "node" [path'] ""
 
 case_hello_world = do
     result <- run $ T.unlines
@@ -62,7 +62,7 @@ case_data_types = do
         [ "data IntList {"
         , "    Element Number IntList,"
         , "    Nil"
-        , "};"
+        , "}"
         , "let mylist = Element(1, Element(2, Nil));"
         , "let _ = print(mylist);"
         ]
@@ -74,7 +74,7 @@ case_pattern_matches_can_be_expressions_that_yield_values = do
         [ "data IntList {"
         , "    Element Number IntList,"
         , "    Nil,"
-        , "};"
+        , "}"
         , ""
         , "let list = Element(1, Element(2, Nil));"
         , "let len = match list {"
@@ -99,13 +99,13 @@ case_let_is_not_recursive_by_default = do
 
 case_recursive = do
     result <- run $ T.unlines
-        [ "data IntList { Cons Number IntList, Nil };"
+        [ "data IntList { Cons Number IntList, Nil }"
         , "fun len(l) {"
         , "    match l {"
         , "        Nil => 0;"
         , "        Cons num tail => 1 + len(tail);"
         , "    };"
-        , "};"
+        , "}"
         , "let _ = print(len(Cons(5, Nil)));"
         ]
     assertEqual "" (Right "1\n") result
@@ -115,7 +115,7 @@ case_recursive_data = do
         [ "data List a {"
         , "    Cons a (List a),"
         , "    Nil"
-        , "};"
+        , "}"
         , ""
         , "let s = Cons(5, Cons(6, Cons(7, Nil)));"
         , ""
@@ -124,7 +124,7 @@ case_recursive_data = do
         , "        Nil => 0;"
         , "        Cons x tail => 1 + len(tail);"
         , "    };"
-        , "};"
+        , "}"
         , ""
         , "let _ = print(len(s));"
         ]
@@ -132,29 +132,29 @@ case_recursive_data = do
 
 case_occurs_on_fun = do
     result <- run $ T.unlines
-        [ "fun bad() { bad; };"
+        [ "fun bad() { bad; }"
         ]
 
     assertEqual "" (Left "Occurs check failed") result
 
 case_occurs_on_sum = do
     result <- run $ T.unlines
-        [ "data List a { Cons a (List a), Nil };"
-        , "fun bad(a) { Cons(a, a); };"
+        [ "data List a { Cons a (List a), Nil }"
+        , "fun bad(a) { Cons(a, a); }"
         ]
 
     assertEqual "" (Left "Occurs check failed") result
 
 case_occurs_on_record = do
     result <- run $ T.unlines
-        [ "fun bad(p) { { field: bad(p) }; };"
+        [ "fun bad(p) { { field: bad(p) }; }"
         ]
 
     assertEqual "" (Left "Occurs check failed") result
 
 case_row_polymorphic_records = do
     result <- run $ T.unlines
-        [ "fun manhattan(p) { p.x + p.y; };"
+        [ "fun manhattan(p) { p.x + p.y; }"
         , ""
         , "let zero = { x: 0, y: 0 };"
         , "let myhouse = {x: 33, y: 44, z:8};"
@@ -162,7 +162,7 @@ case_row_polymorphic_records = do
         , "fun main() {"
         , "    print(manhattan(zero));"
         , "    print(manhattan(myhouse));"
-        , "};"
+        , "}"
         , ""
         , "let _ = main();"
         ]
@@ -203,7 +203,7 @@ case_record_annotation_is_checked = do
         [ "let c : {log:(String) -> Unit} = _unsafe_js(\"console\");"
         , "fun main() {"
         , "    c.log(\"Hoop\");"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -214,7 +214,7 @@ case_record_annotation_is_checked2 = do
         [ "let c : {} = _unsafe_js(\"console\");"
         , "fun main() {"
         , "    c.log(\"Hoop\");"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -232,7 +232,7 @@ case_type_alias = do
 
 case_parameterized_type_alias = do
     result <- run $ T.unlines
-        [ "data List a { Nil, Cons a (List a) };"
+        [ "data List a { Nil, Cons a (List a) }"
         , "type Bogo a = List a;"
         , "let hoop : Bogo Number = Cons(5, Nil);"
         ]
@@ -265,7 +265,7 @@ case_line_comments = do
     result <- run $ T.unlines
         [ "// A list is either Nil, the empty case, or"
         , "// it is Cons an element and another list."
-        , "data List a { Nil, Cons a (List a), };"
+        , "data List a { Nil, Cons a (List a), }"
         , ""
         , "/* TODO: Decide on an optimal name for this type alias"
         , " type Bogo = List; */"
@@ -281,7 +281,7 @@ case_let_mutable = do
         , "    let mutable x = 2;"
         , "    x = x + 1;"
         , "    print(x);"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -293,7 +293,7 @@ case_cannot_assign_to_immutable_binding = do
         , "    let x = 2;"
         , "    x = x + 1;"
         , "    print(x);"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -305,7 +305,7 @@ case_assign_to_mutable_record_field = do
         , "    let a : {x:Number} = {x:44};"
         , "    a.x = 22;"
         , "    print(a);"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -317,7 +317,7 @@ case_cannot_assign_to_immutable_record_field = do
         , "    let a : {const x: Number} = {x:44};"
         , "    a.x = 22;"
         , "    print(a);"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -331,11 +331,11 @@ case_mutable_record_field_requirement_is_inferred = do
         , "    let t = p.x;"
         , "    p.x = p.y;"
         , "    p.y = t;"
-        , "};"
+        , "}"
         , "fun main() {"
         , "    let a : {const x: Number, const y: Number} = {x:44, y:0};"
         , "    swap(a);"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -347,7 +347,7 @@ case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
     result <- run $ T.unlines
         [ "fun manhattan(p) {"
         , "    p.x + p.y;"
-        , "};"
+        , "}"
         , ""
         , "fun main() {"
         , "    let a : {const x:Number, const y:Number} = {x:44, y:0};"
@@ -355,7 +355,7 @@ case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
         , ""
         , "    let b : {mutable x:Number, mutable y:Number} = {x:0, y:0};"
         , "    print(manhattan(b));"
-        , "};"
+        , "}"
         , "let _ = main();"
         ]
 
@@ -366,7 +366,7 @@ case_jsffi_data_type_names_and_values_can_be_used = do
         [ "data jsffi Method {"
         , "    Get=\"GET\","
         , "    Post=\"POST\","
-        , "};"
+        , "}"
         , "let result : Method = Get;"
         , "let _ = print(result);"
         ]
@@ -378,7 +378,7 @@ case_record_self_unification = do
         [ "let r = {};"
         , "fun main(o) {"
         , "    if False then o else r;"
-        , "};"
+        , "}"
         , "let _ = main(r);"
         ]
 
@@ -392,7 +392,7 @@ case_return_unifies_with_anything = do
         , "            then return \"hody\""
         , "            else 22;"
         , "    toString(p);"
-        , "};"
+        , "}"
         ]
 
     assertEqual "" (Right "") result
@@ -414,7 +414,7 @@ case_while_loops = do
         , "        count = count - 1"
         , "    );"
         , "    a;"
-        , "};"
+        , "}"
         , ""
         , "fun main() {"
         , "    let mutable i = 1;"
@@ -422,7 +422,7 @@ case_while_loops = do
         , "        print(fib(i));"
         , "        i = i + 1"
         , "    );"
-        , "};"
+        , "}"
         , ""
         , "let _ = main();"
         ]

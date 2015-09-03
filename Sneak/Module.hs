@@ -20,7 +20,7 @@ preludeSource = Text.pack $ [r|
 data jsffi Boolean {
     True = true,
     False = false,
-};
+}
 |]
 
 type LoadedModules = HashMap AST.ModuleName

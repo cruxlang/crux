@@ -129,7 +129,7 @@ moduleNameToPath (AST.ModuleName prefix m) =
     let toPathSegment (AST.ModuleSegment t) = Text.unpack t in
     FP.combine
         (FP.joinPath $ map toPathSegment prefix)
-        (toPathSegment m <> ".crux")
+        (toPathSegment m <> ".sk")
 
 newFSModuleLoader :: FilePath -> ModuleLoader
 newFSModuleLoader root moduleName = do
@@ -140,7 +140,7 @@ loadProgramFromFile path = do
     let (dirname, basename) = FP.splitFileName path
     let loader = newFSModuleLoader dirname
     rootModuleName <- case FP.splitExtension basename of
-        (rootModuleName, ".crux") -> return $ fromString rootModuleName
-        _ -> fail "Please load .crux file"
+        (rootModuleName, ".sk") -> return $ fromString rootModuleName
+        _ -> fail "Please load .sk file"
 
     loadProgram loader rootModuleName

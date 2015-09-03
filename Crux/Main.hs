@@ -26,8 +26,8 @@ parseOptions :: IO Options
 parseOptions = Opt.execParser $
     Opt.info (Opt.helper <*> optionsParser) (
         Opt.fullDesc
-        <> Opt.progDesc "Compile Crux into JavaScript"
-        <> Opt.header "crux - the best AltJS" )
+        <> Opt.progDesc "Compile Sneak into JavaScript"
+        <> Opt.header "sneak - the best AltJS" )
 
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"

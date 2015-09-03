@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Crux.Backend.JS where
+module Sneak.Backend.JS where
 
-import Crux.Prelude
-import           Crux.AST
-import qualified Crux.Gen as Gen
-import qualified Crux.JSTree as JSTree
+import Sneak.Prelude
+import           Sneak.AST
+import qualified Sneak.Gen as Gen
+import qualified Sneak.JSTree as JSTree
 import qualified Data.Text as Text
 
 renderOutput :: Gen.Output -> JSTree.Name

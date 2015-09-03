@@ -3,22 +3,22 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TupleSections     #-}
 
-module Crux.Typecheck where
+module Sneak.Typecheck where
 
-import Crux.Prelude
+import Sneak.Prelude
 import Control.Exception (throwIO, ErrorCall(..))
-import           Crux.AST
-import           Crux.Intrinsic        (Intrinsic (..))
-import qualified Crux.Intrinsic        as Intrinsic
-import qualified Crux.MutableHashTable as HashTable
-import           Crux.Text             (isCapitalized)
-import           Crux.Tokens           (Pos (..))
+import           Sneak.AST
+import           Sneak.Intrinsic        (Intrinsic (..))
+import qualified Sneak.Intrinsic        as Intrinsic
+import qualified Sneak.MutableHashTable as HashTable
+import           Sneak.Text             (isCapitalized)
+import           Sneak.Tokens           (Pos (..))
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
-import Crux.Typecheck.Types
-import Crux.Typecheck.Unify
+import Sneak.Typecheck.Types
+import Sneak.Typecheck.Unify
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do

@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Crux.JSTree where
+module Sneak.JSTree where
 
-import Crux.Prelude
+import Sneak.Prelude
 import qualified Data.HashMap.Strict    as HashMap
 import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder (Builder)

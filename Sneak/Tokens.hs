@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Crux.Tokens where
+module Sneak.Tokens where
 
 import Data.Text
 

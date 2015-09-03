@@ -1,18 +1,18 @@
 {-# LANGUAGE OverloadedStrings, OverloadedLists, QuasiQuotes #-}
 
-module Crux.Module where
+module Sneak.Module where
 
-import Crux.Prelude
+import Sneak.Prelude
 import Control.Exception (throwIO, ErrorCall(..))
 import qualified Data.ByteString as BS
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
 import Text.RawString.QQ (r)
-import qualified Crux.AST as AST
-import qualified Crux.Lex as Lex
-import qualified Crux.Parse as Parse
-import qualified Crux.Typecheck as Typecheck
-import qualified Crux.MutableHashTable as HashTable
+import qualified Sneak.AST as AST
+import qualified Sneak.Lex as Lex
+import qualified Sneak.Parse as Parse
+import qualified Sneak.Typecheck as Typecheck
+import qualified Sneak.MutableHashTable as HashTable
 import qualified System.FilePath as FP
 
 preludeSource :: Text

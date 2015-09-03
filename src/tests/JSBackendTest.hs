@@ -8,18 +8,18 @@ import GHC.Exception (ErrorCall(..))
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import TestJesus
-import qualified Crux.AST as AST
-import qualified Crux.Lex
-import qualified Crux.Parse
-import qualified Crux.Module
-import qualified Crux.Typecheck as Typecheck
-import qualified Crux.Gen as Gen
-import qualified Crux.Backend.JS as JS
+import qualified Sneak.AST as AST
+import qualified Sneak.Lex
+import qualified Sneak.Parse
+import qualified Sneak.Module
+import qualified Sneak.Typecheck as Typecheck
+import qualified Sneak.Gen as Gen
+import qualified Sneak.Backend.JS as JS
 
 genDoc' :: Text -> IO (Either String Text)
 genDoc' src = do
     let fn = "<string>"
-    mod' <- Crux.Module.loadModuleFromSource "<string>" src
+    mod' <- Sneak.Module.loadModuleFromSource "<string>" src
     case mod' of
         Left err ->
             return $ Left err

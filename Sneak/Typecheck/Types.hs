@@ -1,4 +1,4 @@
-module Crux.Typecheck.Types where
+module Sneak.Typecheck.Types where
 
 import Data.IORef (IORef, readIORef)
 import           Data.List             (intercalate)
@@ -6,7 +6,7 @@ import Data.HashMap.Strict (HashMap)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Monoid ((<>))
-import Crux.AST (UnresolvedReference, ResolvedReference, LetMutability, TypeVar, TypeAlias, MutableTypeVar (..), VarLink (..), RecordType (..), TUserTypeDef (..), TypeRow (..), RecordOpen (..))
+import Sneak.AST (UnresolvedReference, ResolvedReference, LetMutability, TypeVar, TypeAlias, MutableTypeVar (..), VarLink (..), RecordType (..), TUserTypeDef (..), TypeRow (..), RecordOpen (..))
 
 data Env = Env
     { eNextTypeIndex :: IORef Int

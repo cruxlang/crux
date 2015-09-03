@@ -1,4 +1,4 @@
-module Crux.MutableHashTable where
+module Sneak.MutableHashTable where
 
 import           Data.Hashable       (Hashable)
 import           Data.HashMap.Strict (HashMap)

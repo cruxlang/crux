@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Crux.Lex where
+module Sneak.Lex where
 
 import Control.Monad (void)
 import Data.Char
-import Crux.Tokens
+import Sneak.Tokens
 import qualified Text.Parsec as P
 import Data.Text (Text)
 import qualified Data.Text as T

@@ -2,15 +2,15 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE Rank2Types        #-}
 
-module Crux.Intrinsic
+module Sneak.Intrinsic
     ( Intrinsic(..)
     , intrinsics
     ) where
 
-import Crux.Prelude
-import qualified Crux.AST as AST
-import qualified Crux.JSGen.Types    as JSGen
-import qualified Crux.JSTree         as JS
+import Sneak.Prelude
+import qualified Sneak.AST as AST
+import qualified Sneak.JSGen.Types    as JSGen
+import qualified Sneak.JSTree         as JS
 import qualified Data.HashMap.Strict as HashMap
 
 data Intrinsic = Intrinsic

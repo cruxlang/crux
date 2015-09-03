@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveGeneric #-}
-module Crux.AST where
+module Sneak.AST where
 
-import Crux.Prelude
+import Sneak.Prelude
 import qualified Data.Text as Text
-import qualified Crux.JSTree as JSTree
-import qualified Crux.Tokens as Tokens
+import qualified Sneak.JSTree as JSTree
+import qualified Sneak.Tokens as Tokens
 
 type Name = Text -- Temporary
 type TypeName = Text

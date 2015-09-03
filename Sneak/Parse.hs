@@ -4,14 +4,14 @@
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE TupleSections         #-}
 
-module Crux.Parse where
+module Sneak.Parse where
 
 import           Control.Applicative ((<|>))
-import           Crux.AST            as AST
-import qualified Crux.JSTree         as JSTree
-import           Crux.Prelude
-import           Crux.Text           (isCapitalized)
-import           Crux.Tokens         as Tokens
+import           Sneak.AST            as AST
+import qualified Sneak.JSTree         as JSTree
+import           Sneak.Prelude
+import           Sneak.Text           (isCapitalized)
+import           Sneak.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
 

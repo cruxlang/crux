@@ -1,4 +1,4 @@
-module Crux.Text where
+module Sneak.Text where
 
 import           Data.Char (isUpper)
 import qualified Data.Text as T

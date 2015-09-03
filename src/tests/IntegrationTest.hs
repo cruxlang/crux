@@ -6,14 +6,14 @@ module IntegrationTest
 
 import           Control.Monad  (forM)
 import Control.Exception (catch, SomeException)
-import qualified Crux.AST       as AST
-import qualified Crux.JSTree    as JSTree
-import qualified Crux.Backend.JS as JS
-import qualified Crux.Gen       as Gen
-import           Crux.Lex
-import           Crux.Parse
-import qualified Crux.Module
-import qualified Crux.Typecheck as Typecheck
+import qualified Sneak.AST       as AST
+import qualified Sneak.JSTree    as JSTree
+import qualified Sneak.Backend.JS as JS
+import qualified Sneak.Gen       as Gen
+import           Sneak.Lex
+import           Sneak.Parse
+import qualified Sneak.Module
+import qualified Sneak.Typecheck as Typecheck
 import           Data.Text      (Text)
 import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
@@ -31,14 +31,14 @@ run src = do
 
 run' :: Text -> IO (Either String Text)
 run' src = do
-    p <- Crux.Module.loadModuleFromSource "<string>" src
+    p <- Sneak.Module.loadModuleFromSource "<string>" src
     case p of
         Left err -> do
             return $ Left err
         Right m -> do
             m' <- Gen.generateModule m
             let js = JS.generateJS m'
-            withSystemTempFile "crux.js" $ \path handle -> do
+            withSystemTempFile "Sneak.js" $ \path handle -> do
                 T.hPutStr handle $ js
                 hFlush handle
                 fmap (Right . T.pack) $ readProcess "node" [path] ""

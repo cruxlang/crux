@@ -1,10 +1,10 @@
 {-# LANGUAGE Rank2Types #-}
 
-module Crux.JSGen.Types where
+module Sneak.JSGen.Types where
 
 import qualified Control.Monad.Writer  as Writer
-import qualified Crux.JSTree           as JS
-import           Crux.AST
+import qualified Sneak.JSTree           as JS
+import           Sneak.AST
 import           Data.HashMap.Strict   (HashMap)
 import           Data.IORef            (IORef)
 

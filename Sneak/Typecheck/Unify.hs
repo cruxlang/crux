@@ -1,17 +1,17 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Crux.Typecheck.Unify where
+module Sneak.Typecheck.Unify where
 
 import Control.Monad (forM, forM_, when)
-import Crux.AST
+import Sneak.AST
 import Data.List (sort, nub)
-import Crux.Typecheck.Types
+import Sneak.Typecheck.Types
 import Data.IORef (IORef, newIORef, readIORef, modifyIORef', writeIORef)
 import Data.HashMap.Strict (HashMap)
 import qualified Data.Text as Text
 import Text.Printf (printf)
-import qualified Crux.MutableHashTable as HashTable
+import qualified Sneak.MutableHashTable as HashTable
 
 freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do

@@ -1,4 +1,4 @@
-module Crux.Prelude
+module Sneak.Prelude
     ( module Data.Foldable
     , module Data.Text
     , module Data.IORef

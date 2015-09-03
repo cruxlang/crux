@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 
-module Crux.Gen
+module Sneak.Gen
     ( Value(..)
     , Output(..)
     , Instruction(..)
@@ -11,8 +11,8 @@ module Crux.Gen
     , generateModule
     ) where
 
-import Crux.Prelude
-import qualified Crux.AST as AST
+import Sneak.Prelude
+import qualified Sneak.AST as AST
 import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)

@@ -2,9 +2,9 @@
 
 module ParseTest (tests) where
 
-import           Crux.Parse
-import           Crux.AST
-import           Crux.Lex
+import           Sneak.Parse
+import           Sneak.AST
+import           Sneak.Lex
 import qualified Data.Text as T
 import           Test.HUnit
 import           Test.Framework
@@ -16,7 +16,7 @@ discardData expr = fmap (const ()) expr
 
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
 assertParseOk parser source expected f = do
-    case Crux.Lex.lexSource "<>" source of
+    case Sneak.Lex.lexSource "<>" source of
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens -> do

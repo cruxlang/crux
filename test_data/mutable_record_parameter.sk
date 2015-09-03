@@ -1,6 +1,6 @@
 fun manhattan(p) {
     p.x + p.y;
-};
+}
 
 fun main() {
     let a : {const x:Number, const y:Number} = {x:44, y:0};
@@ -8,5 +8,6 @@ fun main() {
 
     let b : {mutable x:Number, mutable y:Number} = {x:0, y:0};
     manhattan(b);
-};
+}
+
 let _ = main();

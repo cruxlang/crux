@@ -1,8 +1,7 @@
-
 data Bool {
     True,
     False
-};
+}
 
 let main = fun (x) {
     let spam = fun (s) {

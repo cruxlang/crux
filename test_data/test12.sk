@@ -1,7 +1,7 @@
 data List a {
     Cons a (List a),
     Nil
-};
+}
 
 let s = Cons(5, Cons(6, Cons(7, Nil)));
 
@@ -10,6 +10,6 @@ fun len(list) {
         Nil => 0;
         Cons x tail => 1 + len(tail);
     };
-};
+}
 
 let _ = print(len(s));

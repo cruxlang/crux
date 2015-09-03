@@ -1,7 +1,7 @@
 data Option a {
     Some a,
     None
-};
+}
 
 let s = Some(5);
 

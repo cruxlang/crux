@@ -2,5 +2,5 @@ fun main() {
     let a = {x:22};
     a.x = 33;
     print(a);
-};
+}
 let _ = main();

@@ -1,4 +1,4 @@
 export fun print_name(fn, ln) {
     print(fn);
     print(ln);
-};
+}

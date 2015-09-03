@@ -2,8 +2,8 @@
 set -e
 cd "$(dirname "$0")"/..
 
-for fn in test_data/*.crux; do
+for fn in test_data/*.sk; do
     echo "running $fn:"
-    dist/build/crux/crux "$fn" | nodejs
+    dist/build/sneak/sneak "$fn" | node
     echo
 done

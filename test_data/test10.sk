@@ -6,7 +6,7 @@ data IntList {
 fun len(l) {
     match l {
         Nil => 0;
-        Cons num tail => 1 + len(tail);
+        Cons(num, tail) => 1 + len(tail);
     };
 }
 

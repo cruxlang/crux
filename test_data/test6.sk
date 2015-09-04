@@ -5,8 +5,8 @@ data IntList {
 
 let list = Element(1, Element(2, Nil));
 let len = match list {
-    Element num Nil => 1;
-    Element numOne (Element numTwo Nil) => 2;
+    Element(num, Nil) => 1;
+    Element(numOne, Element(numTwo, Nil)) => 2;
     Nil => 0;
 };
 let _ = print(len);

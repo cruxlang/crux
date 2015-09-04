@@ -82,11 +82,11 @@ case_mutable_let = do
         (ELet () LMutable "x" Nothing (ELiteral () (LInteger 22)))
 
 case_pattern = do
-    assertParseOk pattern "Cons a (Cons b Nil)"
+    assertParseOk pattern "Cons(a, Cons(b, Nil))"
         (PConstructor "Cons" [PPlaceholder "a", PConstructor "Cons" [PPlaceholder "b", PConstructor "Nil" []]]) id
 
 case_match = do
-    assertExprParses matchExpression "match hoot { Nil => hodor ; Cons a b => hoober ; }"
+    assertExprParses matchExpression "match hoot { Nil => hodor ; Cons(a, b) => hoober ; }"
         (EMatch () (EIdentifier () "hoot")
             [ Case (PConstructor "Nil" []) (EIdentifier () "hodor")
             , Case (PConstructor "Cons" [PPlaceholder "a",PPlaceholder "b"]) (EIdentifier () "hoober")

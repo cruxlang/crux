@@ -140,24 +140,29 @@ functionExpression = do
     return $ EFun (tokenData tfun) args body
 
 pattern :: Parser Pattern
-pattern =
+pattern = do
     let parenPattern = do
             _ <- P.try $ token TOpenParen
             pat <- pattern
             _ <- token TCloseParen
             return pat
 
-    in parenPattern <|> noParenPattern
+    parenPattern <|> noParenPattern
 
 noParenPattern :: Parser Pattern
 noParenPattern = do
     txt <- anyIdentifier
-    if isCapitalized txt
-        then do
-            patternArgs <- P.many pattern
-            return $ PConstructor txt patternArgs
-        else
-            return $ PPlaceholder txt
+    if isCapitalized txt then do
+        op <- P.optionMaybe $ token TOpenParen
+        case op of
+          Just _ -> do
+            params <- delimited pattern (token TComma)
+            _ <- token TCloseParen
+            return $ PConstructor txt params
+          Nothing -> do
+            return $ PConstructor txt []
+    else do
+        return $ PPlaceholder txt
 
 matchExpression :: Parser ParseExpression
 matchExpression = do

@@ -2,7 +2,7 @@
 set -e
 cd "$(dirname "$0")"/..
 
-TEST_FILES="test_data/*.sk $(find test_data -name main.sk)''"
+TEST_FILES="test-data/*.sk $(find test-data -name main.sk)''"
 
 for fn in $TEST_FILES; do
     echo "running $fn:"

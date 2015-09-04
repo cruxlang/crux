@@ -1,2 +1,5 @@
-import T
+import {
+    T
+}
+
 let _ = print(T.f(1, 2))

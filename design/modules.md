@@ -1,3 +1,29 @@
+# Import syntax
+
+Optimize for common case of "import A.B as B;".  Go-style "import A.B" means names are accessible through B.foo
+
+Use case: sort imports alphabetically: module name should always immediately follow "import"
+
+Use case: rename import `import A.B as C;`
+
+Use case: locally import specific names from a module `import A.B (foo, bar);`
+
+Use case: locally import every name from a module `import A.B (\*);`.  Alternative: `import A.B (...);`
+
+Use case: locally import everything except a few symbols `import A.B (..., -mod)`
+
+Use case: import a group of modules without typing import over and over again:
+
+```
+import {
+    A.B,
+    C.D as E,
+    F.G (foo, bar),
+    X.Y (...),
+    Prelude (..., -mod),
+}
+```
+
 # Circular Imports
 
 Strawman: no circular imports allowed.

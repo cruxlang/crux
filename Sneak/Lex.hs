@@ -75,7 +75,8 @@ keyword = P.try $ do
         _ -> fail ""
 
 symbol :: Parser u (Token Pos)
-symbol = sym2 '=' '>' TFatRightArrow
+symbol = sym3 '.' '.' '.' TEllipsis
+     <|> sym2 '=' '>' TFatRightArrow
      <|> sym2 '-' '>' TRightArrow
      <|> sym ';' TSemicolon
      <|> sym ':' TColon
@@ -99,6 +100,12 @@ symbol = sym2 '=' '>' TFatRightArrow
         p <- pos
         _ <- P.char c1
         _ <- P.char c2
+        return (Token p tok)
+    sym3 c1 c2 c3 tok = P.try $ do
+        p <- pos
+        _ <- P.char c1
+        _ <- P.char c2
+        _ <- P.char c3
         return (Token p tok)
 
 whitespace :: Parser u ()

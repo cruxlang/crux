@@ -28,6 +28,7 @@ data TokenType
     | TDot
     | TRightArrow
     | TFatRightArrow
+    | TEllipsis
     | TPlus
     | TMinus
     | TMultiply

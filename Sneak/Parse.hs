@@ -468,12 +468,29 @@ declaration = do
     declType <- dataDeclaration <|> typeDeclaration <|> funDeclaration <|> letDeclaration
     return $ Declaration exportFlag declType
 
+importDecl :: Parser Import
+importDecl = do
+    mname <- P.sepBy1 anyIdentifier (token TDot)
+    _ <- parenthesized $ token TEllipsis
+    let prefix = fmap ModuleSegment $ init mname
+    let name = ModuleSegment $ last mname
+    return $ UnqualifiedImport $ ModuleName prefix name
+
+imports :: Parser [Import]
+imports = do
+    _ <- token TImport
+    _ <- token TOpenBrace
+    imp <- delimited importDecl (token TComma)
+    _ <- token TCloseBrace
+    return imp
+
 parseModule :: Parser ParsedModule
 parseModule = do
+    imp <- P.option [] imports
     doc <- P.many $ declaration
     P.eof
     return Module
-        { mImports = []
+        { mImports = imp
         , mDecls = doc
         }
 

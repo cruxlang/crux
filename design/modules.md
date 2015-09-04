@@ -1,4 +1,4 @@
-# Import syntax
+# Import Syntax
 
 Optimize for common case of "import A.B as B;".  Go-style "import A.B" means names are accessible through B.foo
 
@@ -23,6 +23,18 @@ import {
     Prelude (..., -mod),
 }
 ```
+
+# Export Syntax
+
+Use case: don't duplicate symbol names
+
+Use case: there is a tension between marking exports near the definition vs. at the top of the file in a summary.  The desire to not duplicate symbol names wins.
+
+`export fun f() {}`
+
+`export data Maybe a { None, Some(a) }`
+
+Use case: re-export an import without respecifying all symbol names.  TBD
 
 # Circular Imports
 

@@ -1,8 +1,8 @@
-# Mutability in Crux
+# Mutability in Sneak
 
-Crux is at its heart a practical, functional language, and first-class mutability is part of that.
+Sneak is at its heart a practical, functional language, and first-class mutability is part of that.
 
-Crux offers mutable data via two mechanisms:  let bindings and record fields.
+Sneak offers mutable data via two mechanisms:  let bindings and record fields.
 
 ## Mutable `let` Bindings
 
@@ -15,7 +15,7 @@ x = x + 5;
 
 ## Mutable record fields
 
-Crux record fields can be denoted as mutable.  This is part of the row-variable.
+Sneak record fields can be denoted as mutable.  This is part of the row-variable.
 
 Individual record fields can be made mutable with the `mutable` keyword.
 
@@ -39,7 +39,7 @@ We'll talk about why you might want to do this in the next section.
 
 ## Mutable Records and Type Inference
 
-Crux's type checker infers mutability of record fields from how the records themselves are used.
+Sneak's type checker infers mutability of record fields from how the records themselves are used.
 
 A record field can be mutable, immutable, or _quantified_, with the following rules:
 
@@ -82,7 +82,7 @@ let a : { mutable x : Number, const y : Number } = { x : 33, y : 0 };
 
 ## Mutability and Reference Semantics
 
-Crux records are passed _by reference_.  This means that multiple names can in fact refer to the same record.
+Sneak records are passed _by reference_.  This means that multiple names can in fact refer to the same record.
 
 This aliasing is visible in the face of mutability.
 ```js

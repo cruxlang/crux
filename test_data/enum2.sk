@@ -1,0 +1,6 @@
+
+data Colors {
+    Red,
+    Blue,
+    Green
+}

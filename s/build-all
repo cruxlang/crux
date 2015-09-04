@@ -2,7 +2,9 @@
 set -e
 cd "$(dirname "$0")"/..
 
-for fn in test_data/*.sk; do
+TEST_FILES="test_data/*.sk $(find test_data -name main.sk)"
+
+for fn in $TEST_FILES; do
     echo "building $fn:"
     dist/build/sneak/sneak "$fn"
     echo

@@ -1,18 +1,17 @@
-
 data jsffi ReadyState {
-    Unsent=0,
-    Opened=1,
-    HeadersReceived=2,
-    Loading=3,
-    Done=4,
-};
+    Unsent = 0,
+    Opened = 1,
+    HeadersReceived = 2,
+    Loading = 3,
+    Done = 4,
+}
 
 data jsffi Method {
-    Get="GET",
-    Post="POST",
-    Put="PUT",
-    Delete="DELETE",
-};
+    Get = "GET",
+    Post = "POST",
+    Put = "PUT",
+    Delete = "DELETE",
+}
 
 type Url = String;
 type EventName = String;
@@ -31,7 +30,7 @@ type XMLHttpRequest = {
 fun newXhr() {
     let result : XMLHttpRequest = _unsafe_js("new XMLHttpRequest");
     result;
-};
+}
 
 fun http_get(url, onLoaded) {
     let xhr = newXhr();
@@ -44,7 +43,7 @@ fun http_get(url, onLoaded) {
     xhr.open(Get, url);
     xhr.send();
     xhr;
-};
+}
 
 fun main() {
     let document = _unsafe_js("window.document");
@@ -52,6 +51,6 @@ fun main() {
         print("Got response :D");
         document.write(xhr.responseText);
     });
-};
+}
 
 let _ = main();

@@ -24,6 +24,8 @@ import {
 }
 ```
 
+Note: using / instead of . enables go-style github package tooling.  (not sure this is a good idea or not.)
+
 # Export Syntax
 
 Use case: don't duplicate symbol names

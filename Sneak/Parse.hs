@@ -73,8 +73,14 @@ whileExpression :: Parser ParseExpression
 whileExpression = do
     pr <- P.try $ token TWhile
     c <- noSemiExpression
-    _ <- token TDo
-    body <- noSemiExpression
+    _ <- token TOpenBrace
+    bodyExprs <- P.many expression
+    _ <- token TCloseBrace
+
+    let body = case bodyExprs of
+            [] -> ELiteral (tokenData pr) LUnit
+            _ ->  foldl1 (ESemi (tokenData pr)) bodyExprs
+
     return $ EWhile (tokenData pr) c body
 
 returnExpression :: Parser ParseExpression

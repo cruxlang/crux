@@ -1,0 +1,27 @@
+
+let nonzero = _unsafe_js("function(n){return 0!=n;}");
+let less = _unsafe_js("function(a,b) {return a < b;}");
+
+fun fib(n) {
+    let mutable count = n;
+    let mutable a = 0;
+    let mutable b = 1;
+
+    while nonzero(count) {
+        let t = a;
+        a = b;
+        b = b + t;
+        count = count - 1;
+    };
+    a;
+}
+
+fun main() {
+    let mutable i = 1;
+    while less(i, 10) {
+        print(fib(i));
+        i = i + 1;
+    };
+}
+
+let _ = main();

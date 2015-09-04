@@ -122,9 +122,7 @@ identifierExpression = getToken testTok
 functionExpression :: Parser ParseExpression
 functionExpression = do
     tfun <- P.try $ token Tokens.TFun
-    _ <- token TOpenParen
-    args <- P.sepBy anyIdentifier (token TComma)
-    _ <- token TCloseParen
+    args <- parenthesized $ P.sepBy anyIdentifier (token TComma)
     _ <- token TOpenBrace
     bodyExprs <- P.many expression
     _ <- token TCloseBrace
@@ -188,11 +186,7 @@ applicationExpression :: Parser ParseExpression
 applicationExpression = do
     lhs <- lookupExpression
 
-    argList <- P.optionMaybe $ do
-        _ <- token TOpenParen
-        args <- P.sepBy noSemiExpression (token TComma)
-        _ <- token TCloseParen
-        return args
+    argList <- P.optionMaybe $ parenthesized $ P.sepBy noSemiExpression (token TComma)
 
     case argList of
         Nothing -> return lhs
@@ -250,11 +244,7 @@ semiExpression = do
             return (ESemi (edata e) e e2')
 
 parenExpression :: Parser ParseExpression
-parenExpression = do
-    _ <- token $ TOpenParen
-    e <- P.try semiExpression
-    _ <- token $ TCloseParen
-    return e
+parenExpression = parenthesized $ P.try semiExpression
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
@@ -322,39 +312,22 @@ recordTypeIdent = do
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = P.try $ do
-    _ <- token TOpenParen
-    argTypes <- P.sepBy typeIdent (token TComma)
-    _ <- token TCloseParen
+    argTypes <- parenthesized $ P.sepBy typeIdent (token TComma)
     _ <- token TRightArrow
     retType <- typeIdent
     return $ FunctionIdent argTypes retType
 
-dataDeclTypeIdent :: Parser TypeIdent
-dataDeclTypeIdent =
-    let parenthesized =
-            P.between (P.try $ token TOpenParen) (token TCloseParen) sumIdent
-        justOne = do
-            name <- anyIdentifier
-            return $ TypeIdent name []
-        sumIdent = do
-            name <- anyIdentifier
-            params <- P.many (parenthesized <|> justOne)
-            return $ TypeIdent name params
-    in recordTypeIdent <|> parenthesized <|> justOne
+parenthesized :: Parser a -> Parser a
+parenthesized = P.between (token TOpenParen) (token TCloseParen)
 
 typeIdent :: Parser TypeIdent
 typeIdent =
-    let parenthesized = do
-            _ <- P.try $ token TOpenParen
-            r <- sumIdent
-            _ <- token TCloseParen
-            return r
-        justOne = do
+    let justOne = do
             name <- anyIdentifier
             return $ TypeIdent name []
         sumIdent = do
             name <- anyIdentifier
-            params <- P.many (parenthesized <|> justOne)
+            params <- P.many (parenthesized sumIdent <|> justOne)
             return $ TypeIdent name params
     in functionTypeIdent <|> sumIdent <|> recordTypeIdent
 
@@ -376,10 +349,37 @@ letDeclaration = do
     _ <- token TSemicolon
     return $ DLet ed mut name typeAnn expr
 
+-- typeident = list of types
+-- paren (list of things)
+
+singleTypeIdent :: Parser TypeIdent
+singleTypeIdent = do
+    name <- anyIdentifier
+    return $ TypeIdent name []
+
+typeIdent' :: Parser TypeIdent
+typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
+
+-- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int
+dataDeclTypeIdent :: Parser TypeIdent
+dataDeclTypeIdent = do
+    name <- anyIdentifier
+    params <- P.many typeIdent'
+    return $ TypeIdent name params
+
 variantDefinition :: Parser Variant
 variantDefinition = do
     ctorname <- anyIdentifier
-    ctordata <- P.many dataDeclTypeIdent
+
+    op <- P.optionMaybe $ token TOpenParen
+    ctordata <- case op of
+        Just _ -> do
+            cd <- delimited dataDeclTypeIdent (token TComma)
+            _ <- token TCloseParen
+            return cd
+        Nothing -> do
+            return []
+
     return $ Variant ctorname ctordata
 
 cruxDataDeclaration :: Parser ParseDeclaration
@@ -436,9 +436,7 @@ funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- P.try $ token Tokens.TFun
     name <- anyIdentifier
-    _ <- token TOpenParen
-    params <- P.sepBy anyIdentifier (token TComma)
-    _ <- token TCloseParen
+    params <- parenthesized $ P.sepBy anyIdentifier (token TComma)
     _ <- token TOpenBrace
     bodyExprs <- P.many expression
     _ <- token TCloseBrace

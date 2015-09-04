@@ -1,5 +1,5 @@
 data IntList {
-    Cons Number IntList,
+    Cons(Number, IntList),
     Nil
 }
 

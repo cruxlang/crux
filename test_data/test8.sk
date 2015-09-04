@@ -1,6 +1,6 @@
 
 data IntList {
-    Element Number IntList,
+    Element(Number, IntList),
     Nil
 }
 

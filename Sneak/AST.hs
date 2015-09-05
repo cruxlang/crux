@@ -257,16 +257,16 @@ data RecordOpen = RecordFree | RecordQuantified | RecordClose
 
 type TypeVar = IORef MutableTypeVar
 
-data VarLink a
+data VarLink
     = Unbound Int
-    | Link a
-    deriving (Show, Eq)
+    | Link TypeVar
+    deriving (Eq)
 
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq)
 
 data MutableTypeVar
-    = TVar Int (VarLink TypeVar)
+    = TVar Int VarLink
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]

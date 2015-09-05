@@ -104,7 +104,7 @@ instantiate env t = do
         then t'
         else t
 
-occurs :: VarLink TypeVar -> TypeVar -> IO ()
+occurs :: VarLink -> TypeVar -> IO ()
 occurs tvr ty = do
     tyy <- readIORef ty
     case tyy of

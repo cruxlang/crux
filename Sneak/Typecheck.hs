@@ -353,10 +353,10 @@ flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
 flattenTypeVar tv = do
     tv' <- readIORef tv
     case tv' of
-        TVar i t -> do
+        TVar _i t -> do
             case t of
-                Unbound j ->
-                    return $ IVar i (Unbound j)
+                Unbound _j ->
+                    fail "Unbound type variable made it to flattening - something went wrong"
                 Link tv'' -> do
                     flattenTypeVar tv''
         TQuant i ->

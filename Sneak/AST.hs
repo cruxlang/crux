@@ -274,8 +274,7 @@ data MutableTypeVar
     | TPrimitive PrimitiveType
 
 data ImmutableTypeVar
-    = IVar Int (VarLink ImmutableTypeVar)
-    | IQuant Int
+    = IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar)

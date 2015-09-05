@@ -2,11 +2,10 @@
 
 module Sneak.JSGen.Types where
 
+import Sneak.Prelude
 import qualified Control.Monad.Writer  as Writer
 import qualified Sneak.JSTree           as JS
 import           Sneak.AST
-import           Data.HashMap.Strict   (HashMap)
-import           Data.IORef            (IORef)
 
 data Env = Env
     { eNames :: IORef (HashMap Name JS.Name)

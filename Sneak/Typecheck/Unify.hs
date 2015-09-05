@@ -3,12 +3,10 @@
 
 module Sneak.Typecheck.Unify where
 
-import Control.Monad (forM, forM_, when)
+import Sneak.Prelude
 import Sneak.AST
 import Data.List (sort, nub)
 import Sneak.Typecheck.Types
-import Data.IORef (IORef, newIORef, readIORef, modifyIORef', writeIORef)
-import Data.HashMap.Strict (HashMap)
 import qualified Data.Text as Text
 import Text.Printf (printf)
 import qualified Sneak.MutableHashTable as HashTable

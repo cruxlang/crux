@@ -6,10 +6,10 @@
 
 module Sneak.Parse where
 
+import           Sneak.Prelude
 import           Control.Applicative ((<|>))
 import           Sneak.AST            as AST
 import qualified Sneak.JSTree         as JSTree
-import           Sneak.Prelude
 import           Sneak.Text           (isCapitalized)
 import           Sneak.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap

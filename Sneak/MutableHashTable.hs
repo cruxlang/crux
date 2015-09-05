@@ -1,9 +1,7 @@
 module Sneak.MutableHashTable where
 
-import           Data.Hashable       (Hashable)
-import           Data.HashMap.Strict (HashMap)
+import Sneak.Prelude
 import qualified Data.HashMap.Strict as HashMap
-import           Data.IORef          (IORef)
 import qualified Data.IORef          as IORef
 
 new :: IO (IORef (HashMap key value))

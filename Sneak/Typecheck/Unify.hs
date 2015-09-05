@@ -15,7 +15,7 @@ freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
     modifyIORef' eNextTypeIndex (+1)
     index <- readIORef eNextTypeIndex
-    newIORef $ MutableTypeVar $ TVar index (Unbound index)
+    newIORef $ TVar index (Unbound index)
 
 instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
@@ -23,7 +23,7 @@ instantiateUserType subst env def tyVars = do
     let typeVars'' = if and (map fst typeVars')
             then map snd typeVars'
             else tyVars
-    userType <- newIORef $ MutableTypeVar $ TUserType def typeVars''
+    userType <- newIORef $ TUserType def typeVars''
     variants <- forM (tuVariants def) $ \variant -> do
         paramTypes <- forM (tvParameters variant) $ \param -> do
             instantiate' subst env param
@@ -32,7 +32,7 @@ instantiateUserType subst env def tyVars = do
 
 instantiate' :: IORef (HashMap Int TypeVar) -> Env -> TypeVar -> IO (Bool, TypeVar)
 instantiate' subst env ty = do
-    (MutableTypeVar ty') <- readIORef ty
+    ty' <- readIORef ty
     case ty' of
         TQuant name -> do
             mv <- HashTable.lookup name subst
@@ -51,11 +51,11 @@ instantiate' subst env ty = do
             ty1 <- mapM (instantiate' subst env) param
             (b2, ty2) <- instantiate' subst env ret
             let b = b2 || and (map fst ty1)
-            tfun <- newIORef $ MutableTypeVar $ TFun (map snd ty1) ty2
+            tfun <- newIORef $ TFun (map snd ty1) ty2
             return (b, tfun)
         TUserType def tyVars -> do
             typeVars' <- mapM (instantiate' subst env) tyVars
-            tut <- newIORef $ MutableTypeVar $ TUserType def (map snd typeVars')
+            tut <- newIORef $ TUserType def (map snd typeVars')
             return (and (map fst typeVars'), tut)
         TRecord (RecordType open rows) -> do
             rows' <- forM rows $ \TypeRow{..} -> do
@@ -68,19 +68,19 @@ instantiate' subst env ty = do
             let (changedOpen, open') = case open of
                     RecordQuantified -> (True, RecordFree)
                     _ -> (False, open)
-            tr <- newIORef $ MutableTypeVar $ TRecord $ RecordType open' (map snd rows')
+            tr <- newIORef $ TRecord $ RecordType open' (map snd rows')
             return (changedOpen || or (map fst rows'), tr)
         TPrimitive {} -> return (False, ty)
 
 quantify :: TypeVar -> IO ()
 quantify ty = do
-    (MutableTypeVar ty') <- readIORef ty
+    ty' <- readIORef ty
     case ty' of
         TVar i tv' -> do
             case tv' of
                 Unbound j -> do
-                    qTy <- newIORef $ MutableTypeVar $ TQuant j
-                    writeIORef ty $ MutableTypeVar $ TVar i $ Link qTy
+                    qTy <- newIORef $ TQuant j
+                    writeIORef ty (TVar i $ Link qTy)
                 Link t' ->
                     quantify t'
         TFun param ret -> do
@@ -92,7 +92,7 @@ quantify ty = do
             let open' = case open of
                     RecordFree -> RecordQuantified
                     _ -> open
-            writeIORef ty $ MutableTypeVar $ TRecord $ RecordType open' rows'
+            writeIORef ty $ TRecord $ RecordType open' rows'
         _ ->
             return ()
 
@@ -106,7 +106,7 @@ instantiate env t = do
 
 occurs :: VarLink TypeVar -> TypeVar -> IO ()
 occurs tvr ty = do
-    (MutableTypeVar tyy) <- readIORef ty
+    tyy <- readIORef ty
     case tyy of
         TVar _ ty''
             | tvr == ty'' -> do
@@ -143,8 +143,8 @@ lookupTypeRow name rows = case rows of
 
 unifyRecord :: TypeVar -> TypeVar -> IO ()
 unifyRecord av bv = do
-    MutableTypeVar (TRecord a) <- readIORef av
-    MutableTypeVar (TRecord b) <- readIORef bv
+    TRecord a <- readIORef av
+    TRecord b <- readIORef bv
     let RecordType aOpen aRows = a
         RecordType bOpen bRows = b
     let aFields = sort $ map trName aRows
@@ -187,10 +187,10 @@ unifyRecord av bv = do
             (_, RecordQuantified)    -> RecordQuantified
             (RecordFree, RecordFree) -> RecordFree
 
-    writeIORef av $ MutableTypeVar $ TRecord $ RecordType open' newFields
+    writeIORef av $ TRecord $ RecordType open' newFields
 
     let i = 888 -- hack
-    writeIORef bv (MutableTypeVar $ TVar i $ Link av)
+    writeIORef bv (TVar i $ Link av)
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
@@ -211,8 +211,8 @@ unify av bv
     | av == bv =
         return ()
     | otherwise = do
-        (MutableTypeVar a) <- readIORef av
-        (MutableTypeVar b) <- readIORef bv
+        a <- readIORef av
+        b <- readIORef bv
 
         case (a, b) of
             (TVar aid _, TVar bid _)
@@ -226,7 +226,7 @@ unify av bv
 
             (TVar i a'@(Unbound _), _) -> do
                 occurs a' bv
-                writeIORef av (MutableTypeVar $ TVar i $ Link bv)
+                writeIORef av (TVar i $ Link bv)
 
             (_, TVar {}) -> do
                 unify bv av

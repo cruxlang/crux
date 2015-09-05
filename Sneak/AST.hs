@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveFoldable, DeriveTraversable, DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveGeneric #-}
 module Sneak.AST where
 
 import Sneak.Prelude
@@ -215,29 +215,13 @@ data PrimitiveType
 data TVariant typevar = TVariant
     { tvName       :: Name
     , tvParameters :: [typevar]
-    } deriving (Show, Eq, Functor, Foldable, Traversable)
+    } deriving (Show, Eq)
 
 data TUserTypeDef typevar = TUserTypeDef
     { tuName       :: Name
     , tuParameters :: [typevar]
     , tuVariants   :: [TVariant typevar]
     } deriving (Show, Eq)
-
--- Huge hack: don't try to flatten variants because they can be recursive
--- TODO: figure this out so we can use automagically-generated maps
-
-instance Functor TUserTypeDef where
-    fmap f TUserTypeDef{..} = TUserTypeDef
-        { tuName = tuName
-        , tuParameters = fmap f tuParameters
-        , tuVariants = []
-        }
-
-instance Foldable TUserTypeDef where
-    foldMap f TUserTypeDef{..} = mconcat $ map f tuParameters
-
-instance Traversable TUserTypeDef where
-    traverse f TUserTypeDef{..} = TUserTypeDef <$> pure tuName <*> traverse f tuParameters <*> pure []
 
 data RowMutability
     = RMutable
@@ -250,7 +234,7 @@ data TypeRow typevar = TypeRow
     { trName :: Name
     , trMut :: RowMutability
     , trTyVar :: typevar
-    } deriving (Show, Eq, Functor, Foldable, Traversable)
+    } deriving (Show, Eq)
 
 {-
 fun hypot(p) { sqrt(p.x * p.x + p.y * p.y); };
@@ -271,24 +255,29 @@ This yields {x:Number, y:Number, z:Number}
 data RecordOpen = RecordFree | RecordQuantified | RecordClose
     deriving (Show, Eq)
 
+type TypeVar = IORef MutableTypeVar
+
 data VarLink a
     = Unbound Int
     | Link a
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+    deriving (Show, Eq)
 
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+    deriving (Show, Eq)
 
-data Type a
-    = TVar Int (VarLink a)
+data MutableTypeVar
+    = TVar Int (VarLink TypeVar)
     | TQuant Int
-    | TFun [a] a
-    | TUserType (TUserTypeDef a) [a]
-    | TRecord (RecordType a)
+    | TFun [TypeVar] TypeVar
+    | TUserType (TUserTypeDef TypeVar) [TypeVar]
+    | TRecord (RecordType TypeVar)
     | TPrimitive PrimitiveType
-    deriving (Show, Functor, Foldable, Traversable)
 
-type TypeVar = IORef MutableTypeVar
-newtype MutableTypeVar = MutableTypeVar (Type TypeVar)
-newtype ImmutableTypeVar = ImmutableTypeVar (Type ImmutableTypeVar)
-    deriving (Show)
+data ImmutableTypeVar
+    = IVar Int (VarLink ImmutableTypeVar)
+    | IQuant Int
+    | IFun [ImmutableTypeVar] ImmutableTypeVar
+    | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
+    | IRecord (RecordType ImmutableTypeVar)
+    | IPrimitive PrimitiveType
+    deriving (Show, Eq)

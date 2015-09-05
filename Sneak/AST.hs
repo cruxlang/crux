@@ -221,7 +221,23 @@ data TUserTypeDef typevar = TUserTypeDef
     { tuName       :: Name
     , tuParameters :: [typevar]
     , tuVariants   :: [TVariant typevar]
-    } deriving (Show, Eq, Functor, Foldable, Traversable)
+    } deriving (Show, Eq)
+
+-- Huge hack: don't try to flatten variants because they can be recursive
+-- TODO: figure this out so we can use automagically-generated maps
+
+instance Functor TUserTypeDef where
+    fmap f TUserTypeDef{..} = TUserTypeDef
+        { tuName = tuName
+        , tuParameters = fmap f tuParameters
+        , tuVariants = []
+        }
+
+instance Foldable TUserTypeDef where
+    foldMap f TUserTypeDef{..} = mconcat $ map f tuParameters
+
+instance Traversable TUserTypeDef where
+    traverse f TUserTypeDef{..} = TUserTypeDef <$> pure tuName <*> traverse f tuParameters <*> pure []
 
 data RowMutability
     = RMutable

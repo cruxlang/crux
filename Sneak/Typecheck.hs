@@ -341,6 +341,8 @@ check env expr = case expr of
         t <- freshType env
         return $ EBreak t
 
+-- Huge hack: don't try to flatten variants because they can be recursive
+-- TODO: figure this out so we can use automagically-generated maps
 flattenTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
 flattenTypeDef = mapM flattenTypeVar
 

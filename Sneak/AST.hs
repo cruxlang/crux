@@ -286,7 +286,7 @@ data Type a
     | TUserType (TUserTypeDef a) [a]
     | TRecord (RecordType a)
     | TPrimitive PrimitiveType
-    deriving (Show)
+    deriving (Show, Functor, Foldable, Traversable)
 
 type TypeVar = IORef MutableTypeVar
 newtype MutableTypeVar = MutableTypeVar (Type TypeVar)

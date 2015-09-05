@@ -3,7 +3,20 @@ module Sneak.Typecheck.Types where
 import Sneak.Prelude
 import           Data.List             (intercalate)
 import qualified Data.Text as Text
-import Sneak.AST (UnresolvedReference, ResolvedReference, LetMutability, TypeVar, TypeAlias, MutableTypeVar (..), VarLink (..), RecordType (..), TUserTypeDef (..), TypeRow (..), RecordOpen (..))
+import Sneak.AST
+    ( UnresolvedReference
+    , ResolvedReference
+    , LetMutability
+    , TypeVar
+    , TypeAlias
+    , Type (..)
+    , MutableTypeVar (..)
+    , VarLink (..)
+    , RecordType (..)
+    , TUserTypeDef (..)
+    , TypeRow (..)
+    , RecordOpen (..)
+    )
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
@@ -16,7 +29,7 @@ data Env = Env
 
 showTypeVarIO :: TypeVar -> IO [Char]
 showTypeVarIO tvar = do
-  tvar' <- readIORef tvar
+  (MutableTypeVar tvar') <- readIORef tvar
   case tvar' of
     TVar i o' -> do
         os <- case o' of

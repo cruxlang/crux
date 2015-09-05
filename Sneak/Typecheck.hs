@@ -44,7 +44,7 @@ typeFromConstructor env cname = do
     let fold acc ty = case (acc, ty) of
             (Just a, _) -> return $ Just a
             (Nothing, ut) -> do
-                ut' <- readIORef ut
+                (MutableTypeVar ut') <- readIORef ut
                 case ut' of
                     TUserType def _ -> do
                         let TUserTypeDef { tuVariants = variants } = def
@@ -67,7 +67,7 @@ buildPatternEnv exprType env patt = case patt of
         ctor <- typeFromConstructor env cname
         case ctor of
             Just (ctorTy, _) -> do
-                t <- readIORef ctorTy
+                (MutableTypeVar t) <- readIORef ctorTy
                 case t of
                     TUserType def tyVars -> do
                         subst <- HashTable.new
@@ -92,7 +92,7 @@ buildPatternEnv exprType env patt = case patt of
 
 walkMutableTypeVar :: TypeVar -> IO TypeVar
 walkMutableTypeVar tyvar = do
-    tyvar' <- readIORef tyvar
+    (MutableTypeVar tyvar') <- readIORef tyvar
     case tyvar' of
         TVar _ (Link tv) -> do
             walkMutableTypeVar tv
@@ -108,7 +108,7 @@ isLValue env expr = case expr of
             _ -> False
     ELookup _ lhs propName -> do
         lty <- walkMutableTypeVar (edata lhs)
-        lty' <- readIORef lty
+        (MutableTypeVar lty') <- readIORef lty
         case lty' of
             TRecord (RecordType recordEData rows) -> do
                 case lookupTypeRow propName rows of
@@ -123,7 +123,7 @@ isLValue env expr = case expr of
                         let newRow = TypeRow{trName=propName, trMut=RMutable, trTyVar=rowTy}
                         let newFields = newRow:[tr | tr <- rows, trName tr /= propName]
 
-                        writeIORef lty (TRecord $ RecordType recordEData newFields)
+                        writeIORef lty $ MutableTypeVar $ TRecord $ RecordType recordEData newFields
 
                         return True
                     Nothing -> do
@@ -165,7 +165,7 @@ check env expr = case expr of
                 }
         body' <- check env' body
         unify returnType $ edata body'
-        ty <- newIORef $ TFun paramTypes returnType
+        ty <- newIORef $ MutableTypeVar $ TFun paramTypes returnType
         return $ EFun ty params body'
 
     EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
@@ -183,12 +183,12 @@ check env expr = case expr of
 
     EApp _ (EIdentifier _ "print") args -> do
         args' <- mapM (check env) args
-        ty <- newIORef $ TPrimitive Unit
+        ty <- newIORef $ MutableTypeVar $ TPrimitive Unit
         return $ EIntrinsic ty (IPrint args')
 
     EApp _ (EIdentifier _ "toString") [arg] -> do
         arg' <- check env arg
-        ty <- newIORef $ TPrimitive String
+        ty <- newIORef $ MutableTypeVar $ TPrimitive String
         return $ EIntrinsic ty (IToString arg')
 
     EApp _ (EIdentifier _ "toString") _ ->
@@ -198,7 +198,7 @@ check env expr = case expr of
         lhs' <- check env lhs
         rhs' <- mapM (check env) rhs
         result <- freshType env
-        ty <- newIORef $ TFun (map edata rhs') result
+        ty <- newIORef $ MutableTypeVar $ TFun (map edata rhs') result
         unify (edata lhs') ty
         return $ EApp result lhs' rhs'
 
@@ -214,13 +214,13 @@ check env expr = case expr of
 
         let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
 
-        recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
-        return $ ERecordLiteral recordTy (HashMap.fromList fields')
+        recordTy <- newIORef $ MutableTypeVar $ TRecord $ RecordType RecordClose fieldTypes
+        return $ ERecordLiteral recordTy $ HashMap.fromList fields'
 
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
         ty <- freshType env
-        recTy <- newIORef $ TRecord $ RecordType RecordFree [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+        recTy <- newIORef $ MutableTypeVar $ TRecord $ RecordType RecordFree [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
         unify (edata lhs') recTy
         return $ ELookup ty lhs' propName
 
@@ -247,7 +247,7 @@ check env expr = case expr of
             annotTy <- resolveTypeIdent env [] annotation
             unify ty annotTy
 
-        unitTy <- newIORef $ TPrimitive Unit
+        unitTy <- newIORef $ MutableTypeVar $ TPrimitive Unit
         return $ ELet unitTy mut name maybeAnnot expr''
 
     EAssign _ lhs rhs -> do
@@ -261,12 +261,12 @@ check env expr = case expr of
             lhs'' <- flatten lhs'
             error $ printf "Not an lvar: %s" (show lhs'')
 
-        unitType <- newIORef $ TPrimitive Unit
+        unitType <- newIORef $ MutableTypeVar $ TPrimitive Unit
 
         return $ EAssign unitType lhs' rhs'
 
     ELiteral _ lit -> do
-        litType <- newIORef $ case lit of
+        litType <- newIORef $ MutableTypeVar $ case lit of
                 LInteger _ -> TPrimitive Number
                 LString _ -> TPrimitive String
                 LUnit -> TPrimitive Unit
@@ -290,7 +290,7 @@ check env expr = case expr of
 
     -- TEMP: For now, all binary intrinsics are Number -> Number -> Number
     EBinIntrinsic _ bi lhs rhs -> do
-        numTy <- newIORef $ TPrimitive Number
+        numTy <- newIORef $ MutableTypeVar $ TPrimitive Number
 
         lhs' <- check env lhs
         unify numTy (edata lhs')
@@ -314,7 +314,7 @@ check env expr = case expr of
 
     EWhile _ cond body -> do
         booleanType <- resolveType (edata expr) env "Boolean"
-        unitType <- newIORef $ TPrimitive Unit
+        unitType <- newIORef $ MutableTypeVar $ TPrimitive Unit
 
         condition' <- check env cond
         unify booleanType (edata condition')
@@ -348,7 +348,7 @@ flattenTypeDef = mapM flattenTypeVar
 
 flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
 flattenTypeVar tv = do
-    tv' <- readIORef tv
+    (MutableTypeVar tv') <- readIORef tv
     case tv' of
         TVar i t -> do
             case t of
@@ -376,16 +376,9 @@ flattenTypeVar tv = do
 
 {-
 unflattenTypeVar :: ImmutableTypeVar -> IO TypeVar
-unflattenTypeVar tv = case tv of
-    IVar i link -> case link of
-        Unbound j -> newIORef $ TVar i $ Unbound j
-        Link tv'' -> unflattenTypeVar tv''
-    IQuant i -> newIORef $ TQuant i
-    IFun params body -> do
-        params' <- mapM unflattenTypeVar params
-        body' <- unflattenTypeVar body
-        newIORef $ TFun params' body'
-    IUserType
+unflattenTypeVar (ImmutableTypeVar t) = do
+    m <- mapM unflattenTypeVar t
+    newIORef $ MutableTypeVar m
 -}
 
 flattenIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
@@ -522,9 +515,9 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
 buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
 buildTypeEnvironment loadedModules modul = do
     -- built-in types. would be nice to move into the prelude somehow.
-    numTy  <- newIORef $ TPrimitive Number
-    unitTy <- newIORef $ TPrimitive Unit
-    strTy  <- newIORef $ TPrimitive String
+    numTy  <- newIORef $ MutableTypeVar $ TPrimitive Number
+    unitTy <- newIORef $ MutableTypeVar $ TPrimitive Unit
+    strTy  <- newIORef $ MutableTypeVar $ TPrimitive String
 
     e <- newEnv Nothing
     typeEnv <- newIORef $ HashMap.fromList
@@ -542,7 +535,7 @@ buildTypeEnvironment loadedModules modul = do
             forM_ (mDecls prelude') $ \(Declaration _ decl) -> case decl of
                 DJSData name variants -> do
                     let encodeJSVariant (JSVariant n _) = TVariant n []
-                    tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
+                    tr <- newIORef $ MutableTypeVar $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
                     HashTable.insert name (OtherModule importName name, tr) typeEnv
 
                     forM_ variants $ \(JSVariant vname _) -> do
@@ -575,7 +568,7 @@ buildTypeEnvironment loadedModules modul = do
                     , tuParameters = typeVars
                     , tuVariants = variants'
                     }
-            userType <- newIORef $ TUserType typeDef typeVars
+            userType <- newIORef $ MutableTypeVar $ TUserType typeDef typeVars
             modifyIORef' typeEnv $ HashMap.insert name (ThisModule name, userType)
 
         DJSData name variants -> do
@@ -590,7 +583,7 @@ buildTypeEnvironment loadedModules modul = do
                     , tuParameters = []
                     , tuVariants = variants'
                     }
-            userType <- newIORef $ TUserType typeDef []
+            userType <- newIORef $ MutableTypeVar $ TUserType typeDef []
             modifyIORef' typeEnv $ HashMap.insert name (ThisModule name, userType)
 
         DType ty@(TypeAlias name _ _) -> do
@@ -606,7 +599,7 @@ buildTypeEnvironment loadedModules modul = do
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
         DData name _typeVarNames variants -> do
             Just (_, ty) <- HashTable.lookup name typeEnv
-            TUserType typeDef _ <- readIORef ty
+            MutableTypeVar (TUserType typeDef _) <- readIORef ty
 
             let TUserTypeDef { tuVariants = tvariants } = typeDef
             forM_ (zip variants tvariants) $ \(v, tv) -> do
@@ -621,7 +614,7 @@ buildTypeEnvironment loadedModules modul = do
                 return ty
             _ -> do
                 resolvedArgTypes <- mapM (resolveTypeIdent env qvarNames) argTypeIdents
-                newIORef $ TFun resolvedArgTypes ty
+                newIORef $ MutableTypeVar $ TFun resolvedArgTypes ty
 
     intrinsics <- Intrinsic.intrinsics
 
@@ -655,7 +648,7 @@ resolveTypeIdent env qvarTable typeIdent =
         if isCapitalized typeName
             then case HashMap.lookup typeName eTypeBindings of
                 Just (_, ty) -> do
-                    ty' <- readIORef ty
+                    (MutableTypeVar ty') <- readIORef ty
                     case ty' of
                         TPrimitive {} ->
                             if [] /= typeParameters
@@ -667,7 +660,7 @@ resolveTypeIdent env qvarTable typeIdent =
                                     error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
                                 else do
                                     params <- mapM go typeParameters
-                                    newIORef $ TUserType def params
+                                    newIORef $ MutableTypeVar $ TUserType def params
                         _ ->
                             return ty
                 Nothing -> case HashMap.lookup typeName eTypeAliases of
@@ -695,12 +688,12 @@ resolveTypeIdent env qvarTable typeIdent =
                     Just LImmutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
-        newIORef $ TRecord $ RecordType RecordClose rows'
+        newIORef $ MutableTypeVar $ TRecord $ RecordType RecordClose rows'
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- mapM go argTypes
         retPrimitive' <- go retPrimitive
-        newIORef $ TFun argTypes' retPrimitive'
+        newIORef $ MutableTypeVar $ TFun argTypes' retPrimitive'
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
 run loadedModules modul = do

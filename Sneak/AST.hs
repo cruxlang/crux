@@ -281,13 +281,15 @@ data VarLink a
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq)
 
-data MutableTypeVar
+data Type
     = TVar Int (VarLink TypeVar)
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TRecord (RecordType TypeVar)
     | TPrimitive PrimitiveType
+
+newtype MutableTypeVar = MutableTypeVar Type
 
 data ITV
     = IVar Int (VarLink ImmutableTypeVar)

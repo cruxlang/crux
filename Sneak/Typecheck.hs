@@ -376,7 +376,7 @@ flattenTypeVar tv = do
             rows'' <- mapM flattenRow rows'
             return $ IRecord $ RecordType open' rows''
         TPrimitive t ->
-            return $ IType t
+            return $ IPrimitive t
 
 flattenIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
 flattenIntrinsic = mapIntrinsicInputs flatten

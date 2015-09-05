@@ -279,5 +279,5 @@ data ImmutableTypeVar
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar)
-    | IType PrimitiveType
+    | IPrimitive PrimitiveType
     deriving (Show, Eq)

@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveFoldable, DeriveTraversable, DeriveGeneric #-}
 module Sneak.AST where
 
 import Sneak.Prelude
@@ -215,13 +215,13 @@ data PrimitiveType
 data TVariant typevar = TVariant
     { tvName       :: Name
     , tvParameters :: [typevar]
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TUserTypeDef typevar = TUserTypeDef
     { tuName       :: Name
     , tuParameters :: [typevar]
     , tuVariants   :: [TVariant typevar]
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data RowMutability
     = RMutable

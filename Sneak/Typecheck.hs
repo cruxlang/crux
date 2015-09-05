@@ -342,12 +342,7 @@ check env expr = case expr of
         return $ EBreak t
 
 flattenTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
-flattenTypeDef TUserTypeDef{..} = do
-    parameters' <- mapM flattenTypeVar tuParameters
-    -- Huge hack: don't try to flatten variants because they can be recursive
-    let variants' = []
-    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
-    return td
+flattenTypeDef = mapM flattenTypeVar
 
 flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
 flattenTypeVar tv = do
@@ -370,13 +365,26 @@ flattenTypeVar tv = do
             def' <- flattenTypeDef def
             return $ IUserType def' tvars'
         TRecord (RecordType open' rows') -> do
-            let flattenRow TypeRow{..} = do
-                    trTyVar' <- flattenTypeVar trTyVar
-                    return TypeRow{trName, trMut, trTyVar=trTyVar'}
-            rows'' <- mapM flattenRow rows'
+            rows'' <- forM rows' $ \TypeRow{..} -> do
+                trTyVar' <- flattenTypeVar trTyVar
+                return TypeRow{trName, trMut, trTyVar=trTyVar'}
             return $ IRecord $ RecordType open' rows''
         TPrimitive t ->
             return $ IPrimitive t
+
+{-
+unflattenTypeVar :: ImmutableTypeVar -> IO TypeVar
+unflattenTypeVar tv = case tv of
+    IVar i link -> case link of
+        Unbound j -> newIORef $ TVar i $ Unbound j
+        Link tv'' -> unflattenTypeVar tv''
+    IQuant i -> newIORef $ TQuant i
+    IFun params body -> do
+        params' <- mapM unflattenTypeVar params
+        body' <- unflattenTypeVar body
+        newIORef $ TFun params' body'
+    IUserType
+-}
 
 flattenIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
 flattenIntrinsic = mapIntrinsicInputs flatten

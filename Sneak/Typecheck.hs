@@ -353,26 +353,26 @@ flattenTypeVar tv = do
         TVar i t -> do
             case t of
                 Unbound j ->
-                    return $ ImmutableTypeVar $ IVar i (Unbound j)
+                    return $ ImmutableTypeVar $ TVar i (Unbound j)
                 Link tv'' -> do
                     flattenTypeVar tv''
         TQuant i ->
-            return $ ImmutableTypeVar $ IQuant i
+            return $ ImmutableTypeVar $ TQuant i
         TFun arg body -> do
             arg' <- mapM flattenTypeVar arg
             body' <- flattenTypeVar body
-            return $ ImmutableTypeVar $ IFun arg' body'
+            return $ ImmutableTypeVar $ TFun arg' body'
         TUserType def tvars -> do
             tvars' <- mapM flattenTypeVar tvars
             def' <- flattenTypeDef def
-            return $ ImmutableTypeVar $ IUserType def' tvars'
+            return $ ImmutableTypeVar $ TUserType def' tvars'
         TRecord (RecordType open' rows') -> do
             rows'' <- forM rows' $ \TypeRow{..} -> do
                 trTyVar' <- flattenTypeVar trTyVar
                 return TypeRow{trName, trMut, trTyVar=trTyVar'}
-            return $ ImmutableTypeVar $ IRecord $ RecordType open' rows''
+            return $ ImmutableTypeVar $ TRecord $ RecordType open' rows''
         TPrimitive t ->
-            return $ ImmutableTypeVar $ IPrimitive t
+            return $ ImmutableTypeVar $ TPrimitive t
 
 {-
 unflattenTypeVar :: ImmutableTypeVar -> IO TypeVar

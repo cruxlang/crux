@@ -297,7 +297,7 @@ case_cannot_assign_to_immutable_binding = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Left "Not an lvar: EIdentifier (ImmutableTypeVar (IPrimitive Number)) (Local \"x\")") result
+    assertEqual "" (Left "Not an lvar: EIdentifier (ImmutableTypeVar (TPrimitive Number)) (Local \"x\")") result
 
 case_assign_to_mutable_record_field = do
     result <- run $ T.unlines
@@ -322,7 +322,7 @@ case_cannot_assign_to_immutable_record_field = do
         ]
 
     assertEqual ""
-        (Left "Not an lvar: ELookup (ImmutableTypeVar (IPrimitive Number)) (EIdentifier (ImmutableTypeVar (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = ImmutableTypeVar (IPrimitive Number)}]))) (Local \"a\")) \"x\"")
+        (Left "Not an lvar: ELookup (ImmutableTypeVar (TPrimitive Number)) (EIdentifier (ImmutableTypeVar (TRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = ImmutableTypeVar (TPrimitive Number)}]))) (Local \"a\")) \"x\"")
         result
 
 case_mutable_record_field_requirement_is_inferred = do

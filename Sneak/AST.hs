@@ -250,7 +250,7 @@ data TypeRow typevar = TypeRow
     { trName :: Name
     , trMut :: RowMutability
     , trTyVar :: typevar
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 {-
 fun hypot(p) { sqrt(p.x * p.x + p.y * p.y); };
@@ -271,34 +271,24 @@ This yields {x:Number, y:Number, z:Number}
 data RecordOpen = RecordFree | RecordQuantified | RecordClose
     deriving (Show, Eq)
 
-type TypeVar = IORef MutableTypeVar
-
 data VarLink a
     = Unbound Int
     | Link a
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
-data Type
-    = TVar Int (VarLink TypeVar)
+data Type a
+    = TVar Int (VarLink a)
     | TQuant Int
-    | TFun [TypeVar] TypeVar
-    | TUserType (TUserTypeDef TypeVar) [TypeVar]
-    | TRecord (RecordType TypeVar)
+    | TFun [a] a
+    | TUserType (TUserTypeDef a) [a]
+    | TRecord (RecordType a)
     | TPrimitive PrimitiveType
+    deriving (Show)
 
-newtype MutableTypeVar = MutableTypeVar Type
-
-data ITV
-    = IVar Int (VarLink ImmutableTypeVar)
-    | IQuant Int
-    | IFun [ImmutableTypeVar] ImmutableTypeVar
-    | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
-    | IRecord (RecordType ImmutableTypeVar)
-    | IPrimitive PrimitiveType
-    deriving (Show, Eq)
-
-newtype ImmutableTypeVar = ImmutableTypeVar ITV
-    deriving (Show, Eq)
+type TypeVar = IORef MutableTypeVar
+newtype MutableTypeVar = MutableTypeVar (Type TypeVar)
+newtype ImmutableTypeVar = ImmutableTypeVar (Type ImmutableTypeVar)
+    deriving (Show)

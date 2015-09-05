@@ -289,11 +289,14 @@ data MutableTypeVar
     | TRecord (RecordType TypeVar)
     | TPrimitive PrimitiveType
 
-data ImmutableTypeVar
+data ITV
     = IVar Int (VarLink ImmutableTypeVar)
     | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar)
     | IPrimitive PrimitiveType
+    deriving (Show, Eq)
+
+newtype ImmutableTypeVar = ImmutableTypeVar ITV
     deriving (Show, Eq)

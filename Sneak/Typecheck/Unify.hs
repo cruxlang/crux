@@ -194,17 +194,17 @@ unifyRecord av bv = do
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
-        (RImmutable, RImmutable) -> Right RImmutable
-        (RImmutable, RMutable) -> Left "Record field mutability does not match"
-        (RImmutable, RFree) -> Right RImmutable
-        (RMutable, RMutable) -> Right RMutable
-        (RMutable, RImmutable) -> Left "Record field mutability does not match"
-        (RMutable, RFree) -> Right RMutable
-        (RFree, RFree) -> Right RFree
-        (RFree, RImmutable) -> Right RImmutable
-        (RFree, RMutable) -> Right RMutable
-        (RQuantified, _) -> Left "Quant!! D:"
-        (_, RQuantified) -> Left "Quant2!! D:"
+    (RImmutable, RImmutable) -> Right RImmutable
+    (RImmutable, RMutable) -> Left "Record field mutability does not match"
+    (RImmutable, RFree) -> Right RImmutable
+    (RMutable, RMutable) -> Right RMutable
+    (RMutable, RImmutable) -> Left "Record field mutability does not match"
+    (RMutable, RFree) -> Right RMutable
+    (RFree, RFree) -> Right RFree
+    (RFree, RImmutable) -> Right RImmutable
+    (RFree, RMutable) -> Right RMutable
+    (RQuantified, _) -> Left "Quant!! D:"
+    (_, RQuantified) -> Left "Quant2!! D:"
 
 unify :: TypeVar -> TypeVar -> IO ()
 unify av bv

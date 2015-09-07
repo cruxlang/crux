@@ -1,15 +1,15 @@
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module Sneak.Typecheck.Unify where
 
-import Sneak.Prelude
-import Sneak.AST
-import Data.List (sort, nub)
-import Sneak.Typecheck.Types
-import qualified Data.Text as Text
-import Text.Printf (printf)
+import           Data.List              (nub, sort)
+import qualified Data.Text              as Text
+import           Sneak.AST
 import qualified Sneak.MutableHashTable as HashTable
+import           Sneak.Prelude
+import           Sneak.Typecheck.Types
+import           Text.Printf            (printf)
 
 freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do

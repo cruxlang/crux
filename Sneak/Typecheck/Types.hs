@@ -1,9 +1,13 @@
 module Sneak.Typecheck.Types where
 
-import Sneak.Prelude
-import           Data.List             (intercalate)
-import qualified Data.Text as Text
-import Sneak.AST (UnresolvedReference, ResolvedReference, LetMutability, TypeVar, TypeAlias, MutableTypeVar (..), VarLink (..), RecordType (..), TUserTypeDef (..), TypeRow (..), RecordOpen (..))
+import           Data.List     (intercalate)
+import qualified Data.Text     as Text
+import           Sneak.AST     (LetMutability, MutableTypeVar (..),
+                                RecordOpen (..), RecordType (..),
+                                ResolvedReference, TUserTypeDef (..), TypeAlias,
+                                TypeRow (..), TypeVar, UnresolvedReference,
+                                VarLink (..))
+import           Sneak.Prelude
 
 data Env = Env
     { eNextTypeIndex :: IORef Int

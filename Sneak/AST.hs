@@ -1,10 +1,14 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, DeriveFunctor, DeriveGeneric #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+
 module Sneak.AST where
 
-import Sneak.Prelude
-import qualified Data.Text as Text
-import qualified Sneak.JSTree as JSTree
-import qualified Sneak.Tokens as Tokens
+import qualified Data.Text     as Text
+import qualified Sneak.JSTree  as JSTree
+import           Sneak.Prelude
+import qualified Sneak.Tokens  as Tokens
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -84,7 +88,7 @@ data Import = UnqualifiedImport ModuleName
 
 data Module idtype edata = Module
     { mImports :: [Import]
-    , mDecls :: [Declaration idtype edata]
+    , mDecls   :: [Declaration idtype edata]
     }
     deriving (Show, Eq)
 
@@ -231,8 +235,8 @@ data RowMutability
     deriving (Show, Eq)
 
 data TypeRow typevar = TypeRow
-    { trName :: Name
-    , trMut :: RowMutability
+    { trName  :: Name
+    , trMut   :: RowMutability
     , trTyVar :: typevar
     } deriving (Show, Eq)
 

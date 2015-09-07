@@ -355,7 +355,7 @@ flattenTypeVar tv = do
     case tv' of
         TVar i t -> do
             case t of
-                Unbound _j ->
+                Unbound ->
                     -- TODO: andy says this should fail, but without it, to_option_string fails to typecheck
                     --fail "Unbound type variable made it to flattening - something went wrong"
                     return $ IQuant i

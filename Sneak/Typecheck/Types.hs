@@ -24,7 +24,7 @@ showTypeVarIO tvar = do
     case tvar' of
         TVar i o' -> do
             os <- case o' of
-                Unbound j -> return $ "Unbound " ++ show j
+                Unbound -> return $ "Unbound " ++ show i
                 Link x -> showTypeVarIO x
             return $ "(TVar " ++ show i ++ " " ++ os ++ ")"
         TQuant i ->

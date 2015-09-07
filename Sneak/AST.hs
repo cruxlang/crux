@@ -262,7 +262,7 @@ data RecordOpen = RecordFree | RecordQuantified | RecordClose
 type TypeVar = IORef MutableTypeVar
 
 data VarLink
-    = Unbound Int
+    = Unbound
     | Link TypeVar
     deriving (Eq)
 

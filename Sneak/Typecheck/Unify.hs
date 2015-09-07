@@ -15,7 +15,7 @@ freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
     modifyIORef' eNextTypeIndex (+1)
     index <- readIORef eNextTypeIndex
-    newIORef $ TVar index (Unbound index)
+    newIORef $ TVar index Unbound
 
 instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
@@ -46,7 +46,7 @@ instantiate' subst env ty = do
         TVar _ vl -> do
             case vl of
                 Link tv'  -> instantiate' subst env tv'
-                Unbound _ -> return (False, ty)
+                Unbound -> return (False, ty)
         TFun param ret -> do
             ty1 <- mapM (instantiate' subst env) param
             (b2, ty2) <- instantiate' subst env ret
@@ -78,8 +78,8 @@ quantify ty = do
     case ty' of
         TVar i tv' -> do
             case tv' of
-                Unbound j -> do
-                    qTy <- newIORef $ TQuant j
+                Unbound -> do
+                    qTy <- newIORef $ TQuant i
                     writeIORef ty (TVar i $ Link qTy)
                 Link t' ->
                     quantify t'
@@ -104,25 +104,25 @@ instantiate env t = do
         then t'
         else t
 
-occurs :: VarLink -> TypeVar -> IO ()
-occurs tvr ty = do
-    tyy <- readIORef ty
-    case tyy of
-        TVar _ ty''
-            | tvr == ty'' -> do
+occurs :: Int -> VarLink -> TypeVar -> IO ()
+occurs varname tvr ty = do
+    ty' <- readIORef ty
+    case ty' of
+        TVar varname' ty''
+            | (varname, tvr) == (varname', ty'') -> do
                 error $ "Occurs check failed"
             | otherwise -> do
                 case ty'' of
-                    Link ty''' -> occurs tvr ty'''
+                    Link ty''' -> occurs varname tvr ty'''
                     _ -> return ()
         TFun arg ret -> do
-            mapM_ (occurs tvr) arg
-            occurs tvr ret
+            mapM_ (occurs varname tvr) arg
+            occurs varname tvr ret
         TUserType _ tvars -> do
-            mapM_ (occurs tvr) tvars
+            mapM_ (occurs varname tvr) tvars
         TRecord (RecordType _ rows) -> do
             forM_ rows $ \TypeRow{..} ->
-                occurs tvr trTyVar
+                occurs varname tvr trTyVar
         TPrimitive {} ->
             return ()
         TQuant {} ->
@@ -224,8 +224,8 @@ unify av bv
             (TVar _ (Link al), _) ->
                 unify al bv
 
-            (TVar i a'@(Unbound _), _) -> do
-                occurs a' bv
+            (TVar i a'@Unbound, _) -> do
+                occurs i a' bv
                 writeIORef av (TVar i $ Link bv)
 
             (_, TVar {}) -> do

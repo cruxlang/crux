@@ -77,8 +77,7 @@ quantify ty = do
     ty' <- readIORef ty
     case ty' of
         TUnbound i -> do
-            qTy <- newIORef $ TQuant i
-            writeIORef ty (TBound i qTy)
+            writeIORef ty (TQuant i)
         TBound _ t -> do
             quantify t
         TQuant _ -> do

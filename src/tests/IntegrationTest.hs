@@ -218,7 +218,7 @@ case_record_annotation_is_checked2 = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TVar 4 Unbound 4),f...}") result
+    assertEqual "" (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 4),f...}") result
 
 case_type_alias = do
     result <- run $ T.unlines

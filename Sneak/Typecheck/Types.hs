@@ -1,13 +1,20 @@
 module Sneak.Typecheck.Types where
 
-import           Data.List     (intercalate)
-import qualified Data.Text     as Text
-import           Sneak.AST     (LetMutability, MutableTypeVar (..),
-                                RecordOpen (..), RecordType (..),
-                                ResolvedReference, TUserTypeDef (..), TypeAlias,
-                                TypeRow (..), TypeVar, UnresolvedReference,
-                                VarLink (..))
-import           Sneak.Prelude
+import Sneak.Prelude
+import Data.List (intercalate)
+import qualified Data.Text as Text
+import Sneak.AST
+    ( LetMutability
+    , MutableTypeVar (..)
+    , RecordOpen (..)
+    , RecordType (..)
+    , ResolvedReference
+    , TUserTypeDef (..)
+    , TypeAlias
+    , TypeRow (..)
+    , TypeVar
+    , UnresolvedReference
+    )
 
 data Env = Env
     { eNextTypeIndex :: IORef Int
@@ -22,12 +29,12 @@ showTypeVarIO :: TypeVar -> IO [Char]
 showTypeVarIO tvar = do
     tvar' <- readIORef tvar
     case tvar' of
-        TVar i o' -> do
-            os <- case o' of
-                Unbound -> return $ "Unbound " ++ show i
-                Link x -> showTypeVarIO x
-            return $ "(TVar " ++ show i ++ " " ++ os ++ ")"
-        TQuant i ->
+        TUnbound i -> do
+            return $ "(TUnbound " ++ show i ++ ")"
+        TBound i x -> do
+            inner <- showTypeVarIO x
+            return $ "(TBound " ++ show i ++ " " ++ show inner ++ ")"
+        TQuant i -> do
             return $ "TQuant " ++ show i
         TFun arg ret -> do
             as <- mapM showTypeVarIO arg

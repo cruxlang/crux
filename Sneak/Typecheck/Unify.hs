@@ -15,7 +15,7 @@ freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
     modifyIORef' eNextTypeIndex (+1)
     index <- readIORef eNextTypeIndex
-    newIORef $ TVar index Unbound
+    newIORef $ TUnbound index
 
 instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
@@ -34,6 +34,10 @@ instantiate' :: IORef (HashMap Int TypeVar) -> Env -> TypeVar -> IO (Bool, TypeV
 instantiate' subst env ty = do
     ty' <- readIORef ty
     case ty' of
+        TUnbound _ -> do
+            return (False, ty)
+        TBound _ tv' -> do
+            instantiate' subst env tv'
         TQuant name -> do
             mv <- HashTable.lookup name subst
             case mv of
@@ -43,10 +47,6 @@ instantiate' subst env ty = do
                     tv <- freshType env
                     HashTable.insert name tv subst
                     return (True, tv)
-        TVar _ vl -> do
-            case vl of
-                Link tv'  -> instantiate' subst env tv'
-                Unbound -> return (False, ty)
         TFun param ret -> do
             ty1 <- mapM (instantiate' subst env) param
             (b2, ty2) <- instantiate' subst env ret
@@ -76,14 +76,12 @@ quantify :: TypeVar -> IO ()
 quantify ty = do
     ty' <- readIORef ty
     case ty' of
-        TVar i tv' -> do
-            case tv' of
-                Unbound -> do
-                    qTy <- newIORef $ TQuant i
-                    writeIORef ty (TVar i $ Link qTy)
-                Link t' ->
-                    quantify t'
-        TQuant _ ->
+        TUnbound i -> do
+            qTy <- newIORef $ TQuant i
+            writeIORef ty (TBound i qTy)
+        TBound _ t -> do
+            quantify t
+        TQuant _ -> do
             return ()
         TFun param ret -> do
             mapM_ quantify param
@@ -108,17 +106,20 @@ instantiate env t = do
         then t'
         else t
 
-occurs :: Int -> VarLink -> TypeVar -> IO ()
+occurs :: Int -> MutableTypeVar -> TypeVar -> IO ()
 occurs varname tvr ty = do
     ty' <- readIORef ty
     case ty' of
-        TVar varname' ty''
-            | (varname, tvr) == (varname', ty'') -> do
+        TUnbound varname'
+            | (varname', ty') == (varname, tvr) -> do
                 error $ "Occurs check failed"
             | otherwise -> do
-                case ty'' of
-                    Link ty''' -> occurs varname tvr ty'''
-                    _ -> return ()
+                return ()
+        TBound varname' ty''
+            | (varname', ty') == (varname, tvr) -> do
+                error $ "Occurs check failed"
+            | otherwise -> do
+                occurs varname tvr ty''
         TFun arg ret -> do
             mapM_ (occurs varname tvr) arg
             occurs varname tvr ret
@@ -193,8 +194,8 @@ unifyRecord av bv = do
 
     writeIORef av $ TRecord $ RecordType open' newFields
 
-    let i = 888 -- hack
-    writeIORef bv (TVar i $ Link av)
+    let i = 888 -- TODO: hack
+    writeIORef bv $ TBound i av
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
@@ -219,21 +220,18 @@ unify av bv
         b <- readIORef bv
 
         case (a, b) of
-            (TVar aid _, TVar bid _)
-                | aid == bid ->
-                    return ()
+            (TUnbound aid, TUnbound bid) | aid == bid -> return ()
+            (TUnbound aid, TBound bid _) | aid == bid -> return ()
+            (TBound aid _, TUnbound bid) | aid == bid -> return ()
+            (TBound aid _, TBound bid _) | aid == bid -> return ()
+            (_, TBound _ bl) -> unify av bl
+            (TBound _ al, _) -> unify al bv
+            (TUnbound i, _) -> do
+                occurs i a bv
+                writeIORef av $ TBound i bv
 
-            (_, TVar _ (Link bl)) ->
-                unify av bl
-            (TVar _ (Link al), _) ->
-                unify al bv
-
-            (TVar i a'@Unbound, _) -> do
-                occurs i a' bv
-                writeIORef av (TVar i $ Link bv)
-
-            (_, TVar {}) -> do
-                unify bv av
+            (_, TUnbound {}) -> unify bv av
+            --(_, TBound {}) -> unify bv av
 
             (TPrimitive aType, TPrimitive bType)
                 | aType == bType ->

@@ -17,7 +17,7 @@ import qualified System.FilePath as FP
 
 preludeSource :: Text
 preludeSource = Text.pack $ [r|
-data jsffi Boolean {
+export data jsffi Boolean {
     True = true,
     False = false,
 }
@@ -31,6 +31,7 @@ data Program = Program
     { pMainModule :: AST.LoadedModule
     , pOtherModules :: HashMap AST.ModuleName AST.LoadedModule
     }
+    deriving (Show, Eq)
 
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
@@ -80,11 +81,6 @@ loadModuleFromSource filename source = do
     prelude <- loadPrelude
     let lm = [("Prelude", prelude)]
     loadModuleFromSource' addPrelude lm filename source
-
-loadModuleFromFile :: FilePath -> IO (Either String AST.LoadedModule)
-loadModuleFromFile filename = do
-    source <- BS.readFile filename
-    loadModuleFromSource filename $ TE.decodeUtf8 source
 
 importsOf :: AST.Module a b -> [AST.ModuleName]
 importsOf m = do

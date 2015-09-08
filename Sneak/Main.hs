@@ -3,13 +3,13 @@ module Sneak.Main (main) where
 
 import Sneak.Prelude
 import qualified Data.Text as Text
-import           Sneak.Module (loadModuleFromFile)
+import           Sneak.Module (Program(..), loadProgramFromFile)
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified Sneak.Gen as Gen
 import qualified Sneak.Backend.JS as JS
 --import qualified System.FilePath    as F
-import System.IO (stderr, hPutStr)
+--import System.IO (stderr, hPutStr)
 import qualified Options.Applicative as Opt
 
 data Options = Options
@@ -32,10 +32,12 @@ parseOptions = Opt.execParser $
 help :: IO ()
 help = putStrLn "Pass a single filename as an argument"
 
+{-
 failed :: String -> IO a
 failed message = do
     hPutStr stderr message
     exitWith $ ExitFailure 1
+-}
 
 main :: IO ()
 main = do
@@ -44,17 +46,13 @@ main = do
         [] -> help
         (_:_:_) -> help
         [fn] -> do
-            mod' <- loadModuleFromFile fn
+            program <- loadProgramFromFile fn
             --let outfile = F.replaceExtension fn "js"
-            case mod' of
-                Left err -> do
-                    failed $ show err
-                Right module' -> do
-                    if ast options then
-                        putStrLn $ ppShow module'
-                    else do
-                        module'' <- Gen.generateModule module'
-                        putStr $ Text.unpack $ JS.generateJS module''
-                    -- putStrLn $ ppShow (concatMap generateDecl typetree')
-                     --T.writeFile outfile $ JSTree.renderDocument doc
-                    exitWith ExitSuccess
+            if ast options then
+                putStrLn $ ppShow program
+            else do
+                module'' <- Gen.generateModule $ pMainModule program
+                putStr $ Text.unpack $ JS.generateJS module''
+            -- putStrLn $ ppShow (concatMap generateDecl typetree')
+             --T.writeFile outfile $ JSTree.renderDocument doc
+            exitWith ExitSuccess

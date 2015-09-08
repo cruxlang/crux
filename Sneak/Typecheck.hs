@@ -141,7 +141,9 @@ resolveType pos env name = do
     res <- HashTable.lookup name (eTypeBindings env)
     case res of
         Just (_, t) -> return t
-        Nothing -> throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos
+        Nothing -> do
+            tb <- readIORef $ eTypeBindings env
+            throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
 
 resolveName :: Pos -> Env -> UnresolvedReference -> IO (ResolvedReference, TypeVar)
 resolveName pos env name = do
@@ -533,6 +535,9 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
 
+exportedDecls :: [Declaration a b] -> [DeclarationType a b]
+exportedDecls decls = [dt | (Declaration Export dt) <- decls]
+
 buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
 buildTypeEnvironment loadedModules modul = do
     -- built-in types. would be nice to move into the prelude somehow.
@@ -551,19 +556,31 @@ buildTypeEnvironment loadedModules modul = do
     -- TODO: rather than injecting symbols, we may need a mechanism to refer
     -- to imported symbols
     forM_ (mImports modul) $ \(UnqualifiedImport importName) -> do
-      case HashMap.lookup importName loadedModules of
-        Just prelude' ->
-            forM_ (mDecls prelude') $ \(Declaration _ decl) -> case decl of
-                DJSData name variants -> do
-                    let encodeJSVariant (JSVariant n _) = TVariant n []
-                    tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
-                    HashTable.insert name (OtherModule importName name, tr) typeEnv
+        importedModule <- case HashMap.lookup importName loadedModules of
+            Just im -> return im
+            Nothing -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
 
-                    forM_ variants $ \(JSVariant vname _) -> do
-                        HashTable.insert vname (OtherModule importName vname, LImmutable, tr) (eBindings e)
+        forM_ (exportedDecls $ mDecls importedModule) $ \decl -> case decl of
+            DLet _edata _mutability _name _ _ -> do
+                fail "TODO: export let"
 
-                _ -> return ()
-        _ -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
+            DFun (FunDef tr name _params _body) -> do
+                tr' <- unfreezeTypeVar tr
+                HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
+
+            DData _name _typeVariables _variants -> do
+                fail "TODO: export data"
+
+            DJSData name variants -> do
+                let encodeJSVariant (JSVariant n _) = TVariant n []
+                tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
+                HashTable.insert name (OtherModule importName name, tr) typeEnv
+
+                forM_ variants $ \(JSVariant vname _) -> do
+                    HashTable.insert vname (OtherModule importName vname, LImmutable, tr) (eBindings e)
+
+            DType (TypeAlias _name _params _ident) -> do
+                fail "TODO: export type alias"
 
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new

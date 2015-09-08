@@ -105,12 +105,12 @@ instantiate env t = do
         then t'
         else t
 
-occurs :: Int -> MutableTypeVar -> TypeVar -> IO ()
-occurs varname tvr ty = do
+occurs :: MutableTypeVar -> TypeVar -> IO ()
+occurs tvr ty = do
     ty' <- readIORef ty
     case ty' of
-        TUnbound varname'
-            | (varname', ty') == (varname, tvr) -> do
+        TUnbound _
+            | ty' == tvr -> do
                 error $ "Occurs check failed"
             | otherwise -> do
                 return ()
@@ -118,15 +118,15 @@ occurs varname tvr ty = do
             | ty' == tvr -> do
                 error $ "Occurs check failed"
             | otherwise -> do
-                occurs varname tvr ty''
+                occurs tvr ty''
         TFun arg ret -> do
-            mapM_ (occurs varname tvr) arg
-            occurs varname tvr ret
+            mapM_ (occurs tvr) arg
+            occurs tvr ret
         TUserType _ tvars -> do
-            mapM_ (occurs varname tvr) tvars
+            mapM_ (occurs tvr) tvars
         TRecord (RecordType _ rows) -> do
             forM_ rows $ \TypeRow{..} ->
-                occurs varname tvr trTyVar
+                occurs tvr trTyVar
         TPrimitive {} ->
             return ()
         TQuant {} ->
@@ -220,8 +220,8 @@ unify av bv
             (TUnbound aid, TUnbound bid) | aid == bid -> return ()
             (_, TBound bl) -> unify av bl
             (TBound al, _) -> unify al bv
-            (TUnbound i, _) -> do
-                occurs i a bv
+            (TUnbound _, _) -> do
+                occurs a bv
                 writeIORef av $ TBound bv
 
             (_, TUnbound {}) -> unify bv av

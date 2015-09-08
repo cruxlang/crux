@@ -370,12 +370,9 @@ freezeTypeVar tv = do
             tvars' <- mapM freezeTypeVar tvars
             def' <- freezeTypeDef def
             return $ IUserType def' tvars'
-        TRecord (RecordType open' rows') -> do
-            let flattenRow TypeRow{..} = do
-                    trTyVar' <- freezeTypeVar trTyVar
-                    return TypeRow{trName, trMut, trTyVar=trTyVar'}
-            rows'' <- mapM flattenRow rows'
-            return $ IRecord $ RecordType open' rows''
+        TRecord rt -> do
+            rt' <- traverse freezeTypeVar rt
+            return $ IRecord rt'
         TPrimitive t ->
             return $ IPrimitive t
 

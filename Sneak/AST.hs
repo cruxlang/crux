@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
@@ -238,7 +238,7 @@ data TypeRow typevar = TypeRow
     { trName  :: Name
     , trMut   :: RowMutability
     , trTyVar :: typevar
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 {-
 fun hypot(p) { sqrt(p.x * p.x + p.y * p.y); };
@@ -262,7 +262,7 @@ data RecordOpen = RecordFree | RecordQuantified | RecordClose
 type TypeVar = IORef MutableTypeVar
 
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data MutableTypeVar
     = TUnbound Int

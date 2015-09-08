@@ -96,7 +96,7 @@ walkMutableTypeVar :: TypeVar -> IO TypeVar
 walkMutableTypeVar tyvar = do
     tyvar' <- readIORef tyvar
     case tyvar' of
-        TBound _ tv -> do
+        TBound tv -> do
             walkMutableTypeVar tv
         _ ->
             return tyvar
@@ -358,7 +358,7 @@ flattenTypeVar tv = do
     case tv' of
         TUnbound _i -> do
             fail "Unbound type variable made it to flattening - something went wrong"
-        TBound _i tv'' -> do
+        TBound tv'' -> do
             flattenTypeVar tv''
         TQuant i ->
             return $ IQuant i

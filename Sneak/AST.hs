@@ -266,7 +266,7 @@ data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
 
 data MutableTypeVar
     = TUnbound Int
-    | TBound Int TypeVar
+    | TBound TypeVar
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]

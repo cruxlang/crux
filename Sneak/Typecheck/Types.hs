@@ -31,9 +31,9 @@ showTypeVarIO tvar = do
     case tvar' of
         TUnbound i -> do
             return $ "(TUnbound " ++ show i ++ ")"
-        TBound i x -> do
+        TBound x -> do
             inner <- showTypeVarIO x
-            return $ "(TBound " ++ show i ++ " " ++ show inner ++ ")"
+            return $ "(TBound " ++ show inner ++ ")"
         TQuant i -> do
             return $ "TQuant " ++ show i
         TFun arg ret -> do

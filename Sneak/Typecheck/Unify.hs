@@ -36,7 +36,7 @@ instantiate' subst env ty = do
     case ty' of
         TUnbound _ -> do
             return (False, ty)
-        TBound _ tv' -> do
+        TBound tv' -> do
             instantiate' subst env tv'
         TQuant name -> do
             mv <- HashTable.lookup name subst
@@ -78,7 +78,7 @@ quantify ty = do
     case ty' of
         TUnbound i -> do
             writeIORef ty (TQuant i)
-        TBound _ t -> do
+        TBound t -> do
             quantify t
         TQuant _ -> do
             return ()
@@ -114,8 +114,8 @@ occurs varname tvr ty = do
                 error $ "Occurs check failed"
             | otherwise -> do
                 return ()
-        TBound varname' ty''
-            | (varname', ty') == (varname, tvr) -> do
+        TBound ty''
+            | ty' == tvr -> do
                 error $ "Occurs check failed"
             | otherwise -> do
                 occurs varname tvr ty''
@@ -192,9 +192,7 @@ unifyRecord av bv = do
             (RecordFree, RecordFree) -> RecordFree
 
     writeIORef av $ TRecord $ RecordType open' newFields
-
-    let i = 888 -- TODO: hack
-    writeIORef bv $ TBound i av
+    writeIORef bv $ TBound av
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
@@ -220,14 +218,11 @@ unify av bv
 
         case (a, b) of
             (TUnbound aid, TUnbound bid) | aid == bid -> return ()
-            (TUnbound aid, TBound bid _) | aid == bid -> return ()
-            (TBound aid _, TUnbound bid) | aid == bid -> return ()
-            (TBound aid _, TBound bid _) | aid == bid -> return ()
-            (_, TBound _ bl) -> unify av bl
-            (TBound _ al, _) -> unify al bv
+            (_, TBound bl) -> unify av bl
+            (TBound al, _) -> unify al bv
             (TUnbound i, _) -> do
                 occurs i a bv
-                writeIORef av $ TBound i bv
+                writeIORef av $ TBound bv
 
             (_, TUnbound {}) -> unify bv av
             --(_, TBound {}) -> unify bv av

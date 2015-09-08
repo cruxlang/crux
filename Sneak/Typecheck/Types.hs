@@ -12,7 +12,7 @@ import           Sneak.Prelude
 data Env = Env
     { eNextTypeIndex :: IORef Int
     , eBindings      :: IORef (HashMap UnresolvedReference (ResolvedReference, LetMutability, TypeVar))
-    , eTypeBindings  :: HashMap UnresolvedReference (ResolvedReference, TypeVar)
+    , eTypeBindings  :: IORef (HashMap UnresolvedReference (ResolvedReference, TypeVar))
     , eTypeAliases   :: HashMap Text TypeAlias
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop        :: !Bool

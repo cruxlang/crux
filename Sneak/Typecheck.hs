@@ -29,15 +29,16 @@ newEnv :: Maybe TypeVar -> IO Env
 newEnv eReturnType = do
     eNextTypeIndex <- newIORef 0
     eBindings <- newIORef HashMap.empty
-    let eTypeBindings = HashMap.empty
-        eTypeAliases = HashMap.empty
-    let eInLoop = False
+    eTypeBindings <- newIORef HashMap.empty
+    let eTypeAliases = HashMap.empty
+        eInLoop = False
     return Env {..}
 
 childEnv :: Env -> IO Env
 childEnv env = do
-    bindings' <- HashTable.clone (eBindings env)
-    return env{eBindings=bindings'}
+    bindings'    <- HashTable.clone (eBindings env)
+    typeBindings <- HashTable.clone (eTypeBindings env)
+    return env{eBindings=bindings', eTypeBindings=typeBindings}
 
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
@@ -54,7 +55,8 @@ typeFromConstructor env cname = do
                             _ -> error "This should never happen: Type has multiple variants with the same constructor name"
                     _ ->
                         return Nothing
-    foldlM fold Nothing (fmap snd $ HashMap.elems $ eTypeBindings env)
+    typeBindings <- readIORef $ eTypeBindings env
+    foldlM fold Nothing (fmap snd $ HashMap.elems typeBindings)
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -136,7 +138,8 @@ isLValue env expr = case expr of
 
 resolveType :: Pos -> Env -> UnresolvedReference -> IO TypeVar
 resolveType pos env name = do
-    case HashMap.lookup name $ eTypeBindings env of
+    res <- HashTable.lookup name (eTypeBindings env)
+    case res of
         Just (_, t) -> return t
         Nothing -> throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos
 
@@ -590,7 +593,7 @@ buildTypeEnvironment loadedModules modul = do
     qvars <- readIORef qvarsRef
     te <- readIORef typeEnv
     ta <- readIORef typeAliasesRef
-    let env = e{eTypeBindings=te, eTypeAliases=ta}
+    let env = e{eTypeBindings=typeEnv, eTypeAliases=ta}
 
     -- Second, unify parameter types
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
@@ -634,7 +637,7 @@ buildTypeEnvironment loadedModules modul = do
                 HashTable.insert variantName (ThisModule variantName, LImmutable, userType) (eBindings env)
         _ -> return ()
 
-    return env{eTypeBindings=te} -- just env?
+    return env -- {eTypeBindings=te} -- just env?
 
 resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> IO TypeVar
 resolveTypeIdent env qvarTable typeIdent =
@@ -643,34 +646,36 @@ resolveTypeIdent env qvarTable typeIdent =
     Env{..} = env
     go (TypeIdent typeName typeParameters) =
         if isCapitalized typeName
-            then case HashMap.lookup typeName eTypeBindings of
-                Just (_, ty) -> do
-                    ty' <- readIORef ty
-                    case ty' of
-                        TPrimitive {} ->
-                            if [] /= typeParameters
-                                then error "Primitive types don't take type parameters"
-                                else return ty
-                        TUserType def _ ->
-                            if length qvarTable /= length typeParameters
-                                then
-                                    error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
-                                else do
-                                    params <- mapM go typeParameters
-                                    newIORef $ TUserType def params
-                        _ ->
-                            return ty
-                Nothing -> case HashMap.lookup typeName eTypeAliases of
-                    Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
-                        when (length aliasParams /= length typeParameters) $
-                            error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
+            then do
+                res <- HashTable.lookup typeName eTypeBindings
+                case res of
+                    Just (_, ty) -> do
+                        ty' <- readIORef ty
+                        case ty' of
+                            TPrimitive {} ->
+                                if [] /= typeParameters
+                                    then error "Primitive types don't take type parameters"
+                                    else return ty
+                            TUserType def _ ->
+                                if length qvarTable /= length typeParameters
+                                    then
+                                        error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
+                                    else do
+                                        params <- mapM go typeParameters
+                                        newIORef $ TUserType def params
+                            _ ->
+                                return ty
+                    Nothing -> case HashMap.lookup typeName eTypeAliases of
+                        Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
+                            when (length aliasParams /= length typeParameters) $
+                                error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
 
-                        argTypes <- mapM (resolveTypeIdent env qvarTable) typeParameters
-                        let qtab = zip aliasParams argTypes
+                            argTypes <- mapM (resolveTypeIdent env qvarTable) typeParameters
+                            let qtab = zip aliasParams argTypes
 
-                        resolveTypeIdent env qtab aliasedIdent
-                    Nothing ->
-                        error $ printf "Constructor uses nonexistent type %s" (show typeName)
+                            resolveTypeIdent env qtab aliasedIdent
+                        Nothing ->
+                            error $ printf "Constructor uses nonexistent type %s" (show typeName)
             else case lookup typeName qvarTable of
                 Nothing ->
                     error $ printf "Constructor uses nonexistent type variable %s" (show typeName)

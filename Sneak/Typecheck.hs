@@ -376,7 +376,31 @@ freezeTypeVar tv = do
         TPrimitive t ->
             return $ IPrimitive t
 
---unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
+unfreezeTypeDef :: TUserTypeDef ImmutableTypeVar -> IO (TUserTypeDef TypeVar)
+unfreezeTypeDef TUserTypeDef{..} = do
+    parameters' <- mapM unfreezeTypeVar tuParameters
+    -- Huge hack: don't try to freeze variants because they can be recursive
+    let variants' = []
+    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
+    return td
+
+unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
+unfreezeTypeVar imt = newIORef =<< case imt of
+    IQuant varname -> do
+        return $ TQuant varname
+    IFun params body -> do
+        params' <- mapM unfreezeTypeVar params
+        body' <- unfreezeTypeVar body
+        return $ TFun params' body'
+    IUserType td params -> do
+        td' <- unfreezeTypeDef td
+        params' <- mapM unfreezeTypeVar params
+        return $ TUserType td' params'
+    IRecord rt -> do
+        rt' <- traverse unfreezeTypeVar rt
+        return $ TRecord rt'
+    IPrimitive pt -> do
+        return $ TPrimitive pt
 
 freezeIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
 freezeIntrinsic = mapIntrinsicInputs freeze
@@ -457,8 +481,8 @@ freeze expr = case expr of
         td' <- freezeTypeVar td
         return $ EBreak td'
 
-flattenDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
-flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
+freezeDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
+freezeDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
     DData name typeVars variants ->
         return $ DData name typeVars variants
     DJSData name variants ->
@@ -474,9 +498,9 @@ flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
         body' <- freeze body
         return $ DFun $ FunDef ty' name params body'
 
-flattenModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
-flattenModule Module{..} = do
-    decls <- mapM flattenDecl mDecls
+freezeModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
+freezeModule Module{..} = do
+    decls <- mapM freezeDecl mDecls
     return $ Module
         { mImports=mImports
         , mDecls=decls
@@ -698,6 +722,6 @@ run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (
 run loadedModules modul = do
     env <- buildTypeEnvironment loadedModules modul
     decls <- forM (mDecls modul) (checkDecl env)
-    flattenModule modul
+    freezeModule modul
         { mDecls=decls
         }

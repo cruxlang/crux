@@ -83,9 +83,13 @@ quantify ty = do
                     writeIORef ty (TVar i $ Link qTy)
                 Link t' ->
                     quantify t'
+        TQuant _ ->
+            return ()
         TFun param ret -> do
             mapM_ quantify param
             quantify ret
+        TUserType _ tyParams ->
+            forM_ tyParams quantify
         TRecord (RecordType open rows') -> do
             forM_ rows' $ \TypeRow{..} -> do
                 quantify trTyVar
@@ -93,7 +97,7 @@ quantify ty = do
                     RecordFree -> RecordQuantified
                     _ -> open
             writeIORef ty $ TRecord $ RecordType open' rows'
-        _ ->
+        TPrimitive {} ->
             return ()
 
 instantiate :: Env -> TypeVar -> IO TypeVar

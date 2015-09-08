@@ -353,12 +353,10 @@ flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
 flattenTypeVar tv = do
     tv' <- readIORef tv
     case tv' of
-        TVar i t -> do
+        TVar _ t -> do
             case t of
                 Unbound ->
-                    -- TODO: andy says this should fail, but without it, to_option_string fails to typecheck
-                    --fail "Unbound type variable made it to flattening - something went wrong"
-                    return $ IQuant i
+                    fail "Unbound type variable made it to flattening - something went wrong"
                 Link tv'' -> do
                     flattenTypeVar tv''
         TQuant i ->

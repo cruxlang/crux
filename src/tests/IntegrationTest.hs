@@ -429,4 +429,22 @@ case_while_loops = do
 
     assertEqual "" (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
 
+case_quantify_user_types_correctly = do
+    result <- run $ T.unlines
+        [ "data Option a {"
+        , "    None,"
+        , "    Some(a)"
+        , "}"
+        , ""
+        , "let isNull = _unsafe_js(\"function(o) { return null === o; }\");"
+        , ""
+        , "fun toMaybeString(o) {"
+        , "    if isNull(o)"
+        , "        then None"
+        , "        else Some(_unsafe_coerce(o));"
+        , "}"
+        ]
+
+    assertEqual "" (Right "") result
+
 tests = $(testGroupGenerator)

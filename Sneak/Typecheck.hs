@@ -261,7 +261,7 @@ check env expr = case expr of
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
-            lhs'' <- flatten lhs'
+            lhs'' <- freeze lhs'
             error $ printf "Not an lvar: %s" (show lhs'')
 
         unitType <- newIORef $ TPrimitive Unit
@@ -344,118 +344,120 @@ check env expr = case expr of
         t <- freshType env
         return $ EBreak t
 
-flattenTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
-flattenTypeDef TUserTypeDef{..} = do
-    parameters' <- mapM flattenTypeVar tuParameters
-    -- Huge hack: don't try to flatten variants because they can be recursive
+freezeTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
+freezeTypeDef TUserTypeDef{..} = do
+    parameters' <- mapM freezeTypeVar tuParameters
+    -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
     let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
     return td
 
-flattenTypeVar :: TypeVar -> IO ImmutableTypeVar
-flattenTypeVar tv = do
+freezeTypeVar :: TypeVar -> IO ImmutableTypeVar
+freezeTypeVar tv = do
     tv' <- readIORef tv
     case tv' of
         TUnbound _i -> do
             fail "Unbound type variable made it to flattening - something went wrong"
         TBound tv'' -> do
-            flattenTypeVar tv''
+            freezeTypeVar tv''
         TQuant i ->
             return $ IQuant i
         TFun arg body -> do
-            arg' <- mapM flattenTypeVar arg
-            body' <- flattenTypeVar body
+            arg' <- mapM freezeTypeVar arg
+            body' <- freezeTypeVar body
             return $ IFun arg' body'
         TUserType def tvars -> do
-            tvars' <- mapM flattenTypeVar tvars
-            def' <- flattenTypeDef def
+            tvars' <- mapM freezeTypeVar tvars
+            def' <- freezeTypeDef def
             return $ IUserType def' tvars'
         TRecord (RecordType open' rows') -> do
             let flattenRow TypeRow{..} = do
-                    trTyVar' <- flattenTypeVar trTyVar
+                    trTyVar' <- freezeTypeVar trTyVar
                     return TypeRow{trName, trMut, trTyVar=trTyVar'}
             rows'' <- mapM flattenRow rows'
             return $ IRecord $ RecordType open' rows''
         TPrimitive t ->
             return $ IPrimitive t
 
-flattenIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
-flattenIntrinsic = mapIntrinsicInputs flatten
+--unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
 
-flatten :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
-flatten expr = case expr of
+freezeIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
+freezeIntrinsic = mapIntrinsicInputs freeze
+
+freeze :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
+freeze expr = case expr of
     EFun td params body -> do
-        td' <- flattenTypeVar td
-        body' <- flatten body
+        td' <- freezeTypeVar td
+        body' <- freeze body
         return $ EFun td' params body'
     EApp td lhs rhs -> do
-        td' <- flattenTypeVar td
-        lhs' <- flatten lhs
-        rhs' <- mapM flatten rhs
+        td' <- freezeTypeVar td
+        lhs' <- freeze lhs
+        rhs' <- mapM freeze rhs
         return $ EApp td' lhs' rhs'
     EIntrinsic td intrin -> do
-        td' <- flattenTypeVar td
-        intrin' <- flattenIntrinsic intrin
+        td' <- freezeTypeVar td
+        intrin' <- freezeIntrinsic intrin
         return $ EIntrinsic td' intrin'
     ERecordLiteral td fields -> do
-        td' <- flattenTypeVar td
+        td' <- freezeTypeVar td
         fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
-            fieldExpr' <- flatten fieldExpr
+            fieldExpr' <- freeze fieldExpr
             return (name, fieldExpr')
 
         return $ ERecordLiteral td' (HashMap.fromList fields')
     ELookup td lhs rhs -> do
-        td' <- flattenTypeVar td
-        lhs' <- flatten lhs
+        td' <- freezeTypeVar td
+        lhs' <- freeze lhs
         return $ ELookup td' lhs' rhs
     EMatch td matchExpr cases -> do
-        td' <- flattenTypeVar td
-        expr' <- flatten matchExpr
+        td' <- freezeTypeVar td
+        expr' <- freeze matchExpr
         cases' <- forM cases $ \(Case pattern subExpr) ->
-            fmap (Case pattern) (flatten subExpr)
+            fmap (Case pattern) (freeze subExpr)
         return $ EMatch td' expr' cases'
     ELet td mut name typeAnn expr' -> do
-        td' <- flattenTypeVar td
-        expr'' <- flatten expr'
+        td' <- freezeTypeVar td
+        expr'' <- freeze expr'
         return $ ELet td' mut name typeAnn expr''
     EAssign td lhs rhs -> do
-        td' <- flattenTypeVar td
-        lhs' <- flatten lhs
-        rhs' <- flatten rhs
+        td' <- freezeTypeVar td
+        lhs' <- freeze lhs
+        rhs' <- freeze rhs
         return $ EAssign td' lhs' rhs'
     ELiteral td lit -> do
-        td' <- flattenTypeVar td
+        td' <- freezeTypeVar td
         return $ ELiteral td' lit
     EIdentifier td i -> do
-        td' <- flattenTypeVar td
+        td' <- freezeTypeVar td
         return $ EIdentifier td' i
     ESemi td lhs rhs -> do
-        td' <- flattenTypeVar td
-        lhs' <- flatten lhs
-        rhs' <- flatten rhs
+        td' <- freezeTypeVar td
+        lhs' <- freeze lhs
+        rhs' <- freeze rhs
         return $ ESemi td' lhs' rhs'
     EBinIntrinsic td name lhs rhs -> do
-        td' <- flattenTypeVar td
-        lhs' <- flatten lhs
-        rhs' <- flatten rhs
+        td' <- freezeTypeVar td
+        lhs' <- freeze lhs
+        rhs' <- freeze rhs
         return $ EBinIntrinsic td' name lhs' rhs'
     EIfThenElse td condition ifTrue ifFalse -> do
-        td' <- flattenTypeVar td
-        condition' <- flatten condition
-        ifTrue' <- flatten ifTrue
-        ifFalse' <- flatten ifFalse
+        td' <- freezeTypeVar td
+        condition' <- freeze condition
+        ifTrue' <- freeze ifTrue
+        ifFalse' <- freeze ifFalse
         return $ EIfThenElse td' condition' ifTrue' ifFalse'
     EWhile td cond body -> do
-        td' <- flattenTypeVar td
-        cond' <- flatten cond
-        body' <- flatten body
+        td' <- freezeTypeVar td
+        cond' <- freeze cond
+        body' <- freeze body
         return $ EWhile td' cond' body'
     EReturn td rv -> do
-        td' <- flattenTypeVar td
-        rv' <- flatten rv
+        td' <- freezeTypeVar td
+        rv' <- freeze rv
         return $ EReturn td' rv'
     EBreak td -> do
-        td' <- flattenTypeVar td
+        td' <- freezeTypeVar td
         return $ EBreak td'
 
 flattenDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
@@ -467,12 +469,12 @@ flattenDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
     DType (TypeAlias name typeVars ident) ->
         return $ DType $ TypeAlias name typeVars ident
     DLet ty mut name typeAnn expr -> do
-        ty' <- flattenTypeVar ty
-        expr' <- flatten expr
+        ty' <- freezeTypeVar ty
+        expr' <- freeze expr
         return $ DLet ty' mut name typeAnn expr'
     DFun (FunDef ty name params body) -> do
-        ty' <- flattenTypeVar ty
-        body' <- flatten body
+        ty' <- freezeTypeVar ty
+        body' <- freeze body
         return $ DFun $ FunDef ty' name params body'
 
 flattenModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)

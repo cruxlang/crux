@@ -68,21 +68,20 @@ fun swap_x_and_y(p) {
 
 ## Mutable record fields in literal values
 
-TODO: What to do here?
+There is presently no syntax for denoting the mutability of a record when defining a literal.  You can put a type annotation on a let binding to achieve the effect:
 
-Strawman 1:
-```js
-let a = { mutable x : 33, const y : 1 };
-```
-
-Strawman 2: (no direct support; require a type annotation)
 ```js
 let a : { mutable x : Number, const y : Number } = { x : 33, y : 0 };
 ```
 
+We could potentially fix this by adding syntax:
+```js
+let a = { mutable x : 33, const y : 1 };
+```
+
 ## Mutability and Reference Semantics
 
-Sneak records are passed _by reference_.  This means that multiple names can in fact refer to the same record.
+Sneak records are passed _by reference_.  This means that multiple names can refer to the same record.
 
 This aliasing is visible in the face of mutability.
 ```js

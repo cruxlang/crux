@@ -261,7 +261,7 @@ case_if_then_else_2 = do
 
     assertEqual "" (Right "") result
 
-case_line_comments = do
+case_comments = do
     result <- run $ T.unlines
         [ "// A list is either Nil, the empty case, or"
         , "// it is Cons an element and another list."
@@ -272,6 +272,13 @@ case_line_comments = do
         , "type Bogo a = List a;"
         , ""
         , "let hoop : Bogo Number = Cons(5, Nil);"
+        ]
+    assertEqual "" (Right "") result
+
+case_comments2 = do
+    result <- run $ T.unlines
+        [ "/* this is a test */"
+        , "let u = 8;"
         ]
     assertEqual "" (Right "") result
 

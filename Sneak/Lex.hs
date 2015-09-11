@@ -127,9 +127,9 @@ comments =
 
 document :: Parser u [Token Pos]
 document = do
-    whitespace
+    comments
     r <- P.many $ P.try (comments >> token)
-    whitespace
+    comments
     P.eof
     return r
 

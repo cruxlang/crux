@@ -696,10 +696,10 @@ resolveTypeIdent env qvarTable typeIdent =
                                 if [] /= typeParameters
                                     then error "Primitive types don't take type parameters"
                                     else return ty
-                            TUserType def _ ->
-                                if length (tuParameters def) /= length typeParameters
+                            TUserType def@TUserTypeDef{tuParameters} _ ->
+                                if length tuParameters /= length typeParameters
                                     then
-                                        error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length $ tuParameters def) (length typeParameters)
+                                        error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
                                     else do
                                         params <- mapM go typeParameters
                                         newIORef $ TUserType def params
@@ -715,7 +715,7 @@ resolveTypeIdent env qvarTable typeIdent =
 
                             resolveTypeIdent env qtab aliasedIdent
                         Nothing ->
-                            error $ printf "Constructor uses nonexistent type %s" (show typeName)
+                            error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
             else case lookup typeName qvarTable of
                 Nothing ->
                     error $ printf "Constructor uses nonexistent type variable %s" (show typeName)

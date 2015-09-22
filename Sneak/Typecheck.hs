@@ -358,8 +358,8 @@ freezeTypeVar :: TypeVar -> IO ImmutableTypeVar
 freezeTypeVar tv = do
     tv' <- readIORef tv
     case tv' of
-        TUnbound _i -> do
-            fail "Unbound type variable made it to flattening - something went wrong"
+        TUnbound i -> do
+            return $ IUnbound i
         TBound tv'' -> do
             freezeTypeVar tv''
         TQuant i ->
@@ -388,6 +388,8 @@ unfreezeTypeDef TUserTypeDef{..} = do
 
 unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
 unfreezeTypeVar imt = newIORef =<< case imt of
+    IUnbound name ->
+        return $ TUnbound name
     IQuant varname -> do
         return $ TQuant varname
     IFun params body -> do

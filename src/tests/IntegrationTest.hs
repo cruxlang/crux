@@ -4,22 +4,15 @@ module IntegrationTest
     -- (run, tests)
     where
 
-import           Control.Monad  (forM)
 import Control.Exception (catch, SomeException)
-import qualified Sneak.AST       as AST
-import qualified Sneak.JSTree    as JSTree
 import qualified Sneak.Backend.JS as JS
 import qualified Sneak.Gen       as Gen
-import           Sneak.Lex
-import           Sneak.Parse
 import qualified Sneak.Module
-import qualified Sneak.Typecheck as Typecheck
 import           Data.Text      (Text)
 import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
 import           System.Process (readProcess)
 import           TestJesus
-import           Data.Monoid    ((<>))
 import           System.IO (hFlush)
 import           System.IO.Temp (withSystemTempFile)
 
@@ -449,6 +442,16 @@ case_quantify_user_types_correctly = do
         , "    if isNull(o)"
         , "        then None"
         , "        else Some(_unsafe_coerce(o));"
+        , "}"
+        ]
+
+    assertEqual "" (Right "") result
+
+case_interior_unbound_types_are_ok = do
+    result <- run $ T.unlines
+        [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\");"
+        , "export fun replicate(element, len) {"
+        , "    let arr = _unsafe_new(len);"
         , "}"
         ]
 

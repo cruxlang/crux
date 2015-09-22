@@ -275,7 +275,8 @@ data MutableTypeVar
     deriving (Eq)
 
 data ImmutableTypeVar
-    = IQuant Int
+    = IUnbound Int
+    | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar)

@@ -677,7 +677,7 @@ buildTypeEnvironment loadedModules modul = do
                 HashTable.insert variantName (ThisModule variantName, LImmutable, userType) (eBindings env)
         _ -> return ()
 
-    return env -- {eTypeBindings=te} -- just env?
+    return env
 
 resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> IO TypeVar
 resolveTypeIdent env qvarTable typeIdent =
@@ -697,9 +697,9 @@ resolveTypeIdent env qvarTable typeIdent =
                                     then error "Primitive types don't take type parameters"
                                     else return ty
                             TUserType def _ ->
-                                if length qvarTable /= length typeParameters
+                                if length (tuParameters def) /= length typeParameters
                                     then
-                                        error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length qvarTable) (length typeParameters)
+                                        error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length $ tuParameters def) (length typeParameters)
                                     else do
                                         params <- mapM go typeParameters
                                         newIORef $ TUserType def params

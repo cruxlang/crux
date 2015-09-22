@@ -36,6 +36,12 @@ run' src = do
                 hFlush handle
                 fmap (Right . T.pack) $ readProcess "node" [path'] ""
 
+assertCompiles src = do
+    result <- run $ T.unlines src
+    case result of
+        Right _ -> return ()
+        Left err -> assertFailure $ "Compile failure: " ++ show err
+
 case_hello_world = do
     result <- run $ T.unlines
         [ "let _ = print(\"Hello, World!\");"
@@ -429,8 +435,8 @@ case_while_loops = do
 
     assertEqual "" (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
 
-case_quantify_user_types_correctly = do
-    result <- run $ T.unlines
+case_quantify_user_types_correctly =
+    assertCompiles
         [ "data Option a {"
         , "    None,"
         , "    Some(a)"
@@ -445,16 +451,18 @@ case_quantify_user_types_correctly = do
         , "}"
         ]
 
-    assertEqual "" (Right "") result
-
-case_interior_unbound_types_are_ok = do
-    result <- run $ T.unlines
+case_interior_unbound_types_are_ok =
+    assertCompiles
         [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\");"
         , "export fun replicate(element, len) {"
         , "    let arr = _unsafe_new(len);"
         , "}"
         ]
 
-    assertEqual "" (Right "") result
+case_type_annotation_for_parametric_type =
+    assertCompiles
+        [ "data Option a { None, Some(a) }"
+        , "let x : Option Number = Some(22);"
+        ]
 
 tests = $(testGroupGenerator)

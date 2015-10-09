@@ -5,20 +5,20 @@
 
 module Sneak.Typecheck where
 
-import Sneak.Prelude
-import Control.Exception (throwIO, ErrorCall(..))
+import           Control.Exception      (ErrorCall (..), throwIO)
+import qualified Data.HashMap.Strict    as HashMap
+import qualified Data.Text              as Text
+import           Prelude                hiding (String)
 import           Sneak.AST
 import           Sneak.Intrinsic        (Intrinsic (..))
 import qualified Sneak.Intrinsic        as Intrinsic
 import qualified Sneak.MutableHashTable as HashTable
+import           Sneak.Prelude
 import           Sneak.Text             (isCapitalized)
 import           Sneak.Tokens           (Pos (..))
-import qualified Data.HashMap.Strict   as HashMap
-import qualified Data.Text             as Text
-import           Prelude               hiding (String)
-import           Text.Printf           (printf)
-import Sneak.Typecheck.Types
-import Sneak.Typecheck.Unify
+import           Sneak.Typecheck.Types
+import           Sneak.Typecheck.Unify
+import           Text.Printf            (printf)
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
@@ -684,43 +684,39 @@ resolveTypeIdent env qvarTable typeIdent =
     go typeIdent
   where
     Env{..} = env
-    go (TypeIdent typeName typeParameters) =
-        if isCapitalized typeName
-            then do
-                res <- HashTable.lookup typeName eTypeBindings
-                case res of
-                    Just (_, ty) -> do
-                        ty' <- readIORef ty
-                        case ty' of
-                            TPrimitive {} ->
-                                if [] /= typeParameters
-                                    then error "Primitive types don't take type parameters"
-                                    else return ty
-                            TUserType def@TUserTypeDef{tuParameters} _ ->
-                                if length tuParameters /= length typeParameters
-                                    then
-                                        error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
-                                    else do
-                                        params <- mapM go typeParameters
-                                        newIORef $ TUserType def params
-                            _ ->
-                                return ty
-                    Nothing -> case HashMap.lookup typeName eTypeAliases of
-                        Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
-                            when (length aliasParams /= length typeParameters) $
-                                error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
+    go (TypeIdent typeName typeParameters) = do
+        res <- HashTable.lookup typeName eTypeBindings
+        case res of
+            Just (_, ty) -> do
+                ty' <- readIORef ty
+                case ty' of
+                    TPrimitive {} ->
+                        if [] /= typeParameters
+                            then error "Primitive types don't take type parameters"
+                            else return ty
+                    TUserType def@TUserTypeDef{tuParameters} _ ->
+                        if length tuParameters /= length typeParameters
+                            then
+                                error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
+                            else do
+                                params <- mapM go typeParameters
+                                newIORef $ TUserType def params
+                    _ ->
+                        return ty
+            Nothing -> case HashMap.lookup typeName eTypeAliases of
+                Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
+                    when (length aliasParams /= length typeParameters) $
+                        error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
 
-                            argTypes <- mapM (resolveTypeIdent env qvarTable) typeParameters
-                            let qtab = zip aliasParams argTypes
+                    argTypes <- mapM (resolveTypeIdent env qvarTable) typeParameters
+                    let qtab = zip aliasParams argTypes
 
-                            resolveTypeIdent env qtab aliasedIdent
-                        Nothing ->
-                            error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
-            else case lookup typeName qvarTable of
-                Nothing ->
-                    error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
-                Just t ->
-                    return t
+                    resolveTypeIdent env qtab aliasedIdent
+                Nothing -> case lookup typeName qvarTable of
+                    Nothing ->
+                        error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
+                    Just t ->
+                        return t
 
     go (RecordIdent rows) = do
         rows' <- forM rows $ \(trName, mut, rowTypeIdent) -> do

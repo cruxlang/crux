@@ -14,7 +14,6 @@ import           Sneak.Intrinsic        (Intrinsic (..))
 import qualified Sneak.Intrinsic        as Intrinsic
 import qualified Sneak.MutableHashTable as HashTable
 import           Sneak.Prelude
-import           Sneak.Text             (isCapitalized)
 import           Sneak.Tokens           (Pos (..))
 import           Sneak.Typecheck.Types
 import           Sneak.Typecheck.Unify
@@ -249,7 +248,7 @@ check env expr = case expr of
         HashTable.insert name (Local name, mut, ty) (eBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env [] annotation
+            annotTy <- resolveTypeIdent env annotation
             unify ty annotTy
 
         unitTy <- newIORef $ TPrimitive Unit
@@ -532,7 +531,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         let ty = edata expr'
         HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
         forM_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env [] annotation
+            annotTy <- resolveTypeIdent env annotation
             unify ty annotTy
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
@@ -645,15 +644,17 @@ buildTypeEnvironment loadedModules modul = do
             forM_ (zip variants tvariants) $ \(v, tv) -> do
                 forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
                     let Just qv = HashMap.lookup name qvars
-                    t <- resolveTypeIdent env qv typeIdent
+                    env' <- addQvarTable env qv
+                    t <- resolveTypeIdent env' typeIdent
                     unify typeVar t
         _ -> return ()
 
-    let computeVarianTPrimitive ty qvarNames _name argTypeIdents = case argTypeIdents of
+    let computeVariantType ty qvarNames _name argTypeIdents = case argTypeIdents of
             [] ->
                 return ty
             _ -> do
-                resolvedArgTypes <- mapM (resolveTypeIdent env qvarNames) argTypeIdents
+                env' <- addQvarTable env qvarNames
+                resolvedArgTypes <- mapM (resolveTypeIdent env') argTypeIdents
                 newIORef $ TFun resolvedArgTypes ty
 
     intrinsics <- Intrinsic.intrinsics
@@ -669,7 +670,7 @@ buildTypeEnvironment loadedModules modul = do
             let Just (_, userType) = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
-                ctorType <- computeVarianTPrimitive userType qvarTable vname vdata
+                ctorType <- computeVariantType userType qvarTable vname vdata
                 HashTable.insert vname (ThisModule vname, LImmutable, ctorType) (eBindings env)
         DJSData name variants -> do
             let Just (_, userType) = HashMap.lookup name te
@@ -679,8 +680,14 @@ buildTypeEnvironment loadedModules modul = do
 
     return env
 
-resolveTypeIdent :: Env -> [(TypeName, TypeVar)] -> TypeIdent -> IO TypeVar
-resolveTypeIdent env qvarTable typeIdent =
+addQvarTable :: Env -> [(UnresolvedReference, TypeVar)] -> IO Env
+addQvarTable env@Env{..} qvarTable = do
+    newBindings <- HashTable.mergeImmutable eTypeBindings
+        (HashMap.fromList [(name, (ThisModule name, ty)) | (name, ty) <- qvarTable])
+    return env { eTypeBindings = newBindings }
+
+resolveTypeIdent :: Env -> TypeIdent -> IO TypeVar
+resolveTypeIdent env typeIdent =
     go typeIdent
   where
     Env{..} = env
@@ -708,15 +715,13 @@ resolveTypeIdent env qvarTable typeIdent =
                     when (length aliasParams /= length typeParameters) $
                         error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
 
-                    argTypes <- mapM (resolveTypeIdent env qvarTable) typeParameters
-                    let qtab = zip aliasParams argTypes
+                    argTypes <- mapM (resolveTypeIdent env) typeParameters
 
-                    resolveTypeIdent env qtab aliasedIdent
-                Nothing -> case lookup typeName qvarTable of
-                    Nothing ->
-                        error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
-                    Just t ->
-                        return t
+                    env' <- addQvarTable env (zip aliasParams argTypes)
+
+                    resolveTypeIdent env' aliasedIdent
+                Nothing ->
+                    error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
 
     go (RecordIdent rows) = do
         rows' <- forM rows $ \(trName, mut, rowTypeIdent) -> do

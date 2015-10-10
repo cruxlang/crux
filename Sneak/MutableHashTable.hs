@@ -23,3 +23,17 @@ clone :: IORef (HashMap key value) -> IO (IORef (HashMap key value))
 clone hm = do
     h <- IORef.readIORef hm
     IORef.newIORef h
+
+-- Create a new mutable hash table containing the union of the two provided mutable hash tables
+merge :: (Eq key, Hashable key) => IORef (HashMap key value) -> IORef (HashMap key value) -> IO (IORef (HashMap key value))
+merge a b = do
+    a' <- IORef.readIORef a
+    b' <- IORef.readIORef b
+
+    IORef.newIORef $ HashMap.union a' b'
+
+-- Create a new mutable hash table containing the union of the provided mutable and immutable hash tables.
+mergeImmutable :: (Eq key, Hashable key) => IORef (HashMap key value) -> HashMap key value -> IO (IORef (HashMap key value))
+mergeImmutable a b = do
+    a' <- IORef.readIORef a
+    IORef.newIORef $ HashMap.union a' b

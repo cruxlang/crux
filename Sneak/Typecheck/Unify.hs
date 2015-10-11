@@ -254,15 +254,8 @@ unify av bv
             (TPrimitive {}, TFun {}) ->
                 unificationError "" av bv
 
-            -- These should never happen: Quantified type variables should be instantiated before we get here.
-            (TQuant {}, _) -> do
-                lt <- showTypeVarIO av
-                rt <- showTypeVarIO bv
-                error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
-            (_, TQuant {}) -> do
-                lt <- showTypeVarIO av
-                rt <- showTypeVarIO bv
-                error $ printf "Internal error: QVar made it to unify %s and %s" lt rt
+            (TQuant i, TQuant j) | i == j ->
+                return ()
 
             _ ->
                 unificationError "" av bv

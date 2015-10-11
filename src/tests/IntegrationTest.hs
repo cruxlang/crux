@@ -42,6 +42,18 @@ assertCompiles src = do
         Right _ -> return ()
         Left err -> assertFailure $ "Compile failure: " ++ show err
 
+assertFails src expectedErr = do
+    result <- run $ T.unlines src
+    case result of
+        Right o -> assertFailure $ "Expected compilation to fail but got stdout: " ++ show o
+        Left err -> assertEqual "" expectedErr err
+
+assertOutput src output = do
+    result <- run $ T.unlines src
+    case result of
+        Right a -> assertEqual "" a output
+        Left err -> assertFailure $ "Compile failure: " ++ show err
+
 case_hello_world = do
     result <- run $ T.unlines
         [ "let _ = print(\"Hello, World!\");"
@@ -195,7 +207,7 @@ case_annotation_is_checked = do
         [ "let i : Number = \"hody\";"
         ]
 
-    assertEqual "" (Left "Unification error:  String and Number") result
+    assertEqual "" (Left "Unification error:  Number and String") result
 
 case_record_annotation_is_checked = do
     result <- run $ T.unlines
@@ -217,7 +229,7 @@ case_record_annotation_is_checked2 = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 4),f...}") result
+    assertEqual "" (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 5),f...}") result
 
 case_type_alias = do
     result <- run $ T.unlines
@@ -464,5 +476,37 @@ case_type_annotation_for_parametric_type =
         [ "data Option a { None, Some(a) }"
         , "let x : Option Number = Some(22);"
         ]
+
+case_polymorphic_type_annotations_are_universally_quantified =
+    assertCompiles
+        [ "data Option a { None, Some(a) }"
+        , ""
+        , "let none : () -> Option a = fun () { None; };"
+        , ""
+        , "fun f() {"
+        , "    let n : Option Number = none();"
+        , "}"
+        ]
+
+case_polymorphic_type_annotations_are_universally_quantified2 =
+    assertFails
+        [ "let f : (Number) -> Number = fun (i) { i; };"
+        , "let g : (a) -> a = fun (i) { i; };"
+        , "let _ = f(g(\"hello\"));"
+        ]
+        "Unification error:  Number and String"
+
+case_polymorphic_type_annotations_are_universally_quantified3 =
+    assertCompiles
+        [ "let f : (Number) -> Number = fun (i) { i; };"
+        , "let g : (a) -> b = fun (i) { _unsafe_coerce(i); };"
+        , "let _ = f(g(\"hello\"));"
+        ]
+
+case_polymorphic_type_annotations_are_universally_quantified4 =
+    assertFails
+        [ "let f : (a) -> Number = fun (i) { i; };"
+        ]
+        "Unification error:  Number and TQuant 2"
 
 tests = $(testGroupGenerator)

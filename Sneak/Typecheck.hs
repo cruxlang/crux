@@ -14,6 +14,7 @@ import           Sneak.Intrinsic        (Intrinsic (..))
 import qualified Sneak.Intrinsic        as Intrinsic
 import qualified Sneak.MutableHashTable as HashTable
 import           Sneak.Prelude
+import           Sneak.Text             (isCapitalized)
 import           Sneak.Tokens           (Pos (..))
 import           Sneak.Typecheck.Types
 import           Sneak.Typecheck.Unify
@@ -248,7 +249,7 @@ check env expr = case expr of
         HashTable.insert name (Local name, mut, ty) (eBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env annotation
+            annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
             unify ty annotTy
 
         unitTy <- newIORef $ TPrimitive Unit
@@ -527,12 +528,16 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         quantify ty
         return $ DFun $ FunDef (edata expr') name args body'
     DLet _ mut name maybeAnnot expr -> do
-        expr' <- check env expr
-        let ty = edata expr'
-        HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
+        env' <- childEnv env
+        ty <- freshType env'
         forM_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env annotation
+            annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
             unify ty annotTy
+
+        expr' <- check env' expr
+        unify ty (edata expr')
+
+        HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
         quantify ty
         return $ DLet (edata expr') mut name maybeAnnot expr'
 
@@ -645,7 +650,7 @@ buildTypeEnvironment loadedModules modul = do
                 forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
                     let Just qv = HashMap.lookup name qvars
                     env' <- addQvarTable env qv
-                    t <- resolveTypeIdent env' typeIdent
+                    t <- resolveTypeIdent env' NewTypesAreErrors typeIdent
                     unify typeVar t
         _ -> return ()
 
@@ -654,7 +659,7 @@ buildTypeEnvironment loadedModules modul = do
                 return ty
             _ -> do
                 env' <- addQvarTable env qvarNames
-                resolvedArgTypes <- mapM (resolveTypeIdent env') argTypeIdents
+                resolvedArgTypes <- mapM (resolveTypeIdent env' NewTypesAreErrors) argTypeIdents
                 newIORef $ TFun resolvedArgTypes ty
 
     intrinsics <- Intrinsic.intrinsics
@@ -686,8 +691,11 @@ addQvarTable env@Env{..} qvarTable = do
         (HashMap.fromList [(name, (ThisModule name, ty)) | (name, ty) <- qvarTable])
     return env { eTypeBindings = newBindings }
 
-resolveTypeIdent :: Env -> TypeIdent -> IO TypeVar
-resolveTypeIdent env typeIdent =
+data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
+    deriving (Eq)
+
+resolveTypeIdent :: Env -> ResolvePolicy -> TypeIdent -> IO TypeVar
+resolveTypeIdent env resolvePolicy typeIdent =
     go typeIdent
   where
     Env{..} = env
@@ -697,17 +705,17 @@ resolveTypeIdent env typeIdent =
             Just (_, ty) -> do
                 ty' <- readIORef ty
                 case ty' of
-                    TPrimitive {} ->
-                        if [] /= typeParameters
-                            then error "Primitive types don't take type parameters"
-                            else return ty
-                    TUserType def@TUserTypeDef{tuParameters} _ ->
-                        if length tuParameters /= length typeParameters
-                            then
-                                error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
-                            else do
-                                params <- mapM go typeParameters
-                                newIORef $ TUserType def params
+                    TPrimitive {}
+                        | [] == typeParameters ->
+                            return ty
+                        | otherwise ->
+                            error "Primitive types don't take type parameters"
+                    TUserType def@TUserTypeDef{tuParameters} _
+                        | length tuParameters == length typeParameters -> do
+                            params <- mapM go typeParameters
+                            newIORef $ TUserType def params
+                        | otherwise ->
+                            error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
                     _ ->
                         return ty
             Nothing -> case HashMap.lookup typeName eTypeAliases of
@@ -715,13 +723,19 @@ resolveTypeIdent env typeIdent =
                     when (length aliasParams /= length typeParameters) $
                         error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
 
-                    argTypes <- mapM (resolveTypeIdent env) typeParameters
+                    argTypes <- mapM (resolveTypeIdent env resolvePolicy) typeParameters
 
                     env' <- addQvarTable env (zip aliasParams argTypes)
 
-                    resolveTypeIdent env' aliasedIdent
+                    resolveTypeIdent env' resolvePolicy aliasedIdent
+                Nothing | NewTypesAreQuantified == resolvePolicy && not (isCapitalized typeName) -> do
+                    tyVar <- freshType env
+                    quantify tyVar
+
+                    HashTable.insert typeName (ThisModule typeName, tyVar) eTypeBindings
+                    return tyVar
                 Nothing ->
-                    error $ printf "Constructor uses nonexistent type variable %s" (show typeName)
+                    error $ printf "Constructor refers to nonexistent type %s" (show typeName)
 
     go (RecordIdent rows) = do
         rows' <- forM rows $ \(trName, mut, rowTypeIdent) -> do

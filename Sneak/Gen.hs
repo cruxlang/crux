@@ -94,9 +94,9 @@ generate env expr = case expr of
                 writeInstruction $ LetBinding name v''
                 return $ Just $ Literal AST.LUnit
             Nothing -> return Nothing
-    AST.EFun _ params body -> do
+    AST.EFun _ params _retAnn body -> do
         body' <- subBlockWithReturn env body
-        return $ Just $ FunctionLiteral params body'
+        return $ Just $ FunctionLiteral (map fst params) body'
     AST.ERecordLiteral _ props -> do
         props' <- runMaybeT $ mapM (MaybeT . generate env) props
         case props' of
@@ -256,9 +256,9 @@ generateDecl env (AST.Declaration export decl) = do
             writeDeclaration $ Declaration export $ DData name variants
         AST.DJSData name variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
-        AST.DFun (AST.FunDef _ name params body) -> do
+        AST.DFun (AST.FunDef _ name params _retAnn body) -> do
             body' <- subBlockWithReturn env body
-            writeDeclaration $ Declaration export $ DFun name params body'
+            writeDeclaration $ Declaration export $ DFun name (map fst params) body'
         AST.DLet _ _mut name _ defn -> do
             -- error if output has no return value
             defn' <- subBlockWithReturn env defn

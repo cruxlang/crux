@@ -509,4 +509,15 @@ case_polymorphic_type_annotations_are_universally_quantified4 =
         ]
         "Unification error:  Number and TQuant 2"
 
+case_type_annotations_on_function_decls =
+    assertCompiles
+        [ "fun id_int(x : int) : int { x; }"
+        ]
+
+case_type_annotations_on_function_decls2 =
+    assertFails
+        [ "fun id_int(x : a) : Number { x; }"
+        ]
+        "Unification error:  Number and TQuant 2"
+
 tests = $(testGroupGenerator)

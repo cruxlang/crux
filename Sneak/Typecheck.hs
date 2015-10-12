@@ -154,14 +154,21 @@ resolveName pos env name = do
 
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check env expr = case expr of
-    EFun _ params body -> do
+    EFun _ params retAnn body -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramTypes <- forM params $ \p -> do
+        paramTypes <- forM params $ \(p, pAnn) -> do
             pt <- freshType env
+            forM_ pAnn $ \ann -> do
+                annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+                unify pt annTy
             HashTable.insert p (Local p, LImmutable, pt) bindings'
             return pt
 
         returnType <- freshType env
+
+        forM_ retAnn $ \ann -> do
+            annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+            unify annTy returnType
 
         let env' = env
                 { eBindings=bindings'
@@ -171,7 +178,7 @@ check env expr = case expr of
         body' <- check env' body
         unify returnType $ edata body'
         ty <- newIORef $ TFun paramTypes returnType
-        return $ EFun ty params body'
+        return $ EFun ty params retAnn body'
 
     EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
         t <- freshType env
@@ -411,10 +418,10 @@ freezeIntrinsic = mapIntrinsicInputs freeze
 
 freeze :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
 freeze expr = case expr of
-    EFun td params body -> do
+    EFun td params retAnn body -> do
         td' <- freezeTypeVar td
         body' <- freeze body
-        return $ EFun td' params body'
+        return $ EFun td' params retAnn body'
     EApp td lhs rhs -> do
         td' <- freezeTypeVar td
         lhs' <- freeze lhs
@@ -497,10 +504,10 @@ freezeDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
         ty' <- freezeTypeVar ty
         expr' <- freeze expr
         return $ DLet ty' mut name typeAnn expr'
-    DFun (FunDef ty name params body) -> do
+    DFun (FunDef ty name params retAnn body) -> do
         ty' <- freezeTypeVar ty
         body' <- freeze body
-        return $ DFun $ FunDef ty' name params body'
+        return $ DFun $ FunDef ty' name params retAnn body'
 
 freezeModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
 freezeModule Module{..} = do
@@ -519,14 +526,14 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         return $ DJSData name variants
     DType (TypeAlias name typeVars ident) ->
         return $ DType $ TypeAlias name typeVars ident
-    DFun (FunDef pos name args body) -> do
+    DFun (FunDef pos name args returnAnn body) -> do
         ty <- freshType env
         HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
-        let expr = EFun pos args body
-        expr'@(EFun _ _ body') <- check env expr
+        let expr = EFun pos args returnAnn body
+        expr'@(EFun _ _ _ body') <- check env expr
         unify (edata expr') ty
         quantify ty
-        return $ DFun $ FunDef (edata expr') name args body'
+        return $ DFun $ FunDef (edata expr') name args returnAnn body'
     DLet _ mut name maybeAnnot expr -> do
         env' <- childEnv env
         ty <- freshType env'
@@ -570,7 +577,7 @@ buildTypeEnvironment loadedModules modul = do
             DLet _edata _mutability _name _ _ -> do
                 fail "TODO: export let"
 
-            DFun (FunDef tr name _params _body) -> do
+            DFun (FunDef tr name _params _retAnn _body) -> do
                 tr' <- unfreezeTypeVar tr
                 HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 

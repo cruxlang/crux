@@ -25,7 +25,7 @@ data Variant = Variant
     , vparameters :: [TypeIdent]
     } deriving (Show, Eq)
 
-data FunDef idtype edata = FunDef edata Name [Name] (Expression idtype edata)
+data FunDef idtype edata = FunDef edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     deriving (Show, Eq, Functor)
 
 data JSVariant = JSVariant Name JSTree.Literal
@@ -144,7 +144,7 @@ data LetMutability
 
 data Expression idtype edata
     = ELet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
-    | EFun edata [Text] (Expression idtype edata)
+    | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype edata))
     | ELookup edata (Expression idtype edata) Name
     | EApp edata (Expression idtype edata) [Expression idtype edata]
@@ -164,7 +164,7 @@ data Expression idtype edata
 instance Functor (Expression idtype) where
     fmap f expr = case expr of
         ELet d mut pat typeAnn subExpr -> ELet (f d) mut pat typeAnn (fmap f subExpr)
-        EFun d argNames body -> EFun (f d) argNames (fmap f body)
+        EFun d argNames returnAnn body -> EFun (f d) argNames returnAnn (fmap f body)
         ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
@@ -188,7 +188,7 @@ instance Functor (Expression idtype) where
 edata :: Expression idtype edata -> edata
 edata expr = case expr of
     ELet ed _ _ _ _ -> ed
-    EFun ed _ _ -> ed
+    EFun ed _ _ _ -> ed
     ERecordLiteral ed _ -> ed
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed

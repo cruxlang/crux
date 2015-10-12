@@ -128,7 +128,10 @@ identifierExpression = getToken testTok
 functionExpression :: Parser ParseExpression
 functionExpression = do
     tfun <- P.try $ token Tokens.TFun
-    args <- parenthesized $ P.sepBy anyIdentifier (token TComma)
+    args <- parenthesized $ P.sepBy funArgument (token TComma)
+    returnAnn <- P.optionMaybe $ do
+        _ <- token TColon
+        typeIdent
     _ <- token TOpenBrace
     bodyExprs <- P.many expression
     _ <- token TCloseBrace
@@ -137,7 +140,7 @@ functionExpression = do
             [] -> ELiteral (tokenData tfun) LUnit
             _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
 
-    return $ EFun (tokenData tfun) args body
+    return $ EFun (tokenData tfun) args returnAnn body
 
 pattern :: Parser Pattern
 pattern = do
@@ -443,11 +446,22 @@ typeDeclaration = do
     _ <- token TSemicolon
     return $ DType $ TypeAlias name vars ty
 
+funArgument :: Parser (Name, Maybe TypeIdent)
+funArgument = do
+    n <- anyIdentifier
+    ann <- P.optionMaybe $ do
+        _ <- token TColon
+        typeIdent
+    return (n, ann)
+
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- P.try $ token Tokens.TFun
     name <- anyIdentifier
-    params <- parenthesized $ P.sepBy anyIdentifier (token TComma)
+    params <- parenthesized $ P.sepBy funArgument (token TComma)
+    returnAnn <- P.optionMaybe $ do
+        _ <- token TColon
+        typeIdent
     _ <- token TOpenBrace
     bodyExprs <- P.many expression
     _ <- token TCloseBrace
@@ -456,7 +470,7 @@ funDeclaration = do
             [] -> ELiteral (tokenData tfun) LUnit
             _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
 
-    return $ DFun $ FunDef (tokenData tfun) name params body
+    return $ DFun $ FunDef (tokenData tfun) name params returnAnn body
 
 declaration :: Parser (Declaration Name ParseData)
 declaration = do

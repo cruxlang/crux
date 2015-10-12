@@ -106,10 +106,18 @@ case_polymorphic_data = do
 
 case_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"
-        (DFun $ FunDef () "f" [] (ELiteral () $ LUnit))
+        (DFun $ FunDef () "f" [] Nothing (ELiteral () $ LUnit))
 
 case_fun_with_return = do
     assertExprParses funDeclaration "fun f() { return 1; }"
-        (DFun $ FunDef () "f" [] (EReturn () $ ELiteral () $ LInteger $ 1))
+        (DFun $ FunDef () "f" [] Nothing (EReturn () $ ELiteral () $ LInteger $ 1))
+
+case_fun_with_argument_annotations = do
+    assertExprParses funDeclaration "fun f(x:Number) { 1; }"
+        (DFun $ FunDef () "f" [("x", Just $ TypeIdent "Number" [])] Nothing (ELiteral () $ LInteger 1))
+
+case_fun_with_return_annotation = do
+    assertExprParses funDeclaration "fun f() : Number { 5; }"
+        (DFun $ FunDef () "f" [] (Just $ TypeIdent "Number" []) (ELiteral () $ LInteger 5))
 
 tests = $(testGroupGenerator)

@@ -185,26 +185,24 @@ matchExpression = do
 basicExpression :: Parser ParseExpression
 basicExpression = identifierExpression <|> literalExpression <|> parenExpression
 
-lookupExpression :: Parser ParseExpression
-lookupExpression = do
-    lhs <- basicExpression
-    rhs <- P.many $ do
-        _ <- token TDot
-        anyIdentifier
-
-    case rhs of
-        [] -> return lhs
-        _ -> return $ foldl' (\acc name -> ELookup (edata lhs) acc name) lhs rhs
-
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
-    lhs <- lookupExpression
+    let app lhs = do
+            argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
+            return $ EApp (edata lhs) lhs argList
+        prop lhs = do
+            _ <- token TDot
+            propName <- anyIdentifier
+            return $ ELookup (edata lhs) lhs propName
 
-    argList <- P.optionMaybe $ parenthesized $ P.sepBy noSemiExpression (token TComma)
+    let go lhs = do
+            mlhs' <- P.optionMaybe (app lhs <|> prop lhs)
+            case mlhs' of
+                Nothing -> return lhs
+                Just lhs' -> go lhs'
 
-    case argList of
-        Nothing -> return lhs
-        Just args -> return $ EApp (edata lhs) lhs args
+    lhs <- basicExpression
+    go lhs
 
 infixExpression :: Parser BinIntrinsic -> Parser ParseExpression -> Parser ParseExpression
 infixExpression operator term = do
@@ -231,7 +229,7 @@ addExpression = do
 
 assignExpression :: Parser ParseExpression
 assignExpression = do
-    lhs <- P.try (lookupExpression <* token TEqual)
+    lhs <- P.try (applicationExpression <* token TEqual)
     rhs <- noSemiExpression
     return $ EAssign (edata lhs) lhs rhs
 

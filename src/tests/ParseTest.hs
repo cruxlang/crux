@@ -120,4 +120,8 @@ case_fun_with_return_annotation = do
     assertExprParses funDeclaration "fun f() : Number { 5; }"
         (DFun $ FunDef () "f" [] (Just $ TypeIdent "Number" []) (ELiteral () $ LInteger 5))
 
+case_prop_and_functions_chain = do
+    assertExprParses noSemiExpression "a()().b.c().d().e.f"
+        (ELookup () (ELookup () (EApp () (ELookup () (EApp () (ELookup () (ELookup () (EApp () (EApp () (EIdentifier () "a") []) []) "b") "c") []) "d") []) "e") "f")
+
 tests = $(testGroupGenerator)

@@ -518,6 +518,6 @@ case_type_annotations_on_function_decls2 =
     assertFails
         [ "fun id_int(x : a) : Number { x; }"
         ]
-        "Unification error:  Number and TQuant 2"
+        "Unification error:  Number and TQuant 4"
 
 tests = $(testGroupGenerator)

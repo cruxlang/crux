@@ -156,19 +156,12 @@ check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedRef
 check env expr = case expr of
     EFun _ params retAnn body -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramTypes <- forM params $ \(p, pAnn) -> do
+        paramTypes <- forM params $ \(p, _) -> do
             pt <- freshType env
-            forM_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env NewTypesAreQuantified ann
-                unify pt annTy
             HashTable.insert p (Local p, LImmutable, pt) bindings'
             return pt
 
         returnType <- freshType env
-
-        forM_ retAnn $ \ann -> do
-            annTy <- resolveTypeIdent env NewTypesAreQuantified ann
-            unify annTy returnType
 
         let env' = env
                 { eBindings=bindings'
@@ -176,6 +169,16 @@ check env expr = case expr of
                 , eInLoop=False
                 }
         body' <- check env' body
+
+        forM_ (zip params paramTypes) $ \((_, pAnn), pt) -> do
+            forM_ pAnn $ \ann -> do
+                annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+                unify pt annTy
+
+        forM_ retAnn $ \ann -> do
+            annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+            unify returnType annTy
+
         unify returnType $ edata body'
         ty <- newIORef $ TFun paramTypes returnType
         return $ EFun ty params retAnn body'

@@ -2,6 +2,7 @@
 module Main where
 
 import Test.Framework
+import System.Environment (getArgs)
 
 import {-@ HTF_TESTS @-} ParseTest
 import {-@ HTF_TESTS @-} IntegrationTest
@@ -9,4 +10,6 @@ import {-@ HTF_TESTS @-} GenTest
 import {-@ HTF_TESTS @-} JSBackendTest
 
 main :: IO ()
-main = htfMain htf_importedTests
+main = do
+    args <- getArgs
+    htfMainWithArgs ("--colors=true" : args) htf_importedTests

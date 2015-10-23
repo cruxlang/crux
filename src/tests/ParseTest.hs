@@ -127,9 +127,8 @@ test_double_lookup = do
         (ELookup () (ELookup () (EIdentifier () "foo") "bar") "baz")
 
 test_property_lookup_on_function_result = do
-    _ <- unitTestPending "not done yet"
-    assertExprParses expression "foo().bar();"
-        (EApp () (EIdentifier () "foo") [])
+    assertExprParses noSemiExpression "foo().bar()"
+        (EApp () (ELookup () (EApp () (EIdentifier () "foo") []) "bar") [])
 
 test_double_call = do
     assertExprParses expression "foo()();"

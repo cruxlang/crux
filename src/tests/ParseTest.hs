@@ -121,3 +121,16 @@ test_fun_with_return_annotation = do
 test_prop_and_functions_chain = do
     assertExprParses noSemiExpression "a()().b.c().d().e.f"
         (ELookup () (ELookup () (EApp () (ELookup () (EApp () (ELookup () (ELookup () (EApp () (EApp () (EIdentifier () "a") []) []) "b") "c") []) "d") []) "e") "f")
+
+test_double_lookup = do
+    assertExprParses expression "foo.bar.baz;"
+        (ELookup () (ELookup () (EIdentifier () "foo") "bar") "baz")
+
+test_property_lookup_on_function_result = do
+    _ <- unitTestPending "not done yet"
+    assertExprParses expression "foo().bar();"
+        (EApp () (EIdentifier () "foo") [])
+
+test_double_call = do
+    assertExprParses expression "foo()();"
+        (EApp () (EApp () (EIdentifier () "foo") []) [])

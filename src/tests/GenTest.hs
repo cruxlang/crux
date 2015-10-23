@@ -3,23 +3,16 @@
 
 module GenTest (htf_thisModulesTests) where
 
-import Control.Monad (forM)
 import Control.Exception (try)
 import GHC.Exception (ErrorCall(..))
-import Data.Monoid ((<>))
 import Data.Text (Text)
 import Test.Framework
 import qualified Sneak.AST as AST
-import qualified Sneak.Lex
-import qualified Sneak.Parse
 import qualified Sneak.Module
-import qualified Sneak.Typecheck as Typecheck
 import qualified Sneak.Gen as Gen
-import qualified Sneak.Backend.JS as JS
 
 genDoc' :: Text -> IO (Either String Gen.Module)
 genDoc' src = do
-    let fn = "<string>"
     mod' <- Sneak.Module.loadModuleFromSource "<string>" src
     case mod' of
         Left err ->
@@ -34,7 +27,7 @@ genDoc src = do
         Left err -> error err
         Right stmts -> return stmts
 
-case_direct_prints = do
+test_direct_prints = do
     doc <- genDoc "let _ = print(10);"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet "_"
@@ -44,11 +37,11 @@ case_direct_prints = do
         ]
         doc
 
-case_return_at_top_level_is_error = do
+test_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1;"
     assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
 
-case_return_from_function = do
+test_return_from_function = do
     doc <- genDoc "fun f() { return 1; }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" [] $
@@ -57,7 +50,7 @@ case_return_from_function = do
         ]
         doc
 
-case_return_from_branch = do
+test_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
@@ -72,7 +65,7 @@ case_return_from_branch = do
         ]
         result
 
-case_branch_with_value = do
+test_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet "x"
@@ -87,7 +80,7 @@ case_branch_with_value = do
         ]
         result
 
-case_method_call = do
+test_method_call = do
     result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
     assertEqual
         [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.Temporary 0) (AST.IUnsafeJs "we-can-put-anything-here")

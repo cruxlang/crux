@@ -60,7 +60,7 @@ executable sneak
 test-suite tests
     type: exitcode-stdio-1.0
     main-is: Tests.hs
-    -- ghc-options: -ddump-splices
+    ghc-options: -Wall -Werror -fno-warn-missing-signatures
     hs-source-dirs: src/tests
     build-depends: base
                  , HTF

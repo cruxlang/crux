@@ -47,11 +47,13 @@ assertFails src expectedErr = do
         Right o -> assertFailure $ "Expected compilation to fail but got stdout: " ++ show o
         Left err -> assertEqual expectedErr err
 
+{-
 assertOutput src output = do
     result <- run $ T.unlines src
     case result of
         Right a -> assertEqual a output
         Left err -> assertFailure $ "Compile failure: " ++ show err
+-}
 
 test_hello_world = do
     result <- run $ T.unlines

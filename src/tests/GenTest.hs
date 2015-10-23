@@ -1,13 +1,14 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
+{-# OPTIONS_GHC -F -pgmF htfpp #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module GenTest (tests) where
+module GenTest (htf_thisModulesTests) where
 
 import Control.Monad (forM)
 import Control.Exception (try)
 import GHC.Exception (ErrorCall(..))
 import Data.Monoid ((<>))
 import Data.Text (Text)
-import TestJesus
+import Test.Framework
 import qualified Sneak.AST as AST
 import qualified Sneak.Lex
 import qualified Sneak.Parse
@@ -35,7 +36,7 @@ genDoc src = do
 
 case_direct_prints = do
     doc <- genDoc "let _ = print(10);"
-    assertEqual "single print expression"
+    assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet "_"
             [ Gen.Intrinsic (Gen.Temporary 0) $ AST.IPrint [Gen.Literal $ AST.LInteger 10]
             , Gen.Return $ Gen.Reference (Gen.Temporary 0)
@@ -45,11 +46,11 @@ case_direct_prints = do
 
 case_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1;"
-    assertEqual "exception matches" (Left $ ErrorCall "Cannot return outside of functions") $ result
+    assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
 
 case_return_from_function = do
     doc <- genDoc "fun f() { return 1; }"
-    assertEqual "statements"
+    assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" [] $
             [ Gen.Return $ Gen.Literal $ AST.LInteger 1
             ]
@@ -58,7 +59,7 @@ case_return_from_function = do
 
 case_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; }"
-    assertEqual "statements"
+    assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyLet $ Gen.Temporary 0
             , Gen.If (Gen.Reference $ Gen.Binding $ AST.OtherModule "Prelude" "True")
@@ -73,7 +74,7 @@ case_return_from_branch = do
 
 case_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
-    assertEqual "statements"
+    assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet "x"
             [ Gen.EmptyLet (Gen.Temporary 0)
             , Gen.If (Gen.Reference $ Gen.Binding $ AST.OtherModule "Prelude" "True")
@@ -88,12 +89,10 @@ case_branch_with_value = do
 
 case_method_call = do
     result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
-    assertEqual "statements"
+    assertEqual
         [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.Temporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
         , Gen.Return (Gen.Reference (Gen.Temporary 0))])
         , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.Temporary 1) (Gen.Reference (Gen.Binding $ AST.ThisModule "hoop")) "woop" []
             , Gen.Return (Gen.Reference (Gen.Temporary 1))])
         ]
         result
-
-tests = $(testGroupGenerator)

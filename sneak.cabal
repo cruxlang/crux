@@ -63,10 +63,7 @@ test-suite tests
     -- ghc-options: -ddump-splices
     hs-source-dirs: src/tests
     build-depends: base
-                 , HUnit
-                 , test-framework
-                 , test-framework-hunit
-                 , test-framework-th
+                 , HTF
                  , parsec
                  , text
                  , sneak

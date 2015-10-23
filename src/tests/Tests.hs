@@ -1,17 +1,12 @@
-module Main (main) where
-
-import qualified ParseTest
-import qualified IntegrationTest
-import qualified GenTest
-import qualified JSBackendTest
+{-# OPTIONS_GHC -F -pgmF htfpp #-}
+module Main where
 
 import Test.Framework
-import Test.HUnit
-import System.Exit (exitWith, ExitCode (..))
 
-main = defaultMain
-        [ ParseTest.tests
-        , IntegrationTest.tests
-        , GenTest.tests
-        , JSBackendTest.tests
-        ]
+import {-@ HTF_TESTS @-} ParseTest
+import {-@ HTF_TESTS @-} IntegrationTest
+import {-@ HTF_TESTS @-} GenTest
+import {-@ HTF_TESTS @-} JSBackendTest
+
+main :: IO ()
+main = htfMain htf_importedTests

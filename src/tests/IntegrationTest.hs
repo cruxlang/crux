@@ -1,8 +1,7 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
+{-# OPTIONS_GHC -F -pgmF htfpp #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module IntegrationTest
-    -- (run, tests)
-    where
+module IntegrationTest (htf_thisModulesTests) where
 
 import Control.Exception (catch, SomeException)
 import qualified Sneak.Backend.JS as JS
@@ -12,7 +11,7 @@ import           Data.Text      (Text)
 import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
 import           System.Process (readProcess)
-import           TestJesus
+import           Test.Framework
 import           System.IO (hFlush)
 import           System.IO.Temp (withSystemTempFile)
 
@@ -46,29 +45,29 @@ assertFails src expectedErr = do
     result <- run $ T.unlines src
     case result of
         Right o -> assertFailure $ "Expected compilation to fail but got stdout: " ++ show o
-        Left err -> assertEqual "" expectedErr err
+        Left err -> assertEqual expectedErr err
 
 assertOutput src output = do
     result <- run $ T.unlines src
     case result of
-        Right a -> assertEqual "" a output
+        Right a -> assertEqual a output
         Left err -> assertFailure $ "Compile failure: " ++ show err
 
-case_hello_world = do
+test_hello_world = do
     result <- run $ T.unlines
         [ "let _ = print(\"Hello, World!\");"
         ]
-    assertEqual "" (Right "Hello, World!\n") result
+    assertEqual (Right "Hello, World!\n") result
 
-case_integer = do
+test_integer = do
     result <- run $ T.unlines
         [ "let x = 1;"
         , "let y = x;"
         , "let _ = print(toString(y));"
         ]
-    assertEqual "" (Right "1\n") result
+    assertEqual (Right "1\n") result
 
-case_data_types = do
+test_data_types = do
     result <- run $ T.unlines
         [ "data IntList {"
         , "    Element(Number, IntList),"
@@ -78,9 +77,9 @@ case_data_types = do
         , "let _ = print(mylist);"
         ]
 
-    assertEqual "" (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
+    assertEqual (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
 
-case_pattern_matches_can_be_expressions_that_yield_values = do
+test_pattern_matches_can_be_expressions_that_yield_values = do
     result <- run $ T.unlines
         [ "data IntList {"
         , "    Element(Number, IntList),"
@@ -95,20 +94,20 @@ case_pattern_matches_can_be_expressions_that_yield_values = do
         , "};"
         , "let _ = print(len);"
         ]
-    assertEqual "" (Right "2\n") result
+    assertEqual (Right "2\n") result
 
-case_arithmetic = do
+test_arithmetic = do
     result <- run $ T.unlines
         [ "let hypot_squared = fun (x, y) { x * x + y * y; };"
         , "let _ = print(hypot_squared(4, 3));"
         ]
-    assertEqual "" (Right "25\n") result
+    assertEqual (Right "25\n") result
 
-case_let_is_not_recursive_by_default = do
+test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
-    assertEqual "" result $ Left "FATAL: Unbound symbol (1:21,\"foo\")"
+    assertEqual result $ Left "FATAL: Unbound symbol (1:21,\"foo\")"
 
-case_recursive = do
+test_recursive = do
     result <- run $ T.unlines
         [ "data IntList { Cons(Number, IntList), Nil }"
         , "fun len(l) {"
@@ -119,9 +118,9 @@ case_recursive = do
         , "}"
         , "let _ = print(len(Cons(5, Nil)));"
         ]
-    assertEqual "" (Right "1\n") result
+    assertEqual (Right "1\n") result
 
-case_recursive_data = do
+test_recursive_data = do
     result <- run $ T.unlines
         [ "data List a {"
         , "    Cons(a, List a),"
@@ -139,31 +138,31 @@ case_recursive_data = do
         , ""
         , "let _ = print(len(s));"
         ]
-    assertEqual "" (Right "3\n") result
+    assertEqual (Right "3\n") result
 
-case_occurs_on_fun = do
+test_occurs_on_fun = do
     result <- run $ T.unlines
         [ "fun bad() { bad; }"
         ]
 
-    assertEqual "" (Left "Occurs check failed") result
+    assertEqual (Left "Occurs check failed") result
 
-case_occurs_on_sum = do
+test_occurs_on_sum = do
     result <- run $ T.unlines
         [ "data List a { Cons(a, List a), Nil }"
         , "fun bad(a) { Cons(a, a); }"
         ]
 
-    assertEqual "" (Left "Occurs check failed") result
+    assertEqual (Left "Occurs check failed") result
 
-case_occurs_on_record = do
+test_occurs_on_record = do
     result <- run $ T.unlines
         [ "fun bad(p) { { field: bad(p) }; }"
         ]
 
-    assertEqual "" (Left "Occurs check failed") result
+    assertEqual (Left "Occurs check failed") result
 
-case_row_polymorphic_records = do
+test_row_polymorphic_records = do
     result <- run $ T.unlines
         [ "fun manhattan(p) { p.x + p.y; }"
         , ""
@@ -178,38 +177,38 @@ case_row_polymorphic_records = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Right "0\n77\n") result
+    assertEqual (Right "0\n77\n") result
 
-case_unsafe_js_intrinsic = do
+test_unsafe_js_intrinsic = do
     result <- run $ T.unlines
         [ "let c = _unsafe_js(\"console\");"
         , "let _ = c.log(\"hoop\");"
         ]
-    assertEqual "" (Right "hoop\n") result
+    assertEqual (Right "hoop\n") result
 
-case_incorrect_unsafe_js = do
+test_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js;"
         ]
-    assertEqual "" (Left "Intrinsic _unsafe_js is not a value") result
+    assertEqual (Left "Intrinsic _unsafe_js is not a value") result
 
-case_unsafe_coerce = do
+test_unsafe_coerce = do
     result <- run $ T.unlines
         [ "let message = \"ohai\";"
         , "let coerced = _unsafe_coerce(message);"
         , "let _ = print(5 + coerced);"
         ]
 
-    assertEqual "" (Right "5ohai\n") result
+    assertEqual (Right "5ohai\n") result
 
-case_annotation_is_checked = do
+test_annotation_is_checked = do
     result <- run $ T.unlines
         [ "let i : Number = \"hody\";"
         ]
 
-    assertEqual "" (Left "Unification error:  Number and String") result
+    assertEqual (Left "Unification error:  Number and String") result
 
-case_record_annotation_is_checked = do
+test_record_annotation_is_checked = do
     result <- run $ T.unlines
         [ "let c : {log:(String) -> Unit} = _unsafe_js(\"console\");"
         , "fun main() {"
@@ -218,9 +217,9 @@ case_record_annotation_is_checked = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Right "Hoop\n") result
+    assertEqual (Right "Hoop\n") result
 
-case_record_annotation_is_checked2 = do
+test_record_annotation_is_checked2 = do
     result <- run $ T.unlines
         [ "let c : {} = _unsafe_js(\"console\");"
         , "fun main() {"
@@ -229,9 +228,9 @@ case_record_annotation_is_checked2 = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 5),f...}") result
+    assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 5),f...}") result
 
-case_type_alias = do
+test_type_alias = do
     result <- run $ T.unlines
         [ "type Hoot = Number;"
         , "type Boast = Number;"
@@ -239,40 +238,40 @@ case_type_alias = do
         , "let b : Boast = 4;"
         , "let _ = print(a + b);"
         ]
-    assertEqual "" (Right "59\n") result
+    assertEqual (Right "59\n") result
 
-case_parameterized_type_alias = do
+test_parameterized_type_alias = do
     result <- run $ T.unlines
         [ "data List a { Nil, Cons(a, List a) }"
         , "type Bogo a = List a;"
         , "let hoop : Bogo Number = Cons(5, Nil);"
         ]
-    assertEqual "" (Right "") result
+    assertEqual (Right "") result
 
-case_if_then = do
+test_if_then = do
     result <- run $ T.unlines
         [ "let _ = if True then print(\"True!\");"
         ]
 
-    assertEqual "" (Right "True!\n") result
+    assertEqual (Right "True!\n") result
 
-case_if_then_else = do
+test_if_then_else = do
     result <- run $ T.unlines
         [ "let _ = if False then print(\"This should not run\")"
         , "        else print(\"Falso!\");"
         ]
 
-    assertEqual "" (Right "Falso!\n") result
+    assertEqual (Right "Falso!\n") result
 
-case_if_then_else_2 = do
+test_if_then_else_2 = do
     result <- run $ T.unlines
         [ "let _ = if False then if True then print(\"True!\")"
         , "        else print(\"This should not run\");"
         ]
 
-    assertEqual "" (Right "") result
+    assertEqual (Right "") result
 
-case_comments = do
+test_comments = do
     result <- run $ T.unlines
         [ "// A list is either Nil, the empty case, or"
         , "// it is Cons an element and another list."
@@ -284,16 +283,16 @@ case_comments = do
         , ""
         , "let hoop : Bogo Number = Cons(5, Nil);"
         ]
-    assertEqual "" (Right "") result
+    assertEqual (Right "") result
 
-case_comments2 = do
+test_comments2 = do
     result <- run $ T.unlines
         [ "/* this is a test */"
         , "let u = 8;"
         ]
-    assertEqual "" (Right "") result
+    assertEqual (Right "") result
 
-case_let_mutable = do
+test_let_mutable = do
     result <- run $ T.unlines
         [ "fun main() {"
         , "    let mutable x = 2;"
@@ -303,9 +302,9 @@ case_let_mutable = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Right "3\n") result
+    assertEqual (Right "3\n") result
 
-case_cannot_assign_to_immutable_binding = do
+test_cannot_assign_to_immutable_binding = do
     result <- run $ T.unlines
         [ "fun main() {"
         , "    let x = 2;"
@@ -315,9 +314,9 @@ case_cannot_assign_to_immutable_binding = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
+    assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
 
-case_assign_to_mutable_record_field = do
+test_assign_to_mutable_record_field = do
     result <- run $ T.unlines
         [ "fun main() {"
         , "    let a : {x:Number} = {x:44};"
@@ -327,9 +326,9 @@ case_assign_to_mutable_record_field = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Right "{ x: 22 }\n") result
+    assertEqual (Right "{ x: 22 }\n") result
 
-case_cannot_assign_to_immutable_record_field = do
+test_cannot_assign_to_immutable_record_field = do
     result <- run $ T.unlines
         [ "fun main() {"
         , "    let a : {const x: Number} = {x:44};"
@@ -339,11 +338,11 @@ case_cannot_assign_to_immutable_record_field = do
         , "let _ = main();"
         ]
 
-    assertEqual ""
+    assertEqual
         (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
         result
 
-case_mutable_record_field_requirement_is_inferred = do
+test_mutable_record_field_requirement_is_inferred = do
     result <- run $ T.unlines
         [ "fun swap(p) {"
         , "    let t = p.x;"
@@ -357,11 +356,11 @@ case_mutable_record_field_requirement_is_inferred = do
         , "let _ = main();"
         ]
 
-    assertEqual ""
+    assertEqual
         (Left "Could not unify mutability of record field \"x\": Record field mutability does not match")
         result
 
-case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
+test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
     result <- run $ T.unlines
         [ "fun manhattan(p) {"
         , "    p.x + p.y;"
@@ -377,9 +376,9 @@ case_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Right "44\n0\n") result
+    assertEqual (Right "44\n0\n") result
 
-case_jsffi_data_type_names_and_values_can_be_used = do
+test_jsffi_data_type_names_and_values_can_be_used = do
     result <- run $ T.unlines
         [ "data jsffi Method {"
         , "    Get=\"GET\","
@@ -389,9 +388,9 @@ case_jsffi_data_type_names_and_values_can_be_used = do
         , "let _ = print(result);"
         ]
 
-    assertEqual "" (Right "GET\n") result
+    assertEqual (Right "GET\n") result
 
-case_record_self_unification = do
+test_record_self_unification = do
     result <- run $ T.unlines
         [ "let r = {};"
         , "fun main(o) {"
@@ -400,9 +399,9 @@ case_record_self_unification = do
         , "let _ = main(r);"
         ]
 
-    assertEqual "" (Right "") result
+    assertEqual (Right "") result
 
-case_return_unifies_with_anything = do
+test_return_unifies_with_anything = do
     result <- run $ T.unlines
         [ "fun a() {"
         , "    let p ="
@@ -413,9 +412,9 @@ case_return_unifies_with_anything = do
         , "}"
         ]
 
-    assertEqual "" (Right "") result
+    assertEqual (Right "") result
 
-case_while_loops = do
+test_while_loops = do
     result <- run $ T.unlines
         [ "let nonzero = _unsafe_js(\"function(n){return 0!=n;}\");"
         , "let less = _unsafe_js(\"function(a,b) {return a < b;}\");"
@@ -445,9 +444,9 @@ case_while_loops = do
         , "let _ = main();"
         ]
 
-    assertEqual "" (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
+    assertEqual (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
 
-case_quantify_user_types_correctly =
+test_quantify_user_types_correctly =
     assertCompiles
         [ "data Option a {"
         , "    None,"
@@ -463,7 +462,7 @@ case_quantify_user_types_correctly =
         , "}"
         ]
 
-case_interior_unbound_types_are_ok =
+test_interior_unbound_types_are_ok =
     assertCompiles
         [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\");"
         , "export fun replicate(element, len) {"
@@ -471,13 +470,13 @@ case_interior_unbound_types_are_ok =
         , "}"
         ]
 
-case_type_annotation_for_parametric_type =
+test_type_annotation_for_parametric_type =
     assertCompiles
         [ "data Option a { None, Some(a) }"
         , "let x : Option Number = Some(22);"
         ]
 
-case_polymorphic_type_annotations_are_universally_quantified =
+test_polymorphic_type_annotations_are_universally_quantified =
     assertCompiles
         [ "data Option a { None, Some(a) }"
         , ""
@@ -488,7 +487,7 @@ case_polymorphic_type_annotations_are_universally_quantified =
         , "}"
         ]
 
-case_polymorphic_type_annotations_are_universally_quantified2 =
+test_polymorphic_type_annotations_are_universally_quantified2 =
     assertFails
         [ "let f : (Number) -> Number = fun (i) { i; };"
         , "let g : (a) -> a = fun (i) { i; };"
@@ -496,28 +495,26 @@ case_polymorphic_type_annotations_are_universally_quantified2 =
         ]
         "Unification error:  Number and String"
 
-case_polymorphic_type_annotations_are_universally_quantified3 =
+test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
         [ "let f : (Number) -> Number = fun (i) { i; };"
         , "let g : (a) -> b = fun (i) { _unsafe_coerce(i); };"
         , "let _ = f(g(\"hello\"));"
         ]
 
-case_polymorphic_type_annotations_are_universally_quantified4 =
+test_polymorphic_type_annotations_are_universally_quantified4 =
     assertFails
         [ "let f : (a) -> Number = fun (i) { i; };"
         ]
         "Unification error:  Number and TQuant 2"
 
-case_type_annotations_on_function_decls =
+test_type_annotations_on_function_decls =
     assertCompiles
         [ "fun id_int(x : int) : int { x; }"
         ]
 
-case_type_annotations_on_function_decls2 =
+test_type_annotations_on_function_decls2 =
     assertFails
         [ "fun id_int(x : a) : Number { x; }"
         ]
         "Unification error:  Number and TQuant 4"
-
-tests = $(testGroupGenerator)

@@ -303,17 +303,13 @@ check env expr = case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
-    -- TEMP: For now, all binary intrinsics are Number -> Number -> Number
+    -- TEMP: For now, all binary intrinsics are a -> a -> a
     EBinIntrinsic _ bi lhs rhs -> do
-        numTy <- newIORef $ TPrimitive Number
-
         lhs' <- check env lhs
-        unify numTy (edata lhs')
-
         rhs' <- check env rhs
-        unify numTy (edata rhs')
+        unify (edata lhs') (edata rhs')
 
-        return $ EBinIntrinsic numTy bi lhs' rhs'
+        return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
 
     EIfThenElse _ condition ifTrue ifFalse -> do
         booleanType <- resolveType (edata expr) env "Boolean"

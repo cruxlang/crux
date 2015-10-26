@@ -47,13 +47,11 @@ assertFails src expectedErr = do
         Right o -> assertFailure $ "Expected compilation to fail but got stdout: " ++ show o
         Left err -> assertEqual expectedErr err
 
-{-
-assertOutput src output = do
+assertOutput src outp = do
     result <- run $ T.unlines src
     case result of
-        Right a -> assertEqual a output
+        Right a -> assertEqual outp a
         Left err -> assertFailure $ "Compile failure: " ++ show err
--}
 
 test_hello_world = do
     result <- run $ T.unlines
@@ -520,3 +518,6 @@ test_type_annotations_on_function_decls2 =
         [ "fun id_int(x : a) : Number { x; }"
         ]
         "Unification error:  Number and TQuant 4"
+
+test_concatenate_strings =
+    assertOutput ["let _ = print(\"foo\" + \"bar\");"] "foobar\n"

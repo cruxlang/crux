@@ -10,7 +10,6 @@ fun handleRequest(request, response) {
     return ();
 }
 
-
 let server = http.createServer(handleRequest);
 
 let _ = server.listen(PORT, fun() {

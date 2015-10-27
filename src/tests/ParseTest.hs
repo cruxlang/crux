@@ -114,6 +114,10 @@ test_fun_with_argument_annotations = do
     assertExprParses funDeclaration "fun f(x:Number) { 1; }"
         (DFun $ FunDef () "f" [("x", Just $ TypeIdent "Number" [])] Nothing (ELiteral () $ LInteger 1))
 
+test_fun_that_takes_function = do
+    assertExprParses funDeclaration "fun f(x: (Number) -> String) { x(1); }"
+        (DFun $ FunDef () "f" [("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))] Nothing (EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1]))
+
 test_fun_with_return_annotation = do
     assertExprParses funDeclaration "fun f() : Number { 5; }"
         (DFun $ FunDef () "f" [] (Just $ TypeIdent "Number" []) (ELiteral () $ LInteger 5))
@@ -121,15 +125,3 @@ test_fun_with_return_annotation = do
 test_prop_and_functions_chain = do
     assertExprParses noSemiExpression "a()().b.c().d().e.f"
         (ELookup () (ELookup () (EApp () (ELookup () (EApp () (ELookup () (ELookup () (EApp () (EApp () (EIdentifier () "a") []) []) "b") "c") []) "d") []) "e") "f")
-
-test_double_lookup = do
-    assertExprParses expression "foo.bar.baz;"
-        (ELookup () (ELookup () (EIdentifier () "foo") "bar") "baz")
-
-test_property_lookup_on_function_result = do
-    assertExprParses noSemiExpression "foo().bar()"
-        (EApp () (ELookup () (EApp () (EIdentifier () "foo") []) "bar") [])
-
-test_double_call = do
-    assertExprParses expression "foo()();"
-        (EApp () (EApp () (EIdentifier () "foo") []) [])

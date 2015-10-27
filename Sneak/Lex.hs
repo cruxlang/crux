@@ -61,6 +61,7 @@ keyword = P.try $ do
         "let" -> return TLet
         "fun" -> return TFun
         "data" -> return TData
+        "declare" -> return TDeclare
         "jsffi" -> return TJSFFI
         "type" -> return TType
         "match" -> return TMatch

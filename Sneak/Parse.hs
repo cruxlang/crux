@@ -377,7 +377,8 @@ declareDeclaration = do
     _ <- P.try $ token TDeclare
     name <- anyIdentifier
     _ <- token TColon
-    ti <- typeIdent'
+    ti <- typeIdent
+    _ <- token TSemicolon
     return $ DDeclare name ti
 
 -- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int

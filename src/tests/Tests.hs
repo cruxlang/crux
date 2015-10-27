@@ -12,4 +12,4 @@ import {-@ HTF_TESTS @-} JSBackendTest
 main :: IO ()
 main = do
     args <- getArgs
-    htfMainWithArgs ("--colors=true" : args) htf_importedTests
+    htfMainWithArgs ("--colors=true" : "--fail-fast" : args) htf_importedTests

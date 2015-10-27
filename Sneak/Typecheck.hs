@@ -693,7 +693,7 @@ buildTypeEnvironment loadedModules modul = do
     -- with the TypeVars created in the type environment.
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
         DDeclare name typeIdent -> do
-            t <- resolveTypeIdent env NewTypesAreErrors typeIdent
+            t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
             HashTable.insert name (ThisModule name, LImmutable, t) (eBindings env)
         DData name _ variants -> do
             let Just (_, userType) = HashMap.lookup name te

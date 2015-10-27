@@ -37,7 +37,8 @@ data TypeAlias = TypeAlias Name [Name] TypeIdent
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype edata
-    = DLet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
+    = DDeclare Name TypeIdent
+    | DLet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
     | DFun (FunDef idtype edata)
     | DData Name [TypeVariable] [Variant]
     | DJSData Name [JSVariant]

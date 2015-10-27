@@ -493,11 +493,13 @@ freeze expr = case expr of
 
 freezeDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
 freezeDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
-    DData name typeVars variants ->
+    DDeclare name typeIdent -> do
+        return $ DDeclare name typeIdent
+    DData name typeVars variants -> do
         return $ DData name typeVars variants
-    DJSData name variants ->
+    DJSData name variants -> do
         return $ DJSData name variants
-    DType (TypeAlias name typeVars ident) ->
+    DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
     DLet ty mut name typeAnn expr -> do
         ty' <- freezeTypeVar ty
@@ -518,12 +520,14 @@ freezeModule Module{..} = do
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
-    DData name typeVars variants ->
+    DDeclare name typeIdent -> do
+        return $ DDeclare name typeIdent
+    DData name typeVars variants -> do
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name typeVars variants
-    DJSData name variants ->
+    DJSData name variants -> do
         return $ DJSData name variants
-    DType (TypeAlias name typeVars ident) ->
+    DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args returnAnn body) -> do
         ty <- freshType env
@@ -573,6 +577,9 @@ buildTypeEnvironment loadedModules modul = do
             Nothing -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
 
         forM_ (exportedDecls $ mDecls importedModule) $ \decl -> case decl of
+            DDeclare _ _ -> do
+                fail "TODO: export declare"
+
             DLet _edata _mutability _name _ _ -> do
                 fail "TODO: export let"
 
@@ -601,6 +608,9 @@ buildTypeEnvironment loadedModules modul = do
 
     -- First, populate the type environment.  Variant parameter types are all initially free.
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
+        DDeclare _name _typeIdent -> do
+            return ()
+
         DData name typeVarNames variants -> do
             typeVars <- forM typeVarNames $ const $ do
                 ft <- freshType e
@@ -638,7 +648,12 @@ buildTypeEnvironment loadedModules modul = do
 
         DType ty@(TypeAlias name _ _) -> do
             HashTable.insert name ty typeAliasesRef
-        _ -> return ()
+
+        DFun _ -> do
+            return ()
+
+        DLet _ _ _ _ _ -> do
+            return ()
 
     qvars <- readIORef qvarsRef
     te <- readIORef typeEnv
@@ -677,6 +692,9 @@ buildTypeEnvironment loadedModules modul = do
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
+        DDeclare name typeIdent -> do
+            t <- resolveTypeIdent env NewTypesAreErrors typeIdent
+            HashTable.insert name (ThisModule name, LImmutable, t) (eBindings env)
         DData name _ variants -> do
             let Just (_, userType) = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars

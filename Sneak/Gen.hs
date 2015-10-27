@@ -252,6 +252,9 @@ subBlockWithOutput env output expr = do
 generateDecl :: Show t => Env -> AST.Declaration AST.ResolvedReference t -> DeclarationWriter ()
 generateDecl env (AST.Declaration export decl) = do
     case decl of
+        AST.DDeclare _ _ -> do
+            -- declarations are not reflected into the IR
+            return ()
         AST.DData name _ variants -> do
             writeDeclaration $ Declaration export $ DData name variants
         AST.DJSData name variants -> do

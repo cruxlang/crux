@@ -45,7 +45,7 @@ library
                  , raw-strings-qq
                  , optparse-applicative
 
-    ghc-options: -Wall
+    ghc-options: -Wall -Werror
     default-language: Haskell2010
 
 executable sneak

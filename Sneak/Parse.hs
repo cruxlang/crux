@@ -372,6 +372,14 @@ singleTypeIdent = do
 typeIdent' :: Parser TypeIdent
 typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
 
+declareDeclaration :: Parser ParseDeclaration
+declareDeclaration = do
+    _ <- P.try $ token TDeclare
+    name <- anyIdentifier
+    _ <- token TColon
+    ti <- typeIdent'
+    return $ DDeclare name ti
+
 -- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int
 dataDeclTypeIdent :: Parser TypeIdent
 dataDeclTypeIdent = do
@@ -477,7 +485,7 @@ declaration = do
             Just _ -> Export
             Nothing -> NoExport
 
-    declType <- dataDeclaration <|> typeDeclaration <|> funDeclaration <|> letDeclaration
+    declType <- declareDeclaration <|> dataDeclaration <|> typeDeclaration <|> funDeclaration <|> letDeclaration
     return $ Declaration exportFlag declType
 
 importDecl :: Parser Import

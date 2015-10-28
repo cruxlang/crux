@@ -227,6 +227,15 @@ addExpression = do
     let op = (token TPlus >> return BIPlus) <|> (token TMinus >> return BIMinus)
     infixExpression op multiplyExpression
 
+relationExpression :: Parser ParseExpression
+relationExpression = do
+    let op =
+            (token TLess >> return BILess)
+            <|> (token TGreater >> return BIGreater)
+            <|> (token TLessEqual >> return BILessEqual)
+            <|> (token TGreaterEqual >> return BIGreaterEqual)
+    infixExpression op addExpression
+
 assignExpression :: Parser ParseExpression
 assignExpression = do
     lhs <- P.try (applicationExpression <* token TEqual)
@@ -281,7 +290,7 @@ noSemiExpression =
     <|> P.try functionExpression
     <|> P.try recordLiteralExpression
     <|> assignExpression
-    <|> addExpression
+    <|> relationExpression
 
 expression :: Parser ParseExpression
 expression = do

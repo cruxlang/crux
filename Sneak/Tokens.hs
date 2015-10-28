@@ -33,6 +33,12 @@ data TokenType
     | TMinus
     | TMultiply
     | TDivide
+    | TLess
+    | TGreater
+    | TLessEqual
+    | TGreaterEqual
+    | TDoubleEqual
+    | TNotEqual
     -- Keywords
     | TImport
     | TExport

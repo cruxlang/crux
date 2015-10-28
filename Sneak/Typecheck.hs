@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Sneak.Typecheck where
 
@@ -303,13 +304,24 @@ check env expr = case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
-    -- TEMP: For now, all binary intrinsics are a -> a -> a
+    -- TEMP: For now, intrinsics are too polymorphic.
+    -- Arithmetic operators like + and - have type (a, a) -> a
+    -- Relational operators like <= and != have type (a, a) -> Bool
     EBinIntrinsic _ bi lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
-        unify (edata lhs') (edata rhs')
 
-        return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
+        if | isArithmeticOp bi -> do
+                putStrLn $ "WUTTT " ++ show bi
+                unify (edata lhs') (edata rhs')
+                return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
+           | isRelationalOp bi -> do
+                putStrLn ("HORPPP")
+                unify (edata lhs') (edata rhs')
+                booleanType <- resolveType (edata expr) env "Boolean"
+                return $ EBinIntrinsic booleanType bi lhs' rhs'
+           | otherwise ->
+                error "This should be impossible: Check EBinIntrinsic"
 
     EIfThenElse _ condition ifTrue ifFalse -> do
         booleanType <- resolveType (edata expr) env "Boolean"

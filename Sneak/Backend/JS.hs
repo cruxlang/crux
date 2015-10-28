@@ -36,6 +36,12 @@ renderInstruction instr = case instr of
                 BIMinus    -> "-"
                 BIMultiply -> "*"
                 BIDivide   -> "/"
+                BIGreater  -> ">"
+                BILess     -> "<"
+                BIGreaterEqual -> ">="
+                BILessEqual -> "<="
+                BIEqual    -> "==="
+                BINotEqual -> "!=="
         in JSTree.SVar (renderOutput output) $ Just $ JSTree.EBinOp sym (renderValue lhs) (renderValue rhs)
     Gen.Intrinsic output intrin ->
         JSTree.SVar (renderOutput output) $ Just $ case intrin of

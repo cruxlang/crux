@@ -92,6 +92,10 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym '-' TMinus
      <|> sym '*' TMultiply
      <|> sym '/' TDivide
+     <|> sym '<' TLess
+     <|> sym '>' TGreater
+     <|> sym2 '<' '=' TLessEqual
+     <|> sym2 '>' '=' TGreaterEqual
   where
     sym ch tok = do
         p <- pos

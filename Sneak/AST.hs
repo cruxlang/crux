@@ -112,7 +112,31 @@ data BinIntrinsic
     | BIMinus
     | BIMultiply
     | BIDivide
+    | BILess
+    | BIGreater
+    | BILessEqual
+    | BIGreaterEqual
+    | BIEqual
+    | BINotEqual
     deriving (Show, Eq)
+
+isArithmeticOp :: BinIntrinsic -> Bool
+isArithmeticOp op = case op of
+    BIPlus -> True
+    BIMinus -> True
+    BIMultiply -> True
+    BIDivide -> True
+    _ -> False
+
+isRelationalOp :: BinIntrinsic -> Bool
+isRelationalOp op = case op of
+    BILess -> True
+    BIGreater -> True
+    BILessEqual -> True
+    BIGreaterEqual -> True
+    BIEqual -> True
+    BINotEqual -> True
+    _ -> False
 
 data Intrinsic input
     = IUnsafeJs Text

@@ -24,7 +24,6 @@ export data jsffi Boolean {
 
 // Arrays have unspecified representation
 export data Array a {}
-/*
 
 let less : (Number, Number) -> Boolean =
     _unsafe_js("function (a, b) { return a < b; }");
@@ -39,8 +38,11 @@ export fun emptyArray(): Array a {
   _unsafe_js("[]");
 }
 
-export fun append(a: Array a, v: a): () {
+// I'd specify a return type of unit but there is a parse error:
+// https://github.com/andyfriesen/sneak/issues/14
+export fun append(a: Array a, v: a) {
   _unsafe_coerce(a).push(v);
+  return ();
 }
 
 export fun length(a: Array a): Number {
@@ -67,7 +69,6 @@ export fun each(arr : Array a, f : (a) -> b) : Unit {
         i = i + 1;
     };
 }
-*/
 |]
 
 type LoadedModules = HashMap AST.ModuleName

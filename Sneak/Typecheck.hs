@@ -599,8 +599,16 @@ buildTypeEnvironment loadedModules modul = do
                 tr' <- unfreezeTypeVar tr
                 HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
-            DData _name _typeVariables _variants -> do
-                fail "TODO: export data"
+            DData _name _typeVariables variants -> do
+                -- IS THIS RIGHT??
+                -- no tests
+                forM_ variants $ \(Variant name params) -> do
+                    let thisTI = TypeIdent name []
+                    let vt = case params of
+                            [] -> thisTI
+                            ps -> FunctionIdent ps thisTI
+                    tr' <- resolveTypeIdent e NewTypesAreErrors vt
+                    HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
             DJSData name variants -> do
                 let encodeJSVariant (JSVariant n _) = TVariant n []

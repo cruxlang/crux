@@ -21,6 +21,53 @@ export data jsffi Boolean {
     True = true,
     False = false,
 }
+
+// Arrays have unspecified representation
+export data Array a {}
+/*
+
+let less : (Number, Number) -> Boolean =
+    _unsafe_js("function (a, b) { return a < b; }");
+
+let _unsafe_new : (Number) -> Array a =
+    _unsafe_js("function (len) { return new Array(len); }");
+
+let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }");
+let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }");
+
+export fun emptyArray(): Array a {
+  _unsafe_js("[]");
+}
+
+export fun append(a: Array a, v: a): () {
+  _unsafe_coerce(a).push(v);
+}
+
+export fun length(a: Array a): Number {
+  _unsafe_coerce(a).length;
+}
+
+export fun replicate(element : a, len : Number) : Array a {
+    let arr = _unsafe_new(len);
+
+    let mutable i = 0;
+    while less(i, len) {
+        _unsafe_set(arr, i, element);
+        i = i + 1;
+    };
+
+    arr;
+}
+
+export fun each(arr : Array a, f : (a) -> b) : Unit {
+    let mutable i = 0;
+    let len = length(arr);
+    while less(i, len) {
+        f(_unsafe_get(arr, i));
+        i = i + 1;
+    };
+}
+*/
 |]
 
 type LoadedModules = HashMap AST.ModuleName

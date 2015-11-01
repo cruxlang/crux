@@ -25,9 +25,6 @@ export data jsffi Boolean {
 // Arrays have unspecified representation
 export data Array a {}
 
-let less : (Number, Number) -> Boolean =
-    _unsafe_js("function (a, b) { return a < b; }");
-
 let _unsafe_new : (Number) -> Array a =
     _unsafe_js("function (len) { return new Array(len); }");
 
@@ -53,7 +50,7 @@ export fun replicate(element : a, len : Number) : Array a {
     let arr = _unsafe_new(len);
 
     let mutable i = 0;
-    while less(i, len) {
+    while i < len {
         _unsafe_set(arr, i, element);
         i = i + 1;
     };
@@ -64,7 +61,7 @@ export fun replicate(element : a, len : Number) : Array a {
 export fun each(arr : Array a, f : (a) -> b) : Unit {
     let mutable i = 0;
     let len = length(arr);
-    while less(i, len) {
+    while i < len {
         f(_unsafe_get(arr, i));
         i = i + 1;
     };

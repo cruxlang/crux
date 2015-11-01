@@ -312,11 +312,9 @@ check env expr = case expr of
         rhs' <- check env rhs
 
         if | isArithmeticOp bi -> do
-                putStrLn $ "WUTTT " ++ show bi
                 unify (edata lhs') (edata rhs')
                 return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
            | isRelationalOp bi -> do
-                putStrLn ("HORPPP")
                 unify (edata lhs') (edata rhs')
                 booleanType <- resolveType (edata expr) env "Boolean"
                 return $ EBinIntrinsic booleanType bi lhs' rhs'

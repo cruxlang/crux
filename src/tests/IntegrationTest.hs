@@ -519,5 +519,17 @@ test_type_annotations_on_function_decls2 =
         ]
         "Unification error:  Number and TQuant 4"
 
+-- no_test_arrays =
+--     assertOutput
+--         [ "fun main() {"
+--         , "    let arr = replicate(\"toot\", 4);"
+--         , "    each(arr, fun(e) {"
+--         , "        print(e);"
+--         , "    });"
+--         , "}"
+--         , "let _ = main();"
+--         ]
+--         "toot\ntoot\ntoot\ntoot\n"
+
 test_concatenate_strings =
     assertOutput ["let _ = print(\"foo\" + \"bar\");"] "foobar\n"

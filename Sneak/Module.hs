@@ -68,15 +68,7 @@ export fun each(arr : Array a, f : (a) -> b) : Unit {
 }
 |]
 
-type LoadedModules = HashMap AST.ModuleName
-
 type ModuleLoader = AST.ModuleName -> IO (Either String AST.ParsedModule)
-
-data Program = Program
-    { pMainModule :: AST.LoadedModule
-    , pOtherModules :: HashMap AST.ModuleName AST.LoadedModule
-    }
-    deriving (Show, Eq)
 
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
@@ -152,7 +144,7 @@ loadModule loader loadedModules moduleName = do
             HashTable.insert moduleName loadedModule loadedModules
             return loadedModule
 
-loadProgram :: ModuleLoader -> AST.ModuleName -> IO Program
+loadProgram :: ModuleLoader -> AST.ModuleName -> IO AST.Program
 loadProgram loader main = do
     prelude <- loadPrelude
     loadedModules <- newIORef [("Prelude", prelude)]
@@ -160,9 +152,9 @@ loadProgram loader main = do
     mainModule <- loadModule loader loadedModules main
 
     otherModules <- readIORef loadedModules
-    return Program
-        { pMainModule = mainModule
-        , pOtherModules = otherModules
+    return AST.Program
+        { AST.pMainModule = mainModule
+        , AST.pOtherModules = otherModules
         }
 
 moduleNameToPath :: AST.ModuleName -> FilePath
@@ -176,7 +168,7 @@ newFSModuleLoader :: FilePath -> ModuleLoader
 newFSModuleLoader root moduleName = do
     parseModuleFromFile $ FP.combine root $ moduleNameToPath moduleName
 
-loadProgramFromFile :: FilePath -> IO Program
+loadProgramFromFile :: FilePath -> IO AST.Program
 loadProgramFromFile path = do
     let (dirname, basename) = FP.splitFileName path
     let loader = newFSModuleLoader dirname

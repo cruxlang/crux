@@ -96,6 +96,12 @@ data Module idtype edata = Module
 type ParsedModule = Module UnresolvedReference Tokens.Pos
 type LoadedModule = Module ResolvedReference ImmutableTypeVar
 
+data Program = Program
+    { pMainModule :: LoadedModule
+    , pOtherModules :: HashMap ModuleName LoadedModule
+    }
+    deriving (Show, Eq)
+
 data Pattern
     = PConstructor Name [Pattern]
     | PPlaceholder Name

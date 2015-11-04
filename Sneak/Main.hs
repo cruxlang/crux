@@ -3,7 +3,8 @@ module Sneak.Main (main) where
 
 import Sneak.Prelude
 import qualified Data.Text as Text
-import           Sneak.Module (Program(..), loadProgramFromFile)
+import           Sneak.AST (Program(..))
+import           Sneak.Module (loadProgramFromFile)
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified Sneak.Gen as Gen

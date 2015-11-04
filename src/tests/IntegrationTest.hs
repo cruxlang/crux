@@ -228,7 +228,7 @@ test_record_annotation_is_checked2 = do
         , "let _ = main();"
         ]
 
-    assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 5),f...}") result
+    assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_type_alias = do
     result <- run $ T.unlines
@@ -506,7 +506,7 @@ test_polymorphic_type_annotations_are_universally_quantified4 =
     assertFails
         [ "let f : (a) -> Number = fun (i) { i; };"
         ]
-        "Unification error:  Number and TQuant 2"
+        "Unification error:  Number and TQuant 3"
 
 test_type_annotations_on_function_decls =
     assertCompiles
@@ -517,7 +517,7 @@ test_type_annotations_on_function_decls2 =
     assertFails
         [ "fun id_int(x : a) : Number { x; }"
         ]
-        "Unification error:  Number and TQuant 4"
+        "Unification error:  Number and TQuant 5"
 
 -- no_test_arrays =
 --     assertOutput

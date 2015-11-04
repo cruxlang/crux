@@ -578,6 +578,29 @@ buildTypeEnvironment loadedModules modul = do
         , ("String", (Builtin "String", strTy))
         ]
 
+    -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
+    qvarsRef <- HashTable.new
+
+    let insertDataType scope name typeVarNames variants = do
+            typeVars <- forM typeVarNames $ const $ do
+                ft <- freshType e
+                quantify ft
+                return ft
+            HashTable.insert name (zip typeVarNames typeVars) qvarsRef
+
+            variants' <- forM variants $ \Variant{..} -> do
+                tvParameters <- forM vparameters $ const $ freshType e
+                let tvName = vname
+                return TVariant{..}
+
+            let typeDef = TUserTypeDef
+                    { tuName = name
+                    , tuParameters = typeVars
+                    , tuVariants = variants'
+                    }
+            userType <- newIORef $ TUserType typeDef typeVars
+            HashTable.insert name (scope name, userType) typeEnv
+
     -- inject stuff from the prelude into this global environment
     -- TODO: rather than injecting symbols, we may need a mechanism to refer
     -- to imported symbols
@@ -597,16 +620,19 @@ buildTypeEnvironment loadedModules modul = do
                 tr' <- unfreezeTypeVar tr
                 HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
-            DData _name _typeVariables variants -> do
+            DData dname typeVariables variants -> do
                 -- IS THIS RIGHT??
                 -- no tests
-                forM_ variants $ \(Variant name params) -> do
-                    let thisTI = TypeIdent name []
+
+                insertDataType (OtherModule importName) dname typeVariables variants
+
+                forM_ variants $ \(Variant vname params) -> do
+                    let thisTI = TypeIdent vname []
                     let vt = case params of
                             [] -> thisTI
                             ps -> FunctionIdent ps thisTI
                     tr' <- resolveTypeIdent e NewTypesAreErrors vt
-                    HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
+                    HashTable.insert vname (OtherModule importName vname, LImmutable, tr') (eBindings e)
 
             DJSData name variants -> do
                 let encodeJSVariant (JSVariant n _) = TVariant n []
@@ -619,9 +645,6 @@ buildTypeEnvironment loadedModules modul = do
             DType (TypeAlias _name _params _ident) -> do
                 fail "TODO: export type alias"
 
-    -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
-    qvarsRef <- HashTable.new
-
     typeAliasesRef <- HashTable.new
 
     -- First, populate the type environment.  Variant parameter types are all initially free.
@@ -630,24 +653,7 @@ buildTypeEnvironment loadedModules modul = do
             return ()
 
         DData name typeVarNames variants -> do
-            typeVars <- forM typeVarNames $ const $ do
-                ft <- freshType e
-                quantify ft
-                return ft
-            HashTable.insert name (zip typeVarNames typeVars) qvarsRef
-
-            variants' <- forM variants $ \Variant{..} -> do
-                tvParameters <- forM vparameters $ const $ freshType e
-                let tvName = vname
-                return TVariant{..}
-
-            let typeDef = TUserTypeDef
-                    { tuName = name
-                    , tuParameters = typeVars
-                    , tuVariants = variants'
-                    }
-            userType <- newIORef $ TUserType typeDef typeVars
-            modifyIORef' typeEnv $ HashMap.insert name (ThisModule name, userType)
+            insertDataType ThisModule name typeVarNames variants
 
         DJSData name variants -> do
             -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
@@ -737,10 +743,9 @@ data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
 
 resolveTypeIdent :: Env -> ResolvePolicy -> TypeIdent -> IO TypeVar
-resolveTypeIdent env resolvePolicy typeIdent =
+resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
     go typeIdent
   where
-    Env{..} = env
     go (TypeIdent typeName typeParameters) = do
         res <- HashTable.lookup typeName eTypeBindings
         case res of

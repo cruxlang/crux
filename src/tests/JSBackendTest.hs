@@ -5,13 +5,13 @@ module JSBackendTest (htf_thisModulesTests) where
 
 import Data.Text (Text)
 import Test.Framework
-import qualified Sneak.Module
-import qualified Sneak.Gen as Gen
-import qualified Sneak.Backend.JS as JS
+import qualified Crux.Module
+import qualified Crux.Gen as Gen
+import qualified Crux.Backend.JS as JS
 
 genDoc' :: Text -> IO (Either String Text)
 genDoc' src = do
-    mod' <- Sneak.Module.loadModuleFromSource "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource "<string>" src
     case mod' of
         Left err ->
             return $ Left err

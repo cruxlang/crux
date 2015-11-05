@@ -2,10 +2,10 @@
 set -e
 cd "$(dirname "$0")"/..
 
-TEST_FILES="test-data/*.sk $(find test-data -name main.sk)''"
+TEST_FILES="test-data/*.cx $(find test-data -name main.cx)''"
 
 for fn in $TEST_FILES; do
     echo "running $fn:"
-    dist/build/sneak/sneak "$fn" | node
+    dist/build/crux/crux "$fn" | node
     echo
 done

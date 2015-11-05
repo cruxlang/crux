@@ -1,19 +1,19 @@
-Sneak is intended to be a practical, productive browser language.  As such, a clean FFI is an important
+Crux is intended to be a practical, productive browser language.  As such, a clean FFI is an important
 feature of its design.
 
 ## Primitives
 
-Sneak primitive data maps to JS data types relatively directly.
+Crux primitive data maps to JS data types relatively directly.
 
-The Sneak data types `Number`, `Boolean`, and `String` all directly map to the equivalent JS data types.
+The Crux data types `Number`, `Boolean`, and `String` all directly map to the equivalent JS data types.
 
-Sneak's `Unit` type is always represented at runtime with `undefined` (where the generated code produces any
+Crux's `Unit` type is always represented at runtime with `undefined` (where the generated code produces any
 value at all)
 
-Sneak functions also map directly to JS functions at the moment. (this may conceivably change when certain language
+Crux functions also map directly to JS functions at the moment. (this may conceivably change when certain language
 features are introduced)
 
-Sneak records map directly to JS objects.  Property names are carried through as-written by the programmer.
+Crux records map directly to JS objects.  Property names are carried through as-written by the programmer.
 
 ## Enumerations
 
@@ -37,16 +37,16 @@ data jsffi ReadyState {
 
 ## Objects
 
-Sneak is not particularly object-oriented, but the browser API and popular JS frameworks are.  Sneak affords a simple way
+Crux is not particularly object-oriented, but the browser API and popular JS frameworks are.  Crux affords a simple way
 to use these APIs.
 
-Sneak records map exactly to JS objects.  Further, if an attribute of a record is a function, applying that function
+Crux records map exactly to JS objects.  Further, if an attribute of a record is a function, applying that function
 is guaranteed to generate valid JS for a method call. (ie `this` will be properly set to a reference to the record)
 
 There is a small sleight of hand going on here as we promise to the compiler that a value has properties which are
-actually properties of the object's prototype.  Sneak itself has no particular awareness of JS prototypes.
+actually properties of the object's prototype.  Crux itself has no particular awareness of JS prototypes.
 
-For instance, the following code can be used to fabricate an `XMLHttpRequest` object in Sneak.
+For instance, the following code can be used to fabricate an `XMLHttpRequest` object in Crux.
 
 ```js
 data jsffi ReadyState {
@@ -148,7 +148,7 @@ In simple cases, we could represent them as you'd expect in JavaScript.  For exa
 Suppose we provide multi-parameter traits, we can provide a trait that permits values of one type, plus values of a type `JsNull` (whose sole inhabitant is `JsNull`)
 
 ```
-data JsVal; // Opaque to Sneak
+data JsVal; // Opaque to Crux
 
 trait Nullable fromType a {
     toJsVal : (a) -> JsVal;
@@ -165,7 +165,7 @@ instance Nullable a a {
 ```
 
 We can then write functions that look a bit like this: (I am devolving into Haskell because I have no idea what the
-Sneak syntax should be)
+Crux syntax should be)
 
 ```haskell
 do_jQuery_thing :: Nullable (Number -> Number -> IO ()) a => a -> IO ()

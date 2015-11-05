@@ -4,9 +4,9 @@
 module IntegrationTest (htf_thisModulesTests) where
 
 import Control.Exception (catch, SomeException)
-import qualified Sneak.Backend.JS as JS
-import qualified Sneak.Gen       as Gen
-import qualified Sneak.Module
+import qualified Crux.Backend.JS as JS
+import qualified Crux.Gen       as Gen
+import qualified Crux.Module
 import           Data.Text      (Text)
 import qualified Data.Text      as T
 import qualified Data.Text.IO   as T
@@ -23,14 +23,14 @@ run src = do
 
 run' :: Text -> IO (Either String Text)
 run' src = do
-    p <- Sneak.Module.loadModuleFromSource "<string>" src
+    p <- Crux.Module.loadModuleFromSource "<string>" src
     case p of
         Left err -> do
             return $ Left err
         Right m -> do
             m' <- Gen.generateModule m
             let js = JS.generateJS m'
-            withSystemTempFile "Sneak.js" $ \path' handle -> do
+            withSystemTempFile "Crux.js" $ \path' handle -> do
                 T.hPutStr handle $ js
                 hFlush handle
                 fmap (Right . T.pack) $ readProcess "node" [path'] ""
@@ -416,15 +416,12 @@ test_return_unifies_with_anything = do
 
 test_while_loops = do
     result <- run $ T.unlines
-        [ "let nonzero = _unsafe_js(\"function(n){return 0!=n;}\");"
-        , "let less = _unsafe_js(\"function(a,b) {return a < b;}\");"
-        , ""
-        , "fun fib(n) {"
+        [ "fun fib(n) {"
         , "    let mutable count = n;"
         , "    let mutable a = 0;"
         , "    let mutable b = 1;"
         , ""
-        , "    while nonzero(count) {"
+        , "    while count > 0 {"
         , "        let t = a;"
         , "        a = b;"
         , "        b = b + t;"
@@ -435,7 +432,7 @@ test_while_loops = do
         , ""
         , "fun main() {"
         , "    let mutable i = 1;"
-        , "    while less(i, 10) {"
+        , "    while i < 10 {"
         , "        print(fib(i));"
         , "        i = i + 1;"
         , "    };"
@@ -519,7 +516,7 @@ test_type_annotations_on_function_decls2 =
         ]
         "Unification error:  Number and TQuant 5"
 
--- no_test_arrays =
+-- test_arrays =
 --     assertOutput
 --         [ "fun main() {"
 --         , "    let arr = replicate(\"toot\", 4);"

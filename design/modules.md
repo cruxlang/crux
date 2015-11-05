@@ -44,7 +44,7 @@ Strawman: no circular imports allowed.
 
 Dynamic languages (python, node, es6) get away with it by returning a partially-evaluated module.  C++ headers get away with support circular imports by "returning" a "partially-substituted" header.  Java gets away with it because there's no such thing as a "module" in Java.  Only classes and packages.
 
-Ada, Go, Haskell, and OCaml don't support circular imports.  Sneak is closer to these three in the programming language design space, so it makes sense it have these same restrictions.
+Ada, Go, Haskell, and OCaml don't support circular imports.  Crux is closer to these three in the programming language design space, so it makes sense it have these same restrictions.
 
 A risk of not support circular imports: "Uh-Oh.  The recursive types across package boundaries issue again!  Run for it!!  :-)"
 http://computer-programming-forum.com/44-ada/ce9b904c11b18fd6.htm

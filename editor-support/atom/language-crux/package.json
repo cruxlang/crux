@@ -1,0 +1,18 @@
+{
+  "name": "language-crux",
+  "main": "./lib/language-crux",
+  "version": "0.0.0",
+  "description": "A short description of your package",
+  "keywords": [
+  ],
+  "activationCommands": {
+    "atom-workspace": "language-crux:toggle"
+  },
+  "repository": "https://github.com/atom/language-crux",
+  "license": "MIT",
+  "engines": {
+    "atom": ">=1.0.0 <2.0.0"
+  },
+  "dependencies": {
+  }
+}

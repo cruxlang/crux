@@ -1,10 +1,10 @@
 
-Sneak is a principled, practical AltJS language that aims to provide an easy, familiar programming environment that
+Crux is a principled, practical AltJS language that aims to provide an easy, familiar programming environment that
 does not compromise on rock-solid fundamentals.
 
 # Big Ideas
 
-Sneak is all about small, clever ideas that fit together without clumsy seams or weird corner cases.  We won't try
+Crux is all about small, clever ideas that fit together without clumsy seams or weird corner cases.  We won't try
 to guess what you're trying to say because we don't think your customers should be the ones to tell you that we guessed
 wrong.
 

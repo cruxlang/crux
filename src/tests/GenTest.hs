@@ -7,13 +7,13 @@ import Control.Exception (try)
 import GHC.Exception (ErrorCall(..))
 import Data.Text (Text)
 import Test.Framework
-import qualified Sneak.AST as AST
-import qualified Sneak.Module
-import qualified Sneak.Gen as Gen
+import qualified Crux.AST as AST
+import qualified Crux.Module
+import qualified Crux.Gen as Gen
 
 genDoc' :: Text -> IO (Either String Gen.Module)
 genDoc' src = do
-    mod' <- Sneak.Module.loadModuleFromSource "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource "<string>" src
     case mod' of
         Left err ->
             return $ Left err

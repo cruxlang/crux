@@ -3,9 +3,9 @@
 
 module ParseTest (htf_thisModulesTests) where
 
-import           Sneak.Parse
-import           Sneak.AST
-import           Sneak.Lex
+import           Crux.Parse
+import           Crux.AST
+import           Crux.Lex
 import qualified Data.Text as T
 import           Test.Framework
 import qualified Text.Parsec as P
@@ -14,7 +14,7 @@ discardData expr = fmap (const ()) expr
 
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
 assertParseOk parser source expected f = do
-    case Sneak.Lex.lexSource "<>" source of
+    case Crux.Lex.lexSource "<>" source of
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens -> do

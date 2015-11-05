@@ -1,6 +1,6 @@
-Calling Sneak an "Object Oriented" programming language is going a bit too far.  It's more diplomatic to say it's an "Object Having" language.
+Calling Crux an "Object Oriented" programming language is going a bit too far.  It's more diplomatic to say it's an "Object Having" language.
 
-Objects in Sneak map to bare JS objects.
+Objects in Crux map to bare JS objects.
 
 Object types are _row polymorphic_, which means that the type is comprised of a set of name/type pairs that the object provides.
 

@@ -1,0 +1,10 @@
+flags: {}
+packages:
+- '.'
+- '..'
+resolver: lts-3.12
+compiler: ghcjs-0.1.0.20150924_ghc-7.10.2
+compiler-check: match-exact
+extra-deps:
+- crux-0.1.0.0
+- ghcjs-dom-0.1.1.3

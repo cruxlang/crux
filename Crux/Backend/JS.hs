@@ -57,10 +57,6 @@ renderInstruction instr = case instr of
                 renderValue arg
             INot arg ->
                 JSTree.EPrefixOp "!" (renderValue arg)
-            IPrint args -> do
-                JSTree.EApplication
-                    (JSTree.EIdentifier "console.log")
-                    (map renderValue args)
             IToString arg -> do
                 JSTree.EBinOp "+" (JSTree.ELiteral (JSTree.LString "")) $ renderValue arg
     Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args

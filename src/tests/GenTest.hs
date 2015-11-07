@@ -27,16 +27,6 @@ genDoc src = do
         Left err -> error err
         Right stmts -> return stmts
 
-test_direct_prints = do
-    doc <- genDoc "let _ = print(10);"
-    assertEqual
-        [ Gen.Declaration AST.NoExport $ Gen.DLet "_"
-            [ Gen.Intrinsic (Gen.Temporary 0) $ AST.IPrint [Gen.Literal $ AST.LInteger 10]
-            , Gen.Return $ Gen.Reference (Gen.Temporary 0)
-            ]
-        ]
-        doc
-
 test_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1;"
     assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result

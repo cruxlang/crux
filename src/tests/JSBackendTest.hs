@@ -30,7 +30,7 @@ genDoc src = do
 test_direct_prints = do
     doc <- genDoc "let _ = print(10);"
     assertEqual
-        "var _ = (function (){\nvar $0 = console.log(10);\nreturn $0;\n}\n)();\n"
+        "var _ = (function (){\nvar $0 = Prelude.print(10);\nreturn $0;\n}\n)();\n"
         doc
 
 test_return_from_function = do

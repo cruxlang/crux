@@ -17,6 +17,11 @@ import qualified System.FilePath as FP
 
 preludeSource :: Text
 preludeSource = Text.pack $ [r|
+export fun print(a) {
+    _unsafe_js("console.log")(a);
+    ();
+}
+
 export data jsffi Boolean {
     True = true,
     False = false,

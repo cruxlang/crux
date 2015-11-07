@@ -197,11 +197,6 @@ check env expr = case expr of
     EApp _ (EIdentifier _ "_unsafe_coerce") _ ->
         error "_unsafe_coerce takes just one argument"
 
-    EApp _ (EIdentifier _ "print") args -> do
-        args' <- mapM (check env) args
-        ty <- newIORef $ TPrimitive Unit
-        return $ EIntrinsic ty (IPrint args')
-
     EApp _ (EIdentifier _ "toString") [arg] -> do
         arg' <- check env arg
         ty <- newIORef $ TPrimitive String
@@ -287,8 +282,6 @@ check env expr = case expr of
                 LString _ -> TPrimitive String
                 LUnit -> TPrimitive Unit
         return $ ELiteral litType lit
-    EIdentifier _ "print" ->
-        error "Intrinsic print is not a value"
     EIdentifier _ "toString" ->
         error "Intrinsic toString is not a value"
     EIdentifier _ "_unsafe_js" ->

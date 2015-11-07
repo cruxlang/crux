@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE TupleSections #-}
 
 module Crux.Gen
     ( Value(..)
@@ -8,7 +9,9 @@ module Crux.Gen
     , DeclarationType(..)
     , Declaration(..)
     , Module
+    , Program
     , generateModule
+    , generateProgram
     ) where
 
 import Crux.Prelude
@@ -16,6 +19,8 @@ import qualified Crux.AST as AST
 import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import Data.Graph (graphFromEdges, topSort)
+import qualified Data.HashMap.Strict as HashMap
 
 type Name = Text
 data Output = Binding AST.ResolvedReference | Temporary Int | OutputProperty Output Name
@@ -61,6 +66,7 @@ data DeclarationType
 data Declaration = Declaration AST.ExportFlag DeclarationType
     deriving (Show, Eq)
 
+type Program = [(AST.ModuleName, Module)] -- topologically sorted
 type Module = [Declaration]
 
 newTempOutput :: Env -> IO Output
@@ -273,5 +279,22 @@ generateDecl env (AST.Declaration export decl) = do
 generateModule :: Show t => AST.Module AST.ResolvedReference t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
-    fmap snd $ runWriterT $ do
+    decls <- fmap snd $ runWriterT $ do
         forM_ mDecls $ generateDecl env
+    return decls
+
+importsOf :: AST.Module a b -> [AST.ModuleName]
+importsOf AST.Module{..} = map (\(AST.UnqualifiedImport mn) -> mn) mImports
+
+generateProgram :: AST.Program -> IO Program
+generateProgram AST.Program{..} = do
+    let allModules = HashMap.toList pOtherModules
+
+    let nodes = [(m, mn, importsOf m) | (mn, m) <- allModules]
+    let (graph, getModule, _) = graphFromEdges nodes
+
+    -- topologically sort
+    let sortedModules = map getModule $ reverse $ topSort graph
+
+    forM sortedModules $ \(mod', moduleName, _) ->
+        fmap (moduleName,) $ generateModule mod'

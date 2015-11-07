@@ -8,9 +8,15 @@ import qualified Crux.Gen as Gen
 import qualified Crux.JSTree as JSTree
 import qualified Data.Text as Text
 
+renderModuleName :: ModuleName -> Text
+renderModuleName (ModuleName prefix name) = Text.intercalate "$" $ map unModuleSegment $ prefix ++ [name]
+
 renderOutput :: Gen.Output -> JSTree.Name
--- TODO: this is all kinds of wrong
-renderOutput (Gen.Binding name) = resolvedReferenceName name
+renderOutput (Gen.Binding name) = case name of
+    Local n -> n
+    ThisModule n -> n
+    OtherModule mn n -> renderModuleName mn <> "." <> n
+    Builtin n -> n
 renderOutput (Gen.OutputProperty lhs propName) = renderOutput lhs <> Text.pack "." <> propName
 renderOutput (Gen.Temporary i) = Text.pack $ "$" <> show i
 
@@ -137,20 +143,24 @@ renderJSVariant :: JSVariant -> JSTree.Statement
 renderJSVariant (JSVariant name value) =
     JSTree.SVar name $ Just $ JSTree.ELiteral value
 
+renderExports :: ExportFlag -> [Name] -> [JSTree.Statement]
+renderExports NoExport _ = []
+renderExports Export names =
+    map (\n -> JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "exports") n) $ JSTree.EIdentifier n) names
+
 renderDeclaration :: Gen.Declaration -> [JSTree.Statement]
 renderDeclaration (Gen.Declaration export decl) = case decl of
     Gen.DData _name variants ->
-        map renderVariant variants
-        -- TODO: export data. and type??
+        let renderedVariants = map renderVariant variants in
+        let exports = renderExports export $ map (\(Variant n _) -> n) variants in
+        renderedVariants ++ exports
     Gen.DJSData _name variants ->
-        map renderJSVariant variants
+        let renderedVariants = map renderJSVariant variants in
+        let exports = renderExports export $ map (\(JSVariant n _) -> n) variants in
+        renderedVariants ++ exports
     Gen.DFun name params body ->
         let func = JSTree.SFunction name params $ map renderInstruction body in
-        func : case export of
-            Export ->
-                [ JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "exports") name) $ JSTree.EIdentifier name
-                ]
-            NoExport -> []
+        func : renderExports export [name]
 
     Gen.DLet name defn ->
         [JSTree.SVar name $ Just $ JSTree.iife $ map renderInstruction defn]
@@ -158,17 +168,15 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body
 
-generateJS :: Gen.Module -> Text
-generateJS modul = do
-    -- TODO: this is a hack. actually codegen the prelude.
-    let prelude =
-            [ JSTree.SVar "True" (Just $ JSTree.EIdentifier "true")
-            , JSTree.SVar "False" (Just $ JSTree.EIdentifier "false")
-            ]
-    let statements = concat $ map renderDeclaration modul
-    JSTree.renderDocument [wrapInModule $ prelude <> statements]
+generateModule :: Gen.Module -> [JSTree.Statement]
+generateModule decls = concat $ map renderDeclaration decls
 
-generateJSWithoutPrelude :: Gen.Module -> Text
-generateJSWithoutPrelude modul = do
-    let statements = concat $ map renderDeclaration modul
-    JSTree.renderDocument $ statements
+generateJS :: Gen.Program -> Text
+generateJS modules =
+    let allStatements = (flip map) modules $ \(moduleName, decls) ->
+            let body = generateModule decls
+                intro = [JSTree.SVar "exports" $ Just $ JSTree.EObject mempty]
+                outro = [JSTree.SReturn $ Just $ JSTree.EIdentifier "exports"]
+            in JSTree.SVar (renderModuleName moduleName) $ Just $ JSTree.iife $ intro ++ body ++ outro
+
+    in JSTree.renderDocument [wrapInModule allStatements]

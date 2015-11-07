@@ -52,11 +52,11 @@ data Declaration idtype edata = Declaration ExportFlag (DeclarationType idtype e
     deriving (Show, Eq, Functor)
 
 newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq, Ord, Generic)
 instance Hashable ModuleSegment
 
 data ModuleName = ModuleName [ModuleSegment] ModuleSegment
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq, Ord, Generic)
 instance Hashable ModuleName
 
 -- TODO: assert that first letter is capitalized, remainder are alphanumeric

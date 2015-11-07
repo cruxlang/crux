@@ -3,7 +3,7 @@ module Crux.Main (main) where
 
 import Crux.Prelude
 import qualified Data.Text as Text
-import           Crux.AST (Program(..))
+--import           Crux.AST (Program(..))
 import           Crux.Module (loadProgramFromFile)
 import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
@@ -52,8 +52,8 @@ main = do
             if ast options then
                 putStrLn $ ppShow program
             else do
-                module'' <- Gen.generateModule $ pMainModule program
-                putStr $ Text.unpack $ JS.generateJS module''
+                program'' <- Gen.generateProgram program
+                putStr $ Text.unpack $ JS.generateJS program''
             -- putStrLn $ ppShow (concatMap generateDecl typetree')
              --T.writeFile outfile $ JSTree.renderDocument doc
             exitWith ExitSuccess

@@ -26,9 +26,10 @@ library
                    , Crux.Text
 
     build-depends: base >=4.7
-                 , parsec == 3.1.9
+                 , parsec ==3.1.9
                  , text
                  , bytestring
+                 , containers
                  , mtl
                  , transformers
                  , data-default

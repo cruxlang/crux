@@ -23,17 +23,13 @@ run src = do
 
 run' :: Text -> IO (Either String Text)
 run' src = do
-    p <- Crux.Module.loadModuleFromSource "<string>" src
-    case p of
-        Left err -> do
-            return $ Left err
-        Right m -> do
-            m' <- Gen.generateModule m
-            let js = JS.generateJS m'
-            withSystemTempFile "Crux.js" $ \path' handle -> do
-                T.hPutStr handle $ js
-                hFlush handle
-                fmap (Right . T.pack) $ readProcess "node" [path'] ""
+    m <- Crux.Module.loadProgramFromSource "<string>" src
+    m' <- Gen.generateProgram m
+    let js = JS.generateJS m'
+    withSystemTempFile "Crux.js" $ \path' handle -> do
+        T.hPutStr handle js
+        hFlush handle
+        fmap (Right . T.pack) $ readProcess "node" [path'] ""
 
 assertCompiles src = do
     result <- run $ T.unlines src

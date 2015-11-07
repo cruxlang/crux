@@ -168,6 +168,13 @@ newFSModuleLoader :: FilePath -> ModuleLoader
 newFSModuleLoader root moduleName = do
     parseModuleFromFile $ FP.combine root $ moduleNameToPath moduleName
 
+newMemoryLoader :: FilePath -> Text -> ModuleLoader
+newMemoryLoader fp source moduleName = do
+    if moduleName == "Main" then
+        parseModuleFromSource fp source
+    else
+        return $ Left $ "Unknown module: " ++ show moduleName
+
 loadProgramFromFile :: FilePath -> IO AST.Program
 loadProgramFromFile path = do
     let (dirname, basename) = FP.splitFileName path
@@ -177,3 +184,8 @@ loadProgramFromFile path = do
         _ -> fail "Please load .cx file"
 
     loadProgram loader rootModuleName
+
+loadProgramFromSource :: FilePath -> Text -> IO AST.Program
+loadProgramFromSource mainModuleName mainModuleSource = do
+    let loader = newMemoryLoader mainModuleName mainModuleSource
+    loadProgram loader "Main"

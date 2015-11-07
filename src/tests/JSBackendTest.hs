@@ -8,6 +8,7 @@ import Test.Framework
 import qualified Crux.Module
 import qualified Crux.Gen as Gen
 import qualified Crux.Backend.JS as JS
+import qualified Crux.JSTree as JSTree
 
 genDoc' :: Text -> IO (Either String Text)
 genDoc' src = do
@@ -17,7 +18,7 @@ genDoc' src = do
             return $ Left err
         Right m -> do
             modul <- Gen.generateModule m
-            return $ Right $ JS.generateJSWithoutPrelude modul
+            return $ Right $ JSTree.renderDocument $ JS.generateModule modul
 
 genDoc :: Text -> IO Text
 genDoc src = do
@@ -47,13 +48,13 @@ test_export_function = do
 test_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; }"
     assertEqual
-        "function f(){\nvar $0;\nif(True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n"
+        "function f(){\nvar $0;\nif(Prelude.True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n"
         result
 
 test_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual
-        "var x = (function (){\nvar $0;\nif(True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nreturn $0;\n}\n)();\n"
+        "var x = (function (){\nvar $0;\nif(Prelude.True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nreturn $0;\n}\n)();\n"
         result
 
 test_jsffi_data = do

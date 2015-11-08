@@ -43,14 +43,30 @@ identifier :: Text -> Parser (Token Pos)
 identifier name = getToken testTok
   where
     testTok tok@(Token _ ttype) = case ttype of
-        TIdentifier t | t == name -> Just tok
+        TUpperIdentifier t | t == name -> Just tok
+        TLowerIdentifier t | t == name -> Just tok
+        _ -> Nothing
+
+lowerIdentifier :: Parser Text
+lowerIdentifier = getToken testTok
+  where
+    testTok (Token _ ttype) = case ttype of
+        TLowerIdentifier t -> Just t
+        _ -> Nothing
+
+upperIdentifier :: Parser Text
+upperIdentifier = getToken testTok
+  where
+     testTok (Token _ ttype) = case ttype of
+        TUpperIdentifier t -> Just t
         _ -> Nothing
 
 anyIdentifier :: Parser Text
 anyIdentifier = getToken testTok
   where
     testTok (Token _ ttype) = case ttype of
-        TIdentifier t -> Just t
+        TUpperIdentifier t -> Just t
+        TLowerIdentifier t -> Just t
         _ -> Nothing
 
 peekAndShow :: Show msg => msg -> Parser ()
@@ -122,7 +138,8 @@ parseString = P.tokenPrim show (\pos _ _ -> pos) test
 identifierExpression :: Parser ParseExpression
 identifierExpression = getToken testTok
   where
-    testTok (Token pos (TIdentifier txt)) = Just $ EIdentifier pos txt
+    testTok (Token pos (TLowerIdentifier txt)) = Just $ EIdentifier pos txt
+    testTok (Token pos (TUpperIdentifier txt)) = Just $ EIdentifier pos txt
     testTok _ = Nothing
 
 functionExpression :: Parser ParseExpression
@@ -246,7 +263,7 @@ letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- P.try $ token TLet
     mut <- P.option LImmutable (token TMutable >> return LMutable)
-    name <- anyIdentifier
+    name <- lowerIdentifier
     typeAnn <- P.optionMaybe $ do
         _ <- P.try $ token TColon
         typeIdent

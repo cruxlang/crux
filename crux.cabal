@@ -10,20 +10,22 @@ cabal-version:       >=1.10
 
 library
     exposed-modules: Crux.AST
+                   , Crux.Backend.JS
+                   , Crux.Gen
+                   , Crux.Intrinsic
+                   , Crux.JSGen.Types
+                   , Crux.JSTree
+                   , Crux.Lex
+                   , Crux.Main
+                   , Crux.Module
+                   , Crux.MutableHashTable
                    , Crux.Parse
+                   , Crux.Prelude
+                   , Crux.Text
                    , Crux.Tokens
                    , Crux.Typecheck
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
-                   , Crux.Intrinsic
-                   , Crux.Lex
-                   , Crux.Main
-                   , Crux.Module
-                   , Crux.Gen
-                   , Crux.Backend.JS
-                   , Crux.JSGen.Types
-                   , Crux.JSTree
-                   , Crux.Text
 
     build-depends: base >=4.7
                  , parsec ==3.1.9

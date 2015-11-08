@@ -15,7 +15,8 @@ instance Show Pos where
 data TokenType
     = TInteger Integer
     | TString Text
-    | TIdentifier Text
+    | TUpperIdentifier Text
+    | TLowerIdentifier Text
     -- symbols
     | TOpenBrace
     | TCloseBrace

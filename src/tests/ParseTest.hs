@@ -12,6 +12,14 @@ import qualified Text.Parsec as P
 
 discardData expr = fmap (const ()) expr
 
+runParse parser source =
+    case Crux.Lex.lexSource "<>" source of
+        Left err ->
+            assertFailure $ "Lexer error: " ++ show err
+        Right tokens ->
+            P.runParserT parser () "<>" tokens
+
+
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
 assertParseOk parser source expected f = do
     case Crux.Lex.lexSource "<>" source of
@@ -56,6 +64,13 @@ test_let = do
 test_let2 = do
     assertExprParses letExpression "let a = (5)"
         (ELet () LImmutable "a" Nothing (ELiteral () (LInteger 5)))
+
+test_let_with_uppercase_is_not_ok = do
+    let source = "let PORT = 8000;"
+    r <- runParse letExpression source
+    case r of
+        Right _ -> assertFailure "It shouldn't be legal to assign to an uppercased symbol."
+        Left _ -> return ()
 
 test_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"

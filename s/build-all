@@ -2,10 +2,12 @@
 set -e
 cd "$(dirname "$0")"/..
 
+source s/crux.inc
+
 TEST_FILES="test-data/*.cx $(find test-data -name main.cx)"
 
 for fn in $TEST_FILES; do
     echo "building $fn:"
-    dist/build/crux/crux "$fn"
+    $CRUX "$fn"
     echo
 done

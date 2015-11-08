@@ -32,6 +32,27 @@ stringLiteral = do
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
 
+parseAnyIdentifier :: (Char -> Bool) -> (Text -> TokenType) -> Parser u (Token Pos)
+parseAnyIdentifier isStartChar f = do
+    p <- pos
+    let isIdentifierChar x = isAlpha x || isNumber x || x == '_'
+    first <- P.satisfy isStartChar
+    rest <- P.many $ P.satisfy isIdentifierChar
+    return $ Token p $ f $ T.pack (first : rest)
+
+orUnderscore :: (Char -> Bool) -> Char -> Bool
+orUnderscore f x = f x || x == '_'
+
+parseUpperIdentifier :: Parser u (Token Pos)
+parseUpperIdentifier = parseAnyIdentifier isUpper TUpperIdentifier
+
+parseLowerIdentifier :: Parser u (Token Pos)
+parseLowerIdentifier = parseAnyIdentifier (orUnderscore isLower) TLowerIdentifier
+
+parseIdentifier :: Parser u (Token Pos)
+parseIdentifier = parseUpperIdentifier <|> parseLowerIdentifier
+
+{-
 parseIdentifier :: Parser u (Token Pos)
 parseIdentifier = do
     p <- pos
@@ -43,6 +64,7 @@ parseIdentifier = do
     first <- P.satisfy isIdentifierStart
     rest <- P.many $ P.satisfy isIdentifierChar
     return $ Token p $ TIdentifier $ T.pack (first:rest)
+-}
 
 token :: Parser u (Token Pos)
 token =
@@ -54,7 +76,7 @@ token =
 
 keyword :: Parser u (Token Pos)
 keyword = P.try $ do
-    Token p (TIdentifier i) <- parseIdentifier
+    Token p (TLowerIdentifier i) <- parseLowerIdentifier
     fmap (Token p) $ case i of
         "import" -> return TImport
         "export" -> return TExport

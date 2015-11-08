@@ -526,3 +526,4 @@ test_type_annotations_on_function_decls2 =
 
 test_concatenate_strings =
     assertOutput ["let _ = print(\"foo\" + \"bar\");"] "foobar\n"
+

@@ -148,7 +148,6 @@ data Intrinsic input
     = IUnsafeJs Text
     | IUnsafeCoerce input
     | INot input
-    | IToString input
     deriving (Show, Eq)
 
 mapIntrinsicInputs :: Monad m => (a -> m b) -> Intrinsic a -> m (Intrinsic b)
@@ -160,8 +159,6 @@ mapIntrinsicInputs action intrin = do
             fmap IUnsafeCoerce $ action input
         INot input ->
             fmap INot $ action input
-        IToString input ->
-            fmap IToString $ action input
 
 type IntrinsicId idtype edata = Intrinsic (Expression idtype edata)
 
@@ -206,7 +203,6 @@ instance Functor (Expression idtype) where
             IUnsafeJs txt -> EIntrinsic (f d) (IUnsafeJs txt)
             IUnsafeCoerce subExpr -> EIntrinsic (f d) (IUnsafeCoerce $ fmap f subExpr)
             INot subExpr -> EIntrinsic (f d) (INot (fmap f subExpr))
-            IToString arg -> EIntrinsic (f d) (IToString $ fmap f arg)
         EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
         EWhile d cond body -> EWhile (f d) (fmap f cond) (fmap f body)
         EReturn d rv -> EReturn (f d) (fmap f rv)

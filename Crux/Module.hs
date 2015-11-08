@@ -22,6 +22,9 @@ export fun print(a) {
     ();
 }
 
+export let toString : (a) -> String =
+    _unsafe_js("function toString(v) { return '' + v; }");
+
 export data jsffi Boolean {
     True = true,
     False = false,

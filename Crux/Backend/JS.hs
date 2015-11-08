@@ -57,8 +57,6 @@ renderInstruction instr = case instr of
                 renderValue arg
             INot arg ->
                 JSTree.EPrefixOp "!" (renderValue arg)
-            IToString arg -> do
-                JSTree.EBinOp "+" (JSTree.ELiteral (JSTree.LString "")) $ renderValue arg
     Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args
     Gen.MethodCall output this methodName args ->
         JSTree.SVar (renderOutput output) $
@@ -157,9 +155,9 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
     Gen.DFun name params body ->
         let func = JSTree.SFunction name params $ map renderInstruction body in
         func : renderExports export [name]
-
     Gen.DLet name defn ->
-        [JSTree.SVar name $ Just $ JSTree.iife $ map renderInstruction defn]
+        let zz = JSTree.SVar name $ Just $ JSTree.iife $ map renderInstruction defn in
+        zz : renderExports export [name]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body

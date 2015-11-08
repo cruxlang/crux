@@ -197,14 +197,6 @@ check env expr = case expr of
     EApp _ (EIdentifier _ "_unsafe_coerce") _ ->
         error "_unsafe_coerce takes just one argument"
 
-    EApp _ (EIdentifier _ "toString") [arg] -> do
-        arg' <- check env arg
-        ty <- newIORef $ TPrimitive String
-        return $ EIntrinsic ty (IToString arg')
-
-    EApp _ (EIdentifier _ "toString") _ ->
-        error "toString takes just one argument"
-
     EApp _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- mapM (check env) rhs
@@ -282,8 +274,6 @@ check env expr = case expr of
                 LString _ -> TPrimitive String
                 LUnit -> TPrimitive Unit
         return $ ELiteral litType lit
-    EIdentifier _ "toString" ->
-        error "Intrinsic toString is not a value"
     EIdentifier _ "_unsafe_js" ->
         error "Intrinsic _unsafe_js is not a value"
     EIdentifier _ "_unsafe_coerce" ->
@@ -606,8 +596,9 @@ buildTypeEnvironment loadedModules modul = do
             DDeclare _ _ -> do
                 fail "TODO: export declare"
 
-            DLet _edata _mutability _name _ _ -> do
-                fail "TODO: export let"
+            DLet tr _mutability name _ _ -> do
+                tr' <- unfreezeTypeVar tr
+                HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
             DFun (FunDef tr name _params _retAnn _body) -> do
                 tr' <- unfreezeTypeVar tr

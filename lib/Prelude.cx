@@ -55,3 +55,15 @@ export fun each(arr: Array a, f: (a) -> b): Unit {
         i = i + 1;
     };
 }
+
+export fun sliceFrom(arr: Array a, start: Number): Array a {
+    _unsafe_coerce(arr).slice(start);
+}
+
+export fun sliceTo(arr: Array a, end: Number): Array a {
+    _unsafe_coerce(arr).slice(0, end);
+}
+
+export fun slice(arr: Array a, start: Number, end: Number): Array a {
+    _unsafe_coerce(arr).slice(start, end);
+}

@@ -31,6 +31,8 @@ library
                  , bytestring
                  , containers
                  , mtl
+                 , aeson
+                 , directory
                  , transformers
                  , data-default
                  , hashable

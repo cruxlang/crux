@@ -1,92 +1,74 @@
-{-# LANGUAGE OverloadedStrings, OverloadedLists, QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 
 module Crux.Module where
 
 import Crux.Prelude
 import Control.Exception (throwIO, ErrorCall(..))
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
-import Text.RawString.QQ (r)
 import qualified Crux.AST as AST
 import qualified Crux.Lex as Lex
 import qualified Crux.Parse as Parse
 import qualified Crux.Typecheck as Typecheck
 import qualified Crux.MutableHashTable as HashTable
 import qualified System.FilePath as FP
-
-preludeSource :: Text
-preludeSource = Text.pack $ [r|
-export fun print(a) {
-    _unsafe_js("console.log")(a);
-    ();
-}
-
-export let toString : (a) -> String =
-    _unsafe_js("function toString(v) { return '' + v; }");
-
-export data jsffi Boolean {
-    True = true,
-    False = false,
-}
-
-// Arrays have unspecified representation
-export data Array a {}
-
-let _unsafe_new : (Number) -> Array a =
-    _unsafe_js("function (len) { return new Array(len); }");
-
-let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }");
-let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }");
-
-export fun emptyArray(): Array a {
-  _unsafe_js("[]");
-}
-
-// I'd specify a return type of unit but there is a parse error:
-// https://github.com/andyfriesen/crux/issues/14
-export fun append(a: Array a, v: a) {
-  _unsafe_coerce(a).push(v);
-  return ();
-}
-
-export fun length(a: Array a): Number {
-  _unsafe_coerce(a).length;
-}
-
-export fun replicate(element : a, len : Number) : Array a {
-    let arr = _unsafe_new(len);
-
-    let mutable i = 0;
-    while i < len {
-        _unsafe_set(arr, i, element);
-        i = i + 1;
-    };
-
-    arr;
-}
-
-export fun each(arr : Array a, f : (a) -> b) : Unit {
-    let mutable i = 0;
-    let len = length(arr);
-    while i < len {
-        f(_unsafe_get(arr, i));
-        i = i + 1;
-    };
-}
-|]
+import qualified Data.Aeson as JSON
+import System.Directory (doesFileExist)
+import System.Environment (getExecutablePath)
+import qualified Data.Text.IO as TextIO
 
 type ModuleLoader = AST.ModuleName -> IO (Either String AST.ParsedModule)
 
+findCompilerConfig :: IO (Maybe FilePath)
+findCompilerConfig = do
+    exePath <- getExecutablePath
+    loop exePath
+  where loop c = do
+          let configPath = FP.combine c "cxconfig.json"
+          exists <- doesFileExist configPath
+          if exists then
+            return $ Just configPath
+          else if c == FP.takeDirectory c then
+            return Nothing
+          else
+            loop $ FP.takeDirectory c
+
+data CompilerConfig = CompilerConfig
+    { preludePath :: FilePath
+    }
+
+instance JSON.FromJSON CompilerConfig where
+    parseJSON (JSON.Object o) = CompilerConfig <$> o JSON..: "preludePath"
+    parseJSON _ = fail "must be object"
+
+loadPreludeSource :: IO Text
+loadPreludeSource = do
+    configPath' <- findCompilerConfig
+    configPath <- case configPath' of
+        Nothing -> fail "Failed to find compiler's cxconfig.json"
+        Just c -> return c
+
+    configContents <- BSL.readFile configPath
+    let config' = JSON.decode configContents
+    config <- case config' of
+        Nothing -> fail "Failed to parse cxconfig.json"
+        Just c -> return c
+
+    TextIO.readFile $ FP.combine (FP.takeDirectory configPath) (preludePath config)
+
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
-    if name == "Prelude" then
+    if name == "Prelude" then do
+        preludeSource <- loadPreludeSource
         parseModuleFromSource "Prelude" preludeSource
     else
         return $ Left $ "unknown module: " <> (Text.unpack $ AST.printModuleName name)
 
 loadPrelude :: IO AST.LoadedModule
 loadPrelude = do
+    preludeSource <- loadPreludeSource
     rv <- loadModuleFromSource' id [] "Prelude" preludeSource
     case rv of
         Left err -> do

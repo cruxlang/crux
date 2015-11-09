@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists, LambdaCase #-}
 
 module Crux.Module where
 
@@ -45,14 +45,12 @@ instance JSON.FromJSON CompilerConfig where
 
 loadPreludeSource :: IO Text
 loadPreludeSource = do
-    configPath' <- findCompilerConfig
-    configPath <- case configPath' of
+    configPath <- findCompilerConfig >>= \case
         Nothing -> fail "Failed to find compiler's cxconfig.json"
         Just c -> return c
 
     configContents <- BSL.readFile configPath
-    let config' = JSON.decode configContents
-    config <- case config' of
+    config <- case JSON.decode configContents of
         Nothing -> fail "Failed to parse cxconfig.json"
         Just c -> return c
 
@@ -69,8 +67,7 @@ defaultModuleLoader name = do
 loadPrelude :: IO AST.LoadedModule
 loadPrelude = do
     preludeSource <- loadPreludeSource
-    rv <- loadModuleFromSource' id [] "Prelude" preludeSource
-    case rv of
+    loadModuleFromSource' id [] "Prelude" preludeSource >>= \case
         Left err -> do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
         Right m -> return m
@@ -96,8 +93,7 @@ parseModuleFromFile filename = do
 
 loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> FilePath -> Text -> IO (Either String AST.LoadedModule)
 loadModuleFromSource' adjust loadedModules filename source = do
-    p <- parseModuleFromSource filename source
-    case p of
+    parseModuleFromSource filename source >>= \case
         Left err ->
             return $ Left err
         Right mod' -> do
@@ -118,8 +114,7 @@ addPrelude m = m { AST.mImports = AST.UnqualifiedImport "Prelude" : AST.mImports
 
 loadModule :: ModuleLoader -> IORef (HashMap AST.ModuleName AST.LoadedModule) -> AST.ModuleName -> IO AST.LoadedModule
 loadModule loader loadedModules moduleName = do
-    loadedAlready <- HashTable.lookup moduleName loadedModules
-    case loadedAlready of
+    HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
         Nothing -> do

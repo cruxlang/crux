@@ -247,7 +247,9 @@ addExpression = do
 relationExpression :: Parser ParseExpression
 relationExpression = do
     let op =
-            (token TLess >> return BILess)
+            (token TDoubleEqual >> return BIEqual)
+            <|> (token TNotEqual >> return BINotEqual)
+            <|> (token TLess >> return BILess)
             <|> (token TGreater >> return BIGreater)
             <|> (token TLessEqual >> return BILessEqual)
             <|> (token TGreaterEqual >> return BIGreaterEqual)

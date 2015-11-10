@@ -116,6 +116,8 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym '/' TDivide
      <|> sym '<' TLess
      <|> sym '>' TGreater
+     <|> sym2 '=' '=' TDoubleEqual
+     <|> sym2 '!' '=' TNotEqual
      <|> sym2 '<' '=' TLessEqual
      <|> sym2 '>' '=' TGreaterEqual
   where

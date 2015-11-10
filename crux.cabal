@@ -60,7 +60,7 @@ test-suite tests
     type: exitcode-stdio-1.0
     main-is: Tests.hs
     ghc-options: -Wall -Werror -fno-warn-missing-signatures
-    hs-source-dirs: src/tests
+    hs-source-dirs: tests
     build-depends: base
                  , HTF
                  , parsec

@@ -244,13 +244,6 @@ test_parameterized_type_alias = do
         ]
     assertEqual (Right "") result
 
-test_if_then = do
-    result <- run $ T.unlines
-        [ "let _ = if True then print(\"True!\");"
-        ]
-
-    assertEqual (Right "True!\n") result
-
 test_if_then_else = do
     result <- run $ T.unlines
         [ "let _ = if False then print(\"This should not run\")"
@@ -261,11 +254,24 @@ test_if_then_else = do
 
 test_if_then_else_2 = do
     result <- run $ T.unlines
-        [ "let _ = if False then if True then print(\"True!\")"
-        , "        else print(\"This should not run\");"
+        [ "let _ = if False then if True then print(\"One\")"
+        , "        else print(\"Two\")"
+        , "        else print(\"Three\");"
         ]
 
-    assertEqual (Right "") result
+    assertEqual (Right "Three\n") result
+
+test_if_block = do
+    result <- run $ T.unlines
+        [ "let _ = if True { print(\"yay\"); };"
+        , "let _ = if False { print(\"nay\"); };"
+        ]
+    assertEqual (Right "yay\n") result
+
+{-
+test_if_block_else_block = do
+    return ()
+-}
 
 test_comments = do
     result <- run $ T.unlines

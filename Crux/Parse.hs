@@ -79,11 +79,18 @@ ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
     pr <- P.try $ token TIf
     condition <- noSemiExpression
-    _ <- token TThen
-    ifTrue <- noSemiExpression
-    ifFalse <- P.option (ELiteral (tokenData pr) LUnit)
-        (P.try (token TElse) >> noSemiExpression)
-    return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
+    let exprIf = do
+            _ <- P.try $ token TThen
+            ifTrue <- noSemiExpression
+            _ <- token TElse
+            ifFalse <- noSemiExpression
+            return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
+    let blockIf = do
+            ifTrue <- blockExpression
+            ifFalse <- P.option (ELiteral (tokenData pr) LUnit) $ P.try (token TElse) >> blockExpression
+            return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
+
+    exprIf <|> blockIf
 
 whileExpression :: Parser ParseExpression
 whileExpression = do
@@ -489,6 +496,15 @@ funArgument = do
         typeIdent
     return (n, ann)
 
+blockExpression :: Parser ParseExpression
+blockExpression = do
+    br <- token TOpenBrace
+    body <- P.many expression
+    _ <- token TCloseBrace
+    return $ case body of
+        [] -> ELiteral (tokenData br) LUnit
+        _ -> foldl1 (ESemi (tokenData br)) body
+
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- P.try $ token Tokens.TFun
@@ -497,14 +513,8 @@ funDeclaration = do
     returnAnn <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
-    _ <- token TOpenBrace
-    bodyExprs <- P.many expression
-    _ <- token TCloseBrace
 
-    let body = case bodyExprs of
-            [] -> ELiteral (tokenData tfun) LUnit
-            _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
-
+    body <- blockExpression
     return $ DFun $ FunDef (tokenData tfun) name params returnAnn body
 
 declaration :: Parser (Declaration Name ParseData)

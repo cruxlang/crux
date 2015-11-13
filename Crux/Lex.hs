@@ -101,6 +101,10 @@ symbol :: Parser u (Token Pos)
 symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym2 '=' '>' TFatRightArrow
      <|> sym2 '-' '>' TRightArrow
+     <|> sym2 '=' '=' TDoubleEqual
+     <|> sym2 '!' '=' TNotEqual
+     <|> sym2 '<' '=' TLessEqual
+     <|> sym2 '>' '=' TGreaterEqual
      <|> sym ';' TSemicolon
      <|> sym ':' TColon
      <|> sym '.' TDot
@@ -116,10 +120,6 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym '/' TDivide
      <|> sym '<' TLess
      <|> sym '>' TGreater
-     <|> sym2 '=' '=' TDoubleEqual
-     <|> sym2 '!' '=' TNotEqual
-     <|> sym2 '<' '=' TLessEqual
-     <|> sym2 '>' '=' TGreaterEqual
   where
     sym ch tok = do
         p <- pos

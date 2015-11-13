@@ -87,7 +87,7 @@ ifThenElseExpression = do
             return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
     let blockIf = do
             ifTrue <- blockExpression
-            ifFalse <- P.option (ELiteral (tokenData pr) LUnit) $ P.try (token TElse) >> blockExpression
+            ifFalse <- P.option (ELiteral (tokenData pr) LUnit) $ P.try (token TElse) >> (blockExpression <|> ifThenElseExpression)
             return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
 
     exprIf <|> blockIf

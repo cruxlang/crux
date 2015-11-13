@@ -268,6 +268,12 @@ test_if_block = do
         ]
     assertEqual (Right "yay\n") result
 
+test_if_else_if_block = do
+    result <- run $ T.unlines
+        [ "let _ = if False { print(\"nay\"); } else if True { print(\"yay\"); };"
+        ]
+    assertEqual (Right "yay\n") result
+
 {-
 test_if_block_else_block = do
     return ()

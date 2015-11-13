@@ -31,6 +31,10 @@ export fun append(a: Array a, v: a) {
   return ();
 }
 
+export fun get(a: Array a, idx: number) {
+  _unsafe_get(a, idx);
+}
+
 export fun length(a: Array a): Number {
   _unsafe_coerce(a).length;
 }

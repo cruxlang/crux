@@ -13,7 +13,16 @@
       <button id="run">Run</button>
   </div>
   <div id="source">
-      <textarea id="crux_source"></textarea>
+      <textarea id="crux_source">
+fun main() {
+    let document = _unsafe_js("window.document");
+    document.body.insertBefore(
+        document.createTextNode("Hello!"),
+        document.body.firstChild
+    );
+}
+let _ = main();
+       </textarea>
       <div id="js_source"></div>
   </div>
   <script language="javascript" src="runmain.js" defer></script>

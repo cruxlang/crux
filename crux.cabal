@@ -44,6 +44,10 @@ library
                  , raw-strings-qq
                  , optparse-applicative
 
+    extensions: OverloadedStrings
+              , MultiWayIf
+              , LambdaCase
+
     ghc-options: -Wall -Werror
     default-language: Haskell2010
 

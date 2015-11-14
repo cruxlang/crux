@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, OverloadedLists, LambdaCase #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module Crux.Module where
 
@@ -25,15 +25,16 @@ findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
     exePath <- getExecutablePath
     loop exePath
-  where loop c = do
-          let configPath = FP.combine c "cxconfig.json"
-          exists <- doesFileExist configPath
-          if exists then
-            return $ Just configPath
-          else if c == FP.takeDirectory c then
-            return Nothing
-          else
-            loop $ FP.takeDirectory c
+  where
+    loop c = do
+        let configPath = FP.combine c "cxconfig.json"
+        exists <- doesFileExist configPath
+        if | exists ->
+                return $ Just configPath
+           | c == FP.takeDirectory c ->
+                return Nothing
+           | otherwise ->
+                loop $ FP.takeDirectory c
 
 data CompilerConfig = CompilerConfig
     { preludePath :: FilePath
@@ -66,7 +67,10 @@ defaultModuleLoader name = do
 
 loadPrelude :: IO AST.LoadedModule
 loadPrelude = do
-    preludeSource <- loadPreludeSource
+    loadPreludeSource >>= loadPreludeFromSource
+
+loadPreludeFromSource :: Text -> IO AST.LoadedModule
+loadPreludeFromSource preludeSource =
     loadModuleFromSource' id [] "Prelude" preludeSource >>= \case
         Left err -> do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err

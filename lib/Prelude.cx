@@ -1,6 +1,5 @@
-export fun print(a) {
-    _unsafe_js("console.log")(a);
-    ();
+export fun print(a) : (a) -> Unit {
+    _unsafe_js("console").log(a);
 }
 
 export let toString: (a) -> String =

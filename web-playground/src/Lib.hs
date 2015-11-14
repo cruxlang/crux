@@ -5,6 +5,7 @@ module Lib
     ( run
     ) where
 
+import           Control.Monad                 (void)
 import           Control.Monad.Trans           (liftIO)
 import           Crux.AST                      (ModuleName (..),
                                                 ModuleSegment (..))
@@ -21,10 +22,12 @@ import           Data.String                   (fromString)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Encoding            (decodeUtf8)
+import           Eval                          (js_eval)
 import           GHCJS.DOM                     (runWebGUI,
                                                 webViewGetDomDocument)
 import           GHCJS.DOM.Document            (documentCreateElement,
-                                                documentGetBody)
+                                                documentGetBody,
+                                                documentGetElementById)
 import           GHCJS.DOM.Element             (elementOnclick,
                                                 elementQuerySelector)
 import           GHCJS.DOM.HTMLElement         (castToHTMLElement,
@@ -33,9 +36,9 @@ import           GHCJS.DOM.HTMLElement         (castToHTMLElement,
 import           GHCJS.DOM.HTMLTextAreaElement (castToHTMLTextAreaElement)
 import           GHCJS.DOM.HTMLTextAreaElement (htmlTextAreaElementGetValue)
 import           GHCJS.DOM.Node                (nodeAppendChild)
+import           GHCJS.Foreign                 (toJSString)
 
 compile source = do
-    putStrLn $ "compile " ++ show source
     let mainModuleName = "Main"
         loader = newMemoryLoader mainModuleName source
         preludeSource = decodeUtf8 $(embedFile "../lib/Prelude.cx")
@@ -59,18 +62,22 @@ run = runWebGUI $ \webView -> do
     Just doc <- webViewGetDomDocument webView
     Just body <- documentGetBody doc
 
-    Just textArea <- (fmap castToHTMLTextAreaElement) <$> documentCreateElement doc "textarea"
-    nodeAppendChild body (Just textArea)
+    Just textArea <- (fmap castToHTMLTextAreaElement) <$> documentGetElementById doc "crux_source"
+    Just compileButton <- (fmap castToHTMLElement) <$> documentGetElementById doc "compile"
+    Just runButton <- (fmap castToHTMLElement) <$> documentGetElementById doc "run"
+    Just resultDiv <- (fmap castToHTMLElement) <$> documentGetElementById doc "js_source"
 
-    Just runButton <- (fmap castToHTMLElement) <$> documentCreateElement doc "button"
-    nodeAppendChild body (Just runButton)
+    let build = do
+            source <- htmlTextAreaElementGetValue textArea
+            js <- compile source
+            htmlElementSetInnerText resultDiv js
+            return js
 
-    Just resultDiv <- (fmap castToHTMLElement) <$> documentCreateElement doc "div"
-    nodeAppendChild body (Just resultDiv)
+    let run = do
+            js <- build
+            js_eval (toJSString js)
 
-    elementOnclick runButton $ liftIO $ do
-        source <- htmlTextAreaElementGetValue textArea
-        js <- compile source
-        htmlElementSetInnerText resultDiv js
+    elementOnclick compileButton $ liftIO $ void build
+    elementOnclick runButton $ liftIO $ run
 
     putStrLn "Setup done!"

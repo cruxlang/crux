@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+BUILD_DIR=`~/.local/bin/stack path --local-install-root`/bin/web-playground-exe.jsexe
+SRC="lib.js out.js rts.js runmain.js"
+
+~/.local/bin/stack build
+
+for s in $SRC; do
+    cp $BUILD_DIR/$s stage
+done

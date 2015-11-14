@@ -1,0 +1,17 @@
+
+#source {
+    display: flex;
+    flex-direction: row;
+}
+
+#source > * {
+    display: inline-block;
+    flex-grow: 1;
+    margin: 1em;
+    padding: 0;
+    border: 1px solid green;
+}
+
+#js_source {
+    font-family: monospace;
+}

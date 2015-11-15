@@ -36,5 +36,34 @@ fun main() {
 let _ = main();</textarea>
       <div id="js_source"></div>
   </div>
-  <script language="javascript" src="runmain.js" defer></script>
+  <script src="runmain.js"></script>
+  <script>
+    function compileCrux(source) {
+        var ret = {};
+        window.hs_compileCrux(source, ret);
+        return ret.ret;
+    }
+
+    function main() {
+        var textArea = document.getElementById('crux_source');
+        var resultDiv = document.getElementById('js_source');
+        var runButton = document.getElementById('run');
+        var compileButton = document.getElementById('compile');
+
+        compileButton.addEventListener('click', function () {
+            var content = textArea.value;
+            var js = compileCrux(content);
+            resultDiv.textContent = js;
+        });
+
+        runButton.addEventListener('click', function () {
+            var content = textArea.value;
+            var js = compileCrux(content);
+            resultDiv.textContent = js;
+            eval(js);
+        });
+    }
+
+    main();
+  </script>
 </html>

@@ -7,10 +7,12 @@ module Lib
 
 import           Control.Monad                 (void)
 import           Control.Monad.Trans           (liftIO)
+import GHCJS.Foreign
 import           Crux.AST                      (ModuleName (..),
                                                 ModuleSegment (..))
 import qualified Crux.AST                      as AST
 import qualified Crux.Backend.JS               as JS
+import GHCJS.Types (JSRef, JSString)
 import qualified Crux.Gen                      as Gen
 import           Crux.Module                   (loadModule,
                                                 loadPreludeFromSource,
@@ -22,7 +24,7 @@ import           Data.String                   (fromString)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Encoding            (decodeUtf8)
-import           Eval                          (js_eval, setTextContent)
+import           Eval                          (js_eval, setTextContent, js_setTheFunction)
 import           GHCJS.DOM                     (runWebGUI,
                                                 webViewGetDomDocument)
 import           GHCJS.DOM.Document            (documentCreateElement,
@@ -57,27 +59,18 @@ compile source = do
     program' <- Gen.generateProgram program
     return $ JS.generateJS program'
 
+compileJS :: JSString -> IO JSString
+compileJS src =
+    toJSString <$> compile (fromJSString src)
+
 run :: IO ()
-run = runWebGUI $ \webView -> do
-    Just doc <- webViewGetDomDocument webView
-    Just body <- documentGetBody doc
+run = runWebGUI $ \_webView -> do
+    let returnViaArgument :: (JSRef a -> IO (JSRef b)) -> JSRef a -> JSRef c -> IO ()
+        returnViaArgument f arg retObj = do
+            r <- f arg
+            setProp "ret" r retObj
 
-    Just textArea <- (fmap castToHTMLTextAreaElement) <$> documentGetElementById doc "crux_source"
-    Just compileButton <- (fmap castToHTMLElement) <$> documentGetElementById doc "compile"
-    Just runButton <- (fmap castToHTMLElement) <$> documentGetElementById doc "run"
-    Just resultDiv <- (fmap castToHTMLElement) <$> documentGetElementById doc "js_source"
-
-    let build = do
-            source <- htmlTextAreaElementGetValue textArea
-            js <- compile source
-            setTextContent resultDiv js
-            return js
-
-    let run = do
-            js <- build
-            js_eval (toJSString js)
-
-    elementOnclick compileButton $ liftIO $ void build
-    elementOnclick runButton $ liftIO $ run
+    callback <- syncCallback2 NeverRetain False (returnViaArgument compileJS)
+    js_setTheFunction callback
 
     putStrLn "Setup done!"

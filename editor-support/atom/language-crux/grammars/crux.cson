@@ -3,7 +3,7 @@
 'fileTypes': ['cx']
 'patterns': [
   {
-    'match': '\\b(data|let|mutable|export|while|fun)\\b',
+    'match': '\\b(data|type|let|mutable|export|while|fun)\\b',
     'name': 'keyword.crux'
   },
   {

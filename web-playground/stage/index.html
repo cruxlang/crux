@@ -14,15 +14,26 @@
   </div>
   <div id="source">
       <textarea id="crux_source">
+data Node {}
+
+type Document = {
+    createTextNode : (String) -> Node
+    body : {
+        insertBefore : (Node, Node) -> Node,
+        firstChild : Node
+    },
+}
+
+let document : Document = _unsafe_js("window.document");
+
 fun main() {
-    let document = _unsafe_js("window.document");
     document.body.insertBefore(
         document.createTextNode("Hello!"),
         document.body.firstChild
     );
 }
-let _ = main();
-       </textarea>
+
+let _ = main();</textarea>
       <div id="js_source"></div>
   </div>
   <script language="javascript" src="runmain.js" defer></script>

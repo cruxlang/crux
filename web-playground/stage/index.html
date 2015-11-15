@@ -17,12 +17,12 @@
 data Node {}
 
 type Document = {
-    createTextNode : (String) -> Node
+    createTextNode : (String) -> Node,
     body : {
         insertBefore : (Node, Node) -> Node,
         firstChild : Node
     },
-}
+};
 
 let document : Document = _unsafe_js("window.document");
 

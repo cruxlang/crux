@@ -1,4 +1,4 @@
-export fun print(a) : (a) -> Unit {
+export fun print(a) : Unit {
     _unsafe_js("console").log(a);
 }
 

@@ -22,7 +22,7 @@ import           Data.String                   (fromString)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Text.Encoding            (decodeUtf8)
-import           Eval                          (js_eval)
+import           Eval                          (js_eval, setTextContent)
 import           GHCJS.DOM                     (runWebGUI,
                                                 webViewGetDomDocument)
 import           GHCJS.DOM.Document            (documentCreateElement,
@@ -70,7 +70,7 @@ run = runWebGUI $ \webView -> do
     let build = do
             source <- htmlTextAreaElementGetValue textArea
             js <- compile source
-            htmlElementSetInnerText resultDiv js
+            setTextContent resultDiv js
             return js
 
     let run = do

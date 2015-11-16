@@ -50,7 +50,7 @@ instantiate' subst env ty = do
         TFun param ret -> do
             ty1 <- mapM (instantiate' subst env) param
             (b2, ty2) <- instantiate' subst env ret
-            let b = b2 || and (map fst ty1)
+            let b = b2 || any fst ty1
             tfun <- newIORef $ TFun (map snd ty1) ty2
             return (b, tfun)
         TUserType def tyVars -> do

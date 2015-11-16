@@ -542,3 +542,14 @@ test_arrays =
 
 test_concatenate_strings =
     assertOutput ["let _ = print(\"foo\" + \"bar\");"] "foobar\n"
+
+test_quantified_record =
+    assertCompiles
+        [ "fun errorResponse(response, statusCode: Number) {"
+        , "    response.statusCode = statusCode;"
+        , "}"
+        , "fun handleRequest(response) {"
+        , "    errorResponse(response, 405);"
+        , "    errorResponse(response, 404);"
+        , "}"
+        ]

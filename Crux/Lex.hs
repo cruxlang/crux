@@ -114,6 +114,8 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym ')' TCloseParen
      <|> sym '{' TOpenBrace
      <|> sym '}' TCloseBrace
+     <|> sym '[' TOpenBracket
+     <|> sym ']' TCloseBracket
      <|> sym '+' TPlus
      <|> sym '-' TMinus
      <|> sym '*' TMultiply

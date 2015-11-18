@@ -179,6 +179,7 @@ data Expression idtype edata
     -- literals
     | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype edata))
+    | EArrayLiteral edata [Expression idtype edata]
     | ELiteral edata Literal
 
     -- intrinsics
@@ -196,12 +197,13 @@ instance Functor (Expression idtype) where
     fmap f expr = case expr of
         ELet d mut pat typeAnn subExpr -> ELet (f d) mut pat typeAnn (fmap f subExpr)
         EFun d argNames returnAnn body -> EFun (f d) argNames returnAnn (fmap f body)
-        ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
         EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
         EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
         EAssign d lhs rhs -> EAssign (f d) (fmap f lhs) (fmap f rhs)
         ELiteral d l -> ELiteral (f d) l
+        EArrayLiteral d elements -> EArrayLiteral (f d) (fmap (fmap f) elements)
+        ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
         EIdentifier d i -> EIdentifier (f d) i
         ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
         EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
@@ -218,12 +220,13 @@ edata :: Expression idtype edata -> edata
 edata expr = case expr of
     ELet ed _ _ _ _ -> ed
     EFun ed _ _ _ -> ed
-    ERecordLiteral ed _ -> ed
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
     EAssign ed _ _ -> ed
     ELiteral ed _ -> ed
+    EArrayLiteral ed _ -> ed
+    ERecordLiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed

@@ -40,6 +40,10 @@ test_literals = do
         (ELiteral () (LString "Hooper"))
     assertExprParses literalExpression "()"
         (ELiteral () (LUnit))
+    assertExprParses literalExpression "[]"
+        (EArrayLiteral () [])
+    assertExprParses literalExpression "[(), 1, \"hi\"]"
+        (EArrayLiteral () [ELiteral () LUnit, ELiteral () $ LInteger 1, ELiteral () $ LString "hi"])
 
 test_parens = do
     assertExprParses noSemiExpression "(5)"

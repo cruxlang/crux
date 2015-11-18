@@ -29,6 +29,7 @@ renderValue value = case value of
         LUnit -> JSTree.ELiteral $ JSTree.LUndefined
     Gen.FunctionLiteral args body -> JSTree.EFunction args $
         map renderInstruction body
+    Gen.ArrayLiteral elements -> JSTree.EArray $ fmap renderValue elements
     Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement

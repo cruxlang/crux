@@ -22,6 +22,8 @@ data TokenType
     | TCloseBrace
     | TOpenParen
     | TCloseParen
+    | TOpenBracket
+    | TCloseBracket
     | TSemicolon
     | TColon
     | TComma

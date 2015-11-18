@@ -114,9 +114,18 @@ returnExpression = do
 
 unitLiteralExpression :: Parser ParseExpression
 unitLiteralExpression = do
-    o <- P.try $ token TOpenParen
-    _ <- token TCloseParen
+    o <- P.try $ do
+        p <- token TOpenParen
+        _ <- token TCloseParen
+        return p
     return $ ELiteral (tokenData o) LUnit
+
+arrayLiteralExpression :: Parser ParseExpression
+arrayLiteralExpression = do
+    t <- P.try $ token TOpenBracket
+    exprs <- delimited noSemiExpression (token TComma)
+    _ <- token TCloseBracket
+    return $ EArrayLiteral (tokenData t) exprs
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
@@ -134,6 +143,7 @@ recordLiteralExpression = do
 literalExpression :: Parser ParseExpression
 literalExpression =
     unitLiteralExpression <|>
+    arrayLiteralExpression <|>
     recordLiteralExpression <|>
     functionExpression <|>
     P.tokenPrim showTok nextPos testTok

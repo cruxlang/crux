@@ -29,6 +29,7 @@ data Value
     = Reference Output
     | Literal AST.Literal
     | FunctionLiteral [Name] [Instruction]
+    | ArrayLiteral [Value]
     | RecordLiteral (HashMap Name Value)
     deriving (Show, Eq)
 type Input = Value
@@ -103,13 +104,6 @@ generate env expr = case expr of
     AST.EFun _ params _retAnn body -> do
         body' <- subBlockWithReturn env body
         return $ Just $ FunctionLiteral (map fst params) body'
-    AST.ERecordLiteral _ props -> do
-        props' <- runMaybeT $ mapM (MaybeT . generate env) props
-        case props' of
-            Just props'' -> do
-                return $ Just $ RecordLiteral props''
-            Nothing -> do
-                return Nothing
 
     AST.ELookup _ value propertyName -> do
         v <- generate env value
@@ -159,6 +153,14 @@ generate env expr = case expr of
 
     AST.ELiteral _ lit -> do
         return $ Just $ Literal lit
+
+    AST.EArrayLiteral _ elements -> do
+        elements' <- runMaybeT $ mapM (MaybeT . generate env) elements
+        return $ fmap ArrayLiteral elements'
+
+    AST.ERecordLiteral _ props -> do
+        props' <- runMaybeT $ mapM (MaybeT . generate env) props
+        return $ fmap RecordLiteral props'
 
     AST.EIdentifier _ name -> do
         return $ Just $ Reference $ Binding name

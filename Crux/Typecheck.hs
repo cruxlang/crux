@@ -208,18 +208,6 @@ check env expr = case expr of
     EIntrinsic {} -> do
         error "Unexpected: EIntrinsic encountered during typechecking"
 
-    ERecordLiteral _ fields -> do
-        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
-            ty <- freshType env
-            fieldExpr' <- check env fieldExpr
-            unify ty (edata fieldExpr')
-            return (name, fieldExpr')
-
-        let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
-
-        recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
-        return $ ERecordLiteral recordTy (HashMap.fromList fields')
-
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
         ty <- freshType env
@@ -274,6 +262,28 @@ check env expr = case expr of
                 LString _ -> TPrimitive String
                 LUnit -> TPrimitive Unit
         return $ ELiteral litType lit
+
+    EArrayLiteral _ elements -> do
+        elementType <- freshType env
+        elements' <- forM elements $ \element -> do
+            elementExpr <- check env element
+            unify elementType (edata elementExpr)
+            return elementExpr
+        arrayType <- resolveType (edata expr) env "Array"
+        return $ EArrayLiteral arrayType elements'
+
+    ERecordLiteral _ fields -> do
+        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
+            ty <- freshType env
+            fieldExpr' <- check env fieldExpr
+            unify ty (edata fieldExpr')
+            return (name, fieldExpr')
+
+        let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
+
+        recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
+        return $ ERecordLiteral recordTy (HashMap.fromList fields')
+
     EIdentifier _ "_unsafe_js" ->
         error "Intrinsic _unsafe_js is not a value"
     EIdentifier _ "_unsafe_coerce" ->
@@ -423,13 +433,6 @@ freeze expr = case expr of
         td' <- freezeTypeVar td
         intrin' <- freezeIntrinsic intrin
         return $ EIntrinsic td' intrin'
-    ERecordLiteral td fields -> do
-        td' <- freezeTypeVar td
-        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
-            fieldExpr' <- freeze fieldExpr
-            return (name, fieldExpr')
-
-        return $ ERecordLiteral td' (HashMap.fromList fields')
     ELookup td lhs rhs -> do
         td' <- freezeTypeVar td
         lhs' <- freeze lhs
@@ -452,6 +455,16 @@ freeze expr = case expr of
     ELiteral td lit -> do
         td' <- freezeTypeVar td
         return $ ELiteral td' lit
+    EArrayLiteral td elements -> do
+        td' <- freezeTypeVar td
+        elements' <- mapM freeze elements
+        return $ EArrayLiteral td' elements'
+    ERecordLiteral td fields -> do
+        td' <- freezeTypeVar td
+        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
+            fieldExpr' <- freeze fieldExpr
+            return (name, fieldExpr')
+        return $ ERecordLiteral td' (HashMap.fromList fields')
     EIdentifier td i -> do
         td' <- freezeTypeVar td
         return $ EIdentifier td' i

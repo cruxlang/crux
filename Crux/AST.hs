@@ -169,17 +169,23 @@ data LetMutability
 
 data Expression idtype edata
     = ELet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
-    | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
-    | ERecordLiteral edata (HashMap Name (Expression idtype edata))
     | ELookup edata (Expression idtype edata) Name
     | EApp edata (Expression idtype edata) [Expression idtype edata]
     | EMatch edata (Expression idtype edata) [Case idtype edata]
     | EAssign edata (Expression idtype edata) (Expression idtype edata)
-    | ELiteral edata Literal
     | EIdentifier edata idtype
     | ESemi edata (Expression idtype edata) (Expression idtype edata)
+
+    -- literals
+    | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
+    | ERecordLiteral edata (HashMap Name (Expression idtype edata))
+    | ELiteral edata Literal
+
+    -- intrinsics
     | EBinIntrinsic edata BinIntrinsic (Expression idtype edata) (Expression idtype edata)
     | EIntrinsic edata (IntrinsicId idtype edata)
+
+    -- flow control
     | EIfThenElse edata (Expression idtype edata) (Expression idtype edata) (Expression idtype edata)
     | EWhile edata (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)

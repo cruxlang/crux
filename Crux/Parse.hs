@@ -114,12 +114,29 @@ returnExpression = do
 
 unitLiteralExpression :: Parser ParseExpression
 unitLiteralExpression = do
-    o <- token TOpenParen
+    o <- P.try $ token TOpenParen
     _ <- token TCloseParen
     return $ ELiteral (tokenData o) LUnit
 
+recordLiteralExpression :: Parser ParseExpression
+recordLiteralExpression = do
+    t <- P.try $ token $ TOpenBrace
+    let keyValuePair = do
+            name <- anyIdentifier
+            _ <- token $ TColon
+            expr <- noSemiExpression
+            return (name, expr)
+    pairs <- P.sepBy keyValuePair $ token $ TComma
+    _ <- token $ TCloseBrace
+
+    return $ ERecordLiteral (tokenData t) (HashMap.fromList pairs)
+
 literalExpression :: Parser ParseExpression
-literalExpression = (P.try unitLiteralExpression) <|> P.tokenPrim showTok nextPos testTok
+literalExpression =
+    unitLiteralExpression <|>
+    recordLiteralExpression <|>
+    functionExpression <|>
+    P.tokenPrim showTok nextPos testTok
   where
     showTok = show
     nextPos pos _ _ = pos
@@ -293,19 +310,6 @@ semiExpression = do
 parenExpression :: Parser ParseExpression
 parenExpression = parenthesized $ P.try semiExpression
 
-recordLiteralExpression :: Parser ParseExpression
-recordLiteralExpression = do
-    t <- token $ TOpenBrace
-    let keyValuePair = do
-            name <- anyIdentifier
-            _ <- token $ TColon
-            expr <- noSemiExpression
-            return (name, expr)
-    pairs <- P.sepBy keyValuePair $ token $ TComma
-    _ <- token $ TCloseBrace
-
-    return $ ERecordLiteral (tokenData t) (HashMap.fromList pairs)
-
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =
     P.try letExpression
@@ -313,8 +317,6 @@ noSemiExpression =
     <|> ifThenElseExpression
     <|> whileExpression
     <|> P.try returnExpression
-    <|> P.try functionExpression
-    <|> P.try recordLiteralExpression
     <|> assignExpression
     <|> relationExpression
 

@@ -9,7 +9,7 @@ import qualified Crux.JSTree as JSTree
 import qualified Data.Text as Text
 
 renderModuleName :: ModuleName -> Text
-renderModuleName (ModuleName prefix name) = Text.intercalate "$" $ map unModuleSegment $ prefix ++ [name]
+renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
 
 renderOutput :: Gen.Output -> JSTree.Name
 renderOutput (Gen.Binding name) = case name of

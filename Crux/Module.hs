@@ -153,9 +153,12 @@ moduleNameToPath (AST.ModuleName prefix m) =
         (FP.joinPath $ map toPathSegment prefix)
         (toPathSegment m <> ".cx")
 
-newFSModuleLoader :: FilePath -> ModuleLoader
-newFSModuleLoader root moduleName = do
-    parseModuleFromFile $ FP.combine root $ moduleNameToPath moduleName
+newFSModuleLoader :: FilePath -> FilePath -> ModuleLoader
+newFSModuleLoader root mainModulePath moduleName = do
+    if moduleName == "Main" then
+        parseModuleFromFile mainModulePath
+    else
+        parseModuleFromFile $ FP.combine root $ moduleNameToPath moduleName
 
 newMemoryLoader :: FilePath -> Text -> ModuleLoader
 newMemoryLoader fp source moduleName = do
@@ -167,12 +170,12 @@ newMemoryLoader fp source moduleName = do
 loadProgramFromFile :: FilePath -> IO AST.Program
 loadProgramFromFile path = do
     let (dirname, basename) = FP.splitFileName path
-    let loader = newFSModuleLoader dirname
-    rootModuleName <- case FP.splitExtension basename of
-        (rootModuleName, ".cx") -> return $ fromString rootModuleName
+    let loader = newFSModuleLoader dirname path
+    case FP.splitExtension basename of
+        (_, ".cx") -> return ()
         _ -> fail "Please load .cx file"
 
-    loadProgram loader rootModuleName
+    loadProgram loader "Main"
 
 loadProgramFromSource :: FilePath -> Text -> IO AST.Program
 loadProgramFromSource mainModuleName mainModuleSource = do

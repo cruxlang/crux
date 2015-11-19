@@ -4,7 +4,7 @@ cd "$(dirname "$0")"/..
 
 source s/crux.inc
 
-TEST_FILES="test-data/*.cx $(find test-data -name main.cx)''"
+TEST_FILES="test-data/*.cx $(find test-data -name main.cx)"
 
 for fn in $TEST_FILES; do
     echo "running $fn:"

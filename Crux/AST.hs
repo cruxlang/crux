@@ -148,7 +148,7 @@ data Intrinsic input
     = IUnsafeJs Text
     | IUnsafeCoerce input
     | INot input
-    deriving (Show, Eq)
+    deriving (Show, Eq, Functor)
 
 mapIntrinsicInputs :: Monad m => (a -> m b) -> Intrinsic a -> m (Intrinsic b)
 mapIntrinsicInputs action intrin = do
@@ -191,30 +191,7 @@ data Expression idtype edata
     | EWhile edata (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
     | EBreak edata
-    deriving (Show, Eq)
-
-instance Functor (Expression idtype) where
-    fmap f expr = case expr of
-        ELet d mut pat typeAnn subExpr -> ELet (f d) mut pat typeAnn (fmap f subExpr)
-        EFun d argNames returnAnn body -> EFun (f d) argNames returnAnn (fmap f body)
-        ELookup d subExpr prop -> ELookup (f d) (fmap f subExpr) prop
-        EApp d lhs args -> EApp (f d) (fmap f lhs) (map (fmap f) args)
-        EMatch d matchExpr cases -> EMatch (f d) (fmap f matchExpr) (fmap (fmap f) cases)
-        EAssign d lhs rhs -> EAssign (f d) (fmap f lhs) (fmap f rhs)
-        ELiteral d l -> ELiteral (f d) l
-        EArrayLiteral d elements -> EArrayLiteral (f d) (fmap (fmap f) elements)
-        ERecordLiteral d fields -> ERecordLiteral (f d) (fmap (fmap f) fields)
-        EIdentifier d i -> EIdentifier (f d) i
-        ESemi d lhs rhs -> ESemi (f d) (fmap f lhs) (fmap f rhs)
-        EBinIntrinsic d intrin lhs rhs -> EBinIntrinsic (f d) intrin (fmap f lhs) (fmap f rhs)
-        EIntrinsic d i -> case i of
-            IUnsafeJs txt -> EIntrinsic (f d) (IUnsafeJs txt)
-            IUnsafeCoerce subExpr -> EIntrinsic (f d) (IUnsafeCoerce $ fmap f subExpr)
-            INot subExpr -> EIntrinsic (f d) (INot (fmap f subExpr))
-        EIfThenElse d condition ifTrue ifFalse -> EIfThenElse (f d) (fmap f condition) (fmap f ifTrue) (fmap f ifFalse)
-        EWhile d cond body -> EWhile (f d) (fmap f cond) (fmap f body)
-        EReturn d rv -> EReturn (f d) (fmap f rv)
-        EBreak d -> EBreak (f d)
+    deriving (Show, Eq, Functor)
 
 edata :: Expression idtype edata -> edata
 edata expr = case expr of

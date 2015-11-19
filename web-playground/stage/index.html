@@ -61,7 +61,7 @@ let _ = main();</textarea>
                 errorDiv.textContent = res.error;
             } else {
                 errorDiv.textContent = '';
-                resultDiv.textContent = js;
+                resultDiv.textContent = res.result;
             }
         });
 
@@ -72,8 +72,8 @@ let _ = main();</textarea>
                 errorDiv.textContent = res.error;
             } else {
                 errorDiv.textContent = '';
-                resultDiv.textContent = js;
-                eval(js);
+                resultDiv.textContent = res.result;
+                eval(res.result);
             }
         });
     }

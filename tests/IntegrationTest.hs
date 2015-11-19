@@ -3,7 +3,9 @@
 
 module IntegrationTest (htf_thisModulesTests) where
 
-import Control.Exception (catch, SomeException)
+import Control.Exception (try)
+import Crux.Typecheck.Types (UnificationError (..), showTypeVarIO)
+import Crux.Tokens (Pos (..))
 import qualified Crux.Backend.JS as JS
 import qualified Crux.Gen       as Gen
 import qualified Crux.Module
@@ -15,13 +17,10 @@ import           Test.Framework
 import           System.IO (hFlush)
 import           System.IO.Temp (withSystemTempFile)
 
-run :: Text -> IO (Either String Text)
-run src = do
-    catch (run' src) $ \e -> do
-        let _ = e :: SomeException
-        return $ Left (show e)
+run :: Text -> IO (Either (UnificationError Pos) Text)
+run src = try (run' src)
 
-run' :: Text -> IO (Either String Text)
+run' :: Text -> IO Text
 run' src = do
     m <- Crux.Module.loadProgramFromSource "<string>" src
     m' <- Gen.generateProgram m
@@ -29,7 +28,7 @@ run' src = do
     withSystemTempFile "Crux.js" $ \path' handle -> do
         T.hPutStr handle js
         hFlush handle
-        fmap (Right . T.pack) $ readProcess "node" [path'] ""
+        T.pack <$> readProcess "node" [path'] ""
 
 assertCompiles src = do
     result <- run $ T.unlines src
@@ -37,17 +36,23 @@ assertCompiles src = do
         Right _ -> return ()
         Left err -> assertFailure $ "Compile failure: " ++ show err
 
-assertFails src expectedErr = do
-    result <- run $ T.unlines src
-    case result of
-        Right o -> assertFailure $ "Expected compilation to fail but got stdout: " ++ show o
-        Left err -> assertEqual expectedErr err
-
 assertOutput src outp = do
     result <- run $ T.unlines src
     case result of
         Right a -> assertEqual outp a
         Left err -> assertFailure $ "Compile failure: " ++ show err
+
+assertUnificationError :: Pos -> String -> String -> Either (UnificationError Pos) a -> IO ()
+assertUnificationError pos a b (Left (UnificationError actualPos _ at bt)) = do
+    assertEqual pos actualPos
+
+    as <- showTypeVarIO at
+    bs <- showTypeVarIO bt
+    assertEqual a as
+    assertEqual b bs
+
+assertUnificationError _ _ _ _ =
+    assertFailure "Expected a unification error"
 
 test_hello_world = do
     result <- run $ T.unlines
@@ -101,7 +106,7 @@ test_arithmetic = do
 
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
-    assertEqual result $ Left "FATAL: Unbound symbol (1:21,\"foo\")"
+    assertEqual result $ Left $ UnboundSymbol (Pos 1 21) "foo"
 
 test_recursive = do
     result <- run $ T.unlines
@@ -141,7 +146,7 @@ test_occurs_on_fun = do
         [ "fun bad() { bad; }"
         ]
 
-    assertEqual (Left "Occurs check failed") result
+    assertEqual (Left $ OccursCheckFailed (Pos 1 1)) result
 
 test_occurs_on_sum = do
     result <- run $ T.unlines
@@ -149,14 +154,14 @@ test_occurs_on_sum = do
         , "fun bad(a) { Cons(a, a); }"
         ]
 
-    assertEqual (Left "Occurs check failed") result
+    assertEqual (Left $ OccursCheckFailed (Pos 2 14)) result
 
 test_occurs_on_record = do
     result <- run $ T.unlines
         [ "fun bad(p) { { field: bad(p) }; }"
         ]
 
-    assertEqual (Left "Occurs check failed") result
+    assertEqual (Left $ OccursCheckFailed (Pos 1 1)) result
 
 test_row_polymorphic_records = do
     result <- run $ T.unlines
@@ -186,7 +191,7 @@ test_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js;"
         ]
-    assertEqual (Left "Intrinsic _unsafe_js is not a value") result
+    assertEqual (Left $ IntrinsicError (Pos 1 11) "Intrinsic _unsafe_js is not a value") result
 
 test_unsafe_coerce = do
     result <- run $ T.unlines
@@ -202,7 +207,7 @@ test_annotation_is_checked = do
         [ "let i : Number = \"hody\";"
         ]
 
-    assertEqual (Left "Unification error: Number and String") result
+    assertUnificationError (Pos 1 1) "Number" "String" result
 
 test_record_annotation_is_checked = do
     result <- run $ T.unlines
@@ -219,7 +224,7 @@ test_arrays_of_different_types_cannot_unify = do
     result <- run $ T.unlines
         [ "let _ = [[0], [\"\"]];"
         ]
-    assertEqual (Left "Unification error: Number and String") result
+    assertUnificationError (Pos 1 9) "Number" "String" result
 
 test_array_iteration = do
     result <- run $ T.unlines
@@ -236,7 +241,8 @@ test_record_annotation_is_checked2 = do
         , "let _ = main();"
         ]
 
-    assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
+    assertUnificationError (Pos 3 5) "{}" "{log: (TUnbound 6),f...}" result
+    -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_type_alias = do
     result <- run $ T.unlines
@@ -338,7 +344,8 @@ test_cannot_assign_to_immutable_binding = do
         , "let _ = main();"
         ]
 
-    assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
+    -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
+    assertEqual (Left $ NotAnLVar (Pos 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
 
 test_assign_to_mutable_record_field = do
     result <- run $ T.unlines
@@ -363,7 +370,8 @@ test_cannot_assign_to_immutable_record_field = do
         ]
 
     assertEqual
-        (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
+        -- (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
+        (Left $ NotAnLVar (Pos 3 5) "ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
         result
 
 test_mutable_record_field_requirement_is_inferred = do
@@ -381,7 +389,7 @@ test_mutable_record_field_requirement_is_inferred = do
         ]
 
     assertEqual
-        (Left "Could not unify mutability of record field \"x\": Record field mutability does not match")
+        (Left $ RecordMutabilityUnificationError (Pos 8 5) "x" "Record field mutability does not match")
         result
 
 test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
@@ -508,13 +516,13 @@ test_polymorphic_type_annotations_are_universally_quantified =
         , "}"
         ]
 
-test_polymorphic_type_annotations_are_universally_quantified2 =
-    assertFails
+test_polymorphic_type_annotations_are_universally_quantified2 = do
+    r <- run $ T.unlines
         [ "let f : (Number) -> Number = fun (i) { i; };"
         , "let g : (a) -> a = fun (i) { i; };"
         , "let _ = f(g(\"hello\"));"
         ]
-        "Unification error: Number and String"
+    assertUnificationError (Pos 3 9) "Number" "String" r
 
 test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
@@ -523,22 +531,22 @@ test_polymorphic_type_annotations_are_universally_quantified3 =
         , "let _ = f(g(\"hello\"));"
         ]
 
-test_polymorphic_type_annotations_are_universally_quantified4 =
-    assertFails
+test_polymorphic_type_annotations_are_universally_quantified4 = do
+    r <- run $ T.unlines
         [ "let f : (a) -> Number = fun (i) { i; };"
         ]
-        "Unification error: Number and TQuant 3"
+    assertUnificationError (Pos 1 1) "Number" "TQuant 3" r
 
 test_type_annotations_on_function_decls =
     assertCompiles
         [ "fun id_int(x : int) : int { x; }"
         ]
 
-test_type_annotations_on_function_decls2 =
-    assertFails
+test_type_annotations_on_function_decls2 = do
+    r <- run $ T.unlines
         [ "fun id_int(x : a) : Number { x; }"
         ]
-        "Unification error: Number and TQuant 5"
+    assertUnificationError (Pos 1 1) "Number" "TQuant 5" r
 
 test_arrays =
     assertOutput

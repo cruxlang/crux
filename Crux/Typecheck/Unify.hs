@@ -9,7 +9,6 @@ import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
 import           Crux.Typecheck.Types
-import           Text.Printf            (printf)
 
 freshType :: Env -> IO TypeVar
 freshType Env{eNextTypeIndex} = do
@@ -111,12 +110,12 @@ occurs tvr ty = do
     case ty' of
         TUnbound _
             | ty' == tvr -> do
-                error $ "Occurs check failed"
+                throwIO $ OccursCheckFailed ()
             | otherwise -> do
                 return ()
         TBound ty''
             | ty' == tvr -> do
-                error $ "Occurs check failed"
+                throwIO $ OccursCheckFailed ()
             | otherwise -> do
                 occurs tvr ty''
         TFun arg ret -> do
@@ -134,9 +133,7 @@ occurs tvr ty = do
 
 unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
 unificationError message a b = do
-    sa <- showTypeVarIO a
-    sb <- showTypeVarIO b
-    error $ "Unification error: " ++ (if length message > 0 then message ++ " " else "") ++ sa ++ " and " ++ sb
+    throwIO $ UnificationError () message a b
 
 lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
 lookupTypeRow name rows = case rows of
@@ -165,7 +162,8 @@ unifyRecord av bv = do
         case (aRequired, lookupTypeRow key aRows, bRequired, lookupTypeRow key bRows) of
             (_, Just (m1, t1), _, Just (m2, t2)) -> do
                 case unifyRecordMutability m1 m2 of
-                    Left err -> error $ printf "Could not unify mutability of record field %s: %s" (show key) err
+                    -- Left err -> error $ printf "Could not unify mutability of record field %s: %s" (show key) err
+                    Left err -> throwIO $ RecordMutabilityUnificationError () key err
                     Right mut -> do
                         unify t1 t2
                         return TypeRow{trName=key, trMut=mut, trTyVar=t1}

@@ -3,7 +3,7 @@
 module Crux.Module where
 
 import Crux.Prelude
-import Control.Exception (throwIO, ErrorCall(..))
+import Control.Exception (ErrorCall(..))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Text as Text

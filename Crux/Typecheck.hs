@@ -1,15 +1,13 @@
+{-# LANGUAGE MultiWayIf        #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE MultiWayIf #-}
 
 module Crux.Typecheck where
 
-import           Control.Exception      (ErrorCall (..), throwIO)
-import qualified Data.HashMap.Strict    as HashMap
-import qualified Data.Text              as Text
-import           Prelude                hiding (String)
+import           Control.Exception     (ErrorCall (..))
 import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
@@ -19,7 +17,10 @@ import           Crux.Text             (isCapitalized)
 import           Crux.Tokens           (Pos (..))
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
-import           Text.Printf            (printf)
+import qualified Data.HashMap.Strict   as HashMap
+import qualified Data.Text             as Text
+import           Prelude               hiding (String)
+import           Text.Printf           (printf)
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
@@ -146,12 +147,29 @@ resolveType pos env name = do
             tb <- readIORef $ eTypeBindings env
             throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
 
-resolveName :: Pos -> Env -> UnresolvedReference -> IO (ResolvedReference, TypeVar)
-resolveName pos env name = do
+resolveName :: Env -> UnresolvedReference -> IO (ResolvedReference, TypeVar)
+resolveName env name = do
     result <- HashTable.lookup name (eBindings env)
     case result of
         Just (rr, _, t) -> return (rr, t)
-        Nothing -> throwIO $ ErrorCall $ "FATAL: Unbound symbol " ++ show (pos, name)
+        Nothing -> throwIO $ UnboundSymbol () name
+
+withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
+withPositionInformation expr a = catch a handle
+  where
+    handle :: UnificationError () -> IO a
+    handle (UnificationError () message at bt) =
+        throwIO (UnificationError (edata expr) message at bt :: UnificationError Pos)
+    handle (RecordMutabilityUnificationError () s m) =
+        throwIO (RecordMutabilityUnificationError (edata expr) s m)
+    handle (UnboundSymbol () message) =
+        throwIO (UnboundSymbol (edata expr) message)
+    handle (OccursCheckFailed ()) =
+        throwIO (OccursCheckFailed (edata expr))
+    handle (IntrinsicError () message) =
+        throwIO (IntrinsicError (edata expr) message)
+    handle (NotAnLVar () s) =
+        throwIO (NotAnLVar (edata expr) s)
 
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
@@ -164,7 +182,7 @@ resolveArrayType pos env = do
         _ -> fail "Unexpected Array type"
 
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
-check env expr = case expr of
+check env expr = withPositionInformation expr $ case expr of
     EFun _ params retAnn body -> do
         bindings' <- HashTable.clone (eBindings env)
         paramTypes <- forM params $ \(p, _) -> do
@@ -260,7 +278,7 @@ check env expr = case expr of
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
             lhs'' <- freeze lhs'
-            error $ printf "Not an lvar: %s" (show lhs'')
+            throwIO $ NotAnLVar () (show lhs'')
 
         unitType <- newIORef $ TPrimitive Unit
 
@@ -294,11 +312,11 @@ check env expr = case expr of
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     EIdentifier _ "_unsafe_js" ->
-        error "Intrinsic _unsafe_js is not a value"
+        throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
     EIdentifier _ "_unsafe_coerce" ->
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
-        (rr, tyref) <- resolveName pos env txt
+        (rr, tyref) <- resolveName env txt
         tyref' <- instantiate env tyref
         return $ EIdentifier tyref' rr
     ESemi _ lhs rhs -> do
@@ -452,27 +470,31 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         return $ DJSData name variants
     DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
-    DFun (FunDef pos name args returnAnn body) -> do
-        ty <- freshType env
-        HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
-        let expr = EFun pos args returnAnn body
-        expr'@(EFun _ _ _ body') <- check env expr
-        unify (edata expr') ty
-        quantify ty
-        return $ DFun $ FunDef (edata expr') name args returnAnn body'
-    DLet _ mut name maybeAnnot expr -> do
-        env' <- childEnv env
-        ty <- freshType env'
-        forM_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
-            unify ty annotTy
+    DFun (FunDef pos name args returnAnn body) ->
+        let fakeFunExpr = EFun pos args returnAnn body
+        in withPositionInformation fakeFunExpr $ do
+            ty <- freshType env
+            HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
+            let expr = EFun pos args returnAnn body
+            expr'@(EFun _ _ _ body') <- check env expr
+            unify (edata expr') ty
+            quantify ty
+            return $ DFun $ FunDef (edata expr') name args returnAnn body'
+    DLet pos mut name maybeAnnot expr ->
+        let fakeExpr = ELet pos mut name maybeAnnot expr
+        in withPositionInformation fakeExpr $ do
+            env' <- childEnv env
+            ty <- freshType env'
+            forM_ maybeAnnot $ \annotation -> do
+                annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
+                unify ty annotTy
 
-        expr' <- check env' expr
-        unify ty (edata expr')
+            expr' <- check env' expr
+            unify ty (edata expr')
 
-        HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
-        quantify ty
-        return $ DLet (edata expr') mut name maybeAnnot expr'
+            HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
+            quantify ty
+            return $ DLet (edata expr') mut name maybeAnnot expr'
 
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export dt) <- decls]
@@ -715,8 +737,35 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
 run loadedModules modul = do
-    env <- buildTypeEnvironment loadedModules modul
-    decls <- forM (mDecls modul) (checkDecl env)
-    freezeModule modul
-        { mDecls=decls
-        }
+        env <- buildTypeEnvironment loadedModules modul
+        decls <- forM (mDecls modul) (checkDecl env)
+        freezeModule modul
+            { mDecls=decls
+            }
+    -- handle :: UnificationError Pos -> IO a
+    -- handle (UnificationError pos message at bt) = do
+    --     as <- showTypeVarIO at
+    --     bs <- showTypeVarIO bt
+    --     let m
+    --             | null message = ""
+    --             | otherwise = "\n" ++ message
+    --     error $ printf "Unification error at %i,%i\n\t%s\n\t%s%s" (posLine pos) (posCol pos) as bs m
+
+throwTypeError :: UnificationError Pos -> IO b
+throwTypeError (UnificationError pos message at bt) = do
+    as <- showTypeVarIO at
+    bs <- showTypeVarIO bt
+    let m
+            | null message = ""
+            | otherwise = "\n" ++ message
+    error $ printf "Unification error at %i,%i\n\t%s\n\t%s%s" (posLine pos) (posCol pos) as bs m
+throwTypeError (RecordMutabilityUnificationError pos key message) =
+    error $ printf "Unification error at %i,%i: Could not unify mutability of record field %s: %s" (posLine pos) (posCol pos) (show key) message
+throwTypeError (UnboundSymbol pos message) =
+    error $ printf "Unbound symbol at %i,%i\n\t%s" (posLine pos) (posCol pos) (show message)
+throwTypeError (OccursCheckFailed pos) =
+    error $ printf "Occurs check failed at %i,%i" (posLine pos) (posCol pos)
+throwTypeError (IntrinsicError pos message) =
+    error $ printf "%s at %i,%i" message (posLine pos) (posCol pos)
+throwTypeError (NotAnLVar pos s) = do
+    error $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s

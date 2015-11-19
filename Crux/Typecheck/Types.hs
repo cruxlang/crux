@@ -25,6 +25,25 @@ data Env = Env
     , eInLoop        :: !Bool
     }
 
+data UnificationError a
+    = UnificationError a String TypeVar TypeVar
+    | RecordMutabilityUnificationError a UnresolvedReference String
+    | UnboundSymbol a UnresolvedReference
+    | OccursCheckFailed a
+    | IntrinsicError a String
+    | NotAnLVar a String
+    deriving (Eq, Typeable)
+
+instance Show a => Show (UnificationError a) where
+    show (UnificationError a s _ _) = "UnificationError " ++ show a ++ " " ++ s ++ " _ _"
+    show (RecordMutabilityUnificationError a s m) = "RecordMutabilityUnificationError " ++ show a ++ " " ++ show s ++ " " ++ show m
+    show (UnboundSymbol a s) = "UnboundSymbol " ++ show a ++ " " ++ show s
+    show (OccursCheckFailed a) = "OccursCheckFailed " ++ show a
+    show (IntrinsicError a s) = "IntrinsicError " ++ show a ++ " " ++ show s
+    show (NotAnLVar a t) = "NotAnLVar " ++ show a ++ " " ++ show t
+
+instance (Show a, Typeable a) => Exception (UnificationError a)
+
 showTypeVarIO :: TypeVar -> IO [Char]
 showTypeVarIO tvar = do
     tvar' <- readIORef tvar

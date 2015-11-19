@@ -1,16 +1,18 @@
 module Crux.Prelude
-    ( module Data.Foldable
-    , module Data.Text
-    , module Data.IORef
-    , module Data.Monoid
-    , module Debug.Trace
+    ( module Control.Applicative
+    , module Control.Exception
     , module Control.Monad
     , module Control.Monad.IO.Class
-    , module Control.Applicative
-    , module Data.HashMap.Strict
+    , module Data.Foldable
     , module Data.Hashable
-    , module GHC.Generics
+    , module Data.HashMap.Strict
+    , module Data.IORef
+    , module Data.Monoid
     , module Data.String
+    , module Data.Text
+    , module Data.Typeable
+    , module Debug.Trace
+    , module GHC.Generics
     ) where
 
 import Data.Foldable (foldl', foldlM)
@@ -20,6 +22,8 @@ import Data.Monoid (Monoid(..), mconcat, (<>), mempty)
 import Debug.Trace (trace, traceM, traceShow, traceShowM)
 import Control.Monad (forM, forM_, when, foldM)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Exception (throwIO, catch, Exception)
+import Data.Typeable (Typeable)
 import Control.Applicative ((<$>), (<*>), (<*), (*>), pure)
 import Data.HashMap.Strict (HashMap)
 import Data.Hashable (Hashable)

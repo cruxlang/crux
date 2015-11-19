@@ -48,7 +48,8 @@ library
               , MultiWayIf
               , LambdaCase
 
-    ghc-options: -Wall -Werror
+    ghc-options: -Wall
+    -- ghc-options: -Werror
     default-language: Haskell2010
 
 executable crux

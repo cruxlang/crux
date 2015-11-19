@@ -26,7 +26,7 @@ data Variant = Variant
     } deriving (Show, Eq)
 
 data FunDef idtype edata = FunDef edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
-    deriving (Show, Eq, Functor)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
@@ -43,7 +43,7 @@ data DeclarationType idtype edata
     | DData Name [TypeVariable] [Variant]
     | DJSData Name [JSVariant]
     | DType TypeAlias
-    deriving (Show, Eq, Functor)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data ExportFlag = Export | NoExport
     deriving (Show, Eq)
@@ -108,7 +108,7 @@ data Pattern
     deriving (Show, Eq)
 
 data Case idtype edata = Case Pattern (Expression idtype edata)
-    deriving (Show, Eq)
+    deriving (Show, Eq, Foldable, Traversable)
 
 instance Functor (Case idtype) where
     fmap f (Case patt subExpr) = Case patt (fmap f subExpr)
@@ -148,17 +148,7 @@ data Intrinsic input
     = IUnsafeJs Text
     | IUnsafeCoerce input
     | INot input
-    deriving (Show, Eq, Functor)
-
-mapIntrinsicInputs :: Monad m => (a -> m b) -> Intrinsic a -> m (Intrinsic b)
-mapIntrinsicInputs action intrin = do
-    case intrin of
-        IUnsafeJs text ->
-            return $ IUnsafeJs text
-        IUnsafeCoerce input ->
-            fmap IUnsafeCoerce $ action input
-        INot input ->
-            fmap INot $ action input
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 type IntrinsicId idtype edata = Intrinsic (Expression idtype edata)
 
@@ -191,7 +181,7 @@ data Expression idtype edata
     | EWhile edata (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
     | EBreak edata
-    deriving (Show, Eq, Functor)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 edata :: Expression idtype edata -> edata
 edata expr = case expr of

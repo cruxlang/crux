@@ -416,105 +416,13 @@ unfreezeTypeVar imt = newIORef =<< case imt of
         return $ TPrimitive pt
 
 freezeIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
-freezeIntrinsic = mapIntrinsicInputs freeze
+freezeIntrinsic = traverse freeze
 
 freeze :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
-freeze expr = case expr of
-    EFun td params retAnn body -> do
-        td' <- freezeTypeVar td
-        body' <- freeze body
-        return $ EFun td' params retAnn body'
-    EApp td lhs rhs -> do
-        td' <- freezeTypeVar td
-        lhs' <- freeze lhs
-        rhs' <- mapM freeze rhs
-        return $ EApp td' lhs' rhs'
-    EIntrinsic td intrin -> do
-        td' <- freezeTypeVar td
-        intrin' <- freezeIntrinsic intrin
-        return $ EIntrinsic td' intrin'
-    ELookup td lhs rhs -> do
-        td' <- freezeTypeVar td
-        lhs' <- freeze lhs
-        return $ ELookup td' lhs' rhs
-    EMatch td matchExpr cases -> do
-        td' <- freezeTypeVar td
-        expr' <- freeze matchExpr
-        cases' <- forM cases $ \(Case pattern subExpr) ->
-            fmap (Case pattern) (freeze subExpr)
-        return $ EMatch td' expr' cases'
-    ELet td mut name typeAnn expr' -> do
-        td' <- freezeTypeVar td
-        expr'' <- freeze expr'
-        return $ ELet td' mut name typeAnn expr''
-    EAssign td lhs rhs -> do
-        td' <- freezeTypeVar td
-        lhs' <- freeze lhs
-        rhs' <- freeze rhs
-        return $ EAssign td' lhs' rhs'
-    ELiteral td lit -> do
-        td' <- freezeTypeVar td
-        return $ ELiteral td' lit
-    EArrayLiteral td elements -> do
-        td' <- freezeTypeVar td
-        elements' <- mapM freeze elements
-        return $ EArrayLiteral td' elements'
-    ERecordLiteral td fields -> do
-        td' <- freezeTypeVar td
-        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
-            fieldExpr' <- freeze fieldExpr
-            return (name, fieldExpr')
-        return $ ERecordLiteral td' (HashMap.fromList fields')
-    EIdentifier td i -> do
-        td' <- freezeTypeVar td
-        return $ EIdentifier td' i
-    ESemi td lhs rhs -> do
-        td' <- freezeTypeVar td
-        lhs' <- freeze lhs
-        rhs' <- freeze rhs
-        return $ ESemi td' lhs' rhs'
-    EBinIntrinsic td name lhs rhs -> do
-        td' <- freezeTypeVar td
-        lhs' <- freeze lhs
-        rhs' <- freeze rhs
-        return $ EBinIntrinsic td' name lhs' rhs'
-    EIfThenElse td condition ifTrue ifFalse -> do
-        td' <- freezeTypeVar td
-        condition' <- freeze condition
-        ifTrue' <- freeze ifTrue
-        ifFalse' <- freeze ifFalse
-        return $ EIfThenElse td' condition' ifTrue' ifFalse'
-    EWhile td cond body -> do
-        td' <- freezeTypeVar td
-        cond' <- freeze cond
-        body' <- freeze body
-        return $ EWhile td' cond' body'
-    EReturn td rv -> do
-        td' <- freezeTypeVar td
-        rv' <- freeze rv
-        return $ EReturn td' rv'
-    EBreak td -> do
-        td' <- freezeTypeVar td
-        return $ EBreak td'
+freeze = traverse freezeTypeVar
 
 freezeDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
-freezeDecl (Declaration export decl) = fmap (Declaration export) $ case decl of
-    DDeclare name typeIdent -> do
-        return $ DDeclare name typeIdent
-    DData name typeVars variants -> do
-        return $ DData name typeVars variants
-    DJSData name variants -> do
-        return $ DJSData name variants
-    DType (TypeAlias name typeVars ident) -> do
-        return $ DType $ TypeAlias name typeVars ident
-    DLet ty mut name typeAnn expr -> do
-        ty' <- freezeTypeVar ty
-        expr' <- freeze expr
-        return $ DLet ty' mut name typeAnn expr'
-    DFun (FunDef ty name params retAnn body) -> do
-        ty' <- freezeTypeVar ty
-        body' <- freeze body
-        return $ DFun $ FunDef ty' name params retAnn body'
+freezeDecl (Declaration export decl) = fmap (Declaration export) $ traverse freezeTypeVar decl
 
 freezeModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
 freezeModule Module{..} = do

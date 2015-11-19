@@ -174,7 +174,7 @@ generate env expr = case expr of
             _ -> do
                 return Nothing
     AST.EIntrinsic _ iid -> do
-        iid' <- runMaybeT $ AST.mapIntrinsicInputs (MaybeT . generate env) iid
+        iid' <- runMaybeT $ traverse (MaybeT . generate env) iid
         case iid' of
             Just iid'' -> do
                 newInstruction env $ \output -> Intrinsic output iid''

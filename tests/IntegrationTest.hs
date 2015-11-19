@@ -573,3 +573,16 @@ test_quantified_record =
         , "    errorResponse(response, 404);"
         , "}"
         ]
+
+{-
+test_for_loop =
+    result <- run $ T.unlines
+        [ "let "
+        , "fun main(o) {"
+        , "    if False then o else r;"
+        , "}"
+        , "let _ = main(r);"
+        ]
+
+    assertEqual (Right "") result
+-}

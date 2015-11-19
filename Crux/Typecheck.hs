@@ -153,6 +153,16 @@ resolveName pos env name = do
         Just (rr, _, t) -> return (rr, t)
         Nothing -> throwIO $ ErrorCall $ "FATAL: Unbound symbol " ++ show (pos, name)
 
+resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
+resolveArrayType pos env = do
+    elementType <- freshType env
+    arrayType <- resolveType pos env "Array"
+    readIORef arrayType >>= \case
+        TUserType td [_elementType] -> do
+            newArrayType <- newIORef $ TUserType td [elementType]
+            return (newArrayType, elementType)
+        _ -> fail "Unexpected Array type"
+
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check env expr = case expr of
     EFun _ params retAnn body -> do
@@ -264,12 +274,11 @@ check env expr = case expr of
         return $ ELiteral litType lit
 
     EArrayLiteral _ elements -> do
-        elementType <- freshType env
+        (arrayType, elementType) <- resolveArrayType (edata expr) env
         elements' <- forM elements $ \element -> do
             elementExpr <- check env element
             unify elementType (edata elementExpr)
             return elementExpr
-        arrayType <- resolveType (edata expr) env "Array"
         return $ EArrayLiteral arrayType elements'
 
     ERecordLiteral _ fields -> do

@@ -136,7 +136,7 @@ unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
 unificationError message a b = do
     sa <- showTypeVarIO a
     sb <- showTypeVarIO b
-    error $ "Unification error: " ++ message ++ " " ++ sa ++ " and " ++ sb
+    error $ "Unification error: " ++ (if length message > 0 then message ++ " " else "") ++ sa ++ " and " ++ sb
 
 lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
 lookupTypeRow name rows = case rows of

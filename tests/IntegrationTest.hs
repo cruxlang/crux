@@ -202,7 +202,7 @@ test_annotation_is_checked = do
         [ "let i : Number = \"hody\";"
         ]
 
-    assertEqual (Left "Unification error:  Number and String") result
+    assertEqual (Left "Unification error: Number and String") result
 
 test_record_annotation_is_checked = do
     result <- run $ T.unlines
@@ -214,6 +214,18 @@ test_record_annotation_is_checked = do
         ]
 
     assertEqual (Right "Hoop\n") result
+
+test_arrays_of_different_types_cannot_unify = do
+    result <- run $ T.unlines
+        [ "let _ = [[0], [\"\"]];"
+        ]
+    assertEqual (Left "Unification error: Number and String") result
+
+test_array_iteration = do
+    result <- run $ T.unlines
+        [ "let _ = each([0, 1], print);"
+        ]
+    assertEqual (Right "0\n1\n") result
 
 test_record_annotation_is_checked2 = do
     result <- run $ T.unlines
@@ -502,7 +514,7 @@ test_polymorphic_type_annotations_are_universally_quantified2 =
         , "let g : (a) -> a = fun (i) { i; };"
         , "let _ = f(g(\"hello\"));"
         ]
-        "Unification error:  Number and String"
+        "Unification error: Number and String"
 
 test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
@@ -515,7 +527,7 @@ test_polymorphic_type_annotations_are_universally_quantified4 =
     assertFails
         [ "let f : (a) -> Number = fun (i) { i; };"
         ]
-        "Unification error:  Number and TQuant 3"
+        "Unification error: Number and TQuant 3"
 
 test_type_annotations_on_function_decls =
     assertCompiles
@@ -526,7 +538,7 @@ test_type_annotations_on_function_decls2 =
     assertFails
         [ "fun id_int(x : a) : Number { x; }"
         ]
-        "Unification error:  Number and TQuant 5"
+        "Unification error: Number and TQuant 5"
 
 test_arrays =
     assertOutput

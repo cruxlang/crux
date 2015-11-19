@@ -3,6 +3,8 @@ module Crux.Typecheck.Types where
 import Crux.Prelude
 import Data.List (intercalate)
 import qualified Data.Text as Text
+import Text.Printf (printf)
+import Crux.Tokens (Pos (..))
 import Crux.AST
     ( LetMutability
     , MutableTypeVar (..)
@@ -73,3 +75,22 @@ showTypeVarIO tvar = do
             return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
         TPrimitive ty ->
             return $ show ty
+
+errorToString :: UnificationError Pos -> IO String
+errorToString (UnificationError pos message at bt) = do
+    as <- showTypeVarIO at
+    bs <- showTypeVarIO bt
+    let m
+            | null message = ""
+            | otherwise = "\n" ++ message
+    return $ printf "Unification error at %i,%i\n\t%s\n\t%s%s" (posLine pos) (posCol pos) as bs m
+errorToString (RecordMutabilityUnificationError pos key message) =
+    return $ printf "Unification error at %i,%i: Could not unify mutability of record field %s: %s" (posLine pos) (posCol pos) (show key) message
+errorToString (UnboundSymbol pos message) =
+    return $ printf "Unbound symbol at %i,%i\n\t%s" (posLine pos) (posCol pos) (show message)
+errorToString (OccursCheckFailed pos) =
+    return $ printf "Occurs check failed at %i,%i" (posLine pos) (posCol pos)
+errorToString (IntrinsicError pos message) =
+    return $ printf "%s at %i,%i" message (posLine pos) (posCol pos)
+errorToString (NotAnLVar pos s) = do
+    return $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s

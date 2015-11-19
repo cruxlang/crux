@@ -7,11 +7,13 @@ module Lib
 
 import           Control.Monad                 (void)
 import           Control.Monad.Trans           (liftIO)
+import Control.Exception (try)
 import GHCJS.Foreign
 import           Crux.AST                      (ModuleName (..),
                                                 ModuleSegment (..))
 import qualified Crux.AST                      as AST
 import qualified Crux.Backend.JS               as JS
+import Crux.Typecheck.Types (UnificationError, errorToString)
 import GHCJS.Types (JSRef, JSString)
 import qualified Crux.Gen                      as Gen
 import           Crux.Module                   (loadModule,
@@ -67,8 +69,13 @@ run :: IO ()
 run = runWebGUI $ \_webView -> do
     let returnViaArgument :: (JSRef a -> IO (JSRef b)) -> JSRef a -> JSRef c -> IO ()
         returnViaArgument f arg retObj = do
-            r <- f arg
-            setProp "ret" r retObj
+            r <- try $ f arg
+            case r of
+                Right code ->
+                    setProp "result" code retObj
+                Left err -> do
+                    s <- toJSString <$> errorToString err
+                    setProp "error" s retObj
 
     callback <- syncCallback2 NeverRetain False (returnViaArgument compileJS)
     js_setTheFunction callback

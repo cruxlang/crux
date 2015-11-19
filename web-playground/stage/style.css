@@ -17,6 +17,11 @@
     font-family: monospace;
 }
 
+#errors {
+    font-family: monospace;
+    white-space: pre;
+}
+
 #js_source {
     font-family: monospace;
     white-space: pre;

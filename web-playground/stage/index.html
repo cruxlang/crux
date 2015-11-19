@@ -12,6 +12,8 @@
       <button id="compile">Compile</button>
       <button id="run">Run</button>
   </div>
+  <div id="errors">
+  </div>
   <div id="source">
       <textarea id="crux_source">
 data Node {}
@@ -41,26 +43,38 @@ let _ = main();</textarea>
     function compileCrux(source) {
         var ret = {};
         window.hs_compileCrux(source, ret);
-        return ret.ret;
+        console.log(ret);
+        return ret;
     }
 
     function main() {
         var textArea = document.getElementById('crux_source');
         var resultDiv = document.getElementById('js_source');
+        var errorDiv = document.getElementById('errors');
         var runButton = document.getElementById('run');
         var compileButton = document.getElementById('compile');
 
         compileButton.addEventListener('click', function () {
             var content = textArea.value;
-            var js = compileCrux(content);
-            resultDiv.textContent = js;
+            var res = compileCrux(content);
+            if (res.error) {
+                errorDiv.textContent = res.error;
+            } else {
+                errorDiv.textContent = '';
+                resultDiv.textContent = js;
+            }
         });
 
         runButton.addEventListener('click', function () {
             var content = textArea.value;
-            var js = compileCrux(content);
-            resultDiv.textContent = js;
-            eval(js);
+            var res = compileCrux(content);
+            if (res.error) {
+                errorDiv.textContent = res.error;
+            } else {
+                errorDiv.textContent = '';
+                resultDiv.textContent = js;
+                eval(js);
+            }
         });
     }
 

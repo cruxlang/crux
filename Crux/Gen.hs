@@ -86,70 +86,58 @@ type InstructionWriter a = WriterT [Instruction] IO a
 writeInstruction :: Instruction -> InstructionWriter ()
 writeInstruction i = tell [i]
 
-newInstruction :: Env -> (Output -> Instruction) -> InstructionWriter (Maybe Value)
+newInstruction :: Env -> (Output -> Instruction) -> InstructionWriter Value
 newInstruction env instr = do
     output <- lift $ newTempOutput env
     writeInstruction $ instr output
-    return $ Just $ Reference output
+    return $ Reference output
+
+both :: Maybe a -> Maybe b -> Maybe (a, b)
+both (Just x) (Just y) = Just (x, y)
+both _ _ = Nothing
 
 generate :: Show t => Env -> AST.Expression AST.ResolvedReference t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
     AST.ELet _ _mut name _ v -> do
         v' <- generate env v
-        case v' of
-            Just v'' -> do
-                writeInstruction $ LetBinding name v''
-                return $ Just $ Literal AST.LUnit
-            Nothing -> return Nothing
+        for v' $ \v'' -> do
+            writeInstruction $ LetBinding name v''
+            return $ Literal AST.LUnit
+
     AST.EFun _ params _retAnn body -> do
         body' <- subBlockWithReturn env body
         return $ Just $ FunctionLiteral (map fst params) body'
 
     AST.ELookup _ value propertyName -> do
         v <- generate env value
-        case v of
-            Just v' -> do
-                newInstruction env $ \output -> Lookup output v' propertyName
-            Nothing -> do
-                return Nothing
+        for v $ \v' -> do
+            newInstruction env $ \output -> Lookup output v' propertyName
 
     AST.EApp _ (AST.ELookup _ this methodName) args -> do
         this' <- generate env this
         args' <- runMaybeT $ mapM (MaybeT . generate env) args
-        case (this', args') of
-            (Just this'', Just args'') -> do
-                newInstruction env $ \output -> MethodCall output this'' methodName args''
-            _ ->
-                return Nothing
+        for (both this' args') $ \(this'', args'') -> do
+            newInstruction env $ \output -> MethodCall output this'' methodName args''
 
     AST.EApp _ fn args -> do
         fn' <- generate env fn
         args' <- runMaybeT $ mapM (MaybeT . generate env) args
-        case (fn', args') of
-            (Just fn'', Just args'') -> do
-                newInstruction env $ \output -> Call output fn'' args''
-            _ -> do
-                return Nothing
+        for (both fn' args') $ \(fn'', args'') -> do
+            newInstruction env $ \output -> Call output fn'' args''
 
     AST.EAssign _ (AST.ELookup _ lhs propName) rhs -> do
         lhs' <- generate env lhs
         rhs' <- generate env rhs
-        case (lhs', rhs') of
-            (Just (Reference lhs''), Just rhs'') -> do
-                writeInstruction $ Assign (OutputProperty lhs'' propName) rhs''
-                return Nothing
-            _ ->
-                return Nothing
+        for (both lhs' rhs') $ \(Reference lhs'', rhs'') -> do
+            writeInstruction $ Assign (OutputProperty lhs'' propName) rhs''
+            return $ Literal AST.LUnit
 
     AST.EAssign _ lhs rhs -> do
         lhs' <- generate env lhs
         rhs' <- generate env rhs
-        case (lhs', rhs') of
-            (Just (Reference lhs''), Just rhs'') -> do
-                writeInstruction $ Assign lhs'' rhs''
-                return Nothing
-            _ ->
-                return Nothing
+        for (both lhs' rhs') $ \(Reference lhs'', rhs'') -> do
+            writeInstruction $ Assign lhs'' rhs''
+            return $ Literal AST.LUnit
 
     AST.ELiteral _ lit -> do
         return $ Just $ Literal lit
@@ -168,18 +156,13 @@ generate env expr = case expr of
     AST.EBinIntrinsic _ bi lhs rhs -> do
         lhs' <- generate env lhs
         rhs' <- generate env rhs
-        case (lhs', rhs') of
-            (Just lhs'', Just rhs'') -> do
-                newInstruction env $ \output -> BinIntrinsic output bi lhs'' rhs''
-            _ -> do
-                return Nothing
+        for (both lhs' rhs') $ \(lhs'', rhs'') -> do
+            newInstruction env $ \output -> BinIntrinsic output bi lhs'' rhs''
+
     AST.EIntrinsic _ iid -> do
         iid' <- runMaybeT $ traverse (MaybeT . generate env) iid
-        case iid' of
-            Just iid'' -> do
-                newInstruction env $ \output -> Intrinsic output iid''
-            Nothing -> do
-                return Nothing
+        for iid' $ \iid'' -> do
+            newInstruction env $ \output -> Intrinsic output iid''
 
     AST.ESemi _ lhs rhs -> do
         _ <- generate env lhs
@@ -187,17 +170,14 @@ generate env expr = case expr of
 
     AST.EMatch _ value cases -> do
         value' <- generate env value
-        case value' of
-            Just value'' -> do
-                output <- lift $ newTempOutput env
-                writeInstruction $ EmptyLet output
-                cases' <- forM cases $ \(AST.Case pat expr') -> do
-                    expr'' <- subBlockWithOutput env output expr'
-                    return (pat, expr'')
-                writeInstruction $ Match value'' cases'
-                return $ Just $ Reference output
-            Nothing -> do
-                return Nothing
+        for value' $ \value'' -> do
+            output <- lift $ newTempOutput env
+            writeInstruction $ EmptyLet output
+            cases' <- forM cases $ \(AST.Case pat expr') -> do
+                expr'' <- subBlockWithOutput env output expr'
+                return (pat, expr'')
+            writeInstruction $ Match value'' cases'
+            return $ Reference output
 
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
         cond' <- generate env cond
@@ -205,12 +185,9 @@ generate env expr = case expr of
         writeInstruction $ EmptyLet output
         ifTrue' <- subBlockWithOutput env output ifTrue
         ifFalse' <- subBlockWithOutput env output ifFalse
-        case cond' of
-            Just cond'' -> do
-                writeInstruction $ If cond'' ifTrue' ifFalse'
-                return $ Just $ Reference output
-            Nothing -> do
-                return Nothing
+        for cond' $ \cond'' -> do
+            writeInstruction $ If cond'' ifTrue' ifFalse'
+            return $ Reference output
 
     AST.EWhile _ cond body -> do
         let boolType = AST.edata cond
@@ -223,16 +200,13 @@ generate env expr = case expr of
                     (AST.ELiteral unitType $ AST.LUnit))
                 body
         writeInstruction $ Loop body'
-        return Nothing
+        return $ Just $ Literal AST.LUnit
 
     AST.EReturn _ rv -> do
         rv' <- generate env rv
-        case rv' of
-            Just rv'' -> do
-                writeInstruction $ Return rv''
-                return Nothing
-            Nothing -> do
-                return Nothing
+        forM_ rv' $ \rv'' -> do
+            writeInstruction $ Return rv''
+        return Nothing
 
     AST.EBreak _ -> do
         writeInstruction $ Break

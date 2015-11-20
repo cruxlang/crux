@@ -13,6 +13,7 @@ module Crux.Prelude
     , module Data.Typeable
     , module Debug.Trace
     , module GHC.Generics
+    , module Data.Traversable
     ) where
 
 import Data.Foldable (foldl', foldlM)
@@ -29,3 +30,4 @@ import Data.HashMap.Strict (HashMap)
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Data.String (IsString(..))
+import Data.Traversable (for)

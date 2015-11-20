@@ -88,7 +88,7 @@ renderInstruction instr = case instr of
 
     Gen.Loop body ->
         JSTree.SWhile
-            (JSTree.ERaw "true")
+            (JSTree.ELiteral JSTree.LTrue)
             (JSTree.SBlock $ map renderInstruction body)
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"

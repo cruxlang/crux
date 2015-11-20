@@ -315,7 +315,7 @@ check env expr = withPositionInformation expr $ case expr of
         throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
     EIdentifier _ "_unsafe_coerce" ->
         error "Intrinsic _unsafe_coerce is not a value"
-    EIdentifier pos txt -> do
+    EIdentifier _pos txt -> do
         (rr, tyref) <- resolveName env txt
         tyref' <- instantiate env tyref
         return $ EIdentifier tyref' rr

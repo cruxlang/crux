@@ -101,12 +101,12 @@ generateMatchCond matchVar patt = case patt of
     PConstructor name subpatterns ->
         let testIt = JSTree.EBinOp "=="
                 (JSTree.ELiteral $ JSTree.LString name)
-                (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
+                (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
             buildTestCascade acc (index, subpattern) = case subpattern of
                 PPlaceholder _ -> acc
                 _ -> JSTree.EBinOp "&&"
                     acc
-                    (generateMatchCond (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
+                    (generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
         in case subpatterns of
             [] -> testIt
             _ -> JSTree.EBinOp "&&" testIt
@@ -120,7 +120,7 @@ generateMatchVars matchVar patt = case patt of
         [ JSTree.SVar pname $ Just matchVar ]
     PConstructor _ subpatterns ->
         concat
-            [ generateMatchVars (JSTree.ESubscript matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
+            [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns
             ]
 

@@ -37,7 +37,6 @@ data Expression
     | EObject (HashMap Name Expression)
     | EPrefixOp Text Expression
     | EBinOp Text Expression Expression -- lhs <op> rhs
-    | ESubscript Expression Expression
     | ELookup Expression Name
     | EIndex Expression Expression
     | ELiteral Literal
@@ -145,11 +144,6 @@ renderExpr expr = case expr of
             <> B.fromText op
             <> renderExpr rhs
             <> B.fromText ")"
-    ESubscript lhs rhs ->
-        renderExpr lhs
-        <> B.fromText "["
-        <> renderExpr rhs
-        <> B.fromText "]"
     ELookup lhs propName ->
         B.fromText "("
         <> renderExpr lhs

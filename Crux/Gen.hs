@@ -46,6 +46,7 @@ data Instruction
     | Call Output Input [Input]
     | MethodCall Output Input Name [Input]
     | Lookup Output Input Name
+    | Index Output Input Input
 
     -- control flow
     | Return Input
@@ -201,6 +202,31 @@ generate env expr = case expr of
                 body
         writeInstruction $ Loop body'
         return $ Just $ Literal AST.LUnit
+
+    AST.EFor _ name over body -> do
+        over' <- generate env over
+        for over' $ \over'' -> do
+            cmpVar <- lift $ newTempOutput env
+
+            loopVar <- lift $ newTempOutput env
+            writeInstruction $ EmptyLet loopVar
+            writeInstruction $ Assign loopVar $ Literal $ AST.LInteger 0
+            writeInstruction $ EmptyLet cmpVar
+            lengthVar <- newInstruction env $ \output -> Lookup output over'' "length"
+            indexVar <- lift $ newTempOutput env
+
+            body' <- subBlock env body
+            let loopHead =
+                    [ BinIntrinsic cmpVar AST.BILess (Reference loopVar) lengthVar
+                    , If (Reference cmpVar) [] [Break]
+                    , Index indexVar over'' $ Reference loopVar
+                    , LetBinding name $ Reference indexVar
+                    ]
+            let loopTail = [BinIntrinsic loopVar AST.BIPlus (Reference loopVar) $ Literal $ AST.LInteger 1]
+            let body'' = loopHead ++ body' ++ loopTail
+
+            writeInstruction $ Loop body''
+            return $ Literal AST.LUnit
 
     AST.EReturn _ rv -> do
         rv' <- generate env rv

@@ -39,6 +39,7 @@ data Expression
     | EBinOp Text Expression Expression -- lhs <op> rhs
     | ESubscript Expression Expression
     | ELookup Expression Name
+    | EIndex Expression Expression
     | ELiteral Literal
     | EIdentifier Name
     | EArray [Expression]
@@ -114,7 +115,7 @@ render stmt = case stmt of
     SWhile expr body ->
         B.fromText "while("
         <> renderExpr expr
-        <> B.fromText")"
+        <> B.fromText ")"
         <> render body
 
 renderExpr :: Expression -> Builder
@@ -155,6 +156,8 @@ renderExpr expr = case expr of
         <> B.fromText ")"
         <> B.fromText "."
         <> B.fromText propName
+    EIndex lhs rhs ->
+        renderExpr lhs <> B.fromText "[" <> renderExpr rhs <> B.fromText "]"
     ELiteral lit -> case lit of
         LInteger i -> B.fromString $ show i
         LString i -> B.fromString $ show i

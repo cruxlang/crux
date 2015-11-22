@@ -106,6 +106,15 @@ whileExpression = do
 
     return $ EWhile (tokenData pr) c body
 
+forExpression :: Parser ParseExpression
+forExpression = do
+    pr <- P.try $ token TFor
+    pat <- anyIdentifier
+    _ <- token TIn
+    iter <- noSemiExpression
+    body <- blockExpression
+    return $ EFor (tokenData pr) pat iter body
+
 returnExpression :: Parser ParseExpression
 returnExpression = do
     pr <- P.try $ token TReturn
@@ -326,6 +335,7 @@ noSemiExpression =
     <|> matchExpression
     <|> ifThenElseExpression
     <|> whileExpression
+    <|> forExpression
     <|> P.try returnExpression
     <|> assignExpression
     <|> relationExpression

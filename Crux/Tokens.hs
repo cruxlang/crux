@@ -56,6 +56,8 @@ data TokenType
     | TThen
     | TElse
     | TWhile
+    | TFor
+    | TIn
     | TDo
     | TReturn
     | TConst

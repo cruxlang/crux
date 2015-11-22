@@ -366,6 +366,24 @@ check env expr = withPositionInformation expr $ case expr of
 
         return $ EWhile unitType condition' body'
 
+    EFor _ name over body -> do
+        unitType <- newIORef $ TPrimitive Unit
+
+        iteratorType <- freshType env
+
+        over' <- check env over
+        -- TODO: typecheck that it's actually an array
+        -- TODO: unify iteratorType with array element type
+
+        bindings' <- HashTable.clone (eBindings env)
+        HashTable.insert name (Local name, LImmutable, iteratorType) bindings'
+
+        let env' = env { eBindings = bindings', eInLoop = True }
+        body' <- check env' body
+        unify unitType (edata body')
+
+        return $ EFor unitType name over' body'
+
     EReturn _ rv -> do
         rv' <- check env rv
         case eReturnType env of

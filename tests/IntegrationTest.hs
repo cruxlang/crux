@@ -560,10 +560,10 @@ test_arrays =
         ]
         "toot\ntoot\ntoot\ntoot\n"
 
-test_concatenate_strings =
+test_concatenate_strings = do
     assertOutput ["let _ = print(\"foo\" + \"bar\");"] "foobar\n"
 
-test_quantified_record =
+test_quantified_record = do
     assertCompiles
         [ "fun errorResponse(response, statusCode: Number) {"
         , "    response.statusCode = statusCode;"
@@ -574,15 +574,14 @@ test_quantified_record =
         , "}"
         ]
 
-{-
-test_for_loop =
+test_for_loop = do
     result <- run $ T.unlines
-        [ "let "
-        , "fun main(o) {"
-        , "    if False then o else r;"
+        [ "fun main() {"
+        , "  for x in [1, 2, 3] {"
+        , "    print(x);"
+        , "  };"
         , "}"
-        , "let _ = main(r);"
+        , "let _ = main();"
         ]
 
-    assertEqual (Right "") result
--}
+    assertEqual (Right "1\n2\n3\n") result

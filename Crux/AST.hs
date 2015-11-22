@@ -179,6 +179,7 @@ data Expression idtype edata
     -- flow control
     | EIfThenElse edata (Expression idtype edata) (Expression idtype edata) (Expression idtype edata)
     | EWhile edata (Expression idtype edata) (Expression idtype edata)
+    | EFor edata Name (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
     | EBreak edata
     deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -200,6 +201,7 @@ edata expr = case expr of
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
     EWhile ed _ _ -> ed
+    EFor ed _ _ _ -> ed
     EReturn ed _ -> ed
     EBreak ed -> ed
 

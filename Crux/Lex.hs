@@ -91,6 +91,8 @@ keyword = P.try $ do
         "then" -> return TThen
         "else" -> return TElse
         "while" -> return TWhile
+        "for" -> return TFor
+        "in" -> return TIn
         "do" -> return TDo
         "return" -> return TReturn
         "const" -> return TConst

@@ -65,6 +65,7 @@ renderInstruction instr = case instr of
                 (JSTree.ELookup (renderValue this) methodName)
                 (map renderValue args)
     Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
+    Gen.Index output arr idx -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EIndex (renderValue arr) (renderValue idx)
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
     Gen.Break -> JSTree.SBreak
     Gen.Match value cases ->

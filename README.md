@@ -13,6 +13,14 @@ wrong.
 * Lean, obvious generated code
 * Solid asynchronous programming
 
+Our intent with Crux is to capture
+
+* the joy and human factors of Python
+* the ability to run the same code on the frontend and backend
+* the straightforward performance and operational semantics of ML
+* the safety under overloading of Haskell
+* and the lightweight M:N concurrency of Go or Haskell or Python
+
 # What does it look like?
 
 Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-Strawman)

@@ -21,7 +21,7 @@ Summary:
 
 ```ocaml
 data List a {
-    Cons a (List a),
+    Cons(a, List a),
     Nil
 };
 
@@ -40,22 +40,26 @@ let _ = print(len(s));
 # Status
 
 Working:
-
 * Type inference
 * Sums
 * Pattern matching
 * [Row-polymorphic records](https://github.com/andyfriesen/Crux/blob/master/design/objects.md)
 * `if-then-else`
-* `return`
+* "imperative" control flow: `return`, `break`, `continue`
+* Loops
 * Type aliasing
 * [Mutability](https://github.com/andyfriesen/Crux/blob/master/design/mutability.md)
+* "everything is an expression"
+* Tail Calls
+
+Partially done:
+* JS FFI
+* Modules
 
 Not done:
-
-* Modules
-* Loops
-* `break`, `continue`
 * Exceptions
-* JS FFI
 * Asynchrony
 * Class definitions
+* Native code generation
+* Interpreter
+* Type classes / traits

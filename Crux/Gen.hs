@@ -163,28 +163,25 @@ generate env expr = case expr of
         for (both fn' args') $ \(fn'', args'') -> do
             newInstruction env $ \output -> Call output fn'' args''
 
-    -- TODO: refactor these two cases into one
-    AST.EAssign _ (AST.ELookup _ lhs propName) rhs -> do
-        lhs' <- generate env lhs
-        rhs' <- generate env rhs
-        for (both lhs' rhs') $ \(lhs'', rhs'') -> do
-            writeInstruction $ Assign (OutputProperty lhs'' propName) rhs''
-            return $ Literal AST.LUnit
 
-    -- TODO: ^^
-    AST.EAssign _ (AST.EIdentifier _ name) rhs -> do
-        name' <- case name of
-            AST.Local n -> return n
-            AST.ThisModule n -> return n
-            AST.OtherModule _ _ -> fail "cannot write to imported names"
-            AST.Builtin _ -> fail "cannot write to builtin names"
-        rhs' <- generate env rhs
-        for rhs' $ \rhs'' -> do
-            writeInstruction $ Assign (ExistingLocalBinding name') rhs''
-            return $ Literal AST.LUnit
 
-    AST.EAssign _ _ _ -> do
-        fail "Unsupported assignment"
+    AST.EAssign _ target rhs -> do
+        output <- case target of
+            AST.ELookup _ lhs propName -> do
+                lhs' <- generate env lhs
+                for lhs' $ \lhs'' -> do
+                    return $ OutputProperty lhs'' propName
+            AST.EIdentifier _ name -> case name of
+                AST.Local n -> return $ Just $ ExistingLocalBinding n
+                AST.ThisModule n -> return $ Just $ ExistingLocalBinding n
+                AST.OtherModule _ _ -> fail "cannot assign to imported names"
+                AST.Builtin _ -> fail "cannot assign to builtin names"
+            _ -> fail "Unsupported assignment target"
+
+        rhs' <- generate env rhs
+        for (both output rhs') $ \(output', rhs'') -> do
+            writeInstruction $ Assign output' rhs''
+            return $ Literal AST.LUnit
 
     AST.ELiteral _ lit -> do
         return $ Just $ Literal lit

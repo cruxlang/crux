@@ -44,13 +44,13 @@ test_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2; }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
-            [ Gen.EmptyLet $ Gen.Temporary 0
-            , Gen.If (Gen.Reference $ Gen.Binding $ AST.OtherModule "Prelude" "True")
+            [ Gen.EmptyTemporary 0
+            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "Prelude" "True")
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
                 ]
-            , Gen.Return $ Gen.Reference $ Gen.Temporary 0
+            , Gen.Return $ Gen.Temporary 0
             ]
         ]
         result
@@ -59,13 +59,13 @@ test_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet "x"
-            [ Gen.EmptyLet (Gen.Temporary 0)
-            , Gen.If (Gen.Reference $ Gen.Binding $ AST.OtherModule "Prelude" "True")
-                [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 1
+            [ Gen.EmptyTemporary 0
+            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "Prelude" "True")
+                [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 1
                 ]
-                [ Gen.Assign (Gen.Temporary 0) $ Gen.Literal $ AST.LInteger 2
+                [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 2
                 ]
-            , Gen.Return $ Gen.Reference $ Gen.Temporary 0
+            , Gen.Return $ Gen.Temporary 0
             ]
         ]
         result
@@ -73,9 +73,9 @@ test_branch_with_value = do
 test_method_call = do
     result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
     assertEqual
-        [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.Temporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
-        , Gen.Return (Gen.Reference (Gen.Temporary 0))])
-        , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.Temporary 1) (Gen.Reference (Gen.Binding $ AST.ThisModule "hoop")) "woop" []
-            , Gen.Return (Gen.Reference (Gen.Temporary 1))])
+        [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.NewTemporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
+        , Gen.Return (Gen.Temporary 0)])
+        , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ AST.ThisModule "hoop") "woop" []
+            , Gen.Return (Gen.Temporary 1)])
         ]
         result

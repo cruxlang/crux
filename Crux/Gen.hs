@@ -22,11 +22,39 @@ import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
 
+{-
+Instructions can:
+- introduce a new temporary
+- write to an existing temporary
+- introduce a new named binding
+- write to an existing named binding
+- write to an object property
+
+We'll call those Outputs.
+
+Instructions can read from:
+- temporaries
+- named local bindings
+- named import bindings
+- object properties
+- literals of various types
+
+We'll call these Values.
+-}
+
 type Name = Text
-data Output = Binding AST.ResolvedReference | Temporary Int | OutputProperty Output Name
+data Output
+    = NewLocalBinding Name
+    | ExistingLocalBinding Name
+    | NewTemporary Int
+    | ExistingTemporary Int
+    | OutputProperty Value Name
     deriving (Show, Eq)
 data Value
-    = Reference Output
+    = LocalBinding Name
+    | Temporary Int
+    | ResolvedBinding AST.ResolvedReference
+    | Property Value Name
     | Literal AST.Literal
     | FunctionLiteral [Name] [Instruction]
     | ArrayLiteral [Value]
@@ -34,10 +62,19 @@ data Value
     deriving (Show, Eq)
 type Input = Value
 
+{-
+ref :: Output -> Value
+ref (NewLocalBinding x) = LocalBinding x
+ref (ExistingLocalBinding x) = LocalBinding x
+ref (NewTemporary i) = Temporary i
+ref (ExistingTemporary i) = Temporary i
+ref (OutputProperty v n) = Property v n
+-}
+
 data Instruction
     -- binding
-    = EmptyLet Output
-    | LetBinding Name Input
+    = EmptyLocalBinding Name
+    | EmptyTemporary Int
 
     -- operations
     | Assign Output Input
@@ -71,11 +108,11 @@ data Declaration = Declaration AST.ExportFlag DeclarationType
 type Program = [(AST.ModuleName, Module)] -- topologically sorted
 type Module = [Declaration]
 
-newTempOutput :: Env -> IO Output
+newTempOutput :: Env -> IO Int
 newTempOutput env = do
     value <- readIORef env
     writeIORef env (value + 1)
-    return $ Temporary value
+    return value
 
 type DeclarationWriter a = WriterT [Declaration] IO a
 
@@ -89,9 +126,9 @@ writeInstruction i = tell [i]
 
 newInstruction :: Env -> (Output -> Instruction) -> InstructionWriter Value
 newInstruction env instr = do
-    output <- lift $ newTempOutput env
-    writeInstruction $ instr output
-    return $ Reference output
+    t <- lift $ newTempOutput env
+    writeInstruction $ instr $ NewTemporary t
+    return $ Temporary t
 
 both :: Maybe a -> Maybe b -> Maybe (a, b)
 both (Just x) (Just y) = Just (x, y)
@@ -102,7 +139,7 @@ generate env expr = case expr of
     AST.ELet _ _mut name _ v -> do
         v' <- generate env v
         for v' $ \v'' -> do
-            writeInstruction $ LetBinding name v''
+            writeInstruction $ Assign (NewLocalBinding name) v''
             return $ Literal AST.LUnit
 
     AST.EFun _ params _retAnn body -> do
@@ -126,19 +163,28 @@ generate env expr = case expr of
         for (both fn' args') $ \(fn'', args'') -> do
             newInstruction env $ \output -> Call output fn'' args''
 
+    -- TODO: refactor these two cases into one
     AST.EAssign _ (AST.ELookup _ lhs propName) rhs -> do
         lhs' <- generate env lhs
         rhs' <- generate env rhs
-        for (both lhs' rhs') $ \(Reference lhs'', rhs'') -> do
+        for (both lhs' rhs') $ \(lhs'', rhs'') -> do
             writeInstruction $ Assign (OutputProperty lhs'' propName) rhs''
             return $ Literal AST.LUnit
 
-    AST.EAssign _ lhs rhs -> do
-        lhs' <- generate env lhs
+    -- TODO: ^^
+    AST.EAssign _ (AST.EIdentifier _ name) rhs -> do
+        name' <- case name of
+            AST.Local n -> return n
+            AST.ThisModule n -> return n
+            AST.OtherModule _ _ -> fail "cannot write to imported names"
+            AST.Builtin _ -> fail "cannot write to builtin names"
         rhs' <- generate env rhs
-        for (both lhs' rhs') $ \(Reference lhs'', rhs'') -> do
-            writeInstruction $ Assign lhs'' rhs''
+        for rhs' $ \rhs'' -> do
+            writeInstruction $ Assign (ExistingLocalBinding name') rhs''
             return $ Literal AST.LUnit
+
+    AST.EAssign _ _ _ -> do
+        fail "Unsupported assignment"
 
     AST.ELiteral _ lit -> do
         return $ Just $ Literal lit
@@ -152,7 +198,7 @@ generate env expr = case expr of
         return $ fmap RecordLiteral props'
 
     AST.EIdentifier _ name -> do
-        return $ Just $ Reference $ Binding name
+        return $ Just $ ResolvedBinding name
 
     AST.EBinIntrinsic _ bi lhs rhs -> do
         lhs' <- generate env lhs
@@ -173,22 +219,22 @@ generate env expr = case expr of
         value' <- generate env value
         for value' $ \value'' -> do
             output <- lift $ newTempOutput env
-            writeInstruction $ EmptyLet output
+            writeInstruction $ EmptyTemporary output
             cases' <- forM cases $ \(AST.Case pat expr') -> do
-                expr'' <- subBlockWithOutput env output expr'
+                expr'' <- subBlockWithOutput env (ExistingTemporary output) expr'
                 return (pat, expr'')
             writeInstruction $ Match value'' cases'
-            return $ Reference output
+            return $ Temporary output
 
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
         cond' <- generate env cond
         output <- lift $ newTempOutput env
-        writeInstruction $ EmptyLet output
-        ifTrue' <- subBlockWithOutput env output ifTrue
-        ifFalse' <- subBlockWithOutput env output ifFalse
+        writeInstruction $ EmptyTemporary output
+        ifTrue' <- subBlockWithOutput env (ExistingTemporary output) ifTrue
+        ifFalse' <- subBlockWithOutput env (ExistingTemporary output) ifFalse
         for cond' $ \cond'' -> do
             writeInstruction $ If cond'' ifTrue' ifFalse'
-            return $ Reference output
+            return $ Temporary output
 
     AST.EWhile _ cond body -> do
         let boolType = AST.edata cond
@@ -207,22 +253,20 @@ generate env expr = case expr of
         over' <- generate env over
         for over' $ \over'' -> do
             cmpVar <- lift $ newTempOutput env
-
             loopVar <- lift $ newTempOutput env
-            writeInstruction $ EmptyLet loopVar
-            writeInstruction $ Assign loopVar $ Literal $ AST.LInteger 0
-            writeInstruction $ EmptyLet cmpVar
+
+            writeInstruction $ Assign (NewTemporary loopVar) $ Literal $ AST.LInteger 0
             lengthVar <- newInstruction env $ \output -> Lookup output over'' "length"
-            indexVar <- lift $ newTempOutput env
 
             body' <- subBlock env body
             let loopHead =
-                    [ BinIntrinsic cmpVar AST.BILess (Reference loopVar) lengthVar
-                    , If (Reference cmpVar) [] [Break]
-                    , Index indexVar over'' $ Reference loopVar
-                    , LetBinding name $ Reference indexVar
+                    [ BinIntrinsic (NewTemporary cmpVar) AST.BILess (Temporary loopVar) lengthVar
+                    , If (Temporary cmpVar) [] [Break]
+                    , Index (NewLocalBinding name) over'' $ Temporary loopVar
                     ]
-            let loopTail = [BinIntrinsic loopVar AST.BIPlus (Reference loopVar) $ Literal $ AST.LInteger 1]
+            let loopTail =
+                    [ BinIntrinsic (ExistingTemporary loopVar) AST.BIPlus (Temporary loopVar) $ Literal $ AST.LInteger 1
+                    ]
             let body'' = loopHead ++ body' ++ loopTail
 
             writeInstruction $ Loop body''

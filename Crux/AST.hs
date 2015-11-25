@@ -34,11 +34,23 @@ data JSVariant = JSVariant Name JSTree.Literal
 data TypeAlias = TypeAlias Name [Name] TypeIdent
     deriving (Show, Eq)
 
+-- Irrefutable only -- should it be called IrrefutablePattern?
+-- This very easily could grow PTuple or irrefutable constructor matches.
+data Pattern
+    = PWildcard
+    | PBinding Name
+    deriving (Show, Eq)
+
+data RefutablePattern
+    = RPConstructor Name [RefutablePattern]
+    | RPIrrefutable Pattern
+    deriving (Show, Eq)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype edata
     = DDeclare Name TypeIdent
-    | DLet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
+    | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun (FunDef idtype edata)
     | DData Name [TypeVariable] [Variant]
     | DJSData Name [JSVariant]
@@ -102,12 +114,7 @@ data Program = Program
     }
     deriving (Show, Eq)
 
-data Pattern
-    = PConstructor Name [Pattern]
-    | PPlaceholder Name
-    deriving (Show, Eq)
-
-data Case idtype edata = Case Pattern (Expression idtype edata)
+data Case idtype edata = Case RefutablePattern (Expression idtype edata)
     deriving (Show, Eq, Foldable, Traversable)
 
 instance Functor (Case idtype) where
@@ -158,7 +165,9 @@ data LetMutability
     deriving (Show, Eq)
 
 data Expression idtype edata
-    = ELet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
+    -- Mutable Wildcard makes no sense -- disallow that?
+    -- TODO: should mutability status be part of the pattern?
+    = ELet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | ELookup edata (Expression idtype edata) Name
     | EApp edata (Expression idtype edata) [Expression idtype edata]
     | EMatch edata (Expression idtype edata) [Case idtype edata]

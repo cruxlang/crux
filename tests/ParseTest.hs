@@ -63,11 +63,11 @@ test_application_association = do
 
 test_let = do
     assertExprParses letExpression "let a = \"Hello\""
-        (ELet () LImmutable "a" Nothing (ELiteral () (LString "Hello")))
+        (ELet () LImmutable (PBinding "a") Nothing (ELiteral () (LString "Hello")))
 
 test_let2 = do
     assertExprParses letExpression "let a = (5)"
-        (ELet () LImmutable "a" Nothing (ELiteral () (LInteger 5)))
+        (ELet () LImmutable (PBinding "a") Nothing (ELiteral () (LInteger 5)))
 
 test_let_with_uppercase_is_not_ok = do
     let source = "let PORT = 8000;"
@@ -78,35 +78,35 @@ test_let_with_uppercase_is_not_ok = do
 
 test_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"
-        (ELet () LImmutable "a" (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
+        (ELet () LImmutable (PBinding "a") (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
     assertParseOk typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])]) id
 
 test_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
-        (ELet () LImmutable "a" (Just (RecordIdent
+        (ELet () LImmutable (PBinding "a") (Just (RecordIdent
             [ ("x", Nothing, TypeIdent "Number" [])
             , ("y", Nothing, TypeIdent "Number" [])
             ])) (ELiteral () LUnit))
 
 test_let_with_function_annotation = do
     assertExprParses letExpression "let a : (Number) -> Unit = _unsafe_js(\"console.log\")"
-        (ELet () LImmutable "a" (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
+        (ELet () LImmutable (PBinding "a") (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
 
 test_mutable_let = do
     assertExprParses letExpression "let mutable x = 22"
-        (ELet () LMutable "x" Nothing (ELiteral () (LInteger 22)))
+        (ELet () LMutable (PBinding "x") Nothing (ELiteral () (LInteger 22)))
 
 test_pattern = do
     assertParseOk pattern "Cons(a, Cons(b, Nil))"
-        (PConstructor "Cons" [PPlaceholder "a", PConstructor "Cons" [PPlaceholder "b", PConstructor "Nil" []]]) id
+        (RPConstructor "Cons" [RPIrrefutable $ PBinding "a", RPConstructor "Cons" [RPIrrefutable $ PBinding "b", RPConstructor "Nil" []]]) id
 
 test_match = do
     assertExprParses matchExpression "match hoot { Nil => hodor ; Cons(a, b) => hoober ; }"
         (EMatch () (EIdentifier () "hoot")
-            [ Case (PConstructor "Nil" []) (EIdentifier () "hodor")
-            , Case (PConstructor "Cons" [PPlaceholder "a",PPlaceholder "b"]) (EIdentifier () "hoober")
+            [ Case (RPConstructor "Nil" []) (EIdentifier () "hodor")
+            , Case (RPConstructor "Cons" [RPIrrefutable $ PBinding "a", RPIrrefutable $ PBinding "b"]) (EIdentifier () "hoober")
             ])
 
 test_plus = do

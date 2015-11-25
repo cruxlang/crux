@@ -78,6 +78,7 @@ keyword :: Parser u (Token Pos)
 keyword = P.try $ do
     Token p (TLowerIdentifier i) <- parseLowerIdentifier
     fmap (Token p) $ case i of
+        "_" -> return TWildcard
         "import" -> return TImport
         "export" -> return TExport
         "let" -> return TLet

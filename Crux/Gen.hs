@@ -87,7 +87,7 @@ data Instruction
 
     -- control flow
     | Return Input
-    | Match Input [(AST.Pattern, [Instruction])]
+    | Match Input [(AST.RefutablePattern, [Instruction])]
     | If Input [Instruction] [Instruction]
     | Loop [Instruction]
     | Break
@@ -99,7 +99,7 @@ data DeclarationType
     = DData Name [AST.Variant]
     | DJSData Name [AST.JSVariant]
     | DFun Name [Name] [Instruction]
-    | DLet Name [Instruction]
+    | DLet AST.Pattern [Instruction]
     deriving (Show, Eq)
 
 data Declaration = Declaration AST.ExportFlag DeclarationType
@@ -136,10 +136,14 @@ both _ _ = Nothing
 
 generate :: Show t => Env -> AST.Expression AST.ResolvedReference t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
-    AST.ELet _ _mut name _ v -> do
+    AST.ELet _ _mut pat _ v -> do
         v' <- generate env v
         for v' $ \v'' -> do
-            writeInstruction $ Assign (NewLocalBinding name) v''
+            case pat of
+                AST.PWildcard -> do
+                    return ()
+                AST.PBinding name -> do
+                    writeInstruction $ Assign (NewLocalBinding name) v''
             return $ Literal AST.LUnit
 
     AST.EFun _ params _retAnn body -> do

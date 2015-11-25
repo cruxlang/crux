@@ -62,12 +62,15 @@ typeFromConstructor env cname = do
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
-buildPatternEnv :: TypeVar -> Env -> Pattern -> IO ()
+buildPatternEnv :: TypeVar -> Env -> RefutablePattern -> IO ()
 buildPatternEnv exprType env patt = case patt of
-    PPlaceholder pname -> do
+    RPIrrefutable PWildcard -> do
+        return ()
+
+    RPIrrefutable (PBinding pname) -> do
         HashTable.insert pname (ThisModule pname, LImmutable, exprType) (eBindings env)
 
-    PConstructor cname cargs -> do
+    RPConstructor cname cargs -> do
         ctor <- typeFromConstructor env cname
         case ctor of
             Just (ctorTy, _) -> do
@@ -257,17 +260,21 @@ check env expr = withPositionInformation expr $ case expr of
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet _ mut name maybeAnnot expr' -> do
+    ELet _ mut pat maybeAnnot expr' -> do
         ty <- freshType env
         expr'' <- check env expr'
-        HashTable.insert name (Local name, mut, ty) (eBindings env)
+        case pat of
+            PWildcard -> do
+                return ()
+            PBinding name -> do
+                HashTable.insert name (Local name, mut, ty) (eBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
             unify ty annotTy
 
         unitTy <- newIORef $ TPrimitive Unit
-        return $ ELet unitTy mut name maybeAnnot expr''
+        return $ ELet unitTy mut pat maybeAnnot expr''
 
     EAssign _ lhs rhs -> do
         lhs' <- check env lhs
@@ -498,8 +505,8 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
             unify (edata expr') ty
             quantify ty
             return $ DFun $ FunDef (edata expr') name args returnAnn body'
-    DLet pos mut name maybeAnnot expr ->
-        let fakeExpr = ELet pos mut name maybeAnnot expr
+    DLet pos mut pat maybeAnnot expr ->
+        let fakeExpr = ELet pos mut pat maybeAnnot expr
         in withPositionInformation fakeExpr $ do
             env' <- childEnv env
             ty <- freshType env'
@@ -510,9 +517,13 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
             expr' <- check env' expr
             unify ty (edata expr')
 
-            HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
+            case pat of
+                PWildcard -> do
+                    return ()
+                PBinding name -> do
+                    HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
             quantify ty
-            return $ DLet (edata expr') mut name maybeAnnot expr'
+            return $ DLet (edata expr') mut pat maybeAnnot expr'
 
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export dt) <- decls]
@@ -566,9 +577,12 @@ buildTypeEnvironment loadedModules modul = do
             DDeclare _ _ -> do
                 fail "TODO: export declare"
 
-            DLet tr _mutability name _ _ -> do
+            DLet tr _mutability pat _ _ -> do
                 tr' <- unfreezeTypeVar tr
-                HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
+                case pat of
+                    PWildcard -> return ()
+                    PBinding name -> do
+                        HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
             DFun (FunDef tr name _params _retAnn _body) -> do
                 tr' <- unfreezeTypeVar tr

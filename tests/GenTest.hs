@@ -58,7 +58,7 @@ test_return_from_branch = do
 test_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2;"
     assertEqual
-        [ Gen.Declaration AST.NoExport $ Gen.DLet "x"
+        [ Gen.Declaration AST.NoExport $ Gen.DLet (AST.PBinding "x")
             [ Gen.EmptyTemporary 0
             , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "Prelude" "True")
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 1
@@ -73,9 +73,9 @@ test_branch_with_value = do
 test_method_call = do
     result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
     assertEqual
-        [ Gen.Declaration AST.NoExport (Gen.DLet "hoop" [Gen.Intrinsic (Gen.NewTemporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
+        [ Gen.Declaration AST.NoExport (Gen.DLet (AST.PBinding "hoop") [Gen.Intrinsic (Gen.NewTemporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
         , Gen.Return (Gen.Temporary 0)])
-        , Gen.Declaration AST.NoExport (Gen.DLet "_" [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ AST.ThisModule "hoop") "woop" []
+        , Gen.Declaration AST.NoExport (Gen.DLet AST.PWildcard [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ AST.ThisModule "hoop") "woop" []
             , Gen.Return (Gen.Temporary 1)])
         ]
         result

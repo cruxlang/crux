@@ -315,10 +315,11 @@ generateDecl env (AST.Declaration export decl) = do
         AST.DFun (AST.FunDef _ name params _retAnn body) -> do
             body' <- subBlockWithReturn env body
             writeDeclaration $ Declaration export $ DFun name (map fst params) body'
-        AST.DLet _ _mut name _ defn -> do
-            -- error if output has no return value
-            defn' <- subBlockWithReturn env defn
-            writeDeclaration $ Declaration export $ DLet name defn'
+        AST.DLet _ _mut pat _ defn -> do
+            defn' <- case pat of
+                AST.PWildcard -> subBlock env defn
+                AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
+            writeDeclaration $ Declaration export $ DLet pat defn'
         AST.DType {} ->
             -- type aliases are not reflected into the IR
             return ()

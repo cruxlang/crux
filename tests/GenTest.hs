@@ -65,7 +65,7 @@ test_branch_with_value = do
                 ]
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 2
                 ]
-            , Gen.Return $ Gen.Temporary 0
+            , Gen.Assign (Gen.NewLocalBinding "x") (Gen.Temporary 0)
             ]
         ]
         result
@@ -74,8 +74,7 @@ test_method_call = do
     result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
     assertEqual
         [ Gen.Declaration AST.NoExport (Gen.DLet (AST.PBinding "hoop") [Gen.Intrinsic (Gen.NewTemporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
-        , Gen.Return (Gen.Temporary 0)])
-        , Gen.Declaration AST.NoExport (Gen.DLet AST.PWildcard [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ AST.ThisModule "hoop") "woop" []
-            , Gen.Return (Gen.Temporary 1)])
+            , Gen.Assign (Gen.NewLocalBinding "hoop") (Gen.Temporary 0)])
+        , Gen.Declaration AST.NoExport (Gen.DLet AST.PWildcard [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ AST.ThisModule "hoop") "woop" []])
         ]
         result

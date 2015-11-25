@@ -172,8 +172,8 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
             PWildcard ->
                 map renderInstruction defn
             PBinding name ->
-                let zz = JSTree.SVar name $ Just $ JSTree.iife $ map renderInstruction defn
-                in zz : renderExports export [name]
+                let zz = map renderInstruction defn
+                in zz ++ renderExports export [name]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body

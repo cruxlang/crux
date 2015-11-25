@@ -166,6 +166,8 @@ data Expression idtype edata
     | EIdentifier edata idtype
     | ESemi edata (Expression idtype edata) (Expression idtype edata)
 
+    | EMethodApp edata (Expression idtype edata) Name [Expression idtype edata]
+
     -- literals
     | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype edata))
@@ -197,6 +199,7 @@ edata expr = case expr of
     ERecordLiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
+    EMethodApp ed _ _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
@@ -223,9 +226,10 @@ data TVariant typevar = TVariant
     } deriving (Show, Eq)
 
 data TUserTypeDef typevar = TUserTypeDef
-    { tuName       :: Name
-    , tuParameters :: [typevar]
-    , tuVariants   :: [TVariant typevar]
+    { tuName       :: !Name
+    , tuModuleName :: !ModuleName
+    , tuParameters :: ![typevar]
+    , tuVariants   :: ![TVariant typevar]
     } deriving (Show, Eq)
 
 data RowMutability

@@ -34,6 +34,7 @@ data UnificationError a
     | OccursCheckFailed a
     | IntrinsicError a String
     | NotAnLVar a String
+    | TdnrLhsTypeUnknown a String
     deriving (Eq, Typeable)
 
 instance Show a => Show (UnificationError a) where

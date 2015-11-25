@@ -324,6 +324,16 @@ check env expr = withPositionInformation expr $ case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
+    EMethodApp _ lhs methodName args -> do
+        lhs' <- check env lhs
+        lhsType <- walkMutableTypeVar (edata lhs')
+        readIORef lhsType >>= \case
+            TUserType typeDef _ ->
+                undefined
+            _ -> do
+                ts <- showTypeVarIO lhsType
+                throwIO $ TdnrLhsTypeUnknown () ts
+
     -- TEMP: For now, intrinsics are too polymorphic.
     -- Arithmetic operators like + and - have type (a, a) -> a
     -- Relational operators like <= and != have type (a, a) -> Bool
@@ -760,14 +770,6 @@ run loadedModules modul = do
         freezeModule modul
             { mDecls=decls
             }
-    -- handle :: UnificationError Pos -> IO a
-    -- handle (UnificationError pos message at bt) = do
-    --     as <- showTypeVarIO at
-    --     bs <- showTypeVarIO bt
-    --     let m
-    --             | null message = ""
-    --             | otherwise = "\n" ++ message
-    --     error $ printf "Unification error at %i,%i\n\t%s\n\t%s%s" (posLine pos) (posCol pos) as bs m
 
 throwTypeError :: UnificationError Pos -> IO b
 throwTypeError (UnificationError pos message at bt) = do

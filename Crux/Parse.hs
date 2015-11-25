@@ -250,13 +250,22 @@ applicationExpression = do
     let app lhs = do
             argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
             return $ EApp (edata lhs) lhs argList
+        methodApp lhs = do
+            _ <- token TRightArrow
+            methodName <- anyIdentifier
+            argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
+            return $ EMethodApp (edata lhs) lhs methodName argList
         prop lhs = do
             _ <- token TDot
             propName <- anyIdentifier
             return $ ELookup (edata lhs) lhs propName
 
     let go lhs = do
-            mlhs' <- P.optionMaybe (app lhs <|> prop lhs)
+            mlhs' <- P.optionMaybe $ P.choice
+                [ app lhs
+                , methodApp lhs
+                , prop lhs
+                ]
             case mlhs' of
                 Nothing -> return lhs
                 Just lhs' -> go lhs'

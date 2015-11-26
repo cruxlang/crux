@@ -13,9 +13,11 @@ import qualified Crux.JSTree         as JSTree
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
+import qualified System.FilePath as FP
 import qualified Text.Parsec         as P
 
-type Parser = P.ParsecT [Token Pos] () IO
+type Parser = P.ParsecT [Token Pos] ModuleName IO
 type ParseData = Pos
 type ParseExpression = Expression Name ParseData
 type ParseDeclaration = DeclarationType Name ParseData
@@ -477,7 +479,8 @@ cruxDataDeclaration = do
     _ <- token TOpenBrace
     variants <- delimited variantDefinition (token TComma)
     _ <- token TCloseBrace
-    return $ DData name typeVars variants
+    moduleName <- P.getState
+    return $ DData name moduleName typeVars variants
 
 jsValue :: Parser JSTree.Literal
 jsValue =
@@ -502,7 +505,8 @@ jsDataDeclaration = do
     _ <- token TOpenBrace
     variants <- delimited jsVariantDefinition (token TComma)
     _ <- token TCloseBrace
-    return $ DJSData name variants
+    moduleName <- P.getState
+    return $ DJSData name moduleName variants
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
@@ -585,4 +589,7 @@ parseModule = do
         }
 
 parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
-parse fileName tokens = P.runParserT parseModule () fileName tokens
+parse fileName tokens =
+    let moduleSegments = map ModuleSegment $ Text.splitOn (Text.pack [FP.pathSeparator]) (Text.pack $ FP.dropExtension fileName)
+        moduleName = ModuleName (tail moduleSegments) (head moduleSegments)
+    in P.runParserT parseModule moduleName fileName tokens

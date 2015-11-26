@@ -17,7 +17,7 @@ runParse parser source =
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens ->
-            P.runParserT parser () "<>" tokens
+            P.runParserT parser "hs.ParseTest" "<>" tokens
 
 
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
@@ -26,7 +26,7 @@ assertParseOk parser source expected f = do
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens -> do
-            res <- P.runParserT parser () "<>" tokens
+            res <- P.runParserT parser "hs.ParseTest" "<>" tokens
             case res of
                 Right result -> assertEqualVerbose (T.unpack source) expected (f result)
                 Left err -> assertFailure ("Parse failed: " ++ show err)
@@ -119,7 +119,7 @@ test_times = do
 
 test_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe a { Some(a), None, };"
-        (DData "Maybe" ["a"] [Variant {vname = "Some", vparameters = [TypeIdent "a" []]},Variant {vname = "None", vparameters = []}])
+        (DData "Maybe" "hs.ParseTest" ["a"] [Variant {vname = "Some", vparameters = [TypeIdent "a" []]},Variant {vname = "None", vparameters = []}])
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"

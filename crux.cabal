@@ -44,7 +44,7 @@ library
                  , raw-strings-qq
                  , optparse-applicative
 
-    extensions: OverloadedStrings
+    default-extensions: OverloadedStrings
               , MultiWayIf
               , LambdaCase
 

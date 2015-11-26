@@ -263,9 +263,9 @@ generateDecl env (AST.Declaration export decl) = do
         AST.DDeclare _ _ -> do
             -- declarations are not reflected into the IR
             return ()
-        AST.DData name _ variants -> do
+        AST.DData name _ _ variants -> do
             writeDeclaration $ Declaration export $ DData name variants
-        AST.DJSData name variants -> do
+        AST.DJSData name _ variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun (AST.FunDef _ name params _retAnn body) -> do
             body' <- subBlockWithReturn env body

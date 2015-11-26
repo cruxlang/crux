@@ -415,7 +415,8 @@ freezeTypeDef TUserTypeDef{..} = do
     parameters' <- mapM freezeTypeVar tuParameters
     -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
-    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
+    let td = TUserTypeDef
+            {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
     return td
 
 freezeTypeVar :: TypeVar -> IO ImmutableTypeVar
@@ -447,7 +448,7 @@ unfreezeTypeDef TUserTypeDef{..} = do
     parameters' <- mapM unfreezeTypeVar tuParameters
     -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
-    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
+    let td = TUserTypeDef {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
     return td
 
 unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
@@ -491,11 +492,11 @@ checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration Resol
 checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
     DDeclare name typeIdent -> do
         return $ DDeclare name typeIdent
-    DData name typeVars variants -> do
+    DData name moduleName typeVars variants -> do
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
-        return $ DData name typeVars variants
-    DJSData name variants -> do
-        return $ DJSData name variants
+        return $ DData name moduleName typeVars variants
+    DJSData name moduleName variants -> do
+        return $ DJSData name moduleName variants
     DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args returnAnn body) ->
@@ -544,7 +545,7 @@ buildTypeEnvironment loadedModules modul = do
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new
 
-    let insertDataType scope name typeVarNames variants = do
+    let insertDataType scope name moduleName typeVarNames variants = do
             typeVars <- forM typeVarNames $ const $ do
                 ft <- freshType e
                 quantify ft
@@ -558,6 +559,7 @@ buildTypeEnvironment loadedModules modul = do
 
             let typeDef = TUserTypeDef
                     { tuName = name
+                    , tuModuleName = moduleName
                     , tuParameters = typeVars
                     , tuVariants = variants'
                     }
@@ -584,11 +586,11 @@ buildTypeEnvironment loadedModules modul = do
                 tr' <- unfreezeTypeVar tr
                 HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
-            DData dname typeVariables variants -> do
+            DData dname _ typeVariables variants -> do
                 -- IS THIS RIGHT??
                 -- no tests
 
-                insertDataType (OtherModule importName) dname typeVariables variants
+                insertDataType (OtherModule importName) dname importName typeVariables variants
 
                 forM_ variants $ \(Variant vname params) -> do
                     let thisTI = TypeIdent vname []
@@ -598,9 +600,9 @@ buildTypeEnvironment loadedModules modul = do
                     tr' <- resolveTypeIdent e NewTypesAreErrors vt
                     HashTable.insert vname (OtherModule importName vname, LImmutable, tr') (eBindings e)
 
-            DJSData name variants -> do
+            DJSData name moduleName variants -> do
                 let encodeJSVariant (JSVariant n _) = TVariant n []
-                tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
+                tr <- newIORef $ TUserType (TUserTypeDef name moduleName [] $ map encodeJSVariant variants) []
                 HashTable.insert name (OtherModule importName name, tr) typeEnv
 
                 forM_ variants $ \(JSVariant vname _) -> do
@@ -616,10 +618,10 @@ buildTypeEnvironment loadedModules modul = do
         DDeclare _name _typeIdent -> do
             return ()
 
-        DData name typeVarNames variants -> do
-            insertDataType ThisModule name typeVarNames variants
+        DData name moduleName typeVarNames variants -> do
+            insertDataType ThisModule name moduleName typeVarNames variants
 
-        DJSData name variants -> do
+        DJSData name moduleName variants -> do
             -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
             variants' <- forM variants $ \(JSVariant variantName _value) -> do
                 let tvParameters = []
@@ -628,6 +630,7 @@ buildTypeEnvironment loadedModules modul = do
 
             let typeDef = TUserTypeDef
                     { tuName = name
+                    , tuModuleName = moduleName
                     , tuParameters = []
                     , tuVariants = variants'
                     }
@@ -650,7 +653,7 @@ buildTypeEnvironment loadedModules modul = do
 
     -- Second, unify parameter types
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
-        DData name _typeVarNames variants -> do
+        DData name _ _typeVarNames variants -> do
             Just (_, ty) <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
 
@@ -683,13 +686,13 @@ buildTypeEnvironment loadedModules modul = do
         DDeclare name typeIdent -> do
             t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
             HashTable.insert name (ThisModule name, LImmutable, t) (eBindings env)
-        DData name _ variants -> do
+        DData name _ _ variants -> do
             let Just (_, userType) = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
                 ctorType <- computeVariantType userType qvarTable vname vdata
                 HashTable.insert vname (ThisModule vname, LImmutable, ctorType) (eBindings env)
-        DJSData name variants -> do
+        DJSData name _ variants -> do
             let Just (_, userType) = HashMap.lookup name te
             forM_ variants $ \(JSVariant variantName _value) -> do
                 HashTable.insert variantName (ThisModule variantName, LImmutable, userType) (eBindings env)

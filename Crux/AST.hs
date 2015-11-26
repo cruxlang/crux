@@ -40,8 +40,8 @@ data DeclarationType idtype edata
     = DDeclare Name TypeIdent
     | DLet edata LetMutability Name (Maybe TypeIdent) (Expression idtype edata)
     | DFun (FunDef idtype edata)
-    | DData Name [TypeVariable] [Variant]
-    | DJSData Name [JSVariant]
+    | DData Name ModuleName [TypeVariable] [Variant]
+    | DJSData Name ModuleName [JSVariant]
     | DType TypeAlias
     deriving (Show, Eq, Functor, Foldable, Traversable)
 

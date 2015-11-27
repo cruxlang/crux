@@ -16,10 +16,13 @@ import Crux.AST
     , TypeRow (..)
     , TypeVar
     , UnresolvedReference
+    , ModuleName
+    , LoadedModule
     )
 
 data Env = Env
-    { eNextTypeIndex :: IORef Int
+    { eLoadedModules :: !(HashMap ModuleName LoadedModule)
+    , eNextTypeIndex :: !(IORef Int)
     , eBindings      :: IORef (HashMap UnresolvedReference (ResolvedReference, LetMutability, TypeVar))
     , eTypeBindings  :: IORef (HashMap UnresolvedReference (ResolvedReference, TypeVar))
     , eTypeAliases   :: HashMap Text TypeAlias

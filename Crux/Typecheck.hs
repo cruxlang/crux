@@ -27,8 +27,8 @@ copyIORef ior = do
     v <- readIORef ior
     newIORef v
 
-newEnv :: Maybe TypeVar -> IO Env
-newEnv eReturnType = do
+newEnv :: HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
+newEnv eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
@@ -181,6 +181,22 @@ resolveArrayType pos env = do
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
+findFunction :: Module a b -> Text -> Maybe (FunDef a b)
+findFunction modul name = do
+    let go decls = case decls of
+            [] -> Nothing
+            (decl@(Declaration _ declType):rest)
+                -- | DDeclare n _ <- declType, n == name ->
+                --     return $ Just decl
+                -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
+                --     return $ Just decl
+                | DFun fd@(FunDef _ n _ _ _) <- declType, n == name ->
+                    Just fd
+                | otherwise ->
+                    go rest
+
+    go $ mDecls modul
+
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check env expr = withPositionInformation expr $ case expr of
     EFun _ params retAnn body -> do
@@ -326,10 +342,26 @@ check env expr = withPositionInformation expr $ case expr of
 
     EMethodApp _ lhs methodName args -> do
         lhs' <- check env lhs
+        args' <- mapM (check env) args
         lhsType <- walkMutableTypeVar (edata lhs')
         readIORef lhsType >>= \case
-            TUserType typeDef _ ->
-                undefined
+            TUserType TUserTypeDef{..} _
+                | Just modul <- HashMap.lookup tuModuleName (eLoadedModules env)
+                    , Just func <- findFunction modul methodName -> do
+                        funTy <- unfreezeTypeVar $ typeForFunDef func
+
+                        retTy <- freshType env
+                        expectedTy <- newIORef $ TFun ([edata lhs'] ++ map edata args') retTy
+
+                        unify expectedTy funTy
+                        -- TODO: Rewrite this as an extra import and a normal function call.
+                        return $ EMethodApp
+                            expectedTy
+                            lhs'
+                            methodName
+                            args'
+                | otherwise -> do
+                    error $ printf "Could not find name %s in module %s" (show methodName) (show tuModuleName)
             _ -> do
                 ts <- showTypeVarIO lhsType
                 throwIO $ TdnrLhsTypeUnknown () ts
@@ -488,6 +520,10 @@ freezeModule Module{..} = do
         , mDecls=decls
         }
 
+typeForFunDef :: FunDef a b -> b
+typeForFunDef (FunDef ty _ _ _ _) = ty
+
+
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
     DDeclare name typeIdent -> do
@@ -500,11 +536,10 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
     DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args returnAnn body) ->
-        let fakeFunExpr = EFun pos args returnAnn body
-        in withPositionInformation fakeFunExpr $ do
+        let expr = EFun pos args returnAnn body
+        in withPositionInformation expr $ do
             ty <- freshType env
             HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
-            let expr = EFun pos args returnAnn body
             expr'@(EFun _ _ _ body') <- check env expr
             unify (edata expr') ty
             quantify ty
@@ -535,7 +570,7 @@ buildTypeEnvironment loadedModules modul = do
     unitTy <- newIORef $ TPrimitive Unit
     strTy  <- newIORef $ TPrimitive String
 
-    e <- newEnv Nothing
+    e <- newEnv loadedModules Nothing
     typeEnv <- newIORef $ HashMap.fromList
         [ ("Number", (Builtin "Number", numTy))
         , ("Unit", (Builtin "Unit", unitTy))
@@ -766,7 +801,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
         retPrimitive' <- go retPrimitive
         newIORef $ TFun argTypes' retPrimitive'
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO LoadedModule
 run loadedModules modul = do
         env <- buildTypeEnvironment loadedModules modul
         decls <- forM (mDecls modul) (checkDecl env)

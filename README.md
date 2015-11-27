@@ -13,6 +13,14 @@ wrong.
 * Lean, obvious generated code
 * Solid asynchronous programming
 
+Our intent with Crux is to capture
+
+* the joy and human factors of Python
+* the ability to run the same code on the frontend and backend
+* the straightforward performance and operational semantics of ML
+* the safety under overloading of Haskell
+* and the lightweight M:N concurrency of Go or Haskell or Python
+
 # What does it look like?
 
 Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-Strawman)
@@ -21,7 +29,7 @@ Summary:
 
 ```ocaml
 data List a {
-    Cons a (List a),
+    Cons(a, List a),
     Nil
 };
 
@@ -40,22 +48,26 @@ let _ = print(len(s));
 # Status
 
 Working:
-
 * Type inference
 * Sums
 * Pattern matching
 * [Row-polymorphic records](https://github.com/andyfriesen/Crux/blob/master/design/objects.md)
 * `if-then-else`
-* `return`
+* "imperative" control flow: `return`, `break`, `continue`
+* Loops
 * Type aliasing
 * [Mutability](https://github.com/andyfriesen/Crux/blob/master/design/mutability.md)
+* "everything is an expression"
+* Tail Calls
+
+Partially done:
+* JS FFI
+* Modules
 
 Not done:
-
-* Modules
-* Loops
-* `break`, `continue`
 * Exceptions
-* JS FFI
 * Asynchrony
 * Class definitions
+* Native code generation
+* Interpreter
+* Type classes / traits

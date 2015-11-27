@@ -42,6 +42,7 @@ data TokenType
     | TGreaterEqual
     | TDoubleEqual
     | TNotEqual
+    | TWildcard -- _
     -- Keywords
     | TImport
     | TExport

@@ -11,18 +11,30 @@ import qualified Data.Text as Text
 renderModuleName :: ModuleName -> Text
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
 
-renderOutput :: Gen.Output -> JSTree.Name
-renderOutput (Gen.Binding name) = case name of
+renderTemporary :: Int -> Text
+renderTemporary = Text.pack . ("$" <>). show
+
+renderOutput :: Gen.Output -> JSTree.Expression -> JSTree.Statement
+renderOutput output input = case output of
+    Gen.NewLocalBinding name -> JSTree.SVar name $ Just input
+    Gen.ExistingLocalBinding name -> JSTree.SAssign (JSTree.EIdentifier name) input
+    Gen.NewTemporary i -> JSTree.SVar (renderTemporary i) $ Just input
+    Gen.ExistingTemporary i -> JSTree.SAssign (JSTree.EIdentifier $ renderTemporary i) input
+    Gen.OutputProperty v name -> JSTree.SAssign (JSTree.ELookup (renderValue v) name) input
+
+renderResolvedReference :: ResolvedReference -> JSTree.Expression
+renderResolvedReference = JSTree.EIdentifier . \case
     Local n -> n
     ThisModule n -> n
     OtherModule mn n -> renderModuleName mn <> "." <> n
     Builtin n -> n
-renderOutput (Gen.OutputProperty lhs propName) = renderOutput lhs <> Text.pack "." <> propName
-renderOutput (Gen.Temporary i) = Text.pack $ "$" <> show i
 
 renderValue :: Gen.Value -> JSTree.Expression
 renderValue value = case value of
-    Gen.Reference output -> JSTree.EIdentifier $ renderOutput output
+    Gen.LocalBinding name -> JSTree.EIdentifier name
+    Gen.Temporary i -> JSTree.EIdentifier $ renderTemporary i
+    Gen.ResolvedBinding n -> renderResolvedReference n
+    Gen.Property v n -> JSTree.ELookup (renderValue v) n
     Gen.Literal lit -> case lit of
         LInteger i -> JSTree.ELiteral $ JSTree.LInteger i
         LString s -> JSTree.ELiteral $ JSTree.LString s
@@ -34,9 +46,9 @@ renderValue value = case value of
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
-    Gen.EmptyLet name -> JSTree.SVar (renderOutput name) Nothing
-    Gen.LetBinding name value -> JSTree.SVar name $ Just $ renderValue value
-    Gen.Assign output value -> JSTree.SAssign (JSTree.EIdentifier $ renderOutput output) (renderValue value)
+    Gen.EmptyLocalBinding name -> JSTree.SVar name Nothing
+    Gen.EmptyTemporary i -> JSTree.SVar (renderTemporary i) Nothing
+    Gen.Assign output value -> renderOutput output $ renderValue value
     Gen.BinIntrinsic output op lhs rhs ->
         let sym = case op of
                 BIPlus     -> "+"
@@ -49,23 +61,22 @@ renderInstruction instr = case instr of
                 BILessEqual -> "<="
                 BIEqual    -> "==="
                 BINotEqual -> "!=="
-        in JSTree.SVar (renderOutput output) $ Just $ JSTree.EBinOp sym (renderValue lhs) (renderValue rhs)
+        in renderOutput output $ JSTree.EBinOp sym (renderValue lhs) (renderValue rhs)
     Gen.Intrinsic output intrin ->
-        JSTree.SVar (renderOutput output) $ Just $ case intrin of
+        renderOutput output $ case intrin of
             IUnsafeJs txt ->
                 JSTree.ERaw txt
             IUnsafeCoerce arg -> do
                 renderValue arg
             INot arg ->
                 JSTree.EPrefixOp "!" (renderValue arg)
-    Gen.Call output fn args -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EApplication (renderValue fn) $ map renderValue args
+    Gen.Call output fn args -> renderOutput output $ JSTree.EApplication (renderValue fn) $ map renderValue args
     Gen.MethodCall output this methodName args ->
-        JSTree.SVar (renderOutput output) $
-            Just $ JSTree.EApplication
-                (JSTree.ELookup (renderValue this) methodName)
-                (map renderValue args)
-    Gen.Lookup output value name -> JSTree.SVar (renderOutput output) $ Just $ JSTree.ELookup (renderValue value) name
-    Gen.Index output arr idx -> JSTree.SVar (renderOutput output) $ Just $ JSTree.EIndex (renderValue arr) (renderValue idx)
+        renderOutput output $ JSTree.EApplication
+            (JSTree.ELookup (renderValue this) methodName)
+            (map renderValue args)
+    Gen.Lookup output value name -> renderOutput output $ JSTree.ELookup (renderValue value) name
+    Gen.Index output arr idx -> renderOutput output $ JSTree.EIndex (renderValue arr) (renderValue idx)
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
     Gen.Break -> JSTree.SBreak
     Gen.Match value cases ->
@@ -94,33 +105,32 @@ renderInstruction instr = case instr of
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
-generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression
+generateMatchCond :: JSTree.Expression -> RefutablePattern -> JSTree.Expression
 generateMatchCond matchVar patt = case patt of
-    PPlaceholder _ ->
+    RPIrrefutable _ ->
         JSTree.ELiteral JSTree.LTrue
-    PConstructor name subpatterns ->
+    RPConstructor name subpatterns ->
         let testIt = JSTree.EBinOp "=="
                 (JSTree.ELiteral $ JSTree.LString name)
-                (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
+                (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
             buildTestCascade acc (index, subpattern) = case subpattern of
-                PPlaceholder _ -> acc
+                RPIrrefutable _ -> acc
                 _ -> JSTree.EBinOp "&&"
                     acc
-                    (generateMatchCond (JSTree.ESubscript matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
+                    (generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
         in case subpatterns of
             [] -> testIt
             _ -> JSTree.EBinOp "&&" testIt
                 (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
 
-generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
+generateMatchVars :: JSTree.Expression -> RefutablePattern -> [JSTree.Statement]
 generateMatchVars matchVar patt = case patt of
-    -- TODO: ignore _ let bindings in the IR or sugar
-    PPlaceholder "_" -> []
-    PPlaceholder pname ->
-        [ JSTree.SVar pname $ Just matchVar ]
-    PConstructor _ subpatterns ->
+    RPIrrefutable PWildcard -> []
+    RPIrrefutable (PBinding name) ->
+        [ JSTree.SVar name $ Just matchVar ]
+    RPConstructor _ subpatterns ->
         concat
-            [ generateMatchVars (JSTree.ESubscript matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
+            [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns
             ]
 
@@ -157,9 +167,13 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
     Gen.DFun name params body ->
         let func = JSTree.SFunction name params $ map renderInstruction body in
         func : renderExports export [name]
-    Gen.DLet name defn ->
-        let zz = JSTree.SVar name $ Just $ JSTree.iife $ map renderInstruction defn in
-        zz : renderExports export [name]
+    Gen.DLet pat defn ->
+        case pat of
+            PWildcard ->
+                map renderInstruction defn
+            PBinding name ->
+                let zz = map renderInstruction defn
+                in zz ++ renderExports export [name]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body

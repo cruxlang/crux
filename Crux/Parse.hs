@@ -204,7 +204,7 @@ functionExpression = do
 
     return $ EFun (tokenData tfun) args returnAnn body
 
-pattern :: Parser Pattern
+pattern :: Parser RefutablePattern
 pattern = do
     let parenPattern = do
             _ <- P.try $ token TOpenParen
@@ -214,7 +214,7 @@ pattern = do
 
     parenPattern <|> noParenPattern
 
-noParenPattern :: Parser Pattern
+noParenPattern :: Parser RefutablePattern
 noParenPattern = do
     txt <- anyIdentifier
     if isCapitalized txt then do
@@ -223,11 +223,11 @@ noParenPattern = do
           Just _ -> do
             params <- delimited pattern (token TComma)
             _ <- token TCloseParen
-            return $ PConstructor txt params
+            return $ RPConstructor txt params
           Nothing -> do
-            return $ PConstructor txt []
+            return $ RPConstructor txt []
     else do
-        return $ PPlaceholder txt
+        return $ RPIrrefutable $ PBinding txt
 
 matchExpression :: Parser ParseExpression
 matchExpression = do
@@ -315,17 +315,22 @@ assignExpression = do
     rhs <- noSemiExpression
     return $ EAssign (edata lhs) lhs rhs
 
+irrefutablePattern :: Parser Pattern
+irrefutablePattern = do
+    _ <- P.try $ token TWildcard
+    return PWildcard
+
 letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- P.try $ token TLet
     mut <- P.option LImmutable (token TMutable >> return LMutable)
-    name <- lowerIdentifier
+    pat <- irrefutablePattern <|> fmap PBinding lowerIdentifier
     typeAnn <- P.optionMaybe $ do
         _ <- P.try $ token TColon
         typeIdent
     _ <- token TEqual
     expr <- noSemiExpression
-    return $ ELet (tokenData tlet) mut name typeAnn expr
+    return $ ELet (tokenData tlet) mut pat typeAnn expr
 
 semiExpression :: Parser ParseExpression
 semiExpression = do

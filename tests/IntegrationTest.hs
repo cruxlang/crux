@@ -4,6 +4,7 @@
 module IntegrationTest (htf_thisModulesTests) where
 
 import           Control.Exception    (try)
+import qualified Crux.AST as AST
 import qualified Crux.Backend.JS      as JS
 import qualified Crux.Gen             as Gen
 import qualified Crux.Module
@@ -15,20 +16,27 @@ import qualified Data.Text.IO         as T
 import           System.IO            (hFlush)
 import           System.IO.Temp       (withSystemTempFile)
 import           System.Process       (readProcess)
+import qualified Data.HashMap.Strict as HashMap
 import           Test.Framework
 
-run :: Text -> IO (Either (UnificationError Pos) Text)
-run src = try (run' src)
-
-run' :: Text -> IO Text
-run' src = do
-    m <- Crux.Module.loadProgramFromSource "<string>" src
-    m' <- Gen.generateProgram m
+runProgram' :: AST.Program -> IO Text
+runProgram' p = do
+    m' <- Gen.generateProgram p
     let js = JS.generateJS m'
     withSystemTempFile "Crux.js" $ \path' handle -> do
         T.hPutStr handle js
         hFlush handle
         T.pack <$> readProcess "node" [path'] ""
+
+run :: Text -> IO (Either (UnificationError Pos) Text)
+run src = try $ do
+    m <- Crux.Module.loadProgramFromSource src
+    runProgram' m
+
+runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either (UnificationError Pos) Text)
+runMultiModule sources = try $ do
+    m <- Crux.Module.loadProgramFromSources sources
+    runProgram' m
 
 assertCompiles src = do
     result <- run $ T.unlines src
@@ -585,3 +593,22 @@ test_for_loop = do
         ]
 
     assertEqual (Right "1\n2\n3\n") result
+
+test_export_and_import = do
+    main <- return $ T.unlines
+        [ "import { Halloumi(...) }"
+        , "fun main() {"
+        , "  print(\"outside\");"
+        , "  fn();"
+        , "}"
+        , "let _ = main();"
+        ]
+
+    halloumi <- return $ T.unlines
+        [ "export fun fn() {"
+        , "  print(\"inside\");"
+        , "}"
+        ]
+
+    result <- runMultiModule $ HashMap.fromList [("Main", main), ("Halloumi", halloumi)]
+    assertEqual (Right "outside\ninside\n") result

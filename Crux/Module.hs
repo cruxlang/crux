@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 
 module Crux.Module where
 
@@ -12,6 +12,7 @@ import qualified Crux.Typecheck        as Typecheck
 import qualified Data.Aeson            as JSON
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Lazy  as BSL
+import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import qualified Data.Text.Encoding    as TE
 import qualified Data.Text.IO          as TextIO
@@ -160,12 +161,15 @@ newFSModuleLoader root mainModulePath moduleName = do
     else
         parseModuleFromFile moduleName $ FP.combine root $ moduleNameToPath moduleName
 
-newMemoryLoader :: FilePath -> Text -> ModuleLoader
-newMemoryLoader fp source moduleName = do
-    if moduleName == "Main" then
-        parseModuleFromSource moduleName fp source
-    else
-        return $ Left $ "Unknown module: " ++ show moduleName
+newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
+newMemoryLoader sources moduleName = do
+    case HashMap.lookup moduleName sources of
+        Just source -> parseModuleFromSource
+            moduleName
+            ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
+            source
+        Nothing ->
+            return $ Left $ "Unknown module: " ++ show moduleName
 
 loadProgramFromFile :: FilePath -> IO AST.Program
 loadProgramFromFile path = do
@@ -177,7 +181,12 @@ loadProgramFromFile path = do
 
     loadProgram loader "Main"
 
-loadProgramFromSource :: FilePath -> Text -> IO AST.Program
-loadProgramFromSource mainModuleName mainModuleSource = do
-    let loader = newMemoryLoader mainModuleName mainModuleSource
+loadProgramFromSource :: Text -> IO AST.Program
+loadProgramFromSource mainModuleSource = do
+    let loader = newMemoryLoader $ HashMap.fromList [ ("Main", mainModuleSource) ]
+    loadProgram loader "Main"
+
+loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO AST.Program
+loadProgramFromSources sources = do
+    let loader = newMemoryLoader sources
     loadProgram loader "Main"

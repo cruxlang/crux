@@ -74,4 +74,5 @@ test-suite tests
                  , process
                  , filepath
                  , temporary
+                 , unordered-containers
     default-language: Haskell2010

@@ -1,10 +1,12 @@
 module Crux.Typecheck.Types where
 
-import           Crux.AST     (LetMutability, LoadedModule, ModuleName,
-                               MutableTypeVar (..), RecordOpen (..),
-                               RecordType (..), ResolvedReference,
-                               TUserTypeDef (..), TypeAlias, TypeRow (..),
-                               TypeVar, UnresolvedReference)
+import Crux.AST
+    ( LetMutability, LoadedModule, ModuleName
+    , MutableTypeVar (..), RecordOpen (..)
+    , RecordType (..), ResolvedReference
+    , TUserTypeDef (..), TypeAlias, TypeRow (..)
+    , TypeVar, UnresolvedReference
+    )
 import           Crux.Prelude
 import           Crux.Tokens  (Pos (..))
 import           Data.List    (intercalate)
@@ -38,6 +40,7 @@ instance Show a => Show (UnificationError a) where
     show (OccursCheckFailed a) = "OccursCheckFailed " ++ show a
     show (IntrinsicError a s) = "IntrinsicError " ++ show a ++ " " ++ show s
     show (NotAnLVar a t) = "NotAnLVar " ++ show a ++ " " ++ show t
+    show (TdnrLhsTypeUnknown a s) = "TdnrLhsTypeUnknown " ++ show a ++ s
 
 instance (Show a, Typeable a) => Exception (UnificationError a)
 
@@ -89,3 +92,5 @@ errorToString (IntrinsicError pos message) =
     return $ printf "%s at %i,%i" message (posLine pos) (posCol pos)
 errorToString (NotAnLVar pos s) = do
     return $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s
+errorToString (TdnrLhsTypeUnknown pos s) = do
+    return $ printf "Methods only work on values with known concrete types at %i,%i\n\t%s" (posLine pos) (posCol pos) s

@@ -157,7 +157,8 @@ unifyRecord av bv = do
     let aRequired = RecordClose == aOpen
         bRequired = RecordClose == bOpen
 
-    let allKeys = nub $ sort (aFields ++ bFields)
+    let allKeys :: [Name]
+        allKeys = nub $ sort (aFields ++ bFields)
     newFields <- forM allKeys $ \key -> do
         case (aRequired, lookupTypeRow key aRows, bRequired, lookupTypeRow key bRows) of
             (_, Just (m1, t1), _, Just (m2, t2)) -> do

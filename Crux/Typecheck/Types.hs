@@ -1,4 +1,9 @@
-module Crux.Typecheck.Types where
+module Crux.Typecheck.Types
+    ( Env(..)
+    , UnificationError(..)
+    , showTypeVarIO
+    , errorToString
+    ) where
 
 import Crux.AST
     ( LetMutability, LoadedModule, ModuleName
@@ -13,11 +18,14 @@ import           Data.List    (intercalate)
 import qualified Data.Text    as Text
 import           Text.Printf  (printf)
 
+-- TODO: newtype this somewhere and import it
+type Name = Text
+
 data Env = Env
     { eLoadedModules :: !(HashMap ModuleName LoadedModule)
     , eNextTypeIndex :: !(IORef Int)
-    , eBindings      :: IORef (HashMap UnresolvedReference (ResolvedReference, LetMutability, TypeVar))
-    , eTypeBindings  :: IORef (HashMap UnresolvedReference (ResolvedReference, TypeVar))
+    , eBindings      :: IORef (HashMap Name (ResolvedReference, LetMutability, TypeVar))
+    , eTypeBindings  :: IORef (HashMap Name (ResolvedReference, TypeVar))
     , eTypeAliases   :: HashMap Text TypeAlias
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop        :: !Bool
@@ -25,7 +33,7 @@ data Env = Env
 
 data UnificationError a
     = UnificationError a String TypeVar TypeVar
-    | RecordMutabilityUnificationError a UnresolvedReference String
+    | RecordMutabilityUnificationError a Name String
     | UnboundSymbol a UnresolvedReference
     | OccursCheckFailed a
     | IntrinsicError a String

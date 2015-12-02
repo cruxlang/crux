@@ -65,3 +65,11 @@ export method length(arr: Array a): int {
 `export` and `method` are orthogonal: `export` exposes the function to importers of this module, whereas `method` adds the function to the type's method set.
 
 (One option is to have `method` imply `export`.  Given the `->` syntax's primary intent is to reduce import noise and improve human factors, perhaps it's useful for exported functions anyway.)
+
+Risk Areas:
+
+https://doc.rust-lang.org/book/ufcs.html
+
+https://github.com/Microsoft/visualfsharp/issues/596
+
+https://github.com/Microsoft/visualfsharp/issues/395

@@ -25,7 +25,7 @@ data Env = Env
 
 data UnificationError a
     = UnificationError a String TypeVar TypeVar
-    | RecordMutabilityUnificationError a UnresolvedReference String
+    | RecordMutabilityUnificationError a Text String
     | UnboundSymbol a UnresolvedReference
     | OccursCheckFailed a
     | IntrinsicError a String

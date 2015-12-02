@@ -351,9 +351,10 @@ check env expr = withPositionInformation expr $ case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
-    EMethodApp _ lhs methodName args -> do
+    EMethodApp pos lhs methodName args -> do
+        -- lhs must be typechecked so that, if it has a concrete type, we know
+        -- the location of that type.
         lhs' <- check env lhs
-        args' <- mapM (check env) args
         lhsType <- walkMutableTypeVar (edata lhs')
         moduleName <- readIORef lhsType >>= \case
             TUserType TUserTypeDef{..} _ -> do
@@ -367,22 +368,10 @@ check env expr = withPositionInformation expr $ case expr of
         case () of
             () | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
                , Just func <- findFunction modul methodName -> do
-                    funTy <- unfreezeTypeVar $ typeForFunDef func
-
-                    retTy <- freshType env
-                    expectedTy <- newIORef $ TFun ([edata lhs'] ++ map edata args') retTy
-
-                    unify expectedTy funTy
-                    -- TODO: Rewrite this as an extra import and a normal function call.
-                    return $ EApp
-                        retTy
-                        (EIdentifier expectedTy (OtherModule moduleName methodName))
-                        ([lhs'] ++ args')
-                    -- return $ EMethodApp
-                    --     expectedTy
-                    --     lhs'
-                    --     methodName
-                    --     args'
+                    check env $ EApp
+                        pos
+                        (KnownReference (OtherModule moduleName methodName))
+                        (lhs : args)
                 | otherwise -> do
                     fail $ printf "No exported function %s in module %s" (show methodName) (Text.unpack $ printModuleName moduleName)
 

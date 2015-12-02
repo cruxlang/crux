@@ -88,8 +88,16 @@ instance IsString ModuleName where
 printModuleName :: ModuleName -> Text
 printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $ a <> [b]
 
-type UnresolvedReference = Text -- TODO: allow qualified references
-data ResolvedReference = Local Text | ThisModule Text | OtherModule ModuleName Text | Builtin Text
+ -- TODO: add QualifiedReference ImportName Name
+data UnresolvedReference
+    = UnknownReference Name
+    | KnownReference ResolvedReference
+    deriving (Show, Eq)
+data ResolvedReference
+    = Local Text
+    | ThisModule Text
+    | OtherModule ModuleName Text
+    | Builtin Text
     deriving (Show, Eq)
 
 resolvedReferenceName :: ResolvedReference -> Text

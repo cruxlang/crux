@@ -17,8 +17,8 @@ import qualified Text.Parsec         as P
 
 type Parser = P.ParsecT [Token Pos] ModuleName IO
 type ParseData = Pos
-type ParseExpression = Expression Name ParseData
-type ParseDeclaration = DeclarationType Name ParseData
+type ParseExpression = Expression UnresolvedReference ParseData
+type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -181,8 +181,8 @@ parseString = P.tokenPrim show (\pos _ _ -> pos) test
 identifierExpression :: Parser ParseExpression
 identifierExpression = getToken testTok
   where
-    testTok (Token pos (TLowerIdentifier txt)) = Just $ EIdentifier pos txt
-    testTok (Token pos (TUpperIdentifier txt)) = Just $ EIdentifier pos txt
+    testTok (Token pos (TLowerIdentifier txt)) = Just $ EIdentifier pos $ UnknownReference txt
+    testTok (Token pos (TUpperIdentifier txt)) = Just $ EIdentifier pos $ UnknownReference txt
     testTok _ = Nothing
 
 functionExpression :: Parser ParseExpression
@@ -555,7 +555,7 @@ funDeclaration = do
     body <- blockExpression
     return $ DFun $ FunDef (tokenData tfun) name params returnAnn body
 
-declaration :: Parser (Declaration Name ParseData)
+declaration :: Parser (Declaration UnresolvedReference ParseData)
 declaration = do
     export <- P.optionMaybe $ token Tokens.TExport
     let exportFlag = case export of

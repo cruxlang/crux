@@ -142,20 +142,49 @@ isLValue env expr = case expr of
     _ -> return False
 
 resolveType :: Pos -> Env -> UnresolvedReference -> IO TypeVar
-resolveType pos env name = do
+resolveType pos env (UnknownReference name) = do
     res <- HashTable.lookup name (eTypeBindings env)
     case res of
         Just (_, t) -> return t
         Nothing -> do
             tb <- readIORef $ eTypeBindings env
             throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
+resolveType _pos _env (KnownReference _moduleName _name) = do
+    fail "TODO: resolveType implementation for KnownReference"
 
 resolveName :: Env -> UnresolvedReference -> IO (ResolvedReference, TypeVar)
-resolveName env name = do
+resolveName env ref@(UnknownReference name) = do
     result <- HashTable.lookup name (eBindings env)
     case result of
         Just (rr, _, t) -> return (rr, t)
-        Nothing -> throwIO $ UnboundSymbol () name
+        Nothing -> throwIO $ UnboundSymbol () ref
+resolveName env (KnownReference moduleName name) = do
+    case () of
+        () | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
+           , Just func <- findExportedValue modul name -> do
+                funTy <- unfreezeTypeVar $ typeForFunDef func
+                return (OtherModule moduleName name, funTy)
+           | otherwise -> do
+                fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
+
+findExportedValue :: Module a b -> Text -> Maybe (FunDef a b)
+findExportedValue modul name = do
+    let go decls = case decls of
+            [] -> Nothing
+            ((Declaration Export declType):rest)
+                -- | DDeclare n _ <- declType, n == name ->
+                --     return $ Just decl
+                -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
+                --     return $ Just decl
+                | DFun fd@(FunDef _ n _ _ _) <- declType, n == name ->
+                    Just fd
+                | otherwise ->
+                    go rest
+            ((Declaration _ _): rest) ->
+                go rest
+
+    go $ mDecls modul
+
 
 withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
 withPositionInformation expr a = catch a handle
@@ -179,30 +208,16 @@ withPositionInformation expr a = catch a handle
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
-    arrayType <- resolveType pos env "Array"
+    arrayType <- resolveType pos env (UnknownReference "Array")
     readIORef arrayType >>= \case
         TUserType td [_elementType] -> do
             newArrayType <- newIORef $ TUserType td [elementType]
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
-findFunction :: Module a b -> Text -> Maybe (FunDef a b)
-findFunction modul name = do
-    let go decls = case decls of
-            [] -> Nothing
-            ((Declaration Export declType):rest)
-                -- | DDeclare n _ <- declType, n == name ->
-                --     return $ Just decl
-                -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
-                --     return $ Just decl
-                | DFun fd@(FunDef _ n _ _ _) <- declType, n == name ->
-                    Just fd
-                | otherwise ->
-                    go rest
-            ((Declaration _ _): rest) ->
-                go rest
-
-    go $ mDecls modul
+resolveBooleanType :: Pos -> Env -> IO TypeVar
+resolveBooleanType pos env = do
+    resolveType pos env (UnknownReference "Boolean")
 
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check env expr = withPositionInformation expr $ case expr of
@@ -235,17 +250,17 @@ check env expr = withPositionInformation expr $ case expr of
         ty <- newIORef $ TFun paramTypes returnType
         return $ EFun ty params retAnn body'
 
-    EApp _ (EIdentifier _ "_unsafe_js") [ELiteral _ (LString txt)] -> do
+    EApp _ (EIdentifier _ (UnknownReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
         t <- freshType env
         return $ EIntrinsic t (IUnsafeJs txt)
-    EApp _ (EIdentifier _ "_unsafe_js") _ ->
+    EApp _ (EIdentifier _ (UnknownReference "_unsafe_js")) _ ->
         error "_unsafe_js takes just one string literal"
 
-    EApp _ (EIdentifier _ "_unsafe_coerce") [subExpr] -> do
+    EApp _ (EIdentifier _ (UnknownReference "_unsafe_coerce")) [subExpr] -> do
         t <- freshType env
         subExpr' <- check env subExpr
         return $ EIntrinsic t (IUnsafeCoerce subExpr')
-    EApp _ (EIdentifier _ "_unsafe_coerce") _ ->
+    EApp _ (EIdentifier _ (UnknownReference "_unsafe_coerce")) _ ->
         error "_unsafe_coerce takes just one argument"
 
     EApp _ lhs rhs -> do
@@ -338,9 +353,9 @@ check env expr = withPositionInformation expr $ case expr of
         recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
-    EIdentifier _ "_unsafe_js" ->
+    EIdentifier _ (UnknownReference "_unsafe_js") ->
         throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
-    EIdentifier _ "_unsafe_coerce" ->
+    EIdentifier _ (UnknownReference "_unsafe_coerce") ->
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier _pos txt -> do
         (rr, tyref) <- resolveName env txt
@@ -365,15 +380,10 @@ check env expr = withPositionInformation expr $ case expr of
                 ts <- showTypeVarIO lhsType
                 throwIO $ TdnrLhsTypeUnknown () ts
 
-        case () of
-            () | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
-               , Just func <- findFunction modul methodName -> do
-                    check env $ EApp
-                        pos
-                        (KnownReference (OtherModule moduleName methodName))
-                        (lhs : args)
-                | otherwise -> do
-                    fail $ printf "No exported function %s in module %s" (show methodName) (Text.unpack $ printModuleName moduleName)
+        check env $ EApp
+            pos
+            (EIdentifier pos $ KnownReference moduleName methodName)
+            (lhs : args)
 
     -- TEMP: For now, intrinsics are too polymorphic.
     -- Arithmetic operators like + and - have type (a, a) -> a
@@ -387,13 +397,13 @@ check env expr = withPositionInformation expr $ case expr of
                 return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
            | isRelationalOp bi -> do
                 unify (edata lhs') (edata rhs')
-                booleanType <- resolveType (edata expr) env "Boolean"
+                booleanType <- resolveBooleanType (edata expr) env
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | otherwise ->
                 error "This should be impossible: Check EBinIntrinsic"
 
     EIfThenElse _ condition ifTrue ifFalse -> do
-        booleanType <- resolveType (edata expr) env "Boolean"
+        booleanType <- resolveBooleanType (edata expr) env
 
         condition' <- check env condition
         unify booleanType (edata condition')
@@ -405,7 +415,7 @@ check env expr = withPositionInformation expr $ case expr of
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
     EWhile _ cond body -> do
-        booleanType <- resolveType (edata expr) env "Boolean"
+        booleanType <- resolveBooleanType (edata expr) env
         unitType <- newIORef $ TPrimitive Unit
 
         condition' <- check env cond
@@ -590,8 +600,7 @@ buildTypeEnvironment loadedModules modul = do
         , ("String", (Builtin "String", strTy))
         ]
 
-    -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
-    qvarsRef <- HashTable.new
+    qvarsRef <- HashTable.new :: IO (IORef (HashMap Name [(TypeVariable, TypeVar)]))
 
     let insertDataType scope name moduleName typeVarNames variants = do
             typeVars <- forM typeVarNames $ const $ do
@@ -751,7 +760,7 @@ buildTypeEnvironment loadedModules modul = do
 
     return env
 
-addQvarTable :: Env -> [(UnresolvedReference, TypeVar)] -> IO Env
+addQvarTable :: Env -> [(Name, TypeVar)] -> IO Env
 addQvarTable env@Env{..} qvarTable = do
     newBindings <- HashTable.mergeImmutable eTypeBindings
         (HashMap.fromList [(name, (ThisModule name, ty)) | (name, ty) <- qvarTable])

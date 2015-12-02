@@ -91,13 +91,18 @@ printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $
  -- TODO: add QualifiedReference ImportName Name
 data UnresolvedReference
     = UnknownReference Name
-    | KnownReference ResolvedReference
+    | KnownReference ModuleName Name
     deriving (Show, Eq)
+
+-- hack for convenience
+instance IsString UnresolvedReference where
+    fromString = UnknownReference . Text.pack
+
 data ResolvedReference
-    = Local Text
-    | ThisModule Text
-    | OtherModule ModuleName Text
-    | Builtin Text
+    = Local Name
+    | ThisModule Name
+    | OtherModule ModuleName Name
+    | Builtin Name
     deriving (Show, Eq)
 
 resolvedReferenceName :: ResolvedReference -> Text

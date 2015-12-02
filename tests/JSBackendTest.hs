@@ -12,7 +12,7 @@ import qualified Crux.JSTree as JSTree
 
 genDoc' :: Text -> IO (Either String Text)
 genDoc' src = do
-    mod' <- Crux.Module.loadModuleFromSource "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource "Main" "<string>" src
     case mod' of
         Left err ->
             return $ Left err

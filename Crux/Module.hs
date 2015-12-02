@@ -61,7 +61,7 @@ defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
     if name == "Prelude" then do
         preludeSource <- loadPreludeSource
-        parseModuleFromSource "Prelude" preludeSource
+        parseModuleFromSource "Prelude" "<Prelude>" preludeSource
     else
         return $ Left $ "unknown module: " <> (Text.unpack $ AST.printModuleName name)
 
@@ -71,43 +71,43 @@ loadPrelude = do
 
 loadPreludeFromSource :: Text -> IO AST.LoadedModule
 loadPreludeFromSource preludeSource =
-    loadModuleFromSource' id [] "Prelude" preludeSource >>= \case
+    loadModuleFromSource' id [] "Prelude" "Prelude" preludeSource >>= \case
         Left err -> do
             throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
         Right m -> return m
 
-parseModuleFromSource :: FilePath -> Text -> IO (Either String AST.ParsedModule)
-parseModuleFromSource filename source = do
+parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either String AST.ParsedModule)
+parseModuleFromSource moduleName filename source = do
     let l = Lex.lexSource filename source
     case l of
         Left err ->
             return $ Left $ "Lex error: " <> show err
         Right l' -> do
-            p <- Parse.parse filename l'
+            p <- Parse.parse moduleName filename l'
             case p of
                 Left err ->
                     return $ Left $ "Parse error: " <> show err
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: FilePath -> IO (Either String AST.ParsedModule)
-parseModuleFromFile filename = do
+parseModuleFromFile :: AST.ModuleName -> FilePath -> IO (Either String AST.ParsedModule)
+parseModuleFromFile moduleName filename = do
     source <- BS.readFile filename
-    parseModuleFromSource filename $ TE.decodeUtf8 source
+    parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
 
-loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> FilePath -> Text -> IO (Either String AST.LoadedModule)
-loadModuleFromSource' adjust loadedModules filename source = do
-    parseModuleFromSource filename source >>= \case
+loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> AST.ModuleName -> FilePath -> Text -> IO (Either String AST.LoadedModule)
+loadModuleFromSource' adjust loadedModules moduleName filename source = do
+    parseModuleFromSource moduleName filename source >>= \case
         Left err ->
             return $ Left err
         Right mod' -> do
             fmap Right $ Typecheck.run loadedModules $ adjust mod'
 
-loadModuleFromSource :: FilePath -> Text -> IO (Either String AST.LoadedModule)
-loadModuleFromSource filename source = do
+loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either String AST.LoadedModule)
+loadModuleFromSource moduleName filename source = do
     prelude <- loadPrelude
     let lm = [("Prelude", prelude)]
-    loadModuleFromSource' addPrelude lm filename source
+    loadModuleFromSource' addPrelude lm moduleName filename source
 
 importsOf :: AST.Module a b -> [AST.ModuleName]
 importsOf m = do
@@ -156,14 +156,14 @@ moduleNameToPath (AST.ModuleName prefix m) =
 newFSModuleLoader :: FilePath -> FilePath -> ModuleLoader
 newFSModuleLoader root mainModulePath moduleName = do
     if moduleName == "Main" then
-        parseModuleFromFile mainModulePath
+        parseModuleFromFile moduleName mainModulePath
     else
-        parseModuleFromFile $ FP.combine root $ moduleNameToPath moduleName
+        parseModuleFromFile moduleName $ FP.combine root $ moduleNameToPath moduleName
 
 newMemoryLoader :: FilePath -> Text -> ModuleLoader
 newMemoryLoader fp source moduleName = do
     if moduleName == "Main" then
-        parseModuleFromSource fp source
+        parseModuleFromSource moduleName fp source
     else
         return $ Left $ "Unknown module: " ++ show moduleName
 

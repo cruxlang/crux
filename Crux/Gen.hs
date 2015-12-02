@@ -161,6 +161,9 @@ generate env expr = case expr of
         for (both this' args') $ \(this'', args'') -> do
             newInstruction env $ \output -> MethodCall output this'' methodName args''
 
+    AST.EMethodApp _ _ _ _ -> do
+        fail "ICE: this should never happen.  EMethodApp should be desugared into EApp by now."
+
     AST.EApp _ fn args -> do
         fn' <- generate env fn
         args' <- runMaybeT $ mapM (MaybeT . generate env) args

@@ -593,8 +593,5 @@ parseModule = do
         , mDecls = doc
         }
 
-parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
-parse fileName tokens =
-    let moduleSegments = map ModuleSegment $ Text.splitOn (Text.pack [FP.pathSeparator]) (Text.pack $ FP.dropExtension fileName)
-        moduleName = ModuleName (tail moduleSegments) (head moduleSegments)
-    in P.runParserT parseModule moduleName fileName tokens
+parse :: ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
+parse = P.runParserT parseModule

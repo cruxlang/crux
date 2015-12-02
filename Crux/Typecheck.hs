@@ -27,8 +27,8 @@ copyIORef ior = do
     v <- readIORef ior
     newIORef v
 
-newEnv :: Maybe TypeVar -> IO Env
-newEnv eReturnType = do
+newEnv :: HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
+newEnv eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
@@ -173,6 +173,8 @@ withPositionInformation expr a = catch a handle
         throwIO (IntrinsicError (edata expr) message)
     handle (NotAnLVar () s) =
         throwIO (NotAnLVar (edata expr) s)
+    handle (TdnrLhsTypeUnknown () s) =
+        throwIO (TdnrLhsTypeUnknown (edata expr) s)
 
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
@@ -183,6 +185,22 @@ resolveArrayType pos env = do
             newArrayType <- newIORef $ TUserType td [elementType]
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
+
+findFunction :: Module a b -> Text -> Maybe (FunDef a b)
+findFunction modul name = do
+    let go decls = case decls of
+            [] -> Nothing
+            ((Declaration _ declType):rest)
+                -- | DDeclare n _ <- declType, n == name ->
+                --     return $ Just decl
+                -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
+                --     return $ Just decl
+                | DFun fd@(FunDef _ n _ _ _) <- declType, n == name ->
+                    Just fd
+                | otherwise ->
+                    go rest
+
+    go $ mDecls modul
 
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check env expr = withPositionInformation expr $ case expr of
@@ -331,6 +349,36 @@ check env expr = withPositionInformation expr $ case expr of
         rhs' <- check env rhs
         return $ ESemi (edata rhs') lhs' rhs'
 
+    EMethodApp _ lhs methodName args -> do
+        lhs' <- check env lhs
+        args' <- mapM (check env) args
+        lhsType <- walkMutableTypeVar (edata lhs')
+        readIORef lhsType >>= \case
+            TUserType TUserTypeDef{..} _
+                | Just modul <- HashMap.lookup tuModuleName (eLoadedModules env)
+                    , Just func <- findFunction modul methodName -> do
+                        funTy <- unfreezeTypeVar $ typeForFunDef func
+
+                        retTy <- freshType env
+                        expectedTy <- newIORef $ TFun ([edata lhs'] ++ map edata args') retTy
+
+                        unify expectedTy funTy
+                        -- TODO: Rewrite this as an extra import and a normal function call.
+                        return $ EApp
+                            retTy
+                            (EIdentifier expectedTy (OtherModule tuModuleName methodName))
+                            ([lhs'] ++ args')
+                        -- return $ EMethodApp
+                        --     expectedTy
+                        --     lhs'
+                        --     methodName
+                        --     args'
+                | otherwise -> do
+                    error $ printf "Could not find name %s in module %s" (show methodName) (show tuModuleName)
+            _ -> do
+                ts <- showTypeVarIO lhsType
+                throwIO $ TdnrLhsTypeUnknown () ts
+
     -- TEMP: For now, intrinsics are too polymorphic.
     -- Arithmetic operators like + and - have type (a, a) -> a
     -- Relational operators like <= and != have type (a, a) -> Bool
@@ -412,7 +460,8 @@ freezeTypeDef TUserTypeDef{..} = do
     parameters' <- mapM freezeTypeVar tuParameters
     -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
-    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
+    let td = TUserTypeDef
+            {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
     return td
 
 freezeTypeVar :: TypeVar -> IO ImmutableTypeVar
@@ -444,7 +493,7 @@ unfreezeTypeDef TUserTypeDef{..} = do
     parameters' <- mapM unfreezeTypeVar tuParameters
     -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
-    let td = TUserTypeDef {tuName, tuParameters=parameters', tuVariants=variants'}
+    let td = TUserTypeDef {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
     return td
 
 unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
@@ -484,23 +533,26 @@ freezeModule Module{..} = do
         , mDecls=decls
         }
 
+typeForFunDef :: FunDef a b -> b
+typeForFunDef (FunDef ty _ _ _ _) = ty
+
+
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
     DDeclare name typeIdent -> do
         return $ DDeclare name typeIdent
-    DData name typeVars variants -> do
+    DData name moduleName typeVars variants -> do
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
-        return $ DData name typeVars variants
-    DJSData name variants -> do
-        return $ DJSData name variants
+        return $ DData name moduleName typeVars variants
+    DJSData name moduleName variants -> do
+        return $ DJSData name moduleName variants
     DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
     DFun (FunDef pos name args returnAnn body) ->
-        let fakeFunExpr = EFun pos args returnAnn body
-        in withPositionInformation fakeFunExpr $ do
+        let expr = EFun pos args returnAnn body
+        in withPositionInformation expr $ do
             ty <- freshType env
             HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
-            let expr = EFun pos args returnAnn body
             expr'@(EFun _ _ _ body') <- check env expr
             unify (edata expr') ty
             quantify ty
@@ -535,7 +587,7 @@ buildTypeEnvironment loadedModules modul = do
     unitTy <- newIORef $ TPrimitive Unit
     strTy  <- newIORef $ TPrimitive String
 
-    e <- newEnv Nothing
+    e <- newEnv loadedModules Nothing
     typeEnv <- newIORef $ HashMap.fromList
         [ ("Number", (Builtin "Number", numTy))
         , ("Unit", (Builtin "Unit", unitTy))
@@ -545,7 +597,7 @@ buildTypeEnvironment loadedModules modul = do
     -- qvarsRef :: IORef HashMap (Name, [(TypeVariable, TypeVar)])
     qvarsRef <- HashTable.new
 
-    let insertDataType scope name typeVarNames variants = do
+    let insertDataType scope name moduleName typeVarNames variants = do
             typeVars <- forM typeVarNames $ const $ do
                 ft <- freshType e
                 quantify ft
@@ -559,6 +611,7 @@ buildTypeEnvironment loadedModules modul = do
 
             let typeDef = TUserTypeDef
                     { tuName = name
+                    , tuModuleName = moduleName
                     , tuParameters = typeVars
                     , tuVariants = variants'
                     }
@@ -588,11 +641,11 @@ buildTypeEnvironment loadedModules modul = do
                 tr' <- unfreezeTypeVar tr
                 HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
-            DData dname typeVariables variants -> do
+            DData dname _ typeVariables variants -> do
                 -- IS THIS RIGHT??
                 -- no tests
 
-                insertDataType (OtherModule importName) dname typeVariables variants
+                insertDataType (OtherModule importName) dname importName typeVariables variants
 
                 forM_ variants $ \(Variant vname params) -> do
                     let thisTI = TypeIdent vname []
@@ -602,9 +655,9 @@ buildTypeEnvironment loadedModules modul = do
                     tr' <- resolveTypeIdent e NewTypesAreErrors vt
                     HashTable.insert vname (OtherModule importName vname, LImmutable, tr') (eBindings e)
 
-            DJSData name variants -> do
+            DJSData name moduleName variants -> do
                 let encodeJSVariant (JSVariant n _) = TVariant n []
-                tr <- newIORef $ TUserType (TUserTypeDef name [] $ map encodeJSVariant variants) []
+                tr <- newIORef $ TUserType (TUserTypeDef name moduleName [] $ map encodeJSVariant variants) []
                 HashTable.insert name (OtherModule importName name, tr) typeEnv
 
                 forM_ variants $ \(JSVariant vname _) -> do
@@ -620,10 +673,10 @@ buildTypeEnvironment loadedModules modul = do
         DDeclare _name _typeIdent -> do
             return ()
 
-        DData name typeVarNames variants -> do
-            insertDataType ThisModule name typeVarNames variants
+        DData name moduleName typeVarNames variants -> do
+            insertDataType ThisModule name moduleName typeVarNames variants
 
-        DJSData name variants -> do
+        DJSData name moduleName variants -> do
             -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
             variants' <- forM variants $ \(JSVariant variantName _value) -> do
                 let tvParameters = []
@@ -632,6 +685,7 @@ buildTypeEnvironment loadedModules modul = do
 
             let typeDef = TUserTypeDef
                     { tuName = name
+                    , tuModuleName = moduleName
                     , tuParameters = []
                     , tuVariants = variants'
                     }
@@ -654,7 +708,7 @@ buildTypeEnvironment loadedModules modul = do
 
     -- Second, unify parameter types
     forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
-        DData name _typeVarNames variants -> do
+        DData name _ _typeVarNames variants -> do
             Just (_, ty) <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
 
@@ -687,13 +741,13 @@ buildTypeEnvironment loadedModules modul = do
         DDeclare name typeIdent -> do
             t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
             HashTable.insert name (ThisModule name, LImmutable, t) (eBindings env)
-        DData name _ variants -> do
+        DData name _ _ variants -> do
             let Just (_, userType) = HashMap.lookup name te
             let Just qvarTable = HashMap.lookup name qvars
             forM_ variants $ \(Variant vname vdata) -> do
                 ctorType <- computeVariantType userType qvarTable vname vdata
                 HashTable.insert vname (ThisModule vname, LImmutable, ctorType) (eBindings env)
-        DJSData name variants -> do
+        DJSData name _ variants -> do
             let Just (_, userType) = HashMap.lookup name te
             forM_ variants $ \(JSVariant variantName _value) -> do
                 HashTable.insert variantName (ThisModule variantName, LImmutable, userType) (eBindings env)
@@ -767,21 +821,13 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
         retPrimitive' <- go retPrimitive
         newIORef $ TFun argTypes' retPrimitive'
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Module ResolvedReference ImmutableTypeVar)
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO LoadedModule
 run loadedModules modul = do
         env <- buildTypeEnvironment loadedModules modul
         decls <- forM (mDecls modul) (checkDecl env)
         freezeModule modul
             { mDecls=decls
             }
-    -- handle :: UnificationError Pos -> IO a
-    -- handle (UnificationError pos message at bt) = do
-    --     as <- showTypeVarIO at
-    --     bs <- showTypeVarIO bt
-    --     let m
-    --             | null message = ""
-    --             | otherwise = "\n" ++ message
-    --     error $ printf "Unification error at %i,%i\n\t%s\n\t%s%s" (posLine pos) (posCol pos) as bs m
 
 throwTypeError :: UnificationError Pos -> IO b
 throwTypeError (UnificationError pos message at bt) = do
@@ -801,3 +847,5 @@ throwTypeError (IntrinsicError pos message) =
     error $ printf "%s at %i,%i" message (posLine pos) (posCol pos)
 throwTypeError (NotAnLVar pos s) = do
     error $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s
+throwTypeError (TdnrLhsTypeUnknown pos s) = do
+    error $ printf "TDNR %i,%i\n\t%s" (posLine pos) (posCol pos) s

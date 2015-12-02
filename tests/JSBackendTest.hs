@@ -3,16 +3,16 @@
 
 module JSBackendTest (htf_thisModulesTests) where
 
-import Data.Text (Text)
-import Test.Framework
-import qualified Crux.Module
-import qualified Crux.Gen as Gen
 import qualified Crux.Backend.JS as JS
-import qualified Crux.JSTree as JSTree
+import qualified Crux.Gen        as Gen
+import qualified Crux.JSTree     as JSTree
+import qualified Crux.Module
+import           Data.Text       (Text)
+import           Test.Framework
 
 genDoc' :: Text -> IO (Either String Text)
 genDoc' src = do
-    mod' <- Crux.Module.loadModuleFromSource "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource "Main" "<string>" src
     case mod' of
         Left err ->
             return $ Left err

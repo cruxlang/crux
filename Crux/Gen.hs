@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Crux.Gen
     ( Value(..)
@@ -14,13 +14,13 @@ module Crux.Gen
     , generateProgram
     ) where
 
-import Crux.Prelude
-import qualified Crux.AST as AST
-import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
-import Data.Graph (graphFromEdges, topSort)
-import qualified Data.HashMap.Strict as HashMap
+import           Control.Monad.Trans.Class (lift)
+import           Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
+import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
+import qualified Crux.AST                  as AST
+import           Crux.Prelude
+import           Data.Graph                (graphFromEdges, topSort)
+import qualified Data.HashMap.Strict       as HashMap
 
 {-
 Instructions can:
@@ -160,6 +160,9 @@ generate env expr = case expr of
         args' <- runMaybeT $ mapM (MaybeT . generate env) args
         for (both this' args') $ \(this'', args'') -> do
             newInstruction env $ \output -> MethodCall output this'' methodName args''
+
+    AST.EMethodApp _ _ _ _ -> do
+        fail "ICE: this should never happen.  EMethodApp should be desugared into EApp by now."
 
     AST.EApp _ fn args -> do
         fn' <- generate env fn
@@ -308,9 +311,9 @@ generateDecl env (AST.Declaration export decl) = do
         AST.DDeclare _ _ -> do
             -- declarations are not reflected into the IR
             return ()
-        AST.DData name _ variants -> do
+        AST.DData name _ _ variants -> do
             writeDeclaration $ Declaration export $ DData name variants
-        AST.DJSData name variants -> do
+        AST.DJSData name _ variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun (AST.FunDef _ name params _retAnn body) -> do
             body' <- subBlockWithReturn env body

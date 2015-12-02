@@ -1,25 +1,19 @@
 module Crux.Typecheck.Types where
 
-import Crux.Prelude
-import Data.List (intercalate)
-import qualified Data.Text as Text
-import Text.Printf (printf)
-import Crux.Tokens (Pos (..))
-import Crux.AST
-    ( LetMutability
-    , MutableTypeVar (..)
-    , RecordOpen (..)
-    , RecordType (..)
-    , ResolvedReference
-    , TUserTypeDef (..)
-    , TypeAlias
-    , TypeRow (..)
-    , TypeVar
-    , UnresolvedReference
-    )
+import           Crux.AST     (LetMutability, LoadedModule, ModuleName,
+                               MutableTypeVar (..), RecordOpen (..),
+                               RecordType (..), ResolvedReference,
+                               TUserTypeDef (..), TypeAlias, TypeRow (..),
+                               TypeVar, UnresolvedReference)
+import           Crux.Prelude
+import           Crux.Tokens  (Pos (..))
+import           Data.List    (intercalate)
+import qualified Data.Text    as Text
+import           Text.Printf  (printf)
 
 data Env = Env
-    { eNextTypeIndex :: IORef Int
+    { eLoadedModules :: !(HashMap ModuleName LoadedModule)
+    , eNextTypeIndex :: !(IORef Int)
     , eBindings      :: IORef (HashMap UnresolvedReference (ResolvedReference, LetMutability, TypeVar))
     , eTypeBindings  :: IORef (HashMap UnresolvedReference (ResolvedReference, TypeVar))
     , eTypeAliases   :: HashMap Text TypeAlias
@@ -34,6 +28,7 @@ data UnificationError a
     | OccursCheckFailed a
     | IntrinsicError a String
     | NotAnLVar a String
+    | TdnrLhsTypeUnknown a String
     deriving (Eq, Typeable)
 
 instance Show a => Show (UnificationError a) where
@@ -60,7 +55,7 @@ showTypeVarIO tvar = do
         TFun arg ret -> do
             as <- mapM showTypeVarIO arg
             rs <- showTypeVarIO ret
-            return $ "TFun (" ++ intercalate "," as ++ ") -> " ++ rs
+            return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
         TUserType def tvars -> do
             tvs <- mapM showTypeVarIO tvars
             return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)

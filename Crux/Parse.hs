@@ -6,16 +6,16 @@
 
 module Crux.Parse where
 
-import           Crux.Prelude
 import           Control.Applicative ((<|>))
 import           Crux.AST            as AST
 import qualified Crux.JSTree         as JSTree
+import           Crux.Prelude
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
 
-type Parser = P.ParsecT [Token Pos] () IO
+type Parser = P.ParsecT [Token Pos] ModuleName IO
 type ParseData = Pos
 type ParseExpression = Expression Name ParseData
 type ParseDeclaration = DeclarationType Name ParseData
@@ -250,13 +250,22 @@ applicationExpression = do
     let app lhs = do
             argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
             return $ EApp (edata lhs) lhs argList
+        methodApp lhs = do
+            _ <- token TRightArrow
+            methodName <- anyIdentifier
+            argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
+            return $ EMethodApp (edata lhs) lhs methodName argList
         prop lhs = do
             _ <- token TDot
             propName <- anyIdentifier
             return $ ELookup (edata lhs) lhs propName
 
     let go lhs = do
-            mlhs' <- P.optionMaybe (app lhs <|> prop lhs)
+            mlhs' <- P.optionMaybe $ P.choice
+                [ app lhs
+                , methodApp lhs
+                , prop lhs
+                ]
             case mlhs' of
                 Nothing -> return lhs
                 Just lhs' -> go lhs'
@@ -473,7 +482,8 @@ cruxDataDeclaration = do
     _ <- token TOpenBrace
     variants <- delimited variantDefinition (token TComma)
     _ <- token TCloseBrace
-    return $ DData name typeVars variants
+    moduleName <- P.getState
+    return $ DData name moduleName typeVars variants
 
 jsValue :: Parser JSTree.Literal
 jsValue =
@@ -498,7 +508,8 @@ jsDataDeclaration = do
     _ <- token TOpenBrace
     variants <- delimited jsVariantDefinition (token TComma)
     _ <- token TCloseBrace
-    return $ DJSData name variants
+    moduleName <- P.getState
+    return $ DJSData name moduleName variants
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
@@ -580,5 +591,5 @@ parseModule = do
         , mDecls = doc
         }
 
-parse :: P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
-parse fileName tokens = P.runParserT parseModule () fileName tokens
+parse :: ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
+parse = P.runParserT parseModule

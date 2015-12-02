@@ -1,14 +1,16 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
 module Crux.AST where
 
-import qualified Data.Text     as Text
 import qualified Crux.JSTree  as JSTree
 import           Crux.Prelude
 import qualified Crux.Tokens  as Tokens
+import qualified Data.Text    as Text
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -52,8 +54,8 @@ data DeclarationType idtype edata
     = DDeclare Name TypeIdent
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun (FunDef idtype edata)
-    | DData Name [TypeVariable] [Variant]
-    | DJSData Name [JSVariant]
+    | DData Name ModuleName [TypeVariable] [Variant]
+    | DJSData Name ModuleName [JSVariant]
     | DType TypeAlias
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -109,7 +111,7 @@ type ParsedModule = Module UnresolvedReference Tokens.Pos
 type LoadedModule = Module ResolvedReference ImmutableTypeVar
 
 data Program = Program
-    { pMainModule :: LoadedModule
+    { pMainModule   :: LoadedModule
     , pOtherModules :: HashMap ModuleName LoadedModule
     }
     deriving (Show, Eq)
@@ -175,6 +177,8 @@ data Expression idtype edata
     | EIdentifier edata idtype
     | ESemi edata (Expression idtype edata) (Expression idtype edata)
 
+    | EMethodApp edata (Expression idtype edata) Name [Expression idtype edata]
+
     -- literals
     | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype edata))
@@ -206,6 +210,7 @@ edata expr = case expr of
     ERecordLiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
+    EMethodApp ed _ _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
@@ -232,9 +237,10 @@ data TVariant typevar = TVariant
     } deriving (Show, Eq)
 
 data TUserTypeDef typevar = TUserTypeDef
-    { tuName       :: Name
-    , tuParameters :: [typevar]
-    , tuVariants   :: [TVariant typevar]
+    { tuName       :: !Name
+    , tuModuleName :: !ModuleName
+    , tuParameters :: ![typevar]
+    , tuVariants   :: ![TVariant typevar]
     } deriving (Show, Eq)
 
 data RowMutability

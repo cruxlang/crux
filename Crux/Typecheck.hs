@@ -190,7 +190,7 @@ findFunction :: Module a b -> Text -> Maybe (FunDef a b)
 findFunction modul name = do
     let go decls = case decls of
             [] -> Nothing
-            ((Declaration _ declType):rest)
+            ((Declaration Export declType):rest)
                 -- | DDeclare n _ <- declType, n == name ->
                 --     return $ Just decl
                 -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
@@ -199,6 +199,8 @@ findFunction modul name = do
                     Just fd
                 | otherwise ->
                     go rest
+            ((Declaration _ _): rest) ->
+                go rest
 
     go $ mDecls modul
 
@@ -353,31 +355,36 @@ check env expr = withPositionInformation expr $ case expr of
         lhs' <- check env lhs
         args' <- mapM (check env) args
         lhsType <- walkMutableTypeVar (edata lhs')
-        readIORef lhsType >>= \case
-            TUserType TUserTypeDef{..} _
-                | Just modul <- HashMap.lookup tuModuleName (eLoadedModules env)
-                    , Just func <- findFunction modul methodName -> do
-                        funTy <- unfreezeTypeVar $ typeForFunDef func
-
-                        retTy <- freshType env
-                        expectedTy <- newIORef $ TFun ([edata lhs'] ++ map edata args') retTy
-
-                        unify expectedTy funTy
-                        -- TODO: Rewrite this as an extra import and a normal function call.
-                        return $ EApp
-                            retTy
-                            (EIdentifier expectedTy (OtherModule tuModuleName methodName))
-                            ([lhs'] ++ args')
-                        -- return $ EMethodApp
-                        --     expectedTy
-                        --     lhs'
-                        --     methodName
-                        --     args'
-                | otherwise -> do
-                    error $ printf "Could not find name %s in module %s" (show methodName) (show tuModuleName)
+        moduleName <- readIORef lhsType >>= \case
+            TUserType TUserTypeDef{..} _ -> do
+                return tuModuleName
+            TPrimitive _ -> do
+                return "Prelude"
             _ -> do
                 ts <- showTypeVarIO lhsType
                 throwIO $ TdnrLhsTypeUnknown () ts
+
+        case () of
+            () | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
+               , Just func <- findFunction modul methodName -> do
+                    funTy <- unfreezeTypeVar $ typeForFunDef func
+
+                    retTy <- freshType env
+                    expectedTy <- newIORef $ TFun ([edata lhs'] ++ map edata args') retTy
+
+                    unify expectedTy funTy
+                    -- TODO: Rewrite this as an extra import and a normal function call.
+                    return $ EApp
+                        retTy
+                        (EIdentifier expectedTy (OtherModule moduleName methodName))
+                        ([lhs'] ++ args')
+                    -- return $ EMethodApp
+                    --     expectedTy
+                    --     lhs'
+                    --     methodName
+                    --     args'
+                | otherwise -> do
+                    fail $ printf "No exported function %s in module %s" (show methodName) (Text.unpack $ printModuleName moduleName)
 
     -- TEMP: For now, intrinsics are too polymorphic.
     -- Arithmetic operators like + and - have type (a, a) -> a

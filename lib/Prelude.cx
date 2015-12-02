@@ -70,3 +70,16 @@ export fun sliceTo(arr: Array a, end: Number): Array a {
 export fun slice(arr: Array a, start: Number, end: Number): Array a {
     _unsafe_coerce(arr).slice(start, end);
 }
+
+export fun endsWith(haystack: String, needle: String) {
+    // Oops, how do I use a record with a keyword property name :D
+    // return _unsafe_coerce(haystack).match(needle + "$") == needle;
+
+    let h = _unsafe_coerce(haystack);
+    let n = _unsafe_coerce(needle);
+    if n.length > h.length {
+        return False;
+    };
+    // TODO: crux does not support negative literals yet
+    return h.indexOf(n, h.length - n.length) != 0 - 1;
+}

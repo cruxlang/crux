@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 
 module IntegrationTest (htf_thisModulesTests) where
 
@@ -15,7 +15,8 @@ import qualified Data.Text            as T
 import qualified Data.Text.IO         as T
 import           System.IO            (hFlush)
 import           System.IO.Temp       (withSystemTempFile)
-import           System.Process       (readProcess)
+import           System.Exit          (ExitCode(..))
+import           System.Process       (readProcessWithExitCode)
 import qualified Data.HashMap.Strict as HashMap
 import           Test.Framework
 
@@ -26,7 +27,11 @@ runProgram' p = do
     withSystemTempFile "Crux.js" $ \path' handle -> do
         T.hPutStr handle js
         hFlush handle
-        T.pack <$> readProcess "node" [path'] ""
+        fmap T.pack $ do
+            readProcessWithExitCode "node" [path'] "" >>= \case
+                (ExitSuccess, stdout, _) -> return stdout
+                (ExitFailure code, _, stderr) ->
+                    fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
 
 run :: Text -> IO (Either (UnificationError Pos) Text)
 run src = try $ do
@@ -615,3 +620,10 @@ test_export_and_import = do
         , ("Halloumi", halloumi)
         ]
     assertEqual (Right "outside\ninside\n") result
+
+test_string_methods = do
+    result <- run $ T.unlines
+        [ "let _ = print(\"foo\"->endsWith(\"oo\"));"
+        , "let _ = print(\"bar\"->endsWith(\"oo\"));"
+        ]
+    assertEqual (Right "true\nfalse\n") result

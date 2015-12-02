@@ -1,21 +1,18 @@
 
 module Crux.Main (main) where
 
-import Crux.Prelude
-import qualified Data.Text as Text
---import           Crux.AST (Program(..))
-import           Crux.Module (loadProgramFromFile)
-import           Text.Show.Pretty   (ppShow)
-import           System.Exit        (ExitCode (..), exitWith)
-import qualified Crux.Gen as Gen
-import qualified Crux.Backend.JS as JS
-import Crux.Typecheck (throwTypeError)
---import qualified System.FilePath    as F
---import System.IO (stderr, hPutStr)
+import qualified Crux.Backend.JS     as JS
+import qualified Crux.Gen            as Gen
+import           Crux.Module         (loadProgramFromFile)
+import           Crux.Prelude
+import           Crux.Typecheck      (throwTypeError)
+import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
+import           System.Exit         (ExitCode (..), exitWith)
+import           Text.Show.Pretty    (ppShow)
 
 data Options = Options
-     { ast :: Bool
+     { ast   :: Bool
      , files :: [String]
      }
 

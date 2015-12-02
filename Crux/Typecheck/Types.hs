@@ -1,24 +1,15 @@
 module Crux.Typecheck.Types where
 
-import Crux.Prelude
-import Data.List (intercalate)
-import qualified Data.Text as Text
-import Text.Printf (printf)
-import Crux.Tokens (Pos (..))
-import Crux.AST
-    ( LetMutability
-    , MutableTypeVar (..)
-    , RecordOpen (..)
-    , RecordType (..)
-    , ResolvedReference
-    , TUserTypeDef (..)
-    , TypeAlias
-    , TypeRow (..)
-    , TypeVar
-    , UnresolvedReference
-    , ModuleName
-    , LoadedModule
-    )
+import           Crux.AST     (LetMutability, LoadedModule, ModuleName,
+                               MutableTypeVar (..), RecordOpen (..),
+                               RecordType (..), ResolvedReference,
+                               TUserTypeDef (..), TypeAlias, TypeRow (..),
+                               TypeVar, UnresolvedReference)
+import           Crux.Prelude
+import           Crux.Tokens  (Pos (..))
+import           Data.List    (intercalate)
+import qualified Data.Text    as Text
+import           Text.Printf  (printf)
 
 data Env = Env
     { eLoadedModules :: !(HashMap ModuleName LoadedModule)

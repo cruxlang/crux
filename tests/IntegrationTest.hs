@@ -3,19 +3,19 @@
 
 module IntegrationTest (htf_thisModulesTests) where
 
-import Control.Exception (try)
-import Crux.Typecheck.Types (UnificationError (..), showTypeVarIO)
-import Crux.Tokens (Pos (..))
-import qualified Crux.Backend.JS as JS
-import qualified Crux.Gen       as Gen
+import           Control.Exception    (try)
+import qualified Crux.Backend.JS      as JS
+import qualified Crux.Gen             as Gen
 import qualified Crux.Module
-import           Data.Text      (Text)
-import qualified Data.Text      as T
-import qualified Data.Text.IO   as T
-import           System.Process (readProcess)
+import           Crux.Tokens          (Pos (..))
+import           Crux.Typecheck.Types (UnificationError (..), showTypeVarIO)
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import qualified Data.Text.IO         as T
+import           System.IO            (hFlush)
+import           System.IO.Temp       (withSystemTempFile)
+import           System.Process       (readProcess)
 import           Test.Framework
-import           System.IO (hFlush)
-import           System.IO.Temp (withSystemTempFile)
 
 run :: Text -> IO (Either (UnificationError Pos) Text)
 run src = try (run' src)

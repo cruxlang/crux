@@ -2,22 +2,22 @@
 
 module Crux.Module where
 
-import Crux.Prelude
-import Control.Exception (ErrorCall(..))
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BSL
-import qualified Data.Text as Text
-import qualified Data.Text.Encoding as TE
-import qualified Crux.AST as AST
-import qualified Crux.Lex as Lex
-import qualified Crux.Parse as Parse
-import qualified Crux.Typecheck as Typecheck
+import           Control.Exception     (ErrorCall (..))
+import qualified Crux.AST              as AST
+import qualified Crux.Lex              as Lex
 import qualified Crux.MutableHashTable as HashTable
-import qualified System.FilePath as FP
-import qualified Data.Aeson as JSON
-import System.Directory (doesFileExist)
-import System.Environment (getExecutablePath)
-import qualified Data.Text.IO as TextIO
+import qualified Crux.Parse            as Parse
+import           Crux.Prelude
+import qualified Crux.Typecheck        as Typecheck
+import qualified Data.Aeson            as JSON
+import qualified Data.ByteString       as BS
+import qualified Data.ByteString.Lazy  as BSL
+import qualified Data.Text             as Text
+import qualified Data.Text.Encoding    as TE
+import qualified Data.Text.IO          as TextIO
+import           System.Directory      (doesFileExist)
+import           System.Environment    (getExecutablePath)
+import qualified System.FilePath       as FP
 
 type ModuleLoader = AST.ModuleName -> IO (Either String AST.ParsedModule)
 

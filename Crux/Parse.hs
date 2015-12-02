@@ -6,16 +6,13 @@
 
 module Crux.Parse where
 
-import           Crux.Prelude
 import           Control.Applicative ((<|>))
 import           Crux.AST            as AST
 import qualified Crux.JSTree         as JSTree
+import           Crux.Prelude
 import           Crux.Text           (isCapitalized)
 import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
-import Text.Printf (printf)
-import qualified Data.Text as Text
-import qualified System.FilePath as FP
 import qualified Text.Parsec         as P
 
 type Parser = P.ParsecT [Token Pos] ModuleName IO
@@ -36,7 +33,7 @@ anyToken :: Parser (Token Pos)
 anyToken = getToken Just
 
 token :: TokenType -> Parser (Token Pos)
-token expected = getToken testTok <|> fail (printf "Expected %s" (show expected))
+token expected = getToken testTok
   where
     testTok tok@(Token _ ttype)
         | expected == ttype = Just tok

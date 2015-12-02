@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Crux.Gen
     ( Value(..)
@@ -14,13 +14,13 @@ module Crux.Gen
     , generateProgram
     ) where
 
-import Crux.Prelude
-import qualified Crux.AST as AST
-import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
-import Data.Graph (graphFromEdges, topSort)
-import qualified Data.HashMap.Strict as HashMap
+import           Control.Monad.Trans.Class (lift)
+import           Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
+import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
+import qualified Crux.AST                  as AST
+import           Crux.Prelude
+import           Data.Graph                (graphFromEdges, topSort)
+import qualified Data.HashMap.Strict       as HashMap
 
 {-
 Instructions can:

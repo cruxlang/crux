@@ -1,14 +1,16 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
 module Crux.AST where
 
-import qualified Data.Text     as Text
 import qualified Crux.JSTree  as JSTree
 import           Crux.Prelude
 import qualified Crux.Tokens  as Tokens
+import qualified Data.Text    as Text
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -109,7 +111,7 @@ type ParsedModule = Module UnresolvedReference Tokens.Pos
 type LoadedModule = Module ResolvedReference ImmutableTypeVar
 
 data Program = Program
-    { pMainModule :: LoadedModule
+    { pMainModule   :: LoadedModule
     , pOtherModules :: HashMap ModuleName LoadedModule
     }
     deriving (Show, Eq)

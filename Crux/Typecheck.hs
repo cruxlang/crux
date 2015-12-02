@@ -173,6 +173,8 @@ withPositionInformation expr a = catch a handle
         throwIO (IntrinsicError (edata expr) message)
     handle (NotAnLVar () s) =
         throwIO (NotAnLVar (edata expr) s)
+    handle (TdnrLhsTypeUnknown () s) =
+        throwIO (TdnrLhsTypeUnknown (edata expr) s)
 
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
@@ -188,7 +190,7 @@ findFunction :: Module a b -> Text -> Maybe (FunDef a b)
 findFunction modul name = do
     let go decls = case decls of
             [] -> Nothing
-            (decl@(Declaration _ declType):rest)
+            ((Declaration _ declType):rest)
                 -- | DDeclare n _ <- declType, n == name ->
                 --     return $ Just decl
                 -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
@@ -362,11 +364,15 @@ check env expr = withPositionInformation expr $ case expr of
 
                         unify expectedTy funTy
                         -- TODO: Rewrite this as an extra import and a normal function call.
-                        return $ EMethodApp
-                            expectedTy
-                            lhs'
-                            methodName
-                            args'
+                        return $ EApp
+                            retTy
+                            (EIdentifier expectedTy (OtherModule tuModuleName methodName))
+                            ([lhs'] ++ args')
+                        -- return $ EMethodApp
+                        --     expectedTy
+                        --     lhs'
+                        --     methodName
+                        --     args'
                 | otherwise -> do
                     error $ printf "Could not find name %s in module %s" (show methodName) (show tuModuleName)
             _ -> do
@@ -841,3 +847,5 @@ throwTypeError (IntrinsicError pos message) =
     error $ printf "%s at %i,%i" message (posLine pos) (posCol pos)
 throwTypeError (NotAnLVar pos s) = do
     error $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s
+throwTypeError (TdnrLhsTypeUnknown pos s) = do
+    error $ printf "TDNR %i,%i\n\t%s" (posLine pos) (posCol pos) s

@@ -64,7 +64,7 @@ showTypeVarIO tvar = do
         TFun arg ret -> do
             as <- mapM showTypeVarIO arg
             rs <- showTypeVarIO ret
-            return $ "TFun (" ++ intercalate "," as ++ ") -> " ++ rs
+            return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
         TUserType def tvars -> do
             tvs <- mapM showTypeVarIO tvars
             return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)

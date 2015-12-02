@@ -9,6 +9,7 @@ import           Text.Show.Pretty   (ppShow)
 import           System.Exit        (ExitCode (..), exitWith)
 import qualified Crux.Gen as Gen
 import qualified Crux.Backend.JS as JS
+import Crux.Typecheck (throwTypeError)
 --import qualified System.FilePath    as F
 --import System.IO (stderr, hPutStr)
 import qualified Options.Applicative as Opt
@@ -47,7 +48,7 @@ main = do
         [] -> help
         (_:_:_) -> help
         [fn] -> do
-            program <- loadProgramFromFile fn
+            program <- loadProgramFromFile fn `catch` throwTypeError
             --let outfile = F.replaceExtension fn "js"
             if ast options then
                 putStrLn $ ppShow program

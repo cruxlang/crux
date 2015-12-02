@@ -27,30 +27,25 @@ type XMLHttpRequest = {
     //getRequestHeader : (String) -> Unityped
 };
 
-fun newXhr() {
+data XHR { XHR(XMLHttpRequest) }
+
+export fun newXhr() {
     let result : XMLHttpRequest = _unsafe_js("new XMLHttpRequest");
-    result;
+    XHR(result);
 }
 
-fun http_get(url, onLoaded) {
-    let xhr = newXhr();
-
+fun i(x : XMLHttpRequest, url : String, onLoaded) : Unit {
     let loadProc = fun() {
-        onLoaded(xhr);
+        onLoaded(x);
     };
 
-    xhr.addEventListener("load", loadProc);
-    xhr.open(Get, url);
-    xhr.send();
-    xhr;
+    x.addEventListener("load", loadProc);
+    x.open(Get, url);
+    x.send();
 }
 
-fun main() {
-    let document = _unsafe_js("window.document");
-    http_get("main.crux", fun (xhr) {
-        print("Got response :D");
-        document.write(xhr.responseText);
-    });
+export fun http_get(xhr : XHR, url: String, onLoaded) : Unit {
+    match xhr {
+        XHR(x) => i(x, url, onLoaded);
+    };
 }
-
-let _ = main();

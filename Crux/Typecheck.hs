@@ -367,7 +367,7 @@ check env expr = withPositionInformation expr $ case expr of
         case () of
             () | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
                , Just func <- findFunction modul methodName -> do
-                    funTy <- unfreezeTypeVar $ typeForFunDef func
+                    funTy <- unfreezeTypeVar (typeForFunDef func) >>= instantiate env
 
                     retTy <- freshType env
                     expectedTy <- newIORef $ TFun ([edata lhs'] ++ map edata args') retTy

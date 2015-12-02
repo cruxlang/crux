@@ -627,3 +627,12 @@ test_string_methods = do
         , "let _ = print(\"bar\"->endsWith(\"oo\"));"
         ]
     assertEqual (Right "true\nfalse\n") result
+
+test_tdnr_quantifies_function = do
+    result <- run $ T.unlines
+        [ "let a = [1, 2, 3];"
+        , "let _ = a->each(fun(i) {"
+        , "    print(i);"
+        , "});"
+        ]
+    assertEqual (Right "1\n2\n3\n") result

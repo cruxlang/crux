@@ -51,12 +51,12 @@ Working:
 * Type inference
 * Sums
 * Pattern matching
-* [Row-polymorphic records](https://github.com/andyfriesen/Crux/blob/master/design/objects.md)
+* [Row-polymorphic records](https://github.com/andyfriesen/Crux/blob/master/doc/design/objects.md)
 * `if-then-else`
 * "imperative" control flow: `return`, `break`, `continue`
 * Loops
 * Type aliasing
-* [Mutability](https://github.com/andyfriesen/Crux/blob/master/design/mutability.md)
+* [Mutability](https://github.com/andyfriesen/Crux/blob/master/doc/design/mutability.md)
 * "everything is an expression"
 * Tail Calls
 

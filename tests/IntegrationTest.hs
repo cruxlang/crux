@@ -610,5 +610,8 @@ test_export_and_import = do
         , "}"
         ]
 
-    result <- runMultiModule $ HashMap.fromList [("Main", main), ("Halloumi", halloumi)]
+    result <- runMultiModule $ HashMap.fromList
+        [ ("Main", main)
+        , ("Halloumi", halloumi)
+        ]
     assertEqual (Right "outside\ninside\n") result

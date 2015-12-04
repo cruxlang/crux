@@ -219,8 +219,21 @@ resolveBooleanType :: Pos -> Env -> IO TypeVar
 resolveBooleanType pos env = do
     resolveType pos env (UnknownReference "Boolean")
 
+-- TODO: rename to checkNew or some other function that conveys "typecheck, but
+-- I don't know or care what type you will be." and port all uses of check to it.
 check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
-check env expr = withPositionInformation expr $ case expr of
+check env expr = do
+    newType <- freshType env
+    checkExpecting newType env expr
+
+checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
+checkExpecting expectedType env expr = do
+    e <- check' expectedType env expr
+    unify (edata e) expectedType
+    return e
+
+check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
+check' expectedType env expr = withPositionInformation expr $ case expr of
     EFun _ params retAnn body -> do
         bindings' <- HashTable.clone (eBindings env)
         paramTypes <- forM params $ \(p, _) -> do
@@ -263,13 +276,13 @@ check env expr = withPositionInformation expr $ case expr of
     EApp _ (EIdentifier _ (UnknownReference "_unsafe_coerce")) _ ->
         error "_unsafe_coerce takes just one argument"
 
-    EApp _ lhs rhs -> do
-        lhs' <- check env lhs
-        rhs' <- mapM (check env) rhs
+    EApp _ fn args -> do
+        fn' <- check env fn
+        args' <- mapM (check env) args
         result <- freshType env
-        ty <- newIORef $ TFun (map edata rhs') result
-        unify (edata lhs') ty
-        return $ EApp result lhs' rhs'
+        ty <- newIORef $ TFun (map edata args') result
+        unify (edata fn') ty
+        return $ EApp result fn' args'
 
     EIntrinsic {} -> do
         error "Unexpected: EIntrinsic encountered during typechecking"

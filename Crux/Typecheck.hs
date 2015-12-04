@@ -236,12 +236,20 @@ check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> IO (Expression
 check' expectedType env expr = withPositionInformation expr $ case expr of
     EFun _ params retAnn body -> do
         bindings' <- HashTable.clone (eBindings env)
-        paramTypes <- forM params $ \(p, _) -> do
-            pt <- freshType env
-            HashTable.insert p (Local p, LImmutable, pt) bindings'
-            return pt
 
-        returnType <- freshType env
+        -- If we know the expected function type, then use its type variables
+        -- rather than make new ones.
+        (paramTypes, returnType) <- readIORef expectedType >>= \case
+            TFun paramTypes returnType -> do
+                return (paramTypes, returnType)
+            _ -> do
+                paramTypes <- forM params $ \_ -> do
+                    freshType env
+                returnType <- freshType env
+                return (paramTypes, returnType)
+
+        forM_ (zip params paramTypes) $ \((p, _), pt) -> do
+            HashTable.insert p (Local p, LImmutable, pt) bindings'
 
         let env' = env
                 { eBindings=bindings'
@@ -278,11 +286,19 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
     EApp _ fn args -> do
         fn' <- check env fn
-        args' <- mapM (check env) args
-        result <- freshType env
-        ty <- newIORef $ TFun (map edata args') result
-        unify (edata fn') ty
-        return $ EApp result fn' args'
+        readIORef (edata fn') >>= \case
+            -- in the case that the type of the function is known, we propogate
+            -- the known argument types into the environment so tdnr works
+            TFun argTypes resultType -> do
+                args' <- forM (zip argTypes args) $ \(argType, arg) -> do
+                    checkExpecting argType env arg
+                return $ EApp resultType fn' args'
+            _ -> do
+                args' <- mapM (check env) args
+                result <- freshType env
+                ty <- newIORef $ TFun (map edata args') result
+                unify (edata fn') ty
+                return $ EApp result fn' args'
 
     EIntrinsic {} -> do
         error "Unexpected: EIntrinsic encountered during typechecking"

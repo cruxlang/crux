@@ -637,7 +637,6 @@ test_tdnr_quantifies_function = do
         ]
     assertEqual (Right "1\n2\n3\n") result
 
-{- IN PROGRESS
 test_tdnr_inside_each = do
     result <- run $ T.unlines
         [ "let _ = [1, 2, 3]->each(fun(i) {"
@@ -645,4 +644,3 @@ test_tdnr_inside_each = do
         , "});"
         ]
     assertEqual (Right "1\n2\n3\n") result
--}

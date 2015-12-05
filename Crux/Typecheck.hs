@@ -239,6 +239,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         -- If we know the expected function type, then use its type variables
         -- rather than make new ones.
+        -- TODO: use followTypeVar instead of readIORef
         (paramTypes, returnType) <- readIORef expectedType >>= \case
             TFun paramTypes returnType -> do
                 return (paramTypes, returnType)
@@ -286,6 +287,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
     EApp _ fn args -> do
         fn' <- check env fn
+        -- TODO: use followTypeVar instead of readIORef
         readIORef (edata fn') >>= \case
             -- in the case that the type of the function is known, we propogate
             -- the known argument types into the environment so tdnr works
@@ -400,6 +402,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         -- the location of that type.
         lhs' <- check env lhs
         lhsType <- walkMutableTypeVar (edata lhs')
+        -- TODO: use followTypeVar instead of readIORef
         moduleName <- readIORef lhsType >>= \case
             TUserType TUserTypeDef{..} _ -> do
                 return tuModuleName
@@ -803,6 +806,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
         res <- HashTable.lookup typeName eTypeBindings
         case res of
             Just (_, ty) -> do
+                -- TODO: use followTypeVar instead of readIORef
                 ty' <- readIORef ty
                 case ty' of
                     TPrimitive {}

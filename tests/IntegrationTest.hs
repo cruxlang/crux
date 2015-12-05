@@ -644,3 +644,11 @@ test_tdnr_inside_each = do
         , "});"
         ]
     assertEqual (Right "1\n2\n3\n") result
+
+test_tdnr_inside_for_loop = do
+    result <- run $ T.unlines
+        [ "let _ = for i in [1, 2, 3] {"
+        , "    i->print();"
+        , "};"
+        ]
+    assertEqual (Right "1\n2\n3\n") result

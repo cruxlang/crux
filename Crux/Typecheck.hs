@@ -456,14 +456,11 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         return $ EWhile unitType condition' body'
 
-    EFor _ name over body -> do
+    EFor pos name over body -> do
         unitType <- newIORef $ TPrimitive Unit
 
-        iteratorType <- freshType env
-
-        over' <- check env over
-        -- TODO: typecheck that it's actually an array
-        -- TODO: unify iteratorType with array element type
+        (arrayType, iteratorType) <- resolveArrayType pos env
+        over' <- checkExpecting arrayType env over
 
         bindings' <- HashTable.clone (eBindings env)
         HashTable.insert name (Local name, LImmutable, iteratorType) bindings'

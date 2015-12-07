@@ -125,6 +125,8 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym '/' TDivide
      <|> sym '<' TLess
      <|> sym '>' TGreater
+     <|> sym2 '&' '&' TAndAnd
+     <|> sym2 '|' '|' TOrOr
   where
     sym ch tok = do
         p <- pos

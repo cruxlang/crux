@@ -146,6 +146,8 @@ data BinIntrinsic
     | BIGreaterEqual
     | BIEqual
     | BINotEqual
+    | BAnd
+    | BOr
     deriving (Show, Eq)
 
 isArithmeticOp :: BinIntrinsic -> Bool
@@ -164,6 +166,12 @@ isRelationalOp op = case op of
     BIGreaterEqual -> True
     BIEqual -> True
     BINotEqual -> True
+    _ -> False
+
+isBooleanOp :: BinIntrinsic -> Bool
+isBooleanOp op = case op of
+    BAnd -> True
+    BOr -> True
     _ -> False
 
 data Intrinsic input

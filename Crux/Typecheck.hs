@@ -431,6 +431,11 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 unify (edata lhs') (edata rhs')
                 booleanType <- resolveBooleanType (edata expr) env
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
+           | isBooleanOp bi -> do
+                booleanType <- resolveBooleanType (edata lhs) env
+                unify (edata lhs') booleanType
+                unify (edata rhs') booleanType
+                return $ EBinIntrinsic booleanType bi lhs' rhs'
            | otherwise ->
                 error "This should be impossible: Check EBinIntrinsic"
 

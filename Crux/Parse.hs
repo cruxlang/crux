@@ -307,6 +307,12 @@ relationExpression = do
             <|> (token TGreaterEqual >> return BIGreaterEqual)
     infixExpression op addExpression
 
+booleanExpression :: Parser ParseExpression
+booleanExpression = do
+    let op = (token TAndAnd >> return BAnd)
+            <|> (token TOrOr >> return BOr)
+    infixExpression op relationExpression
+
 assignExpression :: Parser ParseExpression
 assignExpression = do
     lhs <- P.try (applicationExpression <* token TEqual)
@@ -352,7 +358,7 @@ noSemiExpression =
     <|> forExpression
     <|> P.try returnExpression
     <|> assignExpression
-    <|> relationExpression
+    <|> booleanExpression
 
 expression :: Parser ParseExpression
 expression = do

@@ -61,6 +61,8 @@ renderInstruction instr = case instr of
                 BILessEqual -> "<="
                 BIEqual    -> "==="
                 BINotEqual -> "!=="
+                BAnd -> "&&"
+                BOr -> "||"
         in renderOutput output $ JSTree.EBinOp sym (renderValue lhs) (renderValue rhs)
     Gen.Intrinsic output intrin ->
         renderOutput output $ case intrin of

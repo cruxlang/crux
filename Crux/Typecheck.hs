@@ -158,14 +158,13 @@ resolveName env ref@(UnknownReference name) = do
     case result of
         Just (rr, _, t) -> return (rr, t)
         Nothing -> throwIO $ UnboundSymbol () ref
-resolveName env (KnownReference moduleName name) = do
-    case () of
-        () | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
-           , Just func <- findExportedValue modul name -> do
-                funTy <- unfreezeTypeVar $ typeForFunDef func
-                return (OtherModule moduleName name, funTy)
-           | otherwise -> do
-                fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
+resolveName env (KnownReference moduleName name)
+    | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
+    , Just func <- findExportedValue modul name = do
+        funTy <- unfreezeTypeVar $ typeForFunDef func
+        return (OtherModule moduleName name, funTy)
+    | otherwise = do
+        fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
 findExportedValue :: Module a b -> Text -> Maybe (FunDef a b)
 findExportedValue modul name = do

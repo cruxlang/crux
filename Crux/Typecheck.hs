@@ -8,6 +8,7 @@
 module Crux.Typecheck where
 
 import           Control.Exception     (ErrorCall (..))
+import Control.Monad (void)
 import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
@@ -655,6 +656,7 @@ buildTypeEnvironment loadedModules modul = do
                     }
             userType <- newIORef $ TUserType typeDef typeVars
             HashTable.insert name (scope name, userType) typeEnv
+            return typeDef
 
     -- inject stuff from the prelude into this global environment
     -- TODO: rather than injecting symbols, we may need a mechanism to refer
@@ -683,15 +685,25 @@ buildTypeEnvironment loadedModules modul = do
                 -- IS THIS RIGHT??
                 -- no tests
 
-                insertDataType (OtherModule importName) dname importName typeVariables variants
+                env <- childEnv e
+
+                tyVars <- forM typeVariables $ \tv ->
+                    resolveTypeIdent env NewTypesAreQuantified (TypeIdent tv [])
+
+                typeDef <- insertDataType (OtherModule importName) dname importName typeVariables variants
+
+                dataType <- newIORef $ TUserType typeDef tyVars
 
                 forM_ variants $ \(Variant vname params) -> do
-                    let thisTI = TypeIdent vname []
-                    let vt = case params of
-                            [] -> thisTI
-                            ps -> FunctionIdent ps thisTI
-                    tr' <- resolveTypeIdent e NewTypesAreErrors vt
-                    HashTable.insert vname (OtherModule importName vname, LImmutable, tr') (eBindings e)
+                    vt <- case params of
+                        [] ->
+                            return dataType
+                        _ -> do
+                            paramTys <- forM params $ \param ->
+                                resolveTypeIdent env NewTypesAreErrors param
+                            newIORef $ TFun paramTys dataType
+
+                    HashTable.insert vname (OtherModule importName vname, LImmutable, vt) (eBindings e)
 
             DJSData name moduleName variants -> do
                 let encodeJSVariant (JSVariant n _) = TVariant n []
@@ -711,8 +723,8 @@ buildTypeEnvironment loadedModules modul = do
         DDeclare _name _typeIdent -> do
             return ()
 
-        DData name moduleName typeVarNames variants -> do
-            insertDataType ThisModule name moduleName typeVarNames variants
+        DData name moduleName typeVarNames variants ->
+            void $ insertDataType ThisModule name moduleName typeVarNames variants
 
         DJSData name moduleName variants -> do
             -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass

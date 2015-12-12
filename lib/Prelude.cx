@@ -10,6 +10,13 @@ export data jsffi Boolean {
     False = false,
 }
 
+// Option
+
+export data Option a {
+    Some(a),
+    None
+}
+
 // Arrays have unspecified representation
 export data Array a {}
 

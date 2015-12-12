@@ -654,9 +654,16 @@ test_tdnr_inside_for_loop = do
         ]
     assertEqual (Right "1\n2\n3\n") result
 
-test_boolean_expressions = do
+test_and_expression = do
     assertOutput
         [ "let b = 0 <= 5 && 5 < 10;"
+        , "let _ = print(b);"
+        ]
+        "true\n"
+
+test_or_expression = do
+    assertOutput
+        [ "let b = 5 <= 0 || 5 < 10;"
         , "let _ = print(b);"
         ]
         "true\n"

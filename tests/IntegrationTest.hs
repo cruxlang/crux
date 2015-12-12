@@ -1,23 +1,24 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module IntegrationTest (htf_thisModulesTests) where
 
 import           Control.Exception    (try)
-import qualified Crux.AST as AST
+import qualified Crux.AST             as AST
 import qualified Crux.Backend.JS      as JS
 import qualified Crux.Gen             as Gen
 import qualified Crux.Module
 import           Crux.Tokens          (Pos (..))
 import           Crux.Typecheck.Types (UnificationError (..), showTypeVarIO)
+import qualified Data.HashMap.Strict  as HashMap
 import           Data.Text            (Text)
 import qualified Data.Text            as T
 import qualified Data.Text.IO         as T
+import           System.Exit          (ExitCode (..))
 import           System.IO            (hFlush)
 import           System.IO.Temp       (withSystemTempFile)
-import           System.Exit          (ExitCode(..))
 import           System.Process       (readProcessWithExitCode)
-import qualified Data.HashMap.Strict as HashMap
 import           Test.Framework
 
 runProgram' :: AST.Program -> IO Text

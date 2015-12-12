@@ -1,0 +1,10 @@
+
+import {
+    Json (...)
+}
+
+fun main() {
+    
+}
+
+let _ = main();

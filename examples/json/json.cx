@@ -1,0 +1,64 @@
+
+data Error {
+    Error(String)
+}
+
+data UntypedJs {}
+
+let _typeOf : (UntypedJs) -> String = _unsafe_js("function (x) { return typeof x; }");
+let _throw : (Error) -> anyOther = _unsafe_js("function (e) { throw e; }");
+let _isNull : (UntypedJs) -> Boolean = _unsafe_js("function (o) { return o === null; }");
+let _getAttr : (UntypedJs, String) -> any2 = _unsafe_js("function (o ,k) { return o[k]; }");
+let _parseJson : (String) -> UntypedJs = _unsafe_js("function (s) { return JSON.parse(s); }");
+
+fun assertTypeOf(a : UntypedJs, expectedType : String) {
+    let t = _typeOf(a);
+    if expectedType != t {
+        _throw(Error("Wanted " + expectedType + " but got " + t));
+    };
+}
+
+fun decodeNumber(a : UntypedJs) : Number {
+    assertTypeOf(a, "number");
+    return _unsafe_coerce(a);
+}
+
+fun decodeBoolean(a : UntypedJs) : Boolean {
+    assertTypeOf(a, "boolean");
+    return _unsafe_coerce(a);
+}
+
+fun decodeNullable(decoder : (UntypedJs) -> b, a : UntypedJs) : Option b {
+    if (_isNull(a)) {
+        return None;
+    } else {
+        return Some(decoder(a));
+    };
+}
+
+fun decodeArray(
+    elementDecoder : (UntypedJs) -> element,
+    arr: UntypedJs
+) : Array element {
+    assertTypeOf(arr, "array");
+
+    let mutable result = [];
+    let array = _unsafe_coerce(arr);
+    for element in array {
+        result->append(elementDecoder(element));
+    };
+    return result;
+}
+
+fun decodeKey(
+    keyDecoder : (UntypedJs) -> element,
+    obj : UntypedJs,
+    key : String
+) : element {
+    assertTypeOf(obj, "object");
+    return keyDecoder(_getAttr(obj, key));
+}
+
+fun fromString(s : String, decoder : (UntypedJs) -> any) : any {
+    decoder(_parseJson(s));
+}

@@ -13,9 +13,11 @@ fun main() {
 
     print(fromString(example1, decodeNullable(decodeString)));
 
-    let exampleJson = "{\"horpen\":null}";
-    print(exampleJson);
-    print(fromString(exampleJson, decodeHorpen));
+    let example2 = "{\"horpen\":null}";
+    print(fromString(example2, decodeHorpen));
+
+    let example3 = "[{\"horpen\":null}, {\"horpen\":\"hobere\"}, {\"horpen\":null}]";
+    print(fromString(example3, decodeArray(decodeHorpen)));
 }
 
 let _ = main();

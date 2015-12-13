@@ -11,10 +11,20 @@ let _isNull : (UntypedJs) -> Boolean = _unsafe_js("function (o) { return o === n
 let _getAttr : (UntypedJs, String) -> any2 = _unsafe_js("function (o ,k) { return o[k]; }");
 let _parseJson : (String) -> UntypedJs = _unsafe_js("function (s) { return JSON.parse(s); }");
 
-export fun assertTypeOf(a : UntypedJs, expectedType : String) {
+let _isArray = _unsafe_js("function (a) { return Array.isArray(a); }");
+
+let _stringify = _unsafe_js("function (o) { return JSON.stringify(o); }");
+
+fun assert(b : Boolean, error : String) {
+    if b {} else {
+        _throw(Error(error));
+    };
+}
+
+fun assertTypeOf(a : UntypedJs, expectedType : String) {
     let t = _typeOf(a);
     if expectedType != t {
-        _throw(Error("Wanted " + expectedType + " but got " + t));
+        _throw(Error("Wanted " + expectedType + " but got " + t + ": " + _stringify(a)));
     };
 }
 
@@ -44,17 +54,19 @@ export fun decodeNullable(decoder : (UntypedJs) -> any) : (UntypedJs) -> Option 
 }
 
 export fun decodeArray(
-    elementDecoder : (UntypedJs) -> element,
-    arr: UntypedJs
-) : Array element {
-    assertTypeOf(arr, "array");
+    elementDecoder : (UntypedJs) -> element
+) : (UntypedJs) -> Array element {
+    fun (arr) {
+        assert(_isArray(arr), "Expected array but got " + _stringify(arr));
 
-    let mutable result = [];
-    let array = _unsafe_coerce(arr);
-    for element in array {
-        result->append(elementDecoder(element));
+        let mutable result = [];
+        for element in _unsafe_coerce(arr) {
+            print("DECODE");
+            print(element);
+            result->append(elementDecoder(element));
+        };
+        return result;
     };
-    return result;
 }
 
 export fun decodeKey(

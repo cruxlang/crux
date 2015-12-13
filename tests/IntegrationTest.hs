@@ -677,3 +677,11 @@ test_prelude_provides_Some = do
     assertCompiles
         [ "let a = Some(8);"
         ]
+
+test_some_string_escapes = do
+    assertOutput
+        -- [ "let a = \"\\\"\";"
+        [ "let a = \"\\\"\\rlalala\\\\\\n\\t\";"
+        , "let _ = print(a->strlen());"
+        ]
+        "11\n"

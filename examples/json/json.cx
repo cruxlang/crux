@@ -28,7 +28,7 @@ fun decodeBoolean(a : UntypedJs) : Boolean {
     return _unsafe_coerce(a);
 }
 
-fun decodeNullable(decoder : (UntypedJs) -> b, a : UntypedJs) : Option b {
+fun decodeNullable(decoder : (UntypedJs) -> any, a : UntypedJs) : Option any {
     if (_isNull(a)) {
         return None;
     } else {

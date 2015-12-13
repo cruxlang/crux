@@ -24,11 +24,25 @@ integerLiteral = do
     digits <- P.many1 P.digit
     return $ Token p $ TInteger $ read digits
 
+stringChar :: Parser u String
+stringChar =
+    let escape =
+            P.char '\\' *>
+            P.choice
+                [ P.char '\\' *> return '\\'
+                , P.char '\"' *> return '\"'
+                , P.char 'r' *> return '\r'
+                , P.char 'n' *> return '\n'
+                , P.char 't' *> return '\t'
+                ]
+        notQuote = P.satisfy (/= '\"')
+    in P.many (escape <|> notQuote)
+
 stringLiteral :: Parser u (Token Pos)
 stringLiteral = do
     p <- pos
     _ <- P.char '"'
-    chars <- P.many $ P.satisfy (/= '"')
+    chars <- stringChar
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
 

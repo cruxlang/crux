@@ -3,9 +3,19 @@ import {
     Json (...)
 }
 
+fun decodeHorpen(o) {
+    decodeKey(decodeNullable(decodeString), o, "horpen");
+}
+
 fun main() {
+    let example1 = "\"horpen\"";
+    print(fromString(example1, decodeString));
+
+    print(fromString(example1, decodeNullable(decodeString)));
+
     let exampleJson = "{\"horpen\":null}";
     print(exampleJson);
+    print(fromString(exampleJson, decodeHorpen));
 }
 
 let _ = main();

@@ -11,32 +11,39 @@ let _isNull : (UntypedJs) -> Boolean = _unsafe_js("function (o) { return o === n
 let _getAttr : (UntypedJs, String) -> any2 = _unsafe_js("function (o ,k) { return o[k]; }");
 let _parseJson : (String) -> UntypedJs = _unsafe_js("function (s) { return JSON.parse(s); }");
 
-fun assertTypeOf(a : UntypedJs, expectedType : String) {
+export fun assertTypeOf(a : UntypedJs, expectedType : String) {
     let t = _typeOf(a);
     if expectedType != t {
         _throw(Error("Wanted " + expectedType + " but got " + t));
     };
 }
 
-fun decodeNumber(a : UntypedJs) : Number {
+export fun decodeNumber(a : UntypedJs) : Number {
     assertTypeOf(a, "number");
     return _unsafe_coerce(a);
 }
 
-fun decodeBoolean(a : UntypedJs) : Boolean {
+export fun decodeBoolean(a : UntypedJs) : Boolean {
     assertTypeOf(a, "boolean");
     return _unsafe_coerce(a);
 }
 
-fun decodeNullable(decoder : (UntypedJs) -> any, a : UntypedJs) : Option any {
-    if (_isNull(a)) {
-        return None;
-    } else {
-        return Some(decoder(a));
+export fun decodeString(a : UntypedJs) : String {
+    assertTypeOf(a, "string");
+    return _unsafe_coerce(a);
+}
+
+export fun decodeNullable(decoder : (UntypedJs) -> any) : (UntypedJs) -> Option any {
+    fun(a) {
+        if (_isNull(a)) {
+            return None;
+        } else {
+            return Some(decoder(a));
+        };
     };
 }
 
-fun decodeArray(
+export fun decodeArray(
     elementDecoder : (UntypedJs) -> element,
     arr: UntypedJs
 ) : Array element {
@@ -50,7 +57,7 @@ fun decodeArray(
     return result;
 }
 
-fun decodeKey(
+export fun decodeKey(
     keyDecoder : (UntypedJs) -> element,
     obj : UntypedJs,
     key : String
@@ -59,6 +66,6 @@ fun decodeKey(
     return keyDecoder(_getAttr(obj, key));
 }
 
-fun fromString(s : String, decoder : (UntypedJs) -> any) : any {
+export fun fromString(s : String, decoder : (UntypedJs) -> any) : any {
     decoder(_parseJson(s));
 }

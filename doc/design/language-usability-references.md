@@ -7,3 +7,7 @@ http://elm-lang.org/blog/compilers-as-assistants
 https://news.ycombinator.com/item?id=9805978
 
 http://www.scala-js.org/
+
+https://lists.swift.org/pipermail/swift-evolution/Week-of-Mon-20151207/001948.html
+
+http://blog.ezyang.com/2015/12/the-convergence-of-compilers-build-systems-and-package-managers/

@@ -98,3 +98,7 @@ export fun endsWith(haystack: String, needle: String) {
     // TODO: crux does not support negative literals yet
     return h.indexOf(n, h.length - n.length) != 0 - 1;
 }
+
+export fun join(sep: String, elements: Array String): String {
+    _unsafe_coerce(elements).join(sep);
+}

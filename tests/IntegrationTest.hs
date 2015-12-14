@@ -681,3 +681,5 @@ test_escaped_strings = do
         [ [r|let _ = print("\x00\x01\x02");|]
         ]
     assertEqual (Right "\0\1\2\n") result2
+
+    -- TODO: tests for \u and \U

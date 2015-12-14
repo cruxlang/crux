@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings, QuasiQuotes #-}
 
 module IntegrationTest (htf_thisModulesTests) where
 
@@ -20,6 +19,7 @@ import           System.IO            (hFlush)
 import           System.IO.Temp       (withSystemTempFile)
 import           System.Process       (readProcessWithExitCode)
 import           Test.Framework
+import Text.RawString.QQ (r)
 
 runProgram' :: AST.Program -> IO Text
 runProgram' p = do
@@ -531,12 +531,12 @@ test_polymorphic_type_annotations_are_universally_quantified =
         ]
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do
-    r <- run $ T.unlines
+    rv <- run $ T.unlines
         [ "let f : (Number) -> Number = fun (i) { i; };"
         , "let g : (a) -> a = fun (i) { i; };"
         , "let _ = f(g(\"hello\"));"
         ]
-    assertUnificationError (Pos 3 9) "Number" "String" r
+    assertUnificationError (Pos 3 9) "Number" "String" rv
 
 test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
@@ -546,10 +546,10 @@ test_polymorphic_type_annotations_are_universally_quantified3 =
         ]
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
-    r <- run $ T.unlines
+    rv <- run $ T.unlines
         [ "let f : (a) -> Number = fun (i) { i; };"
         ]
-    assertUnificationError (Pos 1 1) "Number" "TQuant 7" r
+    assertUnificationError (Pos 1 1) "Number" "TQuant 7" rv
 
 test_type_annotations_on_function_decls =
     assertCompiles
@@ -557,10 +557,10 @@ test_type_annotations_on_function_decls =
         ]
 
 test_type_annotations_on_function_decls2 = do
-    r <- run $ T.unlines
+    rv <- run $ T.unlines
         [ "fun id_int(x : a) : Number { x; }"
         ]
-    assertUnificationError (Pos 1 1) "Number" "TQuant 11" r
+    assertUnificationError (Pos 1 1) "Number" "TQuant 11" rv
 
 test_arrays =
     assertOutput
@@ -654,16 +654,9 @@ test_tdnr_inside_for_loop = do
         ]
     assertEqual (Right "1\n2\n3\n") result
 
-test_and_expression = do
+test_boolean_expressions = do
     assertOutput
         [ "let b = 0 <= 5 && 5 < 10;"
-        , "let _ = print(b);"
-        ]
-        "true\n"
-
-test_or_expression = do
-    assertOutput
-        [ "let b = 5 <= 0 || 5 < 10;"
         , "let _ = print(b);"
         ]
         "true\n"
@@ -678,10 +671,13 @@ test_prelude_provides_Some = do
         [ "let a = Some(8);"
         ]
 
-test_some_string_escapes = do
-    assertOutput
-        -- [ "let a = \"\\\"\";"
-        [ "let a = \"\\\"\\rlalala\\\\\\n\\t\";"
-        , "let _ = print(a->strlen());"
+test_escaped_strings = do
+    result1 <- run $ T.unlines
+        [ [r|let _ = print("\0\a\b\f\n\r\t\v\\\'\"\?");|]
         ]
-        "11\n"
+    assertEqual (Right "\NUL\a\b\f\n\r\t\v\\'\"?\n") result1
+
+    result2 <- run $ T.unlines
+        [ [r|let _ = print("\x00\x01\x02");|]
+        ]
+    assertEqual (Right "\0\1\2\n") result2

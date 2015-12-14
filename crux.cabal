@@ -75,4 +75,5 @@ test-suite tests
                  , filepath
                  , temporary
                  , unordered-containers
+                 , raw-strings-qq
     default-language: Haskell2010

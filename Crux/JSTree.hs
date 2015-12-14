@@ -4,6 +4,7 @@ module Crux.JSTree where
 
 import Crux.Prelude
 import qualified Data.HashMap.Strict    as HashMap
+import qualified Data.Text as Text
 import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as B
@@ -62,35 +63,35 @@ renderFunction maybeName maybeArg body =
                 let inits = map render (init body)
                     lastOne = last body
                     last' = case lastOne of
-                        SExpression _ -> B.fromText "return " <> render lastOne
+                        SExpression _ -> "return " <> render lastOne
                         _ -> render lastOne
                 in mconcat inits <> last'
-    in B.fromText "function "
+    in "function "
         <> (maybe mempty B.fromText maybeName)
-        <> B.fromText "("
-        <> intercalate (B.fromText ",") (map B.fromText maybeArg)
-        <> B.fromText "){\n"
+        <> "("
+        <> intercalate "," (map B.fromText maybeArg)
+        <> "){\n"
         <> renderedBody
-        <> B.fromText "}\n"
+        <> "}\n"
 
 render :: Statement -> Builder
 render stmt = case stmt of
     SBlock s ->
-        B.fromText "{\n"
+        "{\n"
         <> mconcat (map render s)
-        <> B.fromText "}\n"
+        <> "}\n"
 
     SVar name maybeExpr ->
-        B.fromText "var "
+        "var "
             <> B.fromText name
-            <> maybe mempty (\expr -> B.fromText " = " <> renderExpr expr) maybeExpr
-            <> B.fromText ";\n"
+            <> maybe mempty (\expr -> " = " <> renderExpr expr) maybeExpr
+            <> ";\n"
 
     SAssign lhs rhs ->
         renderExpr lhs
-            <> B.fromText " = "
+            <> " = "
             <> renderExpr rhs
-            <> B.fromText ";\n"
+            <> ";\n"
 
     SFunction name maybeArg body ->
         renderFunction (Just name) maybeArg body
@@ -98,82 +99,92 @@ render stmt = case stmt of
         renderExpr expr
             <> B.fromText  ";\n"
     SReturn expr ->
-        B.fromText "return "
+        "return "
             <> maybe mempty renderExpr expr
-            <> B.fromText ";\n"
+            <> ";\n"
     SBreak ->
-        B.fromText "break;\n"
+        "break;\n"
     SIf expr thenStmt elseStatement ->
-        B.fromText "if("
+        "if("
         <> renderExpr expr
-        <> B.fromText ")"
+        <> ")"
         <> render thenStmt
         <> (case elseStatement of
-            Just elseStmt -> B.fromText "else " <> render elseStmt
+            Just elseStmt -> "else " <> render elseStmt
             Nothing -> mempty)
     SWhile expr body ->
-        B.fromText "while("
+        "while("
         <> renderExpr expr
-        <> B.fromText ")"
+        <> ")"
         <> render body
+
+-- TODO: render nonprintable characters in a human-readable way
+renderChar :: Char -> Builder
+renderChar '"' = "\\\""
+renderChar '\n' = "\\n"
+renderChar '\r' = "\\r"
+renderChar '\\' = "\\\\"
+renderChar c = B.fromString [c]
+
+renderString :: String -> Builder
+renderString s = "\"" <> mconcat (map renderChar s) <> "\""
 
 renderExpr :: Expression -> Builder
 renderExpr expr = case expr of
     EApplication lhs maybeRhs ->
         renderExpr lhs
-            <> B.fromText "("
-            <> (intercalate (B.fromText ", ") $ map renderExpr maybeRhs)
-            <> B.fromText ")"
+            <> "("
+            <> (intercalate (", ") $ map renderExpr maybeRhs)
+            <> ")"
     EFunction args body ->
-        B.fromText "("
+        "("
             <> renderFunction Nothing args body
-            <> B.fromText ")"
+            <> ")"
     EObject fields ->
-        let renderKeyValuePair (key, value) = B.fromText key <> B.fromText ":" <> renderExpr value
-        in B.fromText "{"
-        <> (intercalate (B.fromText ", ") $ map renderKeyValuePair (HashMap.toList fields))
-        <> B.fromText "}"
+        let renderKeyValuePair (key, value) = B.fromText key <> ":" <> renderExpr value
+        in "{"
+        <> (intercalate (", ") $ map renderKeyValuePair (HashMap.toList fields))
+        <> "}"
     EPrefixOp op arg ->
-        B.fromText "("
+        "("
         <> B.fromText op
         <> renderExpr arg
-        <> B.fromText ")"
+        <> ")"
     EBinOp op lhs rhs ->
-        B.fromText "("
+        "("
             <> renderExpr lhs
             <> B.fromText op
             <> renderExpr rhs
-            <> B.fromText ")"
+            <> ")"
     ELookup lhs propName ->
-        B.fromText "("
+        "("
         <> renderExpr lhs
-        <> B.fromText ")"
-        <> B.fromText "."
+        <> ")."
         <> B.fromText propName
     EIndex lhs rhs ->
-        renderExpr lhs <> B.fromText "[" <> renderExpr rhs <> B.fromText "]"
+        renderExpr lhs <> "[" <> renderExpr rhs <> "]"
     ELiteral lit -> case lit of
         LInteger i -> B.fromString $ show i
-        LString i -> B.fromString $ show i
-        LTrue -> B.fromText "true"
-        LFalse -> B.fromText "false"
-        LNull -> B.fromText "null"
-        LUndefined -> B.fromText "(void 0)"
+        LString i -> renderString $ Text.unpack i
+        LTrue -> "true"
+        LFalse -> "false"
+        LNull -> "null"
+        LUndefined -> "(void 0)"
     EIdentifier n -> B.fromText n
     EArray els ->
-        B.fromText "["
+        "["
         <> intercalate "," (map renderExpr els)
-        <> B.fromText "]"
+        <> "]"
     ESemi lhs rhs ->
         renderExpr lhs
-            <> B.fromText ";\n"
+            <> ";\n"
             <> renderExpr rhs
     EComma lhs rhs -> do
-        B.fromText "("
+        "("
             <> renderExpr lhs
-            <> B.fromText ",\n"
+            <> ",\n"
             <> renderExpr rhs
-            <> B.fromText ")"
+            <> ")"
     ETernary condition ifTrue ifFalse ->
         renderExpr condition <> "?" <> renderExpr ifTrue <> ":" <> renderExpr ifFalse
     ERaw txt ->

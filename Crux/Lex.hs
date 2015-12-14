@@ -25,23 +25,53 @@ integerLiteral = do
     return $ Token p $ TInteger $ read digits
 
 stringChar :: Parser u String
-stringChar =
-    let escape =
-            P.char '\\' *>
-            P.choice
-                [ P.char '\\' *> return '\\'
-                , P.char '\"' *> return '\"'
-                , P.char 'r' *> return '\r'
-                , P.char 'n' *> return '\n'
-                , P.char 't' *> return '\t'
-                ]
-        notQuote = P.satisfy (/= '\"')
-    in P.many (escape <|> notQuote)
+stringChar = do
+    let hexChar = do
+            c <- P.satisfy isHexDigit
+            return $ digitToInt c
+    let hex2 a b = toEnum $
+            0x10 * a +
+            b
+    let hex4 a b c d = toEnum $
+            0x1000 * a +
+            0x100 * b +
+            0x10 * c +
+            d
+    let hex8 a b c d e f g h = toEnum $
+            0x10000000 * a +
+            0x1000000 * b +
+            0x100000 * c +
+            0x10000 * d +
+            0x1000 * e +
+            0x100 * f +
+            0x10 * g +
+            h
+    let escapes =
+            [ P.char '0' *> return '\0'
+            , P.char '\\' *> return '\\'
+            , P.char '"' *> return '"'
+            , P.char '?' *> return '?'
+            , P.char '\'' *> return '\''
+            , P.char 'a' >> return '\a'
+            , P.char 'b' >> return '\b'
+            , P.char 'f' >> return '\f'
+            , P.char 'r' *> return '\r'
+            , P.char 'n' *> return '\n'
+            , P.char 't' *> return '\t'
+            , P.char 'v' *> return '\v'
+            , P.char 'x' *> (hex2 <$> hexChar <*> hexChar)
+            , P.char 'u' *> (hex4 <$> hexChar <*> hexChar <*> hexChar <*> hexChar)
+            , P.char 'U' *> (hex8 <$> hexChar <*> hexChar <*> hexChar <*> hexChar <*> hexChar <*> hexChar <*> hexChar <*> hexChar)
+            ]
+    let escape = P.char '\\' *> P.choice escapes
+    let normal = P.satisfy (`notElem` ['\"', '\n', '\r'])
+
+    P.many $ escape <|> normal
 
 stringLiteral :: Parser u (Token Pos)
 stringLiteral = do
     p <- pos
-    _ <- P.char '"'
+    _ <- P.try $ P.char '"'
     chars <- stringChar
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
@@ -84,7 +114,7 @@ token :: Parser u (Token Pos)
 token =
     P.try keyword
     <|> P.try integerLiteral
-    <|> P.try stringLiteral
+    <|> stringLiteral
     <|> P.try parseIdentifier
     <|> P.try symbol
 

@@ -74,6 +74,10 @@ export fun each(arr: Array a, f: (a) -> b): Unit {
     };
 }
 
+export fun map(f: (a) -> b, a: Array a): Array b {
+    _unsafe_js("[].map").call(a, f);
+}
+
 export fun sliceFrom(arr: Array a, start: Number): Array a {
     _unsafe_coerce(arr).slice(start);
 }

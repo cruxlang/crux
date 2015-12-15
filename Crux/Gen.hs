@@ -170,8 +170,6 @@ generate env expr = case expr of
         for (both fn' args') $ \(fn'', args'') -> do
             newInstruction env $ \output -> Call output fn'' args''
 
-
-
     AST.EAssign _ target rhs -> do
         output <- case target of
             AST.ELookup _ lhs propName -> do

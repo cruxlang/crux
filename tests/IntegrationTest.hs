@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE LambdaCase, OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 
 module IntegrationTest (htf_thisModulesTests) where
 
@@ -19,7 +21,7 @@ import           System.IO            (hFlush)
 import           System.IO.Temp       (withSystemTempFile)
 import           System.Process       (readProcessWithExitCode)
 import           Test.Framework
-import Text.RawString.QQ (r)
+import           Text.RawString.QQ    (r)
 
 runProgram' :: AST.Program -> IO Text
 runProgram' p = do

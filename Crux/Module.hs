@@ -45,8 +45,8 @@ instance JSON.FromJSON CompilerConfig where
     parseJSON (JSON.Object o) = CompilerConfig <$> o JSON..: "preludePath"
     parseJSON _ = fail "must be object"
 
-loadPreludeSource :: IO Text
-loadPreludeSource = do
+loadCompilerConfig :: IO CompilerConfig
+loadCompilerConfig = do
     configPath <- findCompilerConfig >>= \case
         Nothing -> fail "Failed to find compiler's cxconfig.json"
         Just c -> return c
@@ -56,7 +56,12 @@ loadPreludeSource = do
         Nothing -> fail "Failed to parse cxconfig.json"
         Just c -> return c
 
-    TextIO.readFile $ FP.combine (FP.takeDirectory configPath) (preludePath config)
+    return config { preludePath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ preludePath config) }
+
+loadPreludeSource :: IO Text
+loadPreludeSource = do
+    config <- loadCompilerConfig
+    TextIO.readFile $ preludePath config FP.</> "Prelude.cx"
 
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
@@ -111,14 +116,19 @@ loadModuleFromSource moduleName filename source = do
     loadModuleFromSource' addPrelude lm moduleName filename source
 
 importsOf :: AST.Module a b -> [AST.ModuleName]
-importsOf m = do
-    map (\(AST.UnqualifiedImport i) -> i) $ AST.mImports m
+importsOf m =
+    map (\(AST.UnqualifiedImport i) -> i) (AST.mImports m)
 
 addPrelude :: AST.Module a b -> AST.Module a b
 addPrelude m = m { AST.mImports = AST.UnqualifiedImport "Prelude" : AST.mImports m }
 
-loadModule :: ModuleLoader -> IORef (HashMap AST.ModuleName AST.LoadedModule) -> AST.ModuleName -> IO AST.LoadedModule
-loadModule loader loadedModules moduleName = do
+loadModule ::
+       ModuleLoader
+    -> IORef (HashMap AST.ModuleName AST.LoadedModule)
+    -> AST.ModuleName
+    -> Bool
+    -> IO AST.LoadedModule
+loadModule loader loadedModules moduleName shouldAddPrelude = do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
@@ -126,9 +136,13 @@ loadModule loader loadedModules moduleName = do
             parsedModuleResult <- loader moduleName
             parsedModule <- case parsedModuleResult of
                 Left err -> fail $ "Error loading module: " <> err
-                Right m -> return $ addPrelude m
+                Right m
+                    | shouldAddPrelude -> return $ addPrelude m
+                    | otherwise -> return m
+
             forM_ (importsOf parsedModule) $ \referencedModule ->
-                loadModule loader loadedModules referencedModule
+                loadModule loader loadedModules referencedModule shouldAddPrelude
+
             lm <- readIORef loadedModules
             loadedModule <- Typecheck.run lm parsedModule
             HashTable.insert moduleName loadedModule loadedModules
@@ -136,10 +150,10 @@ loadModule loader loadedModules moduleName = do
 
 loadProgram :: ModuleLoader -> AST.ModuleName -> IO AST.Program
 loadProgram loader main = do
-    prelude <- loadPrelude
-    loadedModules <- newIORef [("Prelude", prelude)]
+    loadedModules <- newIORef []
 
-    mainModule <- loadModule loader loadedModules main
+    _ <- loadModule loader loadedModules "Prelude" False
+    mainModule <- loadModule loader loadedModules main True
 
     otherModules <- readIORef loadedModules
     return AST.Program
@@ -154,12 +168,13 @@ moduleNameToPath (AST.ModuleName prefix m) =
         (FP.joinPath $ map toPathSegment prefix)
         (toPathSegment m <> ".cx")
 
-newFSModuleLoader :: FilePath -> FilePath -> ModuleLoader
-newFSModuleLoader root mainModulePath moduleName = do
-    if moduleName == "Main" then
-        parseModuleFromFile moduleName mainModulePath
-    else
-        parseModuleFromFile moduleName $ FP.combine root $ moduleNameToPath moduleName
+newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
+newFSModuleLoader config root mainModulePath moduleName = do
+    e1 <- doesFileExist $ (preludePath config) FP.</> moduleNameToPath moduleName
+    let path = if e1 then preludePath config else mainModulePath
+    if moduleName == "Main"
+        then parseModuleFromFile moduleName path
+        else parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
 
 newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
 newMemoryLoader sources moduleName = do
@@ -173,8 +188,9 @@ newMemoryLoader sources moduleName = do
 
 loadProgramFromFile :: FilePath -> IO AST.Program
 loadProgramFromFile path = do
+    config <- loadCompilerConfig
     let (dirname, basename) = FP.splitFileName path
-    let loader = newFSModuleLoader dirname path
+    let loader = newFSModuleLoader config dirname path
     case FP.splitExtension basename of
         (_, ".cx") -> return ()
         _ -> fail "Please load .cx file"
@@ -183,10 +199,15 @@ loadProgramFromFile path = do
 
 loadProgramFromSource :: Text -> IO AST.Program
 loadProgramFromSource mainModuleSource = do
-    let loader = newMemoryLoader $ HashMap.fromList [ ("Main", mainModuleSource) ]
+    preludeSource <- loadPreludeSource
+    let loader = newMemoryLoader $ HashMap.fromList
+            [ ("Prelude", preludeSource)
+            , ("Main", mainModuleSource)
+            ]
     loadProgram loader "Main"
 
 loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO AST.Program
 loadProgramFromSources sources = do
-    let loader = newMemoryLoader sources
+    prelude <- loadPreludeSource
+    let loader = newMemoryLoader (HashMap.insert "Prelude" prelude sources)
     loadProgram loader "Main"

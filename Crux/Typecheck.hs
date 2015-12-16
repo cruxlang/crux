@@ -249,7 +249,10 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 returnType <- freshType env
                 return (paramTypes, returnType)
 
-        forM_ (zip params paramTypes) $ \((p, _), pt) -> do
+        forM_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
+            forM_ pAnn $ \ann -> do
+                annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+                unify pt annTy
             HashTable.insert p (Local p, LImmutable, pt) bindings'
 
         let env' = env
@@ -257,18 +260,14 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 , eReturnType=Just returnType
                 , eInLoop=False
                 }
-        body' <- check env' body
-
-        forM_ (zip params paramTypes) $ \((_, pAnn), pt) -> do
-            forM_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env NewTypesAreQuantified ann
-                unify pt annTy
 
         forM_ retAnn $ \ann -> do
             annTy <- resolveTypeIdent env NewTypesAreQuantified ann
             unify returnType annTy
 
+        body' <- check env' body
         unify returnType $ edata body'
+
         ty <- newIORef $ TFun paramTypes returnType
         return $ EFun ty params retAnn body'
 

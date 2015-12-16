@@ -1,0 +1,14 @@
+fun f(x: a): Number { x; }
+/*
+fun hiz(a: String) {
+    a->endsWith("/");
+}
+
+fun combine(a: String, b) {
+    if a->endsWith("/") {
+        return a + b;
+    } else {
+        return a + "/" + b;
+    };
+}
+*/

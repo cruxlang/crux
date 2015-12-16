@@ -5,9 +5,10 @@ import Test.Framework
 import System.Environment (getArgs)
 
 import {-@ HTF_TESTS @-} ParseTest
-import {-@ HTF_TESTS @-} IntegrationTest
+import {-@ HTF_TESTS @-} UnifyTest
 import {-@ HTF_TESTS @-} GenTest
 import {-@ HTF_TESTS @-} JSBackendTest
+import {-@ HTF_TESTS @-} IntegrationTest
 
 main :: IO ()
 main = do

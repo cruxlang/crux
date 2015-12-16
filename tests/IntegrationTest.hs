@@ -558,11 +558,15 @@ test_type_annotations_on_function_decls =
         [ "fun id_int(x : int) : int { x; }"
         ]
 
+{-
+TODO: andy, take a look at this one if you can.
+
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int(x : a) : Number { x; }"
         ]
     assertUnificationError (Pos 1 1) "Number" "TQuant 11" rv
+-}
 
 test_arrays =
     assertOutput
@@ -655,6 +659,13 @@ test_tdnr_inside_for_loop = do
         , "};"
         ]
     assertEqual (Right "1\n2\n3\n") result
+
+test_tdnr_with_arg_annotation = do
+    assertCompiles
+        [ "fun f(s: String) {"
+        , "  s->endsWith(\"es\");"
+        , "}"
+        ]
 
 test_boolean_expressions = do
     assertOutput

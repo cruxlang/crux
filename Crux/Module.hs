@@ -16,7 +16,7 @@ import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import qualified Data.Text.Encoding    as TE
 import qualified Data.Text.IO          as TextIO
-import           System.Directory      (doesFileExist)
+import           System.Directory      (doesFileExist, getCurrentDirectory)
 import           System.Environment    (getExecutablePath)
 import qualified System.FilePath       as FP
 
@@ -24,8 +24,12 @@ type ModuleLoader = AST.ModuleName -> IO (Either String AST.ParsedModule)
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
-    exePath <- getExecutablePath
-    loop exePath
+    cc <- getExecutablePath >>= loop
+    case cc of
+        Just d -> return (Just d)
+        Nothing ->
+            getCurrentDirectory >>= loop
+
   where
     loop c = do
         let configPath = FP.combine c "cxconfig.json"
@@ -169,7 +173,7 @@ moduleNameToPath (AST.ModuleName prefix m) =
         (toPathSegment m <> ".cx")
 
 newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
-newFSModuleLoader config root mainModulePath moduleName = do
+newFSModuleLoader config _root mainModulePath moduleName = do
     e1 <- doesFileExist $ (preludePath config) FP.</> moduleNameToPath moduleName
     let path = if e1 then preludePath config else mainModulePath
     if moduleName == "Main"

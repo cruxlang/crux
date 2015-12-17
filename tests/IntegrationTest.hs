@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 
-module IntegrationTest (htf_thisModulesTests) where
+module IntegrationTest where
 
 import           Control.Exception    (try)
 import qualified Crux.AST             as AST
@@ -696,3 +696,10 @@ test_escaped_strings = do
     assertEqual (Right "\0\1\2\n") result2
 
     -- TODO: tests for \u and \U
+
+test_cannot_omit_arguments = do
+    result <- run $ T.unlines
+        [ "fun f(x) {}"
+        , "let _ = f();"
+        ]
+    assertUnificationError (Pos 2 9) "((TUnbound 14)) -> Unit" "() -> Unit" result

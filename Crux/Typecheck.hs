@@ -293,6 +293,14 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             TFun argTypes resultType -> do
                 args' <- forM (zip argTypes args) $ \(argType, arg) -> do
                     checkExpecting argType env arg
+                when (length argTypes /= length args) $ do
+                    hypotheticalType <- newIORef $ TFun (map edata args') resultType
+                    unificationError
+                        (printf "Function takes %i arguments but %i were passed"
+                            (length argTypes)
+                            (length args))
+                        (edata fn')
+                        hypotheticalType
                 return $ EApp resultType fn' args'
             _ -> do
                 args' <- mapM (check env) args

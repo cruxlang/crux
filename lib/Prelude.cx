@@ -106,3 +106,8 @@ export fun endsWith(haystack: String, needle: String) {
 export fun join(sep: String, elements: Array String): String {
     _unsafe_coerce(elements).join(sep);
 }
+
+// TODO: add comparator support
+export fun sort(arr: Array String) {
+    _unsafe_coerce(arr).sort();
+}

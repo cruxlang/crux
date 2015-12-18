@@ -7,7 +7,7 @@ module IntegrationTest where
 
 import           Control.Exception    (try)
 import qualified Crux.AST             as AST
-import qualified Crux.Backend.JS      as JS
+import qualified Crux.JSBackend      as JS
 import qualified Crux.Gen             as Gen
 import qualified Crux.Module
 import           Crux.Tokens          (Pos (..))

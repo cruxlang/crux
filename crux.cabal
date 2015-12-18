@@ -10,9 +10,9 @@ cabal-version:       >=1.10
 
 library
     exposed-modules: Crux.AST
-                   , Crux.Backend.JS
                    , Crux.Gen
                    , Crux.Intrinsic
+                   , Crux.JSBackend
                    , Crux.JSGen.Types
                    , Crux.JSTree
                    , Crux.Lex

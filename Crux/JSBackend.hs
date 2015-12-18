@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
-module Crux.Backend.JS where
+module Crux.JSBackend where
 
 import Crux.Prelude
 import           Crux.AST

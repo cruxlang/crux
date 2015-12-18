@@ -3,7 +3,7 @@
 
 module JSBackendTest (htf_thisModulesTests) where
 
-import qualified Crux.Backend.JS as JS
+import qualified Crux.JSBackend as JS
 import qualified Crux.Gen        as Gen
 import qualified Crux.JSTree     as JSTree
 import qualified Crux.Module

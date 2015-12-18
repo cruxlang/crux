@@ -1,7 +1,7 @@
 
 module Crux.Main (main) where
 
-import qualified Crux.Backend.JS     as JS
+import qualified Crux.JSBackend     as JS
 import qualified Crux.Gen            as Gen
 import           Crux.Module         (loadProgramFromFile)
 import           Crux.Prelude

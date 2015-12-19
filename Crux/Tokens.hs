@@ -1,16 +1,21 @@
 {-# LANGUAGE RecordWildCards #-}
 module Crux.Tokens where
 
-import Data.Text
+import Crux.Prelude
 
+-- TODO: we should record the start and end positions of tokens
 data Pos = Pos
-    { posLine :: Int
+    -- The start column of the line containing this token. Zero-based.
+    { posLineStart :: Int
+    -- This token's line number. One-based.
+    , posLine :: Int
+    -- This token's column number. One-based.
     , posCol :: Int
     }
     deriving (Eq)
 
 instance Show Pos where
-    show Pos{..} = (show posLine) ++ ":" ++ (show posCol)
+    show Pos{..} = "<" <> show posLineStart <> ">" <> show posLine <> ":" <> show posCol
 
 data TokenType
     = TInteger Integer

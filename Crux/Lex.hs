@@ -4,27 +4,39 @@ module Crux.Lex where
 
 import Control.Monad (void)
 import Data.Char
+import Crux.Prelude
 import Crux.Tokens
 import qualified Text.Parsec as P
-import Data.Text (Text)
 import qualified Data.Text as T
 import Control.Monad.Identity (Identity)
 import Text.Parsec ((<|>))
 
-type Parser u a = P.ParsecT Text u Identity a
+type ParserState = (Int, Int) -- current line, start column
+type Parser a = P.ParsecT Text ParserState Identity a
 
-pos :: Parser u Pos
+pos :: Parser Pos
 pos = do
     p <- P.getPosition
-    return $ Pos (P.sourceLine p) (P.sourceColumn p)
+    let sourceLine = P.sourceLine p
+    let sourceColumn = P.sourceColumn p
 
-integerLiteral :: Parser u (Token Pos)
+    -- assumes we run pos for every token
+    (currentLine, lineStart) <- P.getState
+    newLineStart <- if currentLine == sourceLine then do
+        return lineStart
+    else do
+        P.putState (sourceLine, sourceColumn)
+        return sourceColumn
+
+    return $ Pos (newLineStart - 1) sourceLine sourceColumn
+
+integerLiteral :: Parser (Token Pos)
 integerLiteral = do
     p <- pos
     digits <- P.many1 P.digit
     return $ Token p $ TInteger $ read digits
 
-stringChar :: Parser u String
+stringChar :: Parser String
 stringChar = do
     let hexChar = do
             c <- P.satisfy isHexDigit
@@ -68,7 +80,7 @@ stringChar = do
 
     P.many $ escape <|> normal
 
-stringLiteral :: Parser u (Token Pos)
+stringLiteral :: Parser (Token Pos)
 stringLiteral = do
     p <- pos
     _ <- P.try $ P.char '"'
@@ -76,7 +88,7 @@ stringLiteral = do
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
 
-parseAnyIdentifier :: (Char -> Bool) -> (Text -> TokenType) -> Parser u (Token Pos)
+parseAnyIdentifier :: (Char -> Bool) -> (Text -> TokenType) -> Parser (Token Pos)
 parseAnyIdentifier isStartChar f = do
     p <- pos
     let isIdentifierChar x = isAlpha x || isNumber x || x == '_'
@@ -87,17 +99,17 @@ parseAnyIdentifier isStartChar f = do
 orUnderscore :: (Char -> Bool) -> Char -> Bool
 orUnderscore f x = f x || x == '_'
 
-parseUpperIdentifier :: Parser u (Token Pos)
+parseUpperIdentifier :: Parser (Token Pos)
 parseUpperIdentifier = parseAnyIdentifier isUpper TUpperIdentifier
 
-parseLowerIdentifier :: Parser u (Token Pos)
+parseLowerIdentifier :: Parser (Token Pos)
 parseLowerIdentifier = parseAnyIdentifier (orUnderscore isLower) TLowerIdentifier
 
-parseIdentifier :: Parser u (Token Pos)
+parseIdentifier :: Parser (Token Pos)
 parseIdentifier = parseUpperIdentifier <|> parseLowerIdentifier
 
 {-
-parseIdentifier :: Parser u (Token Pos)
+parseIdentifier :: Parser (Token Pos)
 parseIdentifier = do
     p <- pos
     let isIdentifierStart '_' = True
@@ -110,7 +122,7 @@ parseIdentifier = do
     return $ Token p $ TIdentifier $ T.pack (first:rest)
 -}
 
-token :: Parser u (Token Pos)
+token :: Parser (Token Pos)
 token =
     P.try keyword
     <|> P.try integerLiteral
@@ -118,7 +130,7 @@ token =
     <|> P.try parseIdentifier
     <|> P.try symbol
 
-keyword :: Parser u (Token Pos)
+keyword :: Parser (Token Pos)
 keyword = P.try $ do
     Token p (TLowerIdentifier i) <- parseLowerIdentifier
     fmap (Token p) $ case i of
@@ -144,7 +156,7 @@ keyword = P.try $ do
         "mutable" -> return TMutable
         _ -> fail ""
 
-symbol :: Parser u (Token Pos)
+symbol :: Parser (Token Pos)
 symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym2 '=' '>' TFatRightArrow
      <|> sym2 '-' '>' TRightArrow
@@ -188,24 +200,28 @@ symbol = sym3 '.' '.' '.' TEllipsis
         _ <- P.char c3
         return (Token p tok)
 
-whitespace :: Parser u ()
+whitespace :: Parser ()
 whitespace = P.spaces
 
-lineComment :: Parser u ()
+lineComment :: Parser ()
 lineComment = do
     void $ P.try $ P.char '/' >> P.char '/'
     void $ P.manyTill P.anyChar (P.eof <|> void (P.char '\n'))
 
-blockComment :: Parser u ()
+blockComment :: Parser ()
 blockComment = do
     void $ P.try $ P.char '/' >> P.char '*'
     void $ P.manyTill (blockComment <|> void P.anyChar) $ P.char '*' >> P.char '/'
 
-comments :: Parser u ()
-comments =
-    whitespace >> void (P.many $ (lineComment <|> blockComment) >> whitespace)
+comments :: Parser ()
+comments = do
+    whitespace
+    _ <- P.many $ do
+        lineComment <|> blockComment
+        whitespace
+    return ()
 
-document :: Parser u [Token Pos]
+document :: Parser [Token Pos]
 document = do
     comments
     r <- P.many $ P.try (comments >> token)
@@ -215,4 +231,4 @@ document = do
 
 lexSource :: FilePath -> Text -> Either P.ParseError [Token Pos]
 lexSource fileName text =
-    P.runParser document () fileName text
+    P.runParser document (-1, -1) fileName text

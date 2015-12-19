@@ -83,7 +83,7 @@ stringChar = do
 stringLiteral :: Parser (Token Pos)
 stringLiteral = do
     p <- pos
-    _ <- P.try $ P.char '"'
+    _ <- P.char '"'
     chars <- stringChar
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
@@ -124,11 +124,11 @@ parseIdentifier = do
 
 token :: Parser (Token Pos)
 token =
-    P.try keyword
-    <|> P.try integerLiteral
+    keyword
+    <|> integerLiteral
     <|> stringLiteral
-    <|> P.try parseIdentifier
-    <|> P.try symbol
+    <|> parseIdentifier
+    <|> symbol
 
 keyword :: Parser (Token Pos)
 keyword = P.try $ do
@@ -164,6 +164,8 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym2 '!' '=' TNotEqual
      <|> sym2 '<' '=' TLessEqual
      <|> sym2 '>' '=' TGreaterEqual
+     <|> sym2 '&' '&' TAndAnd
+     <|> sym2 '|' '|' TOrOr
      <|> sym ';' TSemicolon
      <|> sym ':' TColon
      <|> sym '.' TDot
@@ -181,8 +183,6 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym '/' TDivide
      <|> sym '<' TLess
      <|> sym '>' TGreater
-     <|> sym2 '&' '&' TAndAnd
-     <|> sym2 '|' '|' TOrOr
   where
     sym ch tok = do
         p <- pos
@@ -224,8 +224,7 @@ comments = do
 document :: Parser [Token Pos]
 document = do
     comments
-    r <- P.many $ P.try (comments >> token)
-    comments
+    r <- P.many $ token <* comments
     P.eof
     return r
 

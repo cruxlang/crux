@@ -1,0 +1,2 @@
+data A{}
+export data B {B(A) }

@@ -173,11 +173,11 @@ moduleNameToPath (AST.ModuleName prefix m) =
         (toPathSegment m <> ".cx")
 
 newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
-newFSModuleLoader config _root mainModulePath moduleName = do
+newFSModuleLoader config root mainModulePath moduleName = do
     e1 <- doesFileExist $ (preludePath config) FP.</> moduleNameToPath moduleName
-    let path = if e1 then preludePath config else mainModulePath
+    let path = if e1 then preludePath config else root
     if moduleName == "Main"
-        then parseModuleFromFile moduleName path
+        then parseModuleFromFile moduleName mainModulePath
         else parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
 
 newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader

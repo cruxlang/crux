@@ -558,15 +558,11 @@ test_type_annotations_on_function_decls =
         [ "fun id_int(x : int) : int { x; }"
         ]
 
-{-
-TODO: andy, take a look at this one if you can.
-
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int(x : a) : Number { x; }"
         ]
-    assertUnificationError (Pos 1 1) "Number" "TQuant 11" rv
--}
+    assertUnificationError (Pos 1 1) "Number" "TQuant 10" rv
 
 test_arrays =
     assertOutput

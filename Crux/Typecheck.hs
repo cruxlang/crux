@@ -32,16 +32,22 @@ newEnv :: HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
 newEnv eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eBindings <- newIORef HashMap.empty
+    eLocalBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
     let eTypeAliases = HashMap.empty
         eInLoop = False
     return Env {..}
 
 childEnv :: Env -> IO Env
-childEnv env = do
-    bindings'    <- HashTable.clone (eBindings env)
-    typeBindings <- HashTable.clone (eTypeBindings env)
-    return env{eBindings=bindings', eTypeBindings=typeBindings}
+childEnv env@Env{..} = do
+    bindings'    <- HashTable.clone eBindings
+    localBindings' <- HashTable.clone eLocalBindings
+    typeBindings <- HashTable.clone eTypeBindings
+    return env
+        { eBindings      = bindings'
+        , eLocalBindings = localBindings'
+        , eTypeBindings  = typeBindings
+        }
 
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
@@ -107,10 +113,19 @@ walkMutableTypeVar tyvar = do
         _ ->
             return tyvar
 
+lookupBinding :: Name -> Env -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
+lookupBinding name Env{..} = do
+    localBinding <- HashTable.lookup name eBindings
+    case localBinding of
+        Just _ ->
+            return localBinding
+        Nothing ->
+            HashTable.lookup name eLocalBindings
+
 isLValue :: Env -> Expression ResolvedReference TypeVar -> IO Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
-        l <- HashTable.lookup (resolvedReferenceName name) (eBindings env)
+        l <- lookupBinding (resolvedReferenceName name) env
         return $ case l of
             Just (_, LMutable, _) -> True
             _ -> False
@@ -153,19 +168,32 @@ resolveType pos env (UnknownReference name) = do
 resolveType _pos _env (KnownReference _moduleName _name) = do
     fail "TODO: resolveType implementation for KnownReference"
 
-resolveName :: Env -> UnresolvedReference -> IO (ResolvedReference, TypeVar)
-resolveName env ref@(UnknownReference name) = do
-    result <- HashTable.lookup name (eBindings env)
-    case result of
-        Just (rr, _, t) -> return (rr, t)
-        Nothing -> throwIO $ UnboundSymbol () ref
-resolveName env (KnownReference moduleName name)
-    | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
-    , Just func <- findExportedValue modul name = do
-        funTy <- unfreezeTypeVar $ typeForFunDef func
-        return (OtherModule moduleName name, funTy)
-    | otherwise = do
-        fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
+resolveGlobalName :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, TypeVar))
+resolveGlobalName env ref = case ref of
+    UnknownReference name -> do
+        result <- HashTable.lookup name (eBindings env)
+        return $ case result of
+            Just (rr, _, t) ->
+                Just (rr, t)
+            Nothing ->
+                Nothing
+    KnownReference moduleName name
+        | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
+        , Just func <- findExportedValue modul name -> do
+            funTy <- unfreezeTypeVar $ typeForFunDef func
+            return $ Just (OtherModule moduleName name, funTy)
+        | otherwise -> do
+            fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
+
+resolveLocalName :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, TypeVar))
+resolveLocalName env ref = case ref of
+    UnknownReference name -> do
+        result <- HashTable.lookup name (eLocalBindings env)
+        case result of
+            Just (rr, _, t) -> return $ Just (rr, t)
+            Nothing -> return Nothing
+    KnownReference{} ->
+        return Nothing
 
 findExportedValue :: Module a b -> Text -> Maybe (FunDef a b)
 findExportedValue modul name = do
@@ -235,7 +263,7 @@ checkExpecting expectedType env expr = do
 check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
 check' expectedType env expr = withPositionInformation expr $ case expr of
     EFun _ params retAnn body -> do
-        bindings' <- HashTable.clone (eBindings env)
+        bindings' <- HashTable.clone (eLocalBindings env)
 
         -- If we know the expected function type, then use its type variables
         -- rather than make new ones.
@@ -256,7 +284,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             HashTable.insert p (Local p, LImmutable, pt) bindings'
 
         let env' = env
-                { eBindings=bindings'
+                { eLocalBindings=bindings'
                 , eReturnType=Just returnType
                 , eInLoop=False
                 }
@@ -336,7 +364,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             PWildcard -> do
                 return ()
             PBinding name -> do
-                HashTable.insert name (Local name, mut, ty) (eBindings env)
+                HashTable.insert name (Local name, mut, ty) (eLocalBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
@@ -392,9 +420,19 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
     EIdentifier _ (UnknownReference "_unsafe_coerce") ->
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier _pos txt -> do
-        (rr, tyref) <- resolveName env txt
-        tyref' <- instantiate env tyref
-        return $ EIdentifier tyref' rr
+        (rr, tyref) <- do
+            resolveGlobalName env txt >>= \case
+                Just (a, b) -> do
+                    b' <- instantiate env b
+                    return (a, b')
+                Nothing ->
+                    resolveLocalName env txt >>= \case
+                        Just a ->
+                            return a
+                        Nothing ->
+                            throwIO $ UnboundSymbol () txt
+
+        return $ EIdentifier tyref rr
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
@@ -473,10 +511,10 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         (arrayType, iteratorType) <- resolveArrayType pos env
         over' <- checkExpecting arrayType env over
 
-        bindings' <- HashTable.clone (eBindings env)
+        bindings' <- HashTable.clone (eLocalBindings env)
         HashTable.insert name (Local name, LImmutable, iteratorType) bindings'
 
-        let env' = env { eBindings = bindings', eInLoop = True }
+        let env' = env { eLocalBindings = bindings', eInLoop = True }
         body' <- check env' body
         unify unitType (edata body')
 

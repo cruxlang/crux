@@ -77,24 +77,26 @@ peekAndShow msg = do
 
 ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
-    pr <- P.try $ token TIf
+    pr <- token TIf
     condition <- noSemiExpression
     let exprIf = do
-            _ <- P.try $ token TThen
+            _ <- token TThen
             ifTrue <- noSemiExpression
             _ <- token TElse
             ifFalse <- noSemiExpression
             return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
     let blockIf = do
             ifTrue <- blockExpression
-            ifFalse <- P.option (ELiteral (tokenData pr) LUnit) $ P.try (token TElse) >> (blockExpression <|> ifThenElseExpression)
+            ifFalse <- P.option (ELiteral (tokenData pr) LUnit) $ do
+                _ <- token TElse
+                blockExpression <|> ifThenElseExpression
             return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
 
     exprIf <|> blockIf
 
 whileExpression :: Parser ParseExpression
 whileExpression = do
-    pr <- P.try $ token TWhile
+    pr <- token TWhile
     c <- noSemiExpression
     _ <- token TOpenBrace
     bodyExprs <- P.many expression
@@ -108,7 +110,7 @@ whileExpression = do
 
 forExpression :: Parser ParseExpression
 forExpression = do
-    pr <- P.try $ token TFor
+    pr <- token TFor
     pat <- anyIdentifier
     _ <- token TIn
     iter <- noSemiExpression
@@ -117,7 +119,7 @@ forExpression = do
 
 returnExpression :: Parser ParseExpression
 returnExpression = do
-    pr <- P.try $ token TReturn
+    pr <- token TReturn
     rv <- noSemiExpression
     return $ EReturn (tokenData pr) rv
 
@@ -131,14 +133,14 @@ unitLiteralExpression = do
 
 arrayLiteralExpression :: Parser ParseExpression
 arrayLiteralExpression = do
-    t <- P.try $ token TOpenBracket
+    t <- token TOpenBracket
     exprs <- delimited noSemiExpression (token TComma)
     _ <- token TCloseBracket
     return $ EArrayLiteral (tokenData t) exprs
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
-    t <- P.try $ token $ TOpenBrace
+    t <- token $ TOpenBrace
     let keyValuePair = do
             name <- anyIdentifier
             _ <- token $ TColon
@@ -187,7 +189,7 @@ identifierExpression = getToken testTok
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
-    tfun <- P.try $ token Tokens.TFun
+    tfun <- token Tokens.TFun
     args <- parenthesized $ P.sepBy funArgument (token TComma)
     returnAnn <- P.optionMaybe $ do
         _ <- token TColon
@@ -205,7 +207,7 @@ functionExpression = do
 pattern :: Parser RefutablePattern
 pattern = do
     let parenPattern = do
-            _ <- P.try $ token TOpenParen
+            _ <- token TOpenParen
             pat <- pattern
             _ <- token TCloseParen
             return pat
@@ -229,7 +231,7 @@ noParenPattern = do
 
 matchExpression :: Parser ParseExpression
 matchExpression = do
-    tmatch <- P.try (token TMatch)
+    tmatch <- token TMatch
     expr <- noSemiExpression
     _ <- token TOpenBrace
     cases <- P.many $ do
@@ -321,16 +323,16 @@ assignExpression = do
 
 irrefutablePattern :: Parser Pattern
 irrefutablePattern = do
-    _ <- P.try $ token TWildcard
+    _ <- token TWildcard
     return PWildcard
 
 letExpression :: Parser ParseExpression
 letExpression = do
-    tlet <- P.try $ token TLet
+    tlet <- token TLet
     mut <- P.option LImmutable (token TMutable >> return LMutable)
     pat <- irrefutablePattern <|> fmap PBinding lowerIdentifier
     typeAnn <- P.optionMaybe $ do
-        _ <- P.try $ token TColon
+        _ <- token TColon
         typeIdent
     _ <- token TEqual
     expr <- noSemiExpression
@@ -347,16 +349,16 @@ semiExpression = do
             return (ESemi (edata e) e e2')
 
 parenExpression :: Parser ParseExpression
-parenExpression = parenthesized $ P.try semiExpression
+parenExpression = parenthesized semiExpression
 
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =
-    P.try letExpression
+    letExpression
     <|> matchExpression
     <|> ifThenElseExpression
     <|> whileExpression
     <|> forExpression
-    <|> P.try returnExpression
+    <|> returnExpression
     <|> assignExpression
     <|> booleanExpression
 
@@ -393,14 +395,14 @@ recordTypeIdent = do
             ty <- typeIdent
             return (name, mut, ty)
 
-    _ <- P.try $ token TOpenBrace
+    _ <- token TOpenBrace
     props <- delimited propTypePair (token TComma)
     _ <- P.optional $ token TComma
-    _ <- P.try $ token TCloseBrace
+    _ <- token TCloseBrace
     return $ RecordIdent props
 
 functionTypeIdent :: Parser TypeIdent
-functionTypeIdent = P.try $ do
+functionTypeIdent = do
     argTypes <- parenthesized $ P.sepBy typeIdent (token TComma)
     _ <- token TRightArrow
     retType <- typeIdent
@@ -451,7 +453,7 @@ typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
 
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
-    _ <- P.try $ token TDeclare
+    _ <- token TDeclare
     name <- anyIdentifier
     _ <- token TColon
     ti <- typeIdent
@@ -509,7 +511,7 @@ jsVariantDefinition = do
 
 jsDataDeclaration :: Parser ParseDeclaration
 jsDataDeclaration = do
-    _ <- P.try $ token TJSFFI
+    _ <- token TJSFFI
     name <- typeName
     _ <- token TOpenBrace
     variants <- delimited jsVariantDefinition (token TComma)
@@ -519,12 +521,12 @@ jsDataDeclaration = do
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
-    _ <- P.try $ token TData
+    _ <- token TData
     jsDataDeclaration <|> cruxDataDeclaration
 
 typeDeclaration :: Parser ParseDeclaration
 typeDeclaration = do
-    _ <- P.try $ token TType
+    _ <- token TType
     name <- typeName
     vars <- P.many typeVariableName
     _ <- token TEqual
@@ -551,7 +553,7 @@ blockExpression = do
 
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
-    tfun <- P.try $ token Tokens.TFun
+    tfun <- token Tokens.TFun
     name <- anyIdentifier
     params <- parenthesized $ P.sepBy funArgument (token TComma)
     returnAnn <- P.optionMaybe $ do
@@ -568,7 +570,11 @@ declaration = do
             Just _ -> Export
             Nothing -> NoExport
 
-    declType <- declareDeclaration <|> dataDeclaration <|> typeDeclaration <|> funDeclaration <|> letDeclaration
+    declType <- declareDeclaration
+            <|> dataDeclaration
+            <|> typeDeclaration
+            <|> funDeclaration
+            <|> letDeclaration
     return $ Declaration exportFlag declType
 
 importDecl :: Parser Import

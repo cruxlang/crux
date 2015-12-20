@@ -1,8 +1,4 @@
 
-import {
-    Option (...)
-}
-
 data Error {
     Error(String)
 }

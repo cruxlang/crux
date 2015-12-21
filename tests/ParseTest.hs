@@ -50,15 +50,15 @@ test_parens = do
         (ELiteral () (LInteger 5))
 
 test_application = do
-    assertExprParses expression "foo();"
+    assertExprParses noSemiExpression "foo()"
         (EApp () (EIdentifier () "foo") [])
 
 test_application_with_args = do
-    assertExprParses expression "foo(bar, baz);"
+    assertExprParses noSemiExpression "foo(bar, baz)"
         (EApp () (EIdentifier () "foo") [EIdentifier () "bar", EIdentifier () "baz"])
 
 test_application_association = do
-    assertExprParses expression "1 + length(list);"
+    assertExprParses noSemiExpression "1 + length(list)"
         (EBinIntrinsic () BIPlus (ELiteral () (LInteger 1)) (EApp () (EIdentifier () "length") [EIdentifier () "list"]))
 
 test_let = do

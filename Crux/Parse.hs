@@ -98,14 +98,7 @@ whileExpression :: Parser ParseExpression
 whileExpression = do
     pr <- token TWhile
     c <- noSemiExpression
-    _ <- token TOpenBrace
-    bodyExprs <- P.many expression
-    _ <- token TCloseBrace
-
-    let body = case bodyExprs of
-            [] -> ELiteral (tokenData pr) LUnit
-            _ ->  foldl1 (ESemi (tokenData pr)) bodyExprs
-
+    body <- blockExpression
     return $ EWhile (tokenData pr) c body
 
 forExpression :: Parser ParseExpression
@@ -194,14 +187,7 @@ functionExpression = do
     returnAnn <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
-    _ <- token TOpenBrace
-    bodyExprs <- P.many expression
-    _ <- token TCloseBrace
-
-    let body = case bodyExprs of
-            [] -> ELiteral (tokenData tfun) LUnit
-            _ -> foldl1 (ESemi (tokenData tfun)) bodyExprs
-
+    body <- blockExpression
     return $ EFun (tokenData tfun) args returnAnn body
 
 pattern :: Parser RefutablePattern
@@ -361,12 +347,6 @@ noSemiExpression =
     <|> returnExpression
     <|> assignExpression
     <|> booleanExpression
-
-expression :: Parser ParseExpression
-expression = do
-    s <- noSemiExpression
-    _ <- token TSemicolon
-    return s
 
 -- Parse elements separated by a delimiter.  Differs from P.many in that a dangling delimiter is permitted.
 delimited :: Parser a -> Parser b -> Parser [a]
@@ -545,7 +525,7 @@ funArgument = do
 blockExpression :: Parser ParseExpression
 blockExpression = do
     br <- token TOpenBrace
-    body <- P.many expression
+    body <- P.many $ noSemiExpression <* token TSemicolon
     _ <- token TCloseBrace
     return $ case body of
         [] -> ELiteral (tokenData br) LUnit

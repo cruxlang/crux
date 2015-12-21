@@ -324,18 +324,11 @@ letExpression = do
     expr <- noSemiExpression
     return $ ELet (tokenData tlet) mut pat typeAnn expr
 
-semiExpression :: Parser ParseExpression
-semiExpression = do
-    e <- noSemiExpression
-    e2 <- P.optionMaybe (token TSemicolon *> semiExpression)
-    case e2 of
-        Nothing ->
-            return e
-        Just e2' ->
-            return (ESemi (edata e) e e2')
-
 parenExpression :: Parser ParseExpression
-parenExpression = parenthesized semiExpression
+parenExpression = parenthesized $ do
+    first <- noSemiExpression
+    rest <- P.many (token TSemicolon >> noSemiExpression)
+    return $ foldl' (\a b -> ESemi (edata a) a b) first rest
 
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =

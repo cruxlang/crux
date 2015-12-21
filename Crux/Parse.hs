@@ -118,10 +118,7 @@ returnExpression = do
 
 unitLiteralExpression :: Parser ParseExpression
 unitLiteralExpression = do
-    o <- P.try $ do
-        p <- token TOpenParen
-        _ <- token TCloseParen
-        return p
+    o <- P.try $ token TOpenParen <* token TCloseParen
     return $ ELiteral (tokenData o) LUnit
 
 arrayLiteralExpression :: Parser ParseExpression
@@ -231,7 +228,10 @@ matchExpression = do
     return $ EMatch (tokenData tmatch) expr cases
 
 basicExpression :: Parser ParseExpression
-basicExpression = identifierExpression <|> literalExpression <|> parenExpression
+basicExpression =
+    identifierExpression
+    <|> literalExpression
+    <|> parenExpression
 
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
@@ -276,12 +276,16 @@ infixExpression operator term = do
 
 multiplyExpression :: Parser ParseExpression
 multiplyExpression = do
-    let op = (token TMultiply >> return BIMultiply) <|> (token TDivide >> return BIDivide)
+    let op =
+            (token TMultiply >> return BIMultiply)
+            <|> (token TDivide >> return BIDivide)
     infixExpression op applicationExpression
 
 addExpression :: Parser ParseExpression
 addExpression = do
-    let op = (token TPlus >> return BIPlus) <|> (token TMinus >> return BIMinus)
+    let op =
+            (token TPlus >> return BIPlus)
+            <|> (token TMinus >> return BIMinus)
     infixExpression op multiplyExpression
 
 relationExpression :: Parser ParseExpression

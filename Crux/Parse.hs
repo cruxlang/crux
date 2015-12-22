@@ -38,9 +38,6 @@ getToken predicate = P.tokenPrim show nextPos predicate
         let Pos{..} = tokenData t
         in P.setSourceLine (P.setSourceColumn pos posCol) posLine
 
-anyToken :: Parser (Token Pos)
-anyToken = getToken Just
-
 tokenBy :: (TokenType -> Bool) -> Parser (Token Pos)
 tokenBy predicate = getToken testTok
   where
@@ -79,11 +76,6 @@ anyIdentifier :: Parser Text
 anyIdentifier = do
     (_, txt) <- anyIdentifierWithPos
     return txt
-
-peekAndShow :: Show msg => msg -> Parser ()
-peekAndShow msg = do
-    peeked <- P.lookAhead $ P.anyToken
-    liftIO $ print (msg, peeked)
 
 ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do

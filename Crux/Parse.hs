@@ -143,33 +143,39 @@ recordLiteralExpression = do
 
     return $ ERecordLiteral (tokenData t) (HashMap.fromList pairs)
 
+integerLiteralExpression :: Parser ParseExpression
+integerLiteralExpression = do
+    Token pos (TInteger i) <- tokenBy $ \case
+        TInteger _ -> True
+        _ -> False
+    return $ ELiteral pos $ LInteger i
+
+stringLiteralExpression :: Parser ParseExpression
+stringLiteralExpression = do
+    Token pos (TString i) <- tokenBy $ \case
+        TString _ -> True
+        _ -> False
+    return $ ELiteral pos $ LString i
+
 literalExpression :: Parser ParseExpression
 literalExpression =
     unitLiteralExpression <|>
     arrayLiteralExpression <|>
     recordLiteralExpression <|>
     functionExpression <|>
-    P.tokenPrim show nextPos testTok
-  where
-    nextPos pos _ _ = pos
-    testTok (Token pos ttype) = case ttype of
-        TInteger i -> Just $ ELiteral pos $ LInteger i
-        TString s -> Just $ ELiteral pos $ LString s
-        _ -> Nothing
+    -- TODO: fix tokenBy, make this primitiveLiteralExpression
+    integerLiteralExpression <|>
+    stringLiteralExpression
 
 parseInt :: Parser Integer
-parseInt = P.tokenPrim show (\pos _ _ -> pos) test
-  where
-    test (Token _ ttype) = case ttype of
-        TInteger i -> Just i
-        _ -> Nothing
+parseInt = do
+    ELiteral _ (LInteger i) <- integerLiteralExpression
+    return i
 
 parseString :: Parser Text
-parseString = P.tokenPrim show (\pos _ _ -> pos) test
-  where
-    test (Token _ ttype) = case ttype of
-        TString s -> Just s
-        _ -> Nothing
+parseString = do
+    ELiteral _ (LString s) <- stringLiteralExpression
+    return s
 
 identifierExpression :: Parser ParseExpression
 identifierExpression = do

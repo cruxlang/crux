@@ -22,10 +22,11 @@ type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
-getToken predicate = P.tokenPrim showTok nextPos predicate
+getToken predicate = P.tokenPrim show nextPos predicate
   where
-    showTok = show
     nextPos pos t _ =
+        -- This appears to be incorrect logic per the docs, but our errors all
+        -- have correct line numbers...
         let Pos{..} = tokenData t
         in P.setSourceLine (P.setSourceColumn pos posCol) posLine
 

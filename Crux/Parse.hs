@@ -38,34 +38,36 @@ getToken predicate = P.tokenPrim show nextPos predicate
         let Pos{..} = tokenData t
         in P.setSourceLine (P.setSourceColumn pos posCol) posLine
 
-tokenBy :: (TokenType -> Bool) -> Parser (Token Pos)
+tokenBy :: (TokenType -> Maybe a) -> Parser (a, Token Pos)
 tokenBy predicate = getToken testTok
   where
-    testTok tok@(Token _ ttype)
-        | predicate ttype = Just tok
-        | otherwise = Nothing
+    testTok tok@(Token _ ttype) = case predicate ttype of
+        Just r -> Just (r, tok)
+        Nothing -> Nothing
 
 token :: TokenType -> Parser (Token Pos)
-token expected = tokenBy (expected ==)
+token expected = do
+    ((), t) <- tokenBy $ \t -> if expected == t then Just () else Nothing
+    return t
 
 identifier :: Text -> Parser (Token Pos)
-identifier name = tokenBy $ \case
-    TUpperIdentifier t -> t == name
-    TLowerIdentifier t -> t == name
-    _ -> False
+identifier name = fmap snd $ tokenBy $ \case
+    TUpperIdentifier t | t == name -> Just ()
+    TLowerIdentifier t | t == name -> Just ()
+    _ -> Nothing
 
 lowerIdentifier :: Parser (Pos, Text)
 lowerIdentifier = do
-    Token pos (TLowerIdentifier t) <- tokenBy $ \case
-        TLowerIdentifier _ -> True
-        _ -> False
+    (t, Token pos _) <- tokenBy $ \case
+        TLowerIdentifier t -> Just t
+        _ -> Nothing
     return (pos, t)
 
 upperIdentifier :: Parser (Pos, Text)
 upperIdentifier = do
-    Token pos (TUpperIdentifier t) <- tokenBy $ \case
-        TUpperIdentifier _ -> True
-        _ -> False
+    (t, Token pos _) <- tokenBy $ \case
+        TUpperIdentifier t -> Just t
+        _ -> Nothing
     return (pos, t)
 
 anyIdentifierWithPos :: Parser (Pos, Text)
@@ -145,17 +147,17 @@ recordLiteralExpression = do
 
 integerLiteralExpression :: Parser ParseExpression
 integerLiteralExpression = do
-    Token pos (TInteger i) <- tokenBy $ \case
-        TInteger _ -> True
-        _ -> False
+    (i, Token pos _) <- tokenBy $ \case
+        TInteger i -> Just i
+        _ -> Nothing
     return $ ELiteral pos $ LInteger i
 
 stringLiteralExpression :: Parser ParseExpression
 stringLiteralExpression = do
-    Token pos (TString i) <- tokenBy $ \case
-        TString _ -> True
-        _ -> False
-    return $ ELiteral pos $ LString i
+    (s, Token pos _) <- tokenBy $ \case
+        TString s -> Just s
+        _ -> Nothing
+    return $ ELiteral pos $ LString s
 
 literalExpression :: Parser ParseExpression
 literalExpression =

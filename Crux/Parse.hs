@@ -2,7 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TupleSections, LambdaCase #-}
 
 module Crux.Parse where
 
@@ -20,6 +20,14 @@ type ParseData = Pos
 type ParseExpression = Expression UnresolvedReference ParseData
 type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 
+data IndentationRequirement
+    = AnyIndentation
+    | GreaterThan Int
+
+indentationPredicate :: Token Pos -> IndentationRequirement -> Bool
+indentationPredicate _ AnyIndentation = True
+indentationPredicate t (GreaterThan i) = i > posLineStart (tokenData t)
+
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim show nextPos predicate
@@ -33,20 +41,21 @@ getToken predicate = P.tokenPrim show nextPos predicate
 anyToken :: Parser (Token Pos)
 anyToken = getToken Just
 
-token :: TokenType -> Parser (Token Pos)
-token expected = getToken testTok
+tokenBy :: (TokenType -> Bool) -> Parser (Token Pos)
+tokenBy predicate = getToken testTok
   where
     testTok tok@(Token _ ttype)
-        | expected == ttype = Just tok
+        | predicate ttype = Just tok
         | otherwise = Nothing
 
+token :: TokenType -> Parser (Token Pos)
+token expected = tokenBy (expected ==)
+
 identifier :: Text -> Parser (Token Pos)
-identifier name = getToken testTok
-  where
-    testTok tok@(Token _ ttype) = case ttype of
-        TUpperIdentifier t | t == name -> Just tok
-        TLowerIdentifier t | t == name -> Just tok
-        _ -> Nothing
+identifier name = tokenBy $ \case
+    TUpperIdentifier t -> t == name
+    TLowerIdentifier t -> t == name
+    _ -> False
 
 lowerIdentifier :: Parser Text
 lowerIdentifier = getToken testTok
@@ -74,7 +83,6 @@ peekAndShow :: Show msg => msg -> Parser ()
 peekAndShow msg = do
     peeked <- P.lookAhead $ P.anyToken
     liftIO $ print (msg, peeked)
-    return ()
 
 ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
@@ -148,9 +156,8 @@ literalExpression =
     arrayLiteralExpression <|>
     recordLiteralExpression <|>
     functionExpression <|>
-    P.tokenPrim showTok nextPos testTok
+    P.tokenPrim show nextPos testTok
   where
-    showTok = show
     nextPos pos _ _ = pos
     testTok (Token pos ttype) = case ttype of
         TInteger i -> Just $ ELiteral pos $ LInteger i

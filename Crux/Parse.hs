@@ -57,27 +57,28 @@ identifier name = tokenBy $ \case
     TLowerIdentifier t -> t == name
     _ -> False
 
-lowerIdentifier :: Parser Text
-lowerIdentifier = getToken testTok
-  where
-    testTok (Token _ ttype) = case ttype of
-        TLowerIdentifier t -> Just t
-        _ -> Nothing
+lowerIdentifier :: Parser (Pos, Text)
+lowerIdentifier = do
+    Token pos (TLowerIdentifier t) <- tokenBy $ \case
+        TLowerIdentifier _ -> True
+        _ -> False
+    return (pos, t)
 
-upperIdentifier :: Parser Text
-upperIdentifier = getToken testTok
-  where
-     testTok (Token _ ttype) = case ttype of
-        TUpperIdentifier t -> Just t
-        _ -> Nothing
+upperIdentifier :: Parser (Pos, Text)
+upperIdentifier = do
+    Token pos (TUpperIdentifier t) <- tokenBy $ \case
+        TUpperIdentifier _ -> True
+        _ -> False
+    return (pos, t)
+
+anyIdentifierWithPos :: Parser (Pos, Text)
+anyIdentifierWithPos = do
+    lowerIdentifier <|> upperIdentifier
 
 anyIdentifier :: Parser Text
-anyIdentifier = getToken testTok
-  where
-    testTok (Token _ ttype) = case ttype of
-        TUpperIdentifier t -> Just t
-        TLowerIdentifier t -> Just t
-        _ -> Nothing
+anyIdentifier = do
+    (_, txt) <- anyIdentifierWithPos
+    return txt
 
 peekAndShow :: Show msg => msg -> Parser ()
 peekAndShow msg = do
@@ -179,11 +180,9 @@ parseString = P.tokenPrim show (\pos _ _ -> pos) test
         _ -> Nothing
 
 identifierExpression :: Parser ParseExpression
-identifierExpression = getToken testTok
-  where
-    testTok (Token pos (TLowerIdentifier txt)) = Just $ EIdentifier pos $ UnknownReference txt
-    testTok (Token pos (TUpperIdentifier txt)) = Just $ EIdentifier pos $ UnknownReference txt
-    testTok _ = Nothing
+identifierExpression = do
+    (pos, txt) <- anyIdentifierWithPos
+    return $ EIdentifier pos $ UnknownReference txt
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
@@ -328,7 +327,7 @@ letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- token TLet
     mut <- P.option LImmutable (token TMutable >> return LMutable)
-    pat <- irrefutablePattern <|> fmap PBinding lowerIdentifier
+    pat <- irrefutablePattern <|> fmap (PBinding . snd) lowerIdentifier
     typeAnn <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent

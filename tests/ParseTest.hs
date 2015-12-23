@@ -8,7 +8,6 @@ import           Crux.AST
 import           Crux.Lex
 import qualified Data.Text as T
 import           Test.Framework
-import qualified Text.Parsec as P
 
 discardData expr = fmap (const ()) expr
 
@@ -17,7 +16,7 @@ runParse parser source =
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens ->
-            P.runParserT parser "hs.ParseTest" "<>" tokens
+            runParser parser "hs.ParseTest" "<>" tokens
 
 
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
@@ -26,7 +25,7 @@ assertParseOk parser source expected f = do
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens -> do
-            res <- P.runParserT parser "hs.ParseTest" "<>" tokens
+            res <- runParser parser "hs.ParseTest" "<>" tokens
             case res of
                 Right result -> assertEqualVerbose (T.unpack source) expected (f result)
                 Left err -> assertFailure ("Parse failed: " ++ show err)

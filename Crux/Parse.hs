@@ -8,6 +8,8 @@ module Crux.Parse where
 
 import           Control.Applicative ((<|>))
 import           Crux.AST            as AST
+import Control.Monad.Trans.Reader (ReaderT, runReaderT)
+import Control.Monad.Reader.Class (MonadReader, ask)
 import qualified Crux.JSTree         as JSTree
 import           Crux.Prelude
 import           Crux.Text           (isCapitalized)
@@ -15,18 +17,26 @@ import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
 
-type Parser = P.ParsecT [Token Pos] ModuleName IO
+type Parser = P.ParsecT [Token Pos] () (ReaderT (ModuleName, IndentReq) IO)
 type ParseData = Pos
 type ParseExpression = Expression UnresolvedReference ParseData
 type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 
-data IndentationRequirement
-    = AnyIndentation
-    | GreaterThan Int
+data IndentReq
+    = AnyIndent
+    | LeftMost
+    | IndentPast Int
 
-indentationPredicate :: Token Pos -> IndentationRequirement -> Bool
-indentationPredicate _ AnyIndentation = True
-indentationPredicate t (GreaterThan i) = i > posLineStart (tokenData t)
+indentationPredicate :: Pos -> IndentReq ->  Bool
+indentationPredicate _ AnyIndent = True
+indentationPredicate p LeftMost = 0 == posLineStart p
+indentationPredicate p (IndentPast i) = i > posLineStart p
+
+readModuleName :: MonadReader (a, b) f => f a
+readModuleName = fmap fst ask
+
+readIndentReq :: MonadReader (a, b) f => f b
+readIndentReq = fmap snd ask
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -39,15 +49,18 @@ getToken predicate = P.tokenPrim show nextPos predicate
         in P.setSourceLine (P.setSourceColumn pos posCol) posLine
 
 tokenBy :: (TokenType -> Maybe a) -> Parser (a, Token Pos)
-tokenBy predicate = getToken testTok
-  where
-    testTok tok@(Token _ ttype) = case predicate ttype of
-        Just r -> Just (r, tok)
-        Nothing -> Nothing
+tokenBy predicate = do
+    indentReq <- readIndentReq
+    let testTok tok@(Token pos ttype) = case predicate ttype of
+          Just r | indentationPredicate pos indentReq -> Just (r, tok)
+          Just r -> Just (r, tok) -- TODO: fail with a good error message
+          Nothing -> Nothing
+    getToken testTok
 
 token :: TokenType -> Parser (Token Pos)
 token expected = do
-    ((), t) <- tokenBy $ \t -> if expected == t then Just () else Nothing
+    ((), t) <- tokenBy $ \t ->
+        if expected == t then Just () else Nothing
     return t
 
 identifier :: Text -> Parser (Token Pos)
@@ -83,6 +96,7 @@ ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
     pr <- token TIf
     condition <- noSemiExpression
+    -- TODO: do we need to enforce indentation here?
     let exprIf = do
             _ <- token TThen
             ifTrue <- noSemiExpression
@@ -134,14 +148,14 @@ arrayLiteralExpression = do
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
-    t <- token $ TOpenBrace
+    t <- token TOpenBrace
     let keyValuePair = do
             name <- anyIdentifier
-            _ <- token $ TColon
+            _ <- token TColon
             expr <- noSemiExpression
             return (name, expr)
-    pairs <- P.sepBy keyValuePair $ token $ TComma
-    _ <- token $ TCloseBrace
+    pairs <- P.sepBy keyValuePair $ token TComma
+    _ <- token TCloseBrace
 
     return $ ERecordLiteral (tokenData t) (HashMap.fromList pairs)
 
@@ -474,7 +488,7 @@ cruxDataDeclaration = do
     _ <- token TOpenBrace
     variants <- delimited variantDefinition (token TComma)
     _ <- token TCloseBrace
-    moduleName <- P.getState
+    moduleName <- readModuleName
     return $ DData name moduleName typeVars variants
 
 jsValue :: Parser JSTree.Literal
@@ -500,7 +514,7 @@ jsDataDeclaration = do
     _ <- token TOpenBrace
     variants <- delimited jsVariantDefinition (token TComma)
     _ <- token TCloseBrace
-    moduleName <- P.getState
+    moduleName <- readModuleName
     return $ DJSData name moduleName variants
 
 dataDeclaration :: Parser ParseDeclaration
@@ -587,5 +601,10 @@ parseModule = do
         , mDecls = doc
         }
 
+runParser :: Parser a -> ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError a)
+runParser parser moduleName sourceName tokens = do
+    (flip runReaderT) (moduleName, LeftMost) $ do
+        P.runParserT parser () sourceName tokens
+
 parse :: ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
-parse = P.runParserT parseModule
+parse = runParser parseModule

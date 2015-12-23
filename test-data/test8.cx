@@ -11,5 +11,5 @@ fun length(list) {
     };
 }
 
-let list = Element(1, Element(2, Nil));
-let _ = print(length(list));
+let list = Element(1, Element(2, Nil))
+let _ = print(length(list))

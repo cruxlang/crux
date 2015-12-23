@@ -3,9 +3,9 @@ data Option a {
     None
 }
 
-let s = Some(5);
+let s = Some(5)
 
 let _ = match s {
     Some(i) => print(i);
     None   => print("None");
-};
+}

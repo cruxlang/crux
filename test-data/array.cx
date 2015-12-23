@@ -2,10 +2,10 @@
 data Array a {}
 
 let _unsafe_new : (Number) -> Array a =
-    _unsafe_js("function (len) { return new Array(len); }");
+    _unsafe_js("function (len) { return new Array(len); }")
 
-let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }");
-let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }");
+let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
+let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
 export fun length(arr : Array a) : Number {
     _unsafe_coerce(arr).length;

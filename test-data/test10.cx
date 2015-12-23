@@ -10,4 +10,4 @@ fun len(l) {
     };
 }
 
-let _ = print(len(Cons(5, Nil)));
+let _ = print(len(Cons(5, Nil)))

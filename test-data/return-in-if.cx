@@ -5,4 +5,4 @@ fun pn(n) {
         return 2;
 }
 
-let _ = print(pn(True));
+let _ = print(pn(True))

@@ -28,7 +28,7 @@ genDoc src = do
         Right stmts -> return stmts
 
 test_direct_prints = do
-    doc <- genDoc "let _ = print(10);"
+    doc <- genDoc "let _ = print(10)"
     assertEqual
         "var $0 = $Prelude.print(10);\n"
         doc
@@ -52,7 +52,7 @@ test_return_from_branch = do
         result
 
 test_branch_with_value = do
-    result <- genDoc "let x = if True then 1 else 2;"
+    result <- genDoc "let x = if True then 1 else 2"
     assertEqual
         "var $0;\nif($Prelude.True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nvar x = $0;\n"
         result

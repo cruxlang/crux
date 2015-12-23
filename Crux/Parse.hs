@@ -9,7 +9,7 @@ module Crux.Parse where
 import           Control.Applicative ((<|>))
 import           Crux.AST            as AST
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
-import Control.Monad.Reader.Class (MonadReader, ask)
+import Control.Monad.Reader.Class (MonadReader, ask, local)
 import qualified Crux.JSTree         as JSTree
 import           Crux.Prelude
 import           Crux.Text           (isCapitalized)
@@ -25,18 +25,34 @@ type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 data IndentReq
     = AnyIndent
     | LeftMost
-    | IndentPast Int
+    | IndentPast (Token Pos)
+    deriving (Show)
 
-indentationPredicate :: Pos -> IndentReq ->  Bool
-indentationPredicate _ AnyIndent = True
-indentationPredicate p LeftMost = 0 == posLineStart p
-indentationPredicate p (IndentPast i) = i > posLineStart p
+data IndentMatch
+    = IndentOK
+    | UnexpectedIndent String
+    | UnexpectedDedent String
+
+indentationPredicate :: Pos -> IndentReq -> IndentMatch
+indentationPredicate p = \case
+    AnyIndent -> IndentOK
+    LeftMost -> if 0 == posLineStart p
+        then IndentOK
+        else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
+    IndentPast t -> let tPos = tokenData t in
+        if posLine tPos == posLine p || posLineStart p > posLineStart tPos
+            then IndentOK
+            else UnexpectedDedent $ "Expected indentation past " ++ show t ++ " p = " ++ show p
 
 readModuleName :: MonadReader (a, b) f => f a
 readModuleName = fmap fst ask
 
 readIndentReq :: MonadReader (a, b) f => f b
 readIndentReq = fmap snd ask
+
+-- Temporarily adjust the indentation policy for a parser
+withIndentation :: MonadReader (a, b) m => b -> m r -> m r
+withIndentation i = local $ \(mn, _) -> (mn, i)
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -52,10 +68,13 @@ tokenBy :: (TokenType -> Maybe a) -> Parser (a, Token Pos)
 tokenBy predicate = do
     indentReq <- readIndentReq
     let testTok tok@(Token pos ttype) = case predicate ttype of
-          Just r | indentationPredicate pos indentReq -> Just (r, tok)
-          Just r -> Just (r, tok) -- TODO: fail with a good error message
+          Just r -> Just (r, tok, indentationPredicate pos indentReq)
           Nothing -> Nothing
-    getToken testTok
+    (r, tok, indentMatch) <- getToken testTok
+    case indentMatch of
+        IndentOK -> return (r, tok)
+        UnexpectedIndent msg -> fail $ "Unexpected indent: " ++ msg
+        UnexpectedDedent msg -> fail $ "Unexpected dedent: " ++ msg
 
 token :: TokenType -> Parser (Token Pos)
 token expected = do
@@ -210,18 +229,14 @@ functionExpression = do
 
 pattern :: Parser RefutablePattern
 pattern = do
-    let parenPattern = do
-            _ <- token TOpenParen
-            pat <- pattern
-            _ <- token TCloseParen
-            return pat
-
+    let parenPattern = parenthesized pattern
     parenPattern <|> noParenPattern
 
 noParenPattern :: Parser RefutablePattern
 noParenPattern = do
     txt <- anyIdentifier
     if isCapitalized txt then do
+        -- TODO: port this to use parenthesized <|> ...
         op <- P.optionMaybe $ token TOpenParen
         case op of
           Just _ -> do
@@ -245,7 +260,8 @@ matchExpression = do
         _ <- token TSemicolon
         return $ Case pat ex
 
-    _ <- token TCloseBrace
+    withIndentation AnyIndent $ do
+        void $ token TCloseBrace
     return $ EMatch (tokenData tmatch) expr cases
 
 basicExpression :: Parser ParseExpression
@@ -340,14 +356,15 @@ irrefutablePattern = do
 letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- token TLet
-    mut <- P.option LImmutable (token TMutable >> return LMutable)
-    pat <- irrefutablePattern <|> fmap (PBinding . snd) lowerIdentifier
-    typeAnn <- P.optionMaybe $ do
-        _ <- token TColon
-        typeIdent
-    _ <- token TEqual
-    expr <- noSemiExpression
-    return $ ELet (tokenData tlet) mut pat typeAnn expr
+    withIndentation (IndentPast tlet) $ do
+        mut <- P.option LImmutable (token TMutable >> return LMutable)
+        pat <- irrefutablePattern <|> fmap (PBinding . snd) lowerIdentifier
+        typeAnn <- P.optionMaybe $ do
+            _ <- token TColon
+            typeIdent
+        _ <- token TEqual
+        expr <- noSemiExpression
+        return $ ELet (tokenData tlet) mut pat typeAnn expr
 
 parenExpression :: Parser ParseExpression
 parenExpression = parenthesized $ do
@@ -407,7 +424,7 @@ functionTypeIdent = do
     return $ FunctionIdent argTypes retType
 
 parenthesized :: Parser a -> Parser a
-parenthesized = P.between (token TOpenParen) (token TCloseParen)
+parenthesized = P.between (token TOpenParen) (withIndentation AnyIndent $ token TCloseParen)
 
 typeIdent :: Parser TypeIdent
 typeIdent =
@@ -435,7 +452,6 @@ typeVariableName = do
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
     ELet ed mut name typeAnn expr <- letExpression
-    _ <- token TSemicolon
     return $ DLet ed mut name typeAnn expr
 
 -- typeident = list of types
@@ -520,17 +536,19 @@ jsDataDeclaration = do
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
     _ <- token TData
-    jsDataDeclaration <|> cruxDataDeclaration
+    withIndentation AnyIndent $
+        jsDataDeclaration <|> cruxDataDeclaration
 
 typeDeclaration :: Parser ParseDeclaration
 typeDeclaration = do
     _ <- token TType
-    name <- typeName
-    vars <- P.many typeVariableName
-    _ <- token TEqual
-    ty <- typeIdent
-    _ <- token TSemicolon
-    return $ DType $ TypeAlias name vars ty
+    withIndentation AnyIndent $ do
+        name <- typeName
+        vars <- P.many typeVariableName
+        _ <- token TEqual
+        ty <- typeIdent
+        _ <- token TSemicolon
+        return $ DType $ TypeAlias name vars ty
 
 funArgument :: Parser (Name, Maybe TypeIdent)
 funArgument = do
@@ -544,7 +562,8 @@ blockExpression :: Parser ParseExpression
 blockExpression = do
     br <- token TOpenBrace
     body <- P.many $ noSemiExpression <* token TSemicolon
-    _ <- token TCloseBrace
+    withIndentation AnyIndent $ do
+        void $ token TCloseBrace
     return $ case body of
         [] -> ELiteral (tokenData br) LUnit
         _ -> foldl1 (ESemi (tokenData br)) body
@@ -552,14 +571,15 @@ blockExpression = do
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- token Tokens.TFun
-    name <- anyIdentifier
-    params <- parenthesized $ P.sepBy funArgument (token TComma)
-    returnAnn <- P.optionMaybe $ do
-        _ <- token TColon
-        typeIdent
+    withIndentation AnyIndent $ do
+        name <- anyIdentifier
+        params <- parenthesized $ P.sepBy funArgument (token TComma)
+        returnAnn <- P.optionMaybe $ do
+            _ <- token TColon
+            typeIdent
 
-    body <- blockExpression
-    return $ DFun $ FunDef (tokenData tfun) name params returnAnn body
+        body <- blockExpression
+        return $ DFun $ FunDef (tokenData tfun) name params returnAnn body
 
 declaration :: Parser (Declaration UnresolvedReference ParseData)
 declaration = do
@@ -586,10 +606,11 @@ importDecl = do
 imports :: Parser [Import]
 imports = do
     _ <- token TImport
-    _ <- token TOpenBrace
-    imp <- delimited importDecl (token TComma)
-    _ <- token TCloseBrace
-    return imp
+    withIndentation AnyIndent $ do
+        _ <- token TOpenBrace
+        imp <- delimited importDecl (token TComma)
+        _ <- token TCloseBrace
+        return imp
 
 parseModule :: Parser ParsedModule
 parseModule = do

@@ -10,4 +10,4 @@ fun main() {
     manhattan(b);
 }
 
-let _ = main();
+let _ = main()

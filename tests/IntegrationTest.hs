@@ -72,15 +72,15 @@ assertUnificationError _ _ _ _ =
 
 test_hello_world = do
     result <- run $ T.unlines
-        [ "let _ = print(\"Hello, World!\");"
+        [ "let _ = print(\"Hello, World!\")"
         ]
     assertEqual (Right "Hello, World!\n") result
 
 test_integer = do
     result <- run $ T.unlines
-        [ "let x = 1;"
-        , "let y = x;"
-        , "let _ = print(toString(y));"
+        [ "let x = 1"
+        , "let y = x"
+        , "let _ = print(toString(y))"
         ]
     assertEqual (Right "1\n") result
 
@@ -90,8 +90,8 @@ test_data_types = do
         , "    Element(Number, IntList),"
         , "    Nil,"
         , "}"
-        , "let mylist = Element(1, Element(2, Nil));"
-        , "let _ = print(mylist);"
+        , "let mylist = Element(1, Element(2, Nil))"
+        , "let _ = print(mylist)"
         ]
 
     assertEqual (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
@@ -103,25 +103,25 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
         , "    Nil,"
         , "}"
         , ""
-        , "let list = Element(1, Element(2, Nil));"
+        , "let list = Element(1, Element(2, Nil))"
         , "let len = match list {"
         , "    Element(num, Nil) => 1;"
         , "    Element(numOne, Element(numTwo, Nil)) => 2;"
         , "    Nil => 0;"
-        , "};"
-        , "let _ = print(len);"
+        , "}"
+        , "let _ = print(len)"
         ]
     assertEqual (Right "2\n") result
 
 test_arithmetic = do
     result <- run $ T.unlines
-        [ "let hypot_squared = fun (x, y) { x * x + y * y; };"
-        , "let _ = print(hypot_squared(4, 3));"
+        [ "let hypot_squared = fun (x, y) { x * x + y * y; }"
+        , "let _ = print(hypot_squared(4, 3))"
         ]
     assertEqual (Right "25\n") result
 
 test_let_is_not_recursive_by_default = do
-    result <- run $ T.unlines [ "let foo = fun (x) { foo(x); };" ]
+    result <- run $ T.unlines [ "let foo = fun (x) { foo(x); }" ]
     assertEqual result $ Left $ UnboundSymbol (Pos 0 1 21) "foo"
 
 test_recursive = do
@@ -133,7 +133,7 @@ test_recursive = do
         , "        Cons(num, tail) => 1 + len(tail);"
         , "    };"
         , "}"
-        , "let _ = print(len(Cons(5, Nil)));"
+        , "let _ = print(len(Cons(5, Nil)))"
         ]
     assertEqual (Right "1\n") result
 
@@ -144,7 +144,7 @@ test_recursive_data = do
         , "    Nil"
         , "}"
         , ""
-        , "let s = Cons(5, Cons(6, Cons(7, Nil)));"
+        , "let s = Cons(5, Cons(6, Cons(7, Nil)))"
         , ""
         , "fun len(list) {"
         , "    match list {"
@@ -153,7 +153,7 @@ test_recursive_data = do
         , "    };"
         , "}"
         , ""
-        , "let _ = print(len(s));"
+        , "let _ = print(len(s))"
         ]
     assertEqual (Right "3\n") result
 
@@ -183,78 +183,78 @@ test_row_polymorphic_records = do
     result <- run $ T.unlines
         [ "fun manhattan(p) { p.x + p.y; }"
         , ""
-        , "let zero = { x: 0, y: 0 };"
-        , "let myhouse = {x: 33, y: 44, z:8};"
+        , "let zero = { x: 0, y: 0 }"
+        , "let myhouse = {x: 33, y: 44, z:8}"
         , ""
         , "fun main() {"
         , "    print(manhattan(zero));"
         , "    print(manhattan(myhouse));"
         , "}"
         , ""
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "0\n77\n") result
 
 test_unsafe_js_intrinsic = do
     result <- run $ T.unlines
-        [ "let c = _unsafe_js(\"console\");"
-        , "let _ = c.log(\"hoop\");"
+        [ "let c = _unsafe_js(\"console\")"
+        , "let _ = c.log(\"hoop\")"
         ]
     assertEqual (Right "hoop\n") result
 
 test_incorrect_unsafe_js = do
     result <- run $ T.unlines
-        [ "let bad = _unsafe_js;"
+        [ "let bad = _unsafe_js"
         ]
     assertEqual (Left $ IntrinsicError (Pos 0 1 11) "Intrinsic _unsafe_js is not a value") result
 
 test_unsafe_coerce = do
     result <- run $ T.unlines
-        [ "let message = \"ohai\";"
-        , "let coerced = _unsafe_coerce(message);"
-        , "let _ = print(5 + coerced);"
+        [ "let message = \"ohai\""
+        , "let coerced = _unsafe_coerce(message)"
+        , "let _ = print(5 + coerced)"
         ]
 
     assertEqual (Right "5ohai\n") result
 
 test_annotation_is_checked = do
     result <- run $ T.unlines
-        [ "let i: Number = \"hody\";"
+        [ "let i: Number = \"hody\""
         ]
 
     assertUnificationError (Pos 0 1 1) "Number" "String" result
 
 test_record_annotation_is_checked = do
     result <- run $ T.unlines
-        [ "let c : {log:(String) -> Unit} = _unsafe_js(\"console\");"
+        [ "let c: {log: (String) -> Unit} = _unsafe_js(\"console\")"
         , "fun main() {"
         , "    c.log(\"Hoop\");"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "Hoop\n") result
 
 test_arrays_of_different_types_cannot_unify = do
     result <- run $ T.unlines
-        [ "let _ = [[0], [\"\"]];"
+        [ "let _ = [[0], [\"\"]]"
         ]
     assertUnificationError (Pos 0 1 9) "Number" "String" result
 
 test_array_iteration = do
     result <- run $ T.unlines
-        [ "let _ = each([0, 1], print);"
+        [ "let _ = each([0, 1], print)"
         ]
     assertEqual (Right "0\n1\n") result
 
 test_record_annotation_is_checked2 = do
     result <- run $ T.unlines
-        [ "let c : {} = _unsafe_js(\"console\");"
+        [ "let c: {} = _unsafe_js(\"console\")"
         , "fun main() {"
         , "    c.log(\"Hoop\");"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertUnificationError (Pos 4 3 5) "{}" "{log: (TUnbound 15),f...}" result
@@ -264,9 +264,9 @@ test_type_alias = do
     result <- run $ T.unlines
         [ "type Hoot = Number;"
         , "type Boast = Number;"
-        , "let a : Hoot = 55;"
-        , "let b : Boast = 4;"
-        , "let _ = print(a + b);"
+        , "let a: Hoot = 55"
+        , "let b: Boast = 4"
+        , "let _ = print(a + b)"
         ]
     assertEqual (Right "59\n") result
 
@@ -274,14 +274,14 @@ test_parameterized_type_alias = do
     result <- run $ T.unlines
         [ "data List a { Nil, Cons(a, List a) }"
         , "type Bogo a = List a;"
-        , "let hoop : Bogo Number = Cons(5, Nil);"
+        , "let hoop : Bogo Number = Cons(5, Nil)"
         ]
     assertEqual (Right "") result
 
 test_if_then_else = do
     result <- run $ T.unlines
         [ "let _ = if False then print(\"This should not run\")"
-        , "        else print(\"Falso!\");"
+        , "        else print(\"Falso!\")"
         ]
 
     assertEqual (Right "Falso!\n") result
@@ -290,21 +290,21 @@ test_if_then_else_2 = do
     result <- run $ T.unlines
         [ "let _ = if False then if True then print(\"One\")"
         , "        else print(\"Two\")"
-        , "        else print(\"Three\");"
+        , "        else print(\"Three\")"
         ]
 
     assertEqual (Right "Three\n") result
 
 test_if_block = do
     result <- run $ T.unlines
-        [ "let _ = if True { print(\"yay\"); };"
-        , "let _ = if False { print(\"nay\"); };"
+        [ "let _ = if True { print(\"yay\"); }"
+        , "let _ = if False { print(\"nay\"); }"
         ]
     assertEqual (Right "yay\n") result
 
 test_if_else_if_block = do
     result <- run $ T.unlines
-        [ "let _ = if False { print(\"nay\"); } else if True { print(\"yay\"); };"
+        [ "let _ = if False { print(\"nay\"); } else if True { print(\"yay\"); }"
         ]
     assertEqual (Right "yay\n") result
 
@@ -323,14 +323,14 @@ test_comments = do
         , " type Bogo = List; */"
         , "type Bogo a = List a;"
         , ""
-        , "let hoop : Bogo Number = Cons(5, Nil);"
+        , "let hoop: Bogo Number = Cons(5, Nil)"
         ]
     assertEqual (Right "") result
 
 test_comments2 = do
     result <- run $ T.unlines
         [ "/* this is a test */"
-        , "let u = 8;"
+        , "let u = 8"
         ]
     assertEqual (Right "") result
 
@@ -345,7 +345,7 @@ test_let_mutable = do
         , "    x = x + 1;"
         , "    print(x);"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "3\n") result
@@ -357,7 +357,7 @@ test_cannot_assign_to_immutable_binding = do
         , "    x = x + 1;"
         , "    print(x);"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
@@ -370,7 +370,7 @@ test_assign_to_mutable_record_field = do
         , "    a.x = 22;"
         , "    print(a);"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "{ x: 22 }\n") result
@@ -382,7 +382,7 @@ test_cannot_assign_to_immutable_record_field = do
         , "    a.x = 22;"
         , "    print(a);"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual
@@ -401,7 +401,7 @@ test_mutable_record_field_requirement_is_inferred = do
         , "    let a : {const x: Number, const y: Number} = {x:44, y:0};"
         , "    swap(a);"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual
@@ -421,7 +421,7 @@ test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
         , "    let b : {mutable x:Number, mutable y:Number} = {x:0, y:0};"
         , "    print(manhattan(b));"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "44\n0\n") result
@@ -432,19 +432,19 @@ test_jsffi_data_type_names_and_values_can_be_used = do
         , "    Get=\"GET\","
         , "    Post=\"POST\","
         , "}"
-        , "let result : Method = Get;"
-        , "let _ = print(result);"
+        , "let result: Method = Get"
+        , "let _ = print(result)"
         ]
 
     assertEqual (Right "GET\n") result
 
 test_record_self_unification = do
     result <- run $ T.unlines
-        [ "let r = {};"
+        [ "let r = {}"
         , "fun main(o) {"
         , "    if False then o else r;"
         , "}"
-        , "let _ = main(r);"
+        , "let _ = main(r)"
         ]
 
     assertEqual (Right "") result
@@ -486,7 +486,7 @@ test_while_loops = do
         , "    };"
         , "}"
         , ""
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
@@ -498,7 +498,7 @@ test_quantify_user_types_correctly =
         , "    Some(a)"
         , "}"
         , ""
-        , "let isNull = _unsafe_js(\"function(o) { return null === o; }\");"
+        , "let isNull = _unsafe_js(\"function(o) { return null === o; }\")"
         , ""
         , "fun toMaybeString(o) {"
         , "    if isNull(o)"
@@ -509,7 +509,7 @@ test_quantify_user_types_correctly =
 
 test_interior_unbound_types_are_ok =
     assertCompiles
-        [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\");"
+        [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\")"
         , "export fun replicate(element, len) {"
         , "    let arr = _unsafe_new(len);"
         , "}"
@@ -518,14 +518,14 @@ test_interior_unbound_types_are_ok =
 test_type_annotation_for_parametric_type =
     assertCompiles
         [ "data Option a { None, Some(a) }"
-        , "let x : Option Number = Some(22);"
+        , "let x: Option Number = Some(22)"
         ]
 
 test_polymorphic_type_annotations_are_universally_quantified =
     assertCompiles
         [ "data Option a { None, Some(a) }"
         , ""
-        , "let none : () -> Option a = fun () { None; };"
+        , "let none: () -> Option a = fun () { None; }"
         , ""
         , "fun f() {"
         , "    let n : Option Number = none();"
@@ -534,22 +534,22 @@ test_polymorphic_type_annotations_are_universally_quantified =
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do
     rv <- run $ T.unlines
-        [ "let f : (Number) -> Number = fun (i) { i; };"
-        , "let g : (a) -> a = fun (i) { i; };"
-        , "let _ = f(g(\"hello\"));"
+        [ "let f: (Number) -> Number = fun (i) { i; }"
+        , "let g: (a) -> a = fun (i) { i; }"
+        , "let _ = f(g(\"hello\"))"
         ]
     assertUnificationError (Pos 0 3 9) "Number" "String" rv
 
 test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
-        [ "let f : (Number) -> Number = fun (i) { i; };"
-        , "let g : (a) -> b = fun (i) { _unsafe_coerce(i); };"
-        , "let _ = f(g(\"hello\"));"
+        [ "let f: (Number) -> Number = fun (i) { i; }"
+        , "let g: (a) -> b = fun (i) { _unsafe_coerce(i); }"
+        , "let _ = f(g(\"hello\"))"
         ]
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
-        [ "let f : (a) -> Number = fun (i) { i; };"
+        [ "let f : (a) -> Number = fun (i) { i; }"
         ]
     assertUnificationError (Pos 0 1 1) "Number" "TQuant 7" rv
 
@@ -572,12 +572,12 @@ test_arrays =
         , "        print(e);"
         , "    });"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
         "toot\ntoot\ntoot\ntoot\n"
 
 test_concatenate_strings = do
-    assertOutput ["let _ = print(\"foo\" + \"bar\");"] "foobar\n"
+    assertOutput ["let _ = print(\"foo\" + \"bar\")"] "foobar\n"
 
 test_quantified_record = do
     assertCompiles
@@ -597,7 +597,7 @@ test_for_loop = do
         , "    print(x);"
         , "  };"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     assertEqual (Right "1\n2\n3\n") result
@@ -609,7 +609,7 @@ test_export_and_import = do
         , "  print(\"outside\");"
         , "  fn();"
         , "}"
-        , "let _ = main();"
+        , "let _ = main()"
         ]
 
     halloumi <- return $ T.unlines
@@ -626,17 +626,17 @@ test_export_and_import = do
 
 test_string_methods = do
     result <- run $ T.unlines
-        [ "let _ = print(\"foo\"->endsWith(\"oo\"));"
-        , "let _ = print(\"bar\"->endsWith(\"oo\"));"
+        [ "let _ = print(\"foo\"->endsWith(\"oo\"))"
+        , "let _ = print(\"bar\"->endsWith(\"oo\"))"
         ]
     assertEqual (Right "true\nfalse\n") result
 
 test_tdnr_quantifies_function = do
     result <- run $ T.unlines
-        [ "let a = [1, 2, 3];"
+        [ "let a = [1, 2, 3]"
         , "let _ = a->each(fun(i) {"
         , "    print(i);"
-        , "});"
+        , "})"
         ]
     assertEqual (Right "1\n2\n3\n") result
 
@@ -644,7 +644,7 @@ test_tdnr_inside_each = do
     result <- run $ T.unlines
         [ "let _ = [1, 2, 3]->each(fun(i) {"
         , "    i->print();"
-        , "});"
+        , "})"
         ]
     assertEqual (Right "1\n2\n3\n") result
 
@@ -652,7 +652,7 @@ test_tdnr_inside_for_loop = do
     result <- run $ T.unlines
         [ "let _ = for i in [1, 2, 3] {"
         , "    i->print();"
-        , "};"
+        , "}"
         ]
     assertEqual (Right "1\n2\n3\n") result
 
@@ -665,29 +665,29 @@ test_tdnr_with_arg_annotation = do
 
 test_boolean_expressions = do
     assertOutput
-        [ "let b = 0 <= 5 && 5 < 10;"
-        , "let _ = print(b);"
+        [ "let b = 0 <= 5 && 5 < 10"
+        , "let _ = print(b)"
         ]
         "true\n"
 
 test_prelude_provides_None = do
     assertCompiles
-        [ "let a = None;"
+        [ "let a = None"
         ]
 
 test_prelude_provides_Some = do
     assertCompiles
-        [ "let a = Some(8);"
+        [ "let a = Some(8)"
         ]
 
 test_escaped_strings = do
     result1 <- run $ T.unlines
-        [ [r|let _ = print("\0\a\b\f\n\r\t\v\\\'\"\?");|]
+        [ [r|let _ = print("\0\a\b\f\n\r\t\v\\\'\"\?")|]
         ]
     assertEqual (Right "\NUL\a\b\f\n\r\t\v\\'\"?\n") result1
 
     result2 <- run $ T.unlines
-        [ [r|let _ = print("\x00\x01\x02");|]
+        [ [r|let _ = print("\x00\x01\x02")|]
         ]
     assertEqual (Right "\0\1\2\n") result2
 
@@ -696,6 +696,6 @@ test_escaped_strings = do
 test_cannot_omit_arguments = do
     result <- run $ T.unlines
         [ "fun f(x) {}"
-        , "let _ = f();"
+        , "let _ = f()"
         ]
     assertUnificationError (Pos 0 2 9) "((TUnbound 14)) -> Unit" "() -> Unit" result

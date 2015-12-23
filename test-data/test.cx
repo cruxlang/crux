@@ -4,18 +4,18 @@ let spam = fun(s) {
     print(s);
     print(s);
     9;
-};
+}
 
 let spam2 = fun(s) {
     print(s);
     print(s);
     print(s);
     9;
-};
+}
 
 let foo = fun(i) {
     fun(j) { 2; };
-};
+}
 
 let main = fun() {
     print("hooper");
@@ -27,6 +27,6 @@ let main = fun() {
 
     spam(u);
     spam("spam");
-};
+}
 
-let _ = main();
+let _ = main()

@@ -1,2 +1,2 @@
 
-let _ = print(toString(5));
+let _ = print(toString(5))

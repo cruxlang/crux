@@ -1,4 +1,3 @@
-
 let main = fun (x) {
     let spam = fun (s) {
         print(s);
@@ -9,4 +8,4 @@ let main = fun (x) {
     spam("spam");
     spam("spammity");
     spam("spam!!");
-};
+}

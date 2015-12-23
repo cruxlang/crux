@@ -3,7 +3,7 @@ data List a {
     Nil
 }
 
-let s = Cons(5, Cons(6, Cons(7, Nil)));
+let s = Cons(5, Cons(6, Cons(7, Nil)))
 
 fun len(list) {
     match list {
@@ -12,4 +12,4 @@ fun len(list) {
     };
 }
 
-let _ = print(len(s));
+let _ = print(len(s))

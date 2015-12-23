@@ -2,7 +2,6 @@
 
 module Crux.Lex where
 
-import Control.Monad (void)
 import Data.Char
 import Crux.Prelude
 import Crux.Tokens

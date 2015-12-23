@@ -28,7 +28,7 @@ genDoc src = do
         Right stmts -> return stmts
 
 test_return_at_top_level_is_error = do
-    result <- try $! genDoc "let _ = return 1;"
+    result <- try $! genDoc "let _ = return 1"
     assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
 
 test_return_from_function = do
@@ -56,7 +56,7 @@ test_return_from_branch = do
         result
 
 test_branch_with_value = do
-    result <- genDoc "let x = if True then 1 else 2;"
+    result <- genDoc "let x = if True then 1 else 2"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet (AST.PBinding "x")
             [ Gen.EmptyTemporary 0
@@ -71,7 +71,7 @@ test_branch_with_value = do
         result
 
 test_method_call = do
-    result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\"); let _ = hoop.woop();"
+    result <- genDoc "let hoop = _unsafe_js(\"we-can-put-anything-here\")\nlet _ = hoop.woop()"
     assertEqual
         [ Gen.Declaration AST.NoExport (Gen.DLet (AST.PBinding "hoop") [Gen.Intrinsic (Gen.NewTemporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
             , Gen.Assign (Gen.NewLocalBinding "hoop") (Gen.Temporary 0)])

@@ -3,4 +3,4 @@ fun main() {
     print(x);
   };
 }
-let _ = main();
+let _ = main()

@@ -26,6 +26,7 @@ data IndentReq
     = AnyIndent
     | LeftMost
     | IndentPast (Token Pos)
+    | CloseSymbol (Token Pos)
     deriving (Show)
 
 data IndentMatch
@@ -43,6 +44,10 @@ indentationPredicate p = \case
         if posLine tPos == posLine p || posLineStart p > posLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation past " ++ show t ++ " p = " ++ show p
+    CloseSymbol t -> let tPos = tokenData t in
+        if posLine tPos == posLine p || posLineStart p >= posLineStart tPos
+            then IndentOK
+            else UnexpectedDedent $ "Expected indentation at or past " ++ show t ++ " p = " ++ show p
 
 readModuleName :: MonadReader (a, b) f => f a
 readModuleName = fmap fst ask
@@ -53,6 +58,23 @@ readIndentReq = fmap snd ask
 -- Temporarily adjust the indentation policy for a parser
 withIndentation :: MonadReader (a, b) m => b -> m r -> m r
 withIndentation i = local $ \(mn, _) -> (mn, i)
+
+enclosed :: Parser (Token Pos) -> Parser (Token Pos) -> Parser a -> Parser a
+enclosed open close body = do
+    openToken <- open
+    rv <- body
+    withIndentation (CloseSymbol openToken) $ do
+        void $ close
+    return rv
+
+parenthesized :: Parser a -> Parser a
+parenthesized = enclosed (token TOpenParen) (token TCloseParen)
+
+braced :: Parser a -> Parser a
+braced = enclosed (token TOpenBrace) (token TCloseBrace)
+
+bracketed :: Parser a -> Parser a
+bracketed = enclosed (token TOpenBracket) (token TCloseBracket)
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -252,16 +274,12 @@ matchExpression :: Parser ParseExpression
 matchExpression = do
     tmatch <- token TMatch
     expr <- noSemiExpression
-    _ <- token TOpenBrace
-    cases <- P.many $ do
+    cases <- braced $ P.many $ do
         pat <- pattern
         _ <- token TFatRightArrow
         ex <- noSemiExpression
         _ <- token TSemicolon
         return $ Case pat ex
-
-    withIndentation AnyIndent $ do
-        void $ token TCloseBrace
     return $ EMatch (tokenData tmatch) expr cases
 
 basicExpression :: Parser ParseExpression
@@ -404,16 +422,18 @@ delimited parseElement delim = do
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent = do
     let propTypePair = do
-            mut <- P.optionMaybe ((token TMutable *> pure LMutable) <|> (token TConst *> pure LImmutable))
+            mut <- P.optionMaybe (
+                (token TMutable *> pure LMutable) <|>
+                (token TConst *> pure LImmutable))
             name <- anyIdentifier
             _ <- token TColon
             ty <- typeIdent
             return (name, mut, ty)
 
-    _ <- token TOpenBrace
-    props <- delimited propTypePair (token TComma)
-    _ <- P.optional $ token TComma
-    _ <- token TCloseBrace
+    props <- braced $ do
+        props <- delimited propTypePair (token TComma)
+        _ <- P.optional $ token TComma
+        return props
     return $ RecordIdent props
 
 functionTypeIdent :: Parser TypeIdent
@@ -422,9 +442,6 @@ functionTypeIdent = do
     _ <- token TRightArrow
     retType <- typeIdent
     return $ FunctionIdent argTypes retType
-
-parenthesized :: Parser a -> Parser a
-parenthesized = P.between (token TOpenParen) (withIndentation AnyIndent $ token TCloseParen)
 
 typeIdent :: Parser TypeIdent
 typeIdent =
@@ -467,12 +484,11 @@ typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
 
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
-    _ <- token TDeclare
-    withIndentation AnyIndent $ do
+    declareToken <- token TDeclare
+    withIndentation (IndentPast declareToken) $ do
         name <- anyIdentifier
         _ <- token TColon
         ti <- typeIdent
-        _ <- token TSemicolon
         return $ DDeclare name ti
 
 -- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int
@@ -486,6 +502,7 @@ variantDefinition :: Parser Variant
 variantDefinition = do
     ctorname <- anyIdentifier
 
+    -- TODO: port this to parenthesized <|>
     op <- P.optionMaybe $ token TOpenParen
     ctordata <- case op of
         Just _ -> do

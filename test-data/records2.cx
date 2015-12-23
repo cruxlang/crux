@@ -1,8 +1,8 @@
 
 type Console = {
-    log : (String) -> Unit
-};
+    log: (String) -> Unit
+}
 
-let js_console : Console = _unsafe_js("console")
+let js_console: Console = _unsafe_js("console")
 
 let _ = js_console.log("Hootenany")

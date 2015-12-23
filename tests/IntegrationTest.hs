@@ -262,8 +262,8 @@ test_record_annotation_is_checked2 = do
 
 test_type_alias = do
     result <- run $ T.unlines
-        [ "type Hoot = Number;"
-        , "type Boast = Number;"
+        [ "type Hoot = Number"
+        , "type Boast = Number"
         , "let a: Hoot = 55"
         , "let b: Boast = 4"
         , "let _ = print(a + b)"
@@ -273,8 +273,8 @@ test_type_alias = do
 test_parameterized_type_alias = do
     result <- run $ T.unlines
         [ "data List a { Nil, Cons(a, List a) }"
-        , "type Bogo a = List a;"
-        , "let hoop : Bogo Number = Cons(5, Nil)"
+        , "type Bogo a = List a"
+        , "let hoop: Bogo Number = Cons(5, Nil)"
         ]
     assertEqual (Right "") result
 
@@ -320,8 +320,8 @@ test_comments = do
         , "data List a { Nil, Cons(a, List a), }"
         , ""
         , "/* TODO: Decide on an optimal name for this type alias"
-        , " type Bogo = List; */"
-        , "type Bogo a = List a;"
+        , " type Bogo = List */"
+        , "type Bogo a = List a"
         , ""
         , "let hoop: Bogo Number = Cons(5, Nil)"
         ]

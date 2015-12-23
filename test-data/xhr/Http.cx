@@ -13,19 +13,19 @@ data jsffi Method {
     Delete = "DELETE",
 }
 
-type Url = String;
-type EventName = String;
-type EventHandler = () -> Unit;
+type Url = String
+type EventName = String
+type EventHandler = () -> Unit
 
 type XMLHttpRequest = {
-    send : () -> Unit,
+    send: () -> Unit,
     abort: () -> Unit,
-    open : (Method, Url) -> Unit,
-    addEventListener : (EventName, EventHandler) -> Unit,
-    setRequestHeader : (String, String) -> Unit,
-    responseText : String,
-    //getRequestHeader : (String) -> Unityped
-};
+    open: (Method, Url) -> Unit,
+    addEventListener: (EventName, EventHandler) -> Unit,
+    setRequestHeader: (String, String) -> Unit,
+    responseText: String,
+    //getRequestHeader: (String) -> Unityped,
+}
 
 data XHR { XHR(XMLHttpRequest) }
 

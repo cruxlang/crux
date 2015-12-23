@@ -559,13 +559,12 @@ dataDeclaration = do
 
 typeDeclaration :: Parser ParseDeclaration
 typeDeclaration = do
-    _ <- token TType
-    withIndentation AnyIndent $ do
+    typeToken <- token TType
+    withIndentation (IndentPast typeToken) $ do
         name <- typeName
         vars <- P.many typeVariableName
         _ <- token TEqual
         ty <- typeIdent
-        _ <- token TSemicolon
         return $ DType $ TypeAlias name vars ty
 
 funArgument :: Parser (Name, Maybe TypeIdent)

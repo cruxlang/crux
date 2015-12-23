@@ -1,5 +1,5 @@
 fun main() {
-  if True then print("yes") else print("no");
+  if True then print("yes") else print("no")
 }
 
 let _ = main()

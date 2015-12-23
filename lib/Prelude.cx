@@ -1,5 +1,5 @@
 export fun print(a) : Unit {
-    _unsafe_js("console").log(a);
+    _unsafe_js("console").log(a)
 }
 
 export let toString: (a) -> String =
@@ -15,14 +15,14 @@ let _strlen: (String) -> Number =
     _unsafe_js("function strlen(s) { return s.length; }")
 
 export fun strlen(s : String) : Number {
-    _strlen(s);
+    _strlen(s)
 }
 
 // Option
 
 export data Option a {
     Some(a),
-    None
+    None,
 }
 
 // Arrays have unspecified representation
@@ -35,22 +35,22 @@ let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
 export fun emptyArray(): Array a {
-    _unsafe_js("[]");
+    _unsafe_js("[]")
 }
 
 // I'd specify a return type of unit but there is a parse error:
 // https://github.com/andyfriesen/crux/issues/14
 export fun append(a: Array a, v: a) {
-    _unsafe_coerce(a).push(v);
-    return ();
+    _unsafe_coerce(a).push(v)
+    return ()
 }
 
 export fun get(a: Array a, idx: number) {
-    _unsafe_get(a, idx);
+    _unsafe_get(a, idx)
 }
 
 export fun length(a: Array a): Number {
-    _unsafe_coerce(a).length;
+    _unsafe_coerce(a).length
 }
 
 export fun replicate(element: a, len: Number): Array a {
@@ -58,56 +58,56 @@ export fun replicate(element: a, len: Number): Array a {
 
     let mutable i = 0;
     while i < len {
-        _unsafe_set(arr, i, element);
-        i = i + 1;
+        _unsafe_set(arr, i, element)
+        i = i + 1
     };
 
-    arr;
+    arr
 }
 
 export fun each(arr: Array a, f: (a) -> b): Unit {
-    let mutable i = 0;
-    let len = length(arr);
+    let mutable i = 0
+    let len = length(arr)
     while i < len {
-        f(_unsafe_get(arr, i));
-        i = i + 1;
-    };
+        f(_unsafe_get(arr, i))
+        i = i + 1
+    }
 }
 
 export fun map(f: (a) -> b, a: Array a): Array b {
-    _unsafe_js("[].map").call(a, f);
+    _unsafe_js("[].map").call(a, f)
 }
 
 export fun sliceFrom(arr: Array a, start: Number): Array a {
-    _unsafe_coerce(arr).slice(start);
+    _unsafe_coerce(arr).slice(start)
 }
 
 export fun sliceTo(arr: Array a, end: Number): Array a {
-    _unsafe_coerce(arr).slice(0, end);
+    _unsafe_coerce(arr).slice(0, end)
 }
 
 export fun slice(arr: Array a, start: Number, end: Number): Array a {
-    _unsafe_coerce(arr).slice(start, end);
+    _unsafe_coerce(arr).slice(start, end)
 }
 
 export fun endsWith(haystack: String, needle: String) {
     // Oops, how do I use a record with a keyword property name :D
     // return _unsafe_coerce(haystack).match(needle + "$") == needle;
 
-    let h = _unsafe_coerce(haystack);
-    let n = _unsafe_coerce(needle);
+    let h = _unsafe_coerce(haystack)
+    let n = _unsafe_coerce(needle)
     if n.length > h.length {
-        return False;
-    };
+        return False
+    }
     // TODO: crux does not support negative literals yet
-    return h.indexOf(n, h.length - n.length) != 0 - 1;
+    return h.indexOf(n, h.length - n.length) != 0 - 1
 }
 
 export fun join(sep: String, elements: Array String): String {
-    _unsafe_coerce(elements).join(sep);
+    _unsafe_coerce(elements).join(sep)
 }
 
 // TODO: add comparator support
 export fun sort(arr: Array String) {
-    _unsafe_coerce(arr).sort();
+    _unsafe_coerce(arr).sort()
 }

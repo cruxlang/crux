@@ -1,32 +1,31 @@
-
 let spam = fun(s) {
-    print(s);
-    print(s);
-    print(s);
-    9;
+    print(s)
+    print(s)
+    print(s)
+    9
 }
 
 let spam2 = fun(s) {
-    print(s);
-    print(s);
-    print(s);
-    9;
+    print(s)
+    print(s)
+    print(s)
+    9
 }
 
 let foo = fun(i) {
-    fun(j) { 2; };
+    fun(j) { 2 }
 }
 
 let main = fun() {
-    print("hooper");
-    let r = (2 ; 8);
-    let t = 9;
-    let u = "hody";
-    let v = u;
-    let w = t;
+    print("hooper")
+    let r = (2 ; 8)
+    let t = 9
+    let u = "hody"
+    let v = u
+    let w = t
 
-    spam(u);
-    spam("spam");
+    spam(u)
+    spam("spam")
 }
 
 let _ = main()

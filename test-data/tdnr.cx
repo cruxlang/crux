@@ -1,11 +1,11 @@
 fun hiz(a: String) {
-    a->endsWith("/");
+    a->endsWith("/")
 }
 
 fun combine(a: String, b) {
     if a->endsWith("/") {
-        return a + b;
+        return a + b
     } else {
-        return a + "/" + b;
-    };
+        return a + "/" + b
+    }
 }

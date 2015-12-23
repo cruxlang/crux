@@ -1,23 +1,24 @@
 fun fib(n) {
-    let mutable count = n;
-    let mutable a = 0;
-    let mutable b = 1;
+    let mutable count = n
+    let mutable a = 0
+    let mutable b = 1
 
     while 0 != count {
-        let t = a;
-        a = b;
-        b = b + t;
-        count = count - 1;
-    };
-    a;
+        let t = a
+        a = b
+        b = b + t
+        count = count - 1
+    }
+
+    a
 }
 
 fun main() {
-    let mutable i = 1;
+    let mutable i = 1
     while i < 10 {
-        print(fib(i));
-        i = i + 1;
-    };
+        print(fib(i))
+        i = i + 1
+    }
 }
 
 let _ = main()

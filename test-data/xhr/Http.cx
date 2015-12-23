@@ -30,22 +30,22 @@ type XMLHttpRequest = {
 data XHR { XHR(XMLHttpRequest) }
 
 export fun newXhr() {
-    let result : XMLHttpRequest = _unsafe_js("new XMLHttpRequest");
-    XHR(result);
+    let result: XMLHttpRequest = _unsafe_js("new XMLHttpRequest")
+    XHR(result)
 }
 
-fun i(x : XMLHttpRequest, url : String, onLoaded) : Unit {
+fun i(x: XMLHttpRequest, url: String, onLoaded): Unit {
     let loadProc = fun() {
-        onLoaded(x);
-    };
+        onLoaded(x)
+    }
 
-    x.addEventListener("load", loadProc);
-    x.open(Get, url);
-    x.send();
+    x.addEventListener("load", loadProc)
+    x.open(Get, url)
+    x.send()
 }
 
-export fun http_get(xhr : XHR, url: String, onLoaded) : Unit {
+export fun http_get(xhr: XHR, url: String, onLoaded): Unit {
     match xhr {
         XHR(x) => i(x, url, onLoaded);
-    };
+    }
 }

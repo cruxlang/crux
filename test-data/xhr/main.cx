@@ -3,12 +3,12 @@ import {
 }
 
 fun main() {
-    let document = _unsafe_js("window.document");
-    let xhr = newXhr();
+    let document = _unsafe_js("window.document")
+    let xhr = newXhr()
     xhr->http_get("main.crux", fun (xhr) {
-        print("Got response :D");
-        document.write(xhr.responseText);
-    });
+        print("Got response :D")
+        document.write(xhr.responseText)
+    })
 }
 
 let _ = main()

@@ -2,7 +2,7 @@ fun pn(n) {
     if n then
         return 1
     else
-        return 2;
+        return 2
 }
 
 let _ = print(pn(True))

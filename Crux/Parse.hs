@@ -25,6 +25,7 @@ type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 data IndentReq
     = AnyIndent
     | LeftMost
+    | AtIndent Pos
     | IndentPast (Token Pos)
     | CloseSymbol (Token Pos)
     deriving (Show)
@@ -40,6 +41,11 @@ indentationPredicate p = \case
     LeftMost -> if 0 == posLineStart p
         then IndentOK
         else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
+    AtIndent indent -> if posLine p == posLine indent || posLineStart p == posLineStart indent
+        then IndentOK
+        else if posLineStart p > posLineStart indent
+            then UnexpectedIndent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
+            else UnexpectedDedent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
     IndentPast t -> let tPos = tokenData t in
         if posLine tPos == posLine p || posLineStart p > posLineStart tPos
             then IndentOK
@@ -384,11 +390,14 @@ letExpression = do
         expr <- noSemiExpression
         return $ ELet (tokenData tlet) mut pat typeAnn expr
 
-parenExpression :: Parser ParseExpression
-parenExpression = parenthesized $ do
+semiExpression :: Parser ParseExpression
+semiExpression = do
     first <- noSemiExpression
     rest <- P.many (token TSemicolon >> noSemiExpression)
     return $ foldl' (\a b -> ESemi (edata a) a b) first rest
+
+parenExpression :: Parser ParseExpression
+parenExpression = parenthesized semiExpression
 
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =
@@ -577,12 +586,19 @@ funArgument = do
 
 blockExpression :: Parser ParseExpression
 blockExpression = do
+    -- TODO: use braced, which needs to return the start pos
     br <- token TOpenBrace
-    body <- P.many $ noSemiExpression <* token TSemicolon
-    withIndentation AnyIndent $ do
+    body <- withIndentation (IndentPast br) $ P.optionMaybe semiExpression >>= \case
+        Nothing -> return []
+        Just first -> withIndentation (AtIndent $ edata first) $ do
+            rest <- P.many semiExpression
+            return $ first : rest
+    withIndentation (CloseSymbol br) $ do
         void $ token TCloseBrace
     return $ case body of
         [] -> ELiteral (tokenData br) LUnit
+        -- TODO: I think using the open brace's position for the position
+        -- of all ESemi is wrong
         _ -> foldl1 (ESemi (tokenData br)) body
 
 funDeclaration :: Parser ParseDeclaration

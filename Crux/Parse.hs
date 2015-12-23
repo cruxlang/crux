@@ -468,11 +468,12 @@ typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
     _ <- token TDeclare
-    name <- anyIdentifier
-    _ <- token TColon
-    ti <- typeIdent
-    _ <- token TSemicolon
-    return $ DDeclare name ti
+    withIndentation AnyIndent $ do
+        name <- anyIdentifier
+        _ <- token TColon
+        ti <- typeIdent
+        _ <- token TSemicolon
+        return $ DDeclare name ti
 
 -- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int
 dataDeclTypeIdent :: Parser TypeIdent

@@ -32,7 +32,7 @@ test_return_at_top_level_is_error = do
     assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
 
 test_return_from_function = do
-    doc <- genDoc "fun f() { return 1; }"
+    doc <- genDoc "fun f() { return 1 }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" [] $
             [ Gen.Return $ Gen.Literal $ AST.LInteger 1
@@ -41,7 +41,7 @@ test_return_from_function = do
         doc
 
 test_return_from_branch = do
-    result <- genDoc "fun f() { if True then return 1 else return 2; }"
+    result <- genDoc "fun f() { if True then return 1 else return 2 }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyTemporary 0

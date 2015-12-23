@@ -34,19 +34,19 @@ test_direct_prints = do
         doc
 
 test_return_from_function = do
-    doc <- genDoc "fun f() { return 1; }"
+    doc <- genDoc "fun f() { return 1 }"
     assertEqual
         "function f(){\nreturn 1;\n}\n"
         doc
 
 test_export_function = do
-    doc <- genDoc "export fun f() { 1; }"
+    doc <- genDoc "export fun f() { 1 }"
     assertEqual
         "function f(){\nreturn 1;\n}\n(exports).f = f;\n"
         doc
 
 test_return_from_branch = do
-    result <- genDoc "fun f() { if True then return 1 else return 2; }"
+    result <- genDoc "fun f() { if True then return 1 else return 2 }"
     assertEqual
         "function f(){\nvar $0;\nif($Prelude.True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n"
         result

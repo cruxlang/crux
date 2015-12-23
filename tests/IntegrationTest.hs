@@ -115,13 +115,13 @@ test_pattern_matches_can_be_expressions_that_yield_values = do
 
 test_arithmetic = do
     result <- run $ T.unlines
-        [ "let hypot_squared = fun (x, y) { x * x + y * y; }"
+        [ "let hypot_squared = fun (x, y) { x * x + y * y }"
         , "let _ = print(hypot_squared(4, 3))"
         ]
     assertEqual (Right "25\n") result
 
 test_let_is_not_recursive_by_default = do
-    result <- run $ T.unlines [ "let foo = fun (x) { foo(x); }" ]
+    result <- run $ T.unlines [ "let foo = fun (x) { foo(x) }" ]
     assertEqual result $ Left $ UnboundSymbol (Pos 0 1 21) "foo"
 
 test_recursive = do
@@ -131,7 +131,7 @@ test_recursive = do
         , "    match l {"
         , "        Nil => 0;"
         , "        Cons(num, tail) => 1 + len(tail);"
-        , "    };"
+        , "    }"
         , "}"
         , "let _ = print(len(Cons(5, Nil)))"
         ]
@@ -150,7 +150,7 @@ test_recursive_data = do
         , "    match list {"
         , "        Nil => 0;"
         , "        Cons(x, tail) => 1 + len(tail);"
-        , "    };"
+        , "    }"
         , "}"
         , ""
         , "let _ = print(len(s))"
@@ -159,7 +159,7 @@ test_recursive_data = do
 
 test_occurs_on_fun = do
     result <- run $ T.unlines
-        [ "fun bad() { bad; }"
+        [ "fun bad() { bad }"
         ]
 
     assertEqual (Left $ OccursCheckFailed (Pos 0 1 1)) result
@@ -167,28 +167,28 @@ test_occurs_on_fun = do
 test_occurs_on_sum = do
     result <- run $ T.unlines
         [ "data List a { Cons(a, List a), Nil }"
-        , "fun bad(a) { Cons(a, a); }"
+        , "fun bad(a) { Cons(a, a) }"
         ]
 
     assertEqual (Left $ OccursCheckFailed (Pos 0 2 14)) result
 
 test_occurs_on_record = do
     result <- run $ T.unlines
-        [ "fun bad(p) { { field: bad(p) }; }"
+        [ "fun bad(p) { { field: bad(p) } }"
         ]
 
     assertEqual (Left $ OccursCheckFailed (Pos 0 1 1)) result
 
 test_row_polymorphic_records = do
     result <- run $ T.unlines
-        [ "fun manhattan(p) { p.x + p.y; }"
+        [ "fun manhattan(p) { p.x + p.y }"
         , ""
         , "let zero = { x: 0, y: 0 }"
         , "let myhouse = {x: 33, y: 44, z:8}"
         , ""
         , "fun main() {"
-        , "    print(manhattan(zero));"
-        , "    print(manhattan(myhouse));"
+        , "    print(manhattan(zero))"
+        , "    print(manhattan(myhouse))"
         , "}"
         , ""
         , "let _ = main()"
@@ -229,7 +229,7 @@ test_record_annotation_is_checked = do
     result <- run $ T.unlines
         [ "let c: {log: (String) -> Unit} = _unsafe_js(\"console\")"
         , "fun main() {"
-        , "    c.log(\"Hoop\");"
+        , "    c.log(\"Hoop\")"
         , "}"
         , "let _ = main()"
         ]
@@ -252,7 +252,7 @@ test_record_annotation_is_checked2 = do
     result <- run $ T.unlines
         [ "let c: {} = _unsafe_js(\"console\")"
         , "fun main() {"
-        , "    c.log(\"Hoop\");"
+        , "    c.log(\"Hoop\")"
         , "}"
         , "let _ = main()"
         ]
@@ -297,14 +297,14 @@ test_if_then_else_2 = do
 
 test_if_block = do
     result <- run $ T.unlines
-        [ "let _ = if True { print(\"yay\"); }"
-        , "let _ = if False { print(\"nay\"); }"
+        [ "let _ = if True { print(\"yay\") }"
+        , "let _ = if False { print(\"nay\") }"
         ]
     assertEqual (Right "yay\n") result
 
 test_if_else_if_block = do
     result <- run $ T.unlines
-        [ "let _ = if False { print(\"nay\"); } else if True { print(\"yay\"); }"
+        [ "let _ = if False { print(\"nay\") } else if True { print(\"yay\") }"
         ]
     assertEqual (Right "yay\n") result
 
@@ -341,9 +341,9 @@ test_nested_comments = do
 test_let_mutable = do
     result <- run $ T.unlines
         [ "fun main() {"
-        , "    let mutable x = 2;"
-        , "    x = x + 1;"
-        , "    print(x);"
+        , "    let mutable x = 2"
+        , "    x = x + 1"
+        , "    print(x)"
         , "}"
         , "let _ = main()"
         ]
@@ -353,9 +353,9 @@ test_let_mutable = do
 test_cannot_assign_to_immutable_binding = do
     result <- run $ T.unlines
         [ "fun main() {"
-        , "    let x = 2;"
-        , "    x = x + 1;"
-        , "    print(x);"
+        , "    let x = 2"
+        , "    x = x + 1"
+        , "    print(x)"
         , "}"
         , "let _ = main()"
         ]
@@ -366,9 +366,9 @@ test_cannot_assign_to_immutable_binding = do
 test_assign_to_mutable_record_field = do
     result <- run $ T.unlines
         [ "fun main() {"
-        , "    let a : {x:Number} = {x:44};"
-        , "    a.x = 22;"
-        , "    print(a);"
+        , "    let a: {x: Number} = {x: 44}"
+        , "    a.x = 22"
+        , "    print(a)"
         , "}"
         , "let _ = main()"
         ]
@@ -378,9 +378,9 @@ test_assign_to_mutable_record_field = do
 test_cannot_assign_to_immutable_record_field = do
     result <- run $ T.unlines
         [ "fun main() {"
-        , "    let a : {const x: Number} = {x:44};"
-        , "    a.x = 22;"
-        , "    print(a);"
+        , "    let a: {const x: Number} = {x: 44}"
+        , "    a.x = 22"
+        , "    print(a)"
         , "}"
         , "let _ = main()"
         ]
@@ -393,13 +393,13 @@ test_cannot_assign_to_immutable_record_field = do
 test_mutable_record_field_requirement_is_inferred = do
     result <- run $ T.unlines
         [ "fun swap(p) {"
-        , "    let t = p.x;"
-        , "    p.x = p.y;"
-        , "    p.y = t;"
+        , "    let t = p.x"
+        , "    p.x = p.y"
+        , "    p.y = t"
         , "}"
         , "fun main() {"
-        , "    let a : {const x: Number, const y: Number} = {x:44, y:0};"
-        , "    swap(a);"
+        , "    let a: {const x: Number, const y: Number} = {x:44, y:0}"
+        , "    swap(a)"
         , "}"
         , "let _ = main()"
         ]
@@ -411,15 +411,15 @@ test_mutable_record_field_requirement_is_inferred = do
 test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
     result <- run $ T.unlines
         [ "fun manhattan(p) {"
-        , "    p.x + p.y;"
+        , "    p.x + p.y"
         , "}"
         , ""
         , "fun main() {"
-        , "    let a : {const x:Number, const y:Number} = {x:44, y:0};"
-        , "    print(manhattan(a));"
+        , "    let a: {const x: Number, const y: Number} = {x:44, y:0}"
+        , "    print(manhattan(a))"
         , ""
-        , "    let b : {mutable x:Number, mutable y:Number} = {x:0, y:0};"
-        , "    print(manhattan(b));"
+        , "    let b: {mutable x: Number, mutable y: Number} = {x:0, y:0}"
+        , "    print(manhattan(b))"
         , "}"
         , "let _ = main()"
         ]
@@ -442,7 +442,7 @@ test_record_self_unification = do
     result <- run $ T.unlines
         [ "let r = {}"
         , "fun main(o) {"
-        , "    if False then o else r;"
+        , "    if False then o else r"
         , "}"
         , "let _ = main(r)"
         ]
@@ -455,8 +455,8 @@ test_return_unifies_with_anything = do
         , "    let p ="
         , "        if True"
         , "            then return \"hody\""
-        , "            else 22;"
-        , "    toString(p);"
+        , "            else 22"
+        , "    toString(p)"
         , "}"
         ]
 
@@ -465,25 +465,25 @@ test_return_unifies_with_anything = do
 test_while_loops = do
     result <- run $ T.unlines
         [ "fun fib(n) {"
-        , "    let mutable count = n;"
-        , "    let mutable a = 0;"
-        , "    let mutable b = 1;"
+        , "    let mutable count = n"
+        , "    let mutable a = 0"
+        , "    let mutable b = 1"
         , ""
         , "    while count > 0 {"
-        , "        let t = a;"
-        , "        a = b;"
-        , "        b = b + t;"
-        , "        count = count - 1;"
-        , "    };"
-        , "    a;"
+        , "        let t = a"
+        , "        a = b"
+        , "        b = b + t"
+        , "        count = count - 1"
+        , "    }"
+        , "    a"
         , "}"
         , ""
         , "fun main() {"
-        , "    let mutable i = 1;"
+        , "    let mutable i = 1"
         , "    while i < 10 {"
-        , "        print(fib(i));"
-        , "        i = i + 1;"
-        , "    };"
+        , "        print(fib(i))"
+        , "        i = i + 1"
+        , "    }"
         , "}"
         , ""
         , "let _ = main()"
@@ -503,7 +503,7 @@ test_quantify_user_types_correctly =
         , "fun toMaybeString(o) {"
         , "    if isNull(o)"
         , "        then None"
-        , "        else Some(_unsafe_coerce(o));"
+        , "        else Some(_unsafe_coerce(o))"
         , "}"
         ]
 
@@ -511,7 +511,7 @@ test_interior_unbound_types_are_ok =
     assertCompiles
         [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\")"
         , "export fun replicate(element, len) {"
-        , "    let arr = _unsafe_new(len);"
+        , "    let arr = _unsafe_new(len)"
         , "}"
         ]
 
@@ -525,52 +525,52 @@ test_polymorphic_type_annotations_are_universally_quantified =
     assertCompiles
         [ "data Option a { None, Some(a) }"
         , ""
-        , "let none: () -> Option a = fun () { None; }"
+        , "let none: () -> Option a = fun () { None }"
         , ""
         , "fun f() {"
-        , "    let n : Option Number = none();"
+        , "    let n: Option Number = none()"
         , "}"
         ]
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do
     rv <- run $ T.unlines
-        [ "let f: (Number) -> Number = fun (i) { i; }"
-        , "let g: (a) -> a = fun (i) { i; }"
+        [ "let f: (Number) -> Number = fun (i) { i }"
+        , "let g: (a) -> a = fun (i) { i }"
         , "let _ = f(g(\"hello\"))"
         ]
     assertUnificationError (Pos 0 3 9) "Number" "String" rv
 
 test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
-        [ "let f: (Number) -> Number = fun (i) { i; }"
-        , "let g: (a) -> b = fun (i) { _unsafe_coerce(i); }"
+        [ "let f: (Number) -> Number = fun (i) { i }"
+        , "let g: (a) -> b = fun (i) { _unsafe_coerce(i) }"
         , "let _ = f(g(\"hello\"))"
         ]
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
-        [ "let f : (a) -> Number = fun (i) { i; }"
+        [ "let f: (a) -> Number = fun (i) { i }"
         ]
     assertUnificationError (Pos 0 1 1) "Number" "TQuant 7" rv
 
 test_type_annotations_on_function_decls =
     assertCompiles
-        [ "fun id_int(x : int) : int { x; }"
+        [ "fun id_int(x: int): int { x }"
         ]
 
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
-        [ "fun id_int(x : a) : Number { x; }"
+        [ "fun id_int(x: a): Number { x }"
         ]
     assertUnificationError (Pos 0 1 1) "Number" "TQuant 10" rv
 
 test_arrays =
     assertOutput
         [ "fun main() {"
-        , "    let arr = replicate(\"toot\", 4);"
+        , "    let arr = replicate(\"toot\", 4)"
         , "    each(arr, fun(e) {"
-        , "        print(e);"
-        , "    });"
+        , "        print(e)"
+        , "    })"
         , "}"
         , "let _ = main()"
         ]
@@ -582,11 +582,11 @@ test_concatenate_strings = do
 test_quantified_record = do
     assertCompiles
         [ "fun errorResponse(response, statusCode: Number) {"
-        , "    response.statusCode = statusCode;"
+        , "    response.statusCode = statusCode"
         , "}"
         , "fun handleRequest(response) {"
-        , "    errorResponse(response, 405);"
-        , "    errorResponse(response, 404);"
+        , "    errorResponse(response, 405)"
+        , "    errorResponse(response, 404)"
         , "}"
         ]
 
@@ -594,8 +594,8 @@ test_for_loop = do
     result <- run $ T.unlines
         [ "fun main() {"
         , "  for x in [1, 2, 3] {"
-        , "    print(x);"
-        , "  };"
+        , "    print(x)"
+        , "  }"
         , "}"
         , "let _ = main()"
         ]
@@ -606,15 +606,15 @@ test_export_and_import = do
     main <- return $ T.unlines
         [ "import { Halloumi(...) }"
         , "fun main() {"
-        , "  print(\"outside\");"
-        , "  fn();"
+        , "  print(\"outside\")"
+        , "  fn()"
         , "}"
         , "let _ = main()"
         ]
 
     halloumi <- return $ T.unlines
         [ "export fun fn() {"
-        , "  print(\"inside\");"
+        , "  print(\"inside\")"
         , "}"
         ]
 
@@ -635,7 +635,7 @@ test_tdnr_quantifies_function = do
     result <- run $ T.unlines
         [ "let a = [1, 2, 3]"
         , "let _ = a->each(fun(i) {"
-        , "    print(i);"
+        , "    print(i)"
         , "})"
         ]
     assertEqual (Right "1\n2\n3\n") result
@@ -643,7 +643,7 @@ test_tdnr_quantifies_function = do
 test_tdnr_inside_each = do
     result <- run $ T.unlines
         [ "let _ = [1, 2, 3]->each(fun(i) {"
-        , "    i->print();"
+        , "    i->print()"
         , "})"
         ]
     assertEqual (Right "1\n2\n3\n") result
@@ -651,7 +651,7 @@ test_tdnr_inside_each = do
 test_tdnr_inside_for_loop = do
     result <- run $ T.unlines
         [ "let _ = for i in [1, 2, 3] {"
-        , "    i->print();"
+        , "    i->print()"
         , "}"
         ]
     assertEqual (Right "1\n2\n3\n") result
@@ -659,7 +659,7 @@ test_tdnr_inside_for_loop = do
 test_tdnr_with_arg_annotation = do
     assertCompiles
         [ "fun f(s: String) {"
-        , "  s->endsWith(\"es\");"
+        , "  s->endsWith(\"es\")"
         , "}"
         ]
 

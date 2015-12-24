@@ -24,18 +24,19 @@ type Document = {
         insertBefore : (Node, Node) -> Node,
         firstChild : Node
     },
-};
+}
 
-let document : Document = _unsafe_js("window.document");
+let document : Document = _unsafe_js("window.document")
 
 fun main() {
     document.body.insertBefore(
         document.createTextNode("Hello!"),
         document.body.firstChild
-    );
+    )
 }
 
-let _ = main();</textarea>
+let _ = main()
+</textarea>
       <div id="js_source"></div>
   </div>
   <script src="runmain.js"></script>

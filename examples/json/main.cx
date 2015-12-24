@@ -4,20 +4,20 @@ import {
 }
 
 fun decodeHorpen(o) {
-    decodeKey(decodeNullable(decodeString), o, "horpen");
+    decodeKey(decodeNullable(decodeString), o, "hello")
 }
 
 fun main() {
-    let example1 = "\"horpen\"";
+    let example1 = "\"hello\"";
     print(fromString(example1, decodeString));
 
     print(fromString(example1, decodeNullable(decodeString)));
 
-    let example2 = "{\"horpen\":null}";
+    let example2 = "{\"hello\":null}";
     print(fromString(example2, decodeHorpen));
 
-    let example3 = "[{\"horpen\":null}, {\"horpen\":\"hobere\"}, {\"horpen\":null}]";
-    print(fromString(example3, decodeArray(decodeHorpen)));
+    let example3 = "[{\"hello\":null}, {\"hello\":\"world\"}, {\"hello\":null}]";
+    print(fromString(example3, decodeArray(decodeHorpen)))
 }
 
-let _ = main();
+let _ = main()

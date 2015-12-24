@@ -22,8 +22,9 @@ library
                      , ghcjs-dom
                      , crux
                      , mtl
-                     , text
                      , file-embed
+                     , text
+                     , unordered-containers
   default-language:    Haskell2010
   ghc-options: -Wall
 

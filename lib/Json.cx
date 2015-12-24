@@ -5,45 +5,45 @@ data Error {
 
 data UntypedJs {}
 
-let _typeOf : (UntypedJs) -> String = _unsafe_js("function (x) { return typeof x; }")
-let _throw : (Error) -> anyOther = _unsafe_js("function (e) { throw e; }")
-let _isNull : (UntypedJs) -> Boolean = _unsafe_js("function (o) { return o === null; }")
-let _getAttr : (UntypedJs, String) -> any2 = _unsafe_js("function (o, k) { return o[k]; }")
-let _parseJson : (String) -> UntypedJs = _unsafe_js("function (s) { return JSON.parse(s); }")
+let _typeOf: (UntypedJs) -> String = _unsafe_js("function (x) { return typeof x; }")
+let _throw: (Error) -> anyOther = _unsafe_js("function (e) { throw e; }")
+let _isNull: (UntypedJs) -> Boolean = _unsafe_js("function (o) { return o === null; }")
+let _getAttr: (UntypedJs, String) -> any2 = _unsafe_js("function (o, k) { return o[k]; }")
+let _parseJson: (String) -> UntypedJs = _unsafe_js("function (s) { return JSON.parse(s); }")
 
 let _isArray = _unsafe_js("function (a) { return Array.isArray(a); }")
 
 let _stringify = _unsafe_js("function (o) { return JSON.stringify(o); }")
 
-fun assert(b : Boolean, error : String) {
+fun assert(b: Boolean, error: String) {
     if b {} else {
         _throw(Error(error))
     }
 }
 
-fun assertTypeOf(a : UntypedJs, expectedType : String) {
+fun assertTypeOf(a: UntypedJs, expectedType: String) {
     let t = _typeOf(a);
     if expectedType != t {
         _throw(Error("Wanted " + expectedType + " but got " + t + ": " + _stringify(a)))
     }
 }
 
-export fun decodeNumber(a : UntypedJs) : Number {
+export fun decodeNumber(a: UntypedJs): Number {
     assertTypeOf(a, "number")
     return _unsafe_coerce(a)
 }
 
-export fun decodeBoolean(a : UntypedJs) : Boolean {
+export fun decodeBoolean(a: UntypedJs): Boolean {
     assertTypeOf(a, "boolean")
     return _unsafe_coerce(a)
 }
 
-export fun decodeString(a : UntypedJs) : String {
+export fun decodeString(a: UntypedJs): String {
     assertTypeOf(a, "string")
     return _unsafe_coerce(a)
 }
 
-export fun decodeNullable(decoder : (UntypedJs) -> any) : (UntypedJs) -> Option any {
+export fun decodeNullable(decoder: (UntypedJs) -> any): (UntypedJs) -> Option any {
     fun(a) {
         if (_isNull(a)) {
             return None
@@ -54,8 +54,8 @@ export fun decodeNullable(decoder : (UntypedJs) -> any) : (UntypedJs) -> Option 
 }
 
 export fun decodeArray(
-    elementDecoder : (UntypedJs) -> element
-) : (UntypedJs) -> Array element {
+    elementDecoder: (UntypedJs) -> element
+): (UntypedJs) -> Array element {
     fun (arr) {
         assert(_isArray(arr), "Expected array but got " + _stringify(arr))
 
@@ -68,14 +68,14 @@ export fun decodeArray(
 }
 
 export fun decodeKey(
-    keyDecoder : (UntypedJs) -> element,
-    obj : UntypedJs,
-    key : String
-) : element {
+    keyDecoder: (UntypedJs) -> element,
+    obj: UntypedJs,
+    key: String
+): element {
     assertTypeOf(obj, "object")
     return keyDecoder(_getAttr(obj, key))
 }
 
-export fun fromString(s : String, decoder : (UntypedJs) -> any) : any {
+export fun fromString(s: String, decoder: (UntypedJs) -> any): any {
     decoder(_parseJson(s))
 }

@@ -25,7 +25,7 @@ export data Option a {
     None,
 }
 
-// Arrays have unspecified representation
+// Arrays have unspecified representation here. They are represented as JS arrays.
 export data Array a {}
 
 let _unsafe_new: (Number) -> Array a =
@@ -110,4 +110,8 @@ export fun join(sep: String, elements: Array String): String {
 // TODO: add comparator support
 export fun sort(arr: Array String) {
     _unsafe_coerce(arr).sort()
+}
+
+export fun sliceStringFrom(s: String, start: Number) {
+    return _unsafe_coerce(s).slice(start)
 }

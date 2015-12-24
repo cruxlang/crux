@@ -1,4 +1,4 @@
-export fun print(a) : Unit {
+export fun print(a): () {
     _unsafe_js("console").log(a)
 }
 
@@ -14,7 +14,7 @@ export data jsffi Boolean {
 let _strlen: (String) -> Number =
     _unsafe_js("function strlen(s) { return s.length; }")
 
-export fun strlen(s : String) : Number {
+export fun strlen(s: String): Number {
     _strlen(s)
 }
 
@@ -65,7 +65,7 @@ export fun replicate(element: a, len: Number): Array a {
     arr
 }
 
-export fun each(arr: Array a, f: (a) -> b): Unit {
+export fun each(arr: Array a, f: (a) -> b): () {
     let mutable i = 0
     let len = length(arr)
     while i < len {

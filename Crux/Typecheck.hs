@@ -8,7 +8,6 @@
 module Crux.Typecheck where
 
 import           Control.Exception     (ErrorCall (..))
-import           Control.Monad         (void)
 import           Crux.AST
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
@@ -665,13 +664,11 @@ buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> M
 buildTypeEnvironment loadedModules modul = do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
-    unitTy <- newIORef $ TPrimitive Unit
     strTy  <- newIORef $ TPrimitive String
 
     e <- newEnv loadedModules Nothing
     typeEnv <- newIORef $ HashMap.fromList
         [ ("Number", (Builtin "Number", numTy))
-        , ("Unit", (Builtin "Unit", unitTy))
         , ("String", (Builtin "String", strTy))
         ]
 
@@ -859,6 +856,9 @@ resolveTypeIdent :: Env -> ResolvePolicy -> TypeIdent -> IO TypeVar
 resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
     go typeIdent
   where
+    go UnitTypeIdent = do
+        newIORef $ TPrimitive Unit
+
     go (TypeIdent typeName typeParameters) = do
         res <- HashTable.lookup typeName eTypeBindings
         case res of

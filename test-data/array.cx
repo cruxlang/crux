@@ -1,17 +1,17 @@
 // Arrays have unspecified representation
 data Array a {}
 
-let _unsafe_new : (Number) -> Array a =
+let _unsafe_new: (Number) -> Array a =
     _unsafe_js("function (len) { return new Array(len); }")
 
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun length(arr : Array a) : Number {
+export fun length(arr: Array a): Number {
     _unsafe_coerce(arr).length
 }
 
-export fun replicate(element : a, len : Number) : Array a {
+export fun replicate(element: a, len: Number): Array a {
     let arr = _unsafe_new(len)
 
     let mutable i = 0
@@ -23,7 +23,7 @@ export fun replicate(element : a, len : Number) : Array a {
     arr
 }
 
-export fun each(arr : Array a, f : (a) -> b) : Unit {
+export fun each(arr: Array a, f: (a) -> b): () {
     let mutable i = 0
     let len = length(arr)
     while i < len {

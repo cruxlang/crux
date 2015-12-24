@@ -1,6 +1,6 @@
 
 type Console = {
-    log: (String) -> Unit
+    log: (String) -> ()
 }
 
 let js_console: Console = _unsafe_js("console")

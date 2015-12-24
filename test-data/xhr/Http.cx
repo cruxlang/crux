@@ -15,14 +15,14 @@ data jsffi Method {
 
 type Url = String
 type EventName = String
-type EventHandler = () -> Unit
+type EventHandler = () -> ()
 
 type XMLHttpRequest = {
-    send: () -> Unit,
-    abort: () -> Unit,
-    open: (Method, Url) -> Unit,
-    addEventListener: (EventName, EventHandler) -> Unit,
-    setRequestHeader: (String, String) -> Unit,
+    send: () -> (),
+    abort: () -> (),
+    open: (Method, Url) -> (),
+    addEventListener: (EventName, EventHandler) -> (),
+    setRequestHeader: (String, String) -> (),
     responseText: String,
     //getRequestHeader: (String) -> Unityped,
 }
@@ -34,7 +34,7 @@ export fun newXhr() {
     XHR(result)
 }
 
-fun i(x: XMLHttpRequest, url: String, onLoaded): Unit {
+fun i(x: XMLHttpRequest, url: String, onLoaded): () {
     let loadProc = fun() {
         onLoaded(x)
     }
@@ -44,7 +44,7 @@ fun i(x: XMLHttpRequest, url: String, onLoaded): Unit {
     x.send()
 }
 
-export fun http_get(xhr: XHR, url: String, onLoaded): Unit {
+export fun http_get(xhr: XHR, url: String, onLoaded): () {
     match xhr {
         XHR(x) => i(x, url, onLoaded);
     }

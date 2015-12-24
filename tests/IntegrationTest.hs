@@ -227,7 +227,7 @@ test_annotation_is_checked = do
 
 test_record_annotation_is_checked = do
     result <- run $ T.unlines
-        [ "let c: {log: (String) -> Unit} = _unsafe_js(\"console\")"
+        [ "let c: {log: (String) -> ()} = _unsafe_js(\"console\")"
         , "fun main() {"
         , "    c.log(\"Hoop\")"
         , "}"

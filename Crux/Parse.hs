@@ -447,21 +447,29 @@ recordTypeIdent = do
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do
-    argTypes <- parenthesized $ P.sepBy typeIdent (token TComma)
-    _ <- token TRightArrow
+    argTypes <- P.try $ do
+        argTypes <- parenthesized $ P.sepBy typeIdent (token TComma)
+        _ <- token TRightArrow
+        return argTypes
     retType <- typeIdent
     return $ FunctionIdent argTypes retType
 
-typeIdent :: Parser TypeIdent
-typeIdent =
+sumIdent :: Parser TypeIdent
+sumIdent = do
     let justOne = do
             name <- anyIdentifier
             return $ TypeIdent name []
-        sumIdent = do
-            name <- anyIdentifier
-            params <- P.many (parenthesized sumIdent <|> justOne)
-            return $ TypeIdent name params
-    in functionTypeIdent <|> sumIdent <|> recordTypeIdent
+    name <- anyIdentifier
+    params <- P.many (parenthesized sumIdent <|> justOne)
+    return $ TypeIdent name params
+
+unitTypeIdent :: Parser TypeIdent
+unitTypeIdent = do
+    _ <- P.try $ token TOpenParen <* token TCloseParen
+    return UnitTypeIdent
+
+typeIdent :: Parser TypeIdent
+typeIdent = functionTypeIdent <|> unitTypeIdent <|> sumIdent <|> recordTypeIdent
 
 typeName :: Parser Text
 typeName = do

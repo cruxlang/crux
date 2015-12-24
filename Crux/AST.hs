@@ -241,7 +241,8 @@ edata expr = case expr of
     EBreak ed -> ed
 
 data TypeIdent
-    = TypeIdent TypeName [TypeIdent]
+    = UnitTypeIdent
+    | TypeIdent TypeName [TypeIdent]
     | RecordIdent [(Name, Maybe LetMutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     deriving (Show, Eq)

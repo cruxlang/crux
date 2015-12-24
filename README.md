@@ -4,14 +4,10 @@ does not compromise on rock-solid fundamentals.
 
 # Big Ideas
 
-Crux is all about small, clever ideas that fit together without clumsy seams or weird corner cases.  We won't try
-to guess what you're trying to say because we don't think your customers should be the ones to tell you that we guessed
-wrong.
+Crux is all about small, clever ideas that fit together without clumsy seams or weird corner cases.
 
-* Easy, familiar syntax that doesn't hide surprises
-* Hindley-Milner type inference
-* Lean, obvious generated code
-* Solid asynchronous programming
+We won't try to guess what you're trying to say because we don't think your customers should be the
+ones to tell you that we guessed wrong.
 
 Our intent with Crux is to capture
 
@@ -19,30 +15,25 @@ Our intent with Crux is to capture
 * the ability to run the same code on the frontend and backend
 * the straightforward performance and operational semantics of ML
 * the safety under overloading of Haskell
-* and the lightweight M:N concurrency of Go or Haskell or Python
+* and the lightweight M:N concurrency of Go, Haskell or Python
 
 # What does it look like?
 
-Current thinking here: [link](https://github.com/andyfriesen/Crux/wiki/Syntax-Strawman)
-
-Summary:
-
 ```ocaml
-data List a {
-    Cons(a, List a),
-    Nil
-};
+fun getFolderContents(folder) {
+    let rv = []
 
-let s = Cons(5, Cons(6, Cons(7, Nil)));
+    let contents: Array String = fs.readdirSync(folder)
+    for entry in contents {
+        let absEntry = combine(folder, entry)
+        let stat = fs.lstatSync(absEntry)
+        if stat.isFile() && (entry->endsWith(".jpeg") || entry->endsWith(".jpg")) {
+            rv->append(entry)
+        }
+    }
 
-fun len(list) {
-    match list {
-        Nil => 0;
-        Cons x tail => 1 + len(tail);
-    };
-};
-
-let _ = print(len(s));
+    return rv
+}
 ```
 
 # Status

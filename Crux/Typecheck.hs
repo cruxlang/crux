@@ -198,7 +198,7 @@ findExportedValue :: Module a b -> Text -> Maybe (FunDef a b)
 findExportedValue modul name = do
     let go decls = case decls of
             [] -> Nothing
-            ((Declaration Export declType):rest)
+            ((Declaration Export _pos declType):rest)
                 -- | DDeclare n _ <- declType, n == name ->
                 --     return $ Just decl
                 -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
@@ -207,7 +207,7 @@ findExportedValue modul name = do
                     Just fd
                 | otherwise ->
                     go rest
-            ((Declaration _ _): rest) ->
+            ((Declaration _ _ _): rest) ->
                 go rest
 
     go $ mDecls modul
@@ -603,7 +603,7 @@ freeze :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
 freeze = traverse freezeTypeVar
 
 freezeDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
-freezeDecl (Declaration export decl) = fmap (Declaration export) $ traverse freezeTypeVar decl
+freezeDecl (Declaration export pos decl) = fmap (Declaration export pos) $ traverse freezeTypeVar decl
 
 freezeModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
 freezeModule Module{..} = do
@@ -618,7 +618,7 @@ typeForFunDef (FunDef ty _ _ _ _) = ty
 
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
-checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl of
+checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of
     DDeclare name typeIdent -> do
         return $ DDeclare name typeIdent
     DData name moduleName typeVars variants -> do
@@ -628,8 +628,8 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
         return $ DJSData name moduleName variants
     DType (TypeAlias name typeVars ident) -> do
         return $ DType $ TypeAlias name typeVars ident
-    DFun (FunDef pos name args returnAnn body) ->
-        let expr = EFun pos args returnAnn body
+    DFun (FunDef pos' name args returnAnn body) ->
+        let expr = EFun pos' args returnAnn body
         in withPositionInformation expr $ do
             ty <- freshType env
             HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
@@ -637,8 +637,8 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
             unify (edata expr') ty
             quantify ty
             return $ DFun $ FunDef (edata expr') name args returnAnn body'
-    DLet pos mut pat maybeAnnot expr ->
-        let fakeExpr = ELet pos mut pat maybeAnnot expr
+    DLet pos' mut pat maybeAnnot expr ->
+        let fakeExpr = ELet pos' mut pat maybeAnnot expr
         in withPositionInformation fakeExpr $ do
             env' <- childEnv env
             ty <- freshType env'
@@ -658,7 +658,7 @@ checkDecl env (Declaration export decl) = fmap (Declaration export) $ case decl 
             return $ DLet (edata expr') mut pat maybeAnnot expr'
 
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
-exportedDecls decls = [dt | (Declaration Export dt) <- decls]
+exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
 buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
 buildTypeEnvironment loadedModules modul = do
@@ -757,7 +757,7 @@ buildTypeEnvironment loadedModules modul = do
     typeAliasesRef <- HashTable.new
 
     -- First, populate the type environment.  Variant parameter types are all initially free.
-    forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration _ _pos decl) -> case decl of
         DDeclare _name _typeIdent -> do
             return ()
 
@@ -795,7 +795,7 @@ buildTypeEnvironment loadedModules modul = do
     let env = e{eTypeBindings=typeEnv, eTypeAliases=ta}
 
     -- Second, unify parameter types
-    forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
         DData name _ _typeVarNames variants -> do
             Just (_, ty) <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
@@ -825,7 +825,7 @@ buildTypeEnvironment loadedModules modul = do
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
-    forM_ (mDecls modul) $ \(Declaration _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
         DDeclare name typeIdent -> do
             t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
             HashTable.insert name (ThisModule name, LImmutable, t) (eBindings env)

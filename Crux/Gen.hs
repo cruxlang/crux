@@ -304,7 +304,7 @@ subBlockWithOutput env output expr = do
         Nothing -> instrs
 
 generateDecl :: Show t => Env -> AST.Declaration AST.ResolvedReference t -> DeclarationWriter ()
-generateDecl env (AST.Declaration export decl) = do
+generateDecl env (AST.Declaration export _pos decl) = do
     case decl of
         AST.DDeclare _ _ -> do
             -- declarations are not reflected into the IR

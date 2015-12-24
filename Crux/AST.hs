@@ -9,6 +9,7 @@ module Crux.AST where
 
 import qualified Crux.JSTree  as JSTree
 import           Crux.Prelude
+import           Crux.Tokens  (Pos)
 import qualified Crux.Tokens  as Tokens
 import qualified Data.Text    as Text
 
@@ -62,7 +63,7 @@ data DeclarationType idtype edata
 data ExportFlag = Export | NoExport
     deriving (Show, Eq)
 
-data Declaration idtype edata = Declaration ExportFlag (DeclarationType idtype edata)
+data Declaration idtype edata = Declaration ExportFlag Pos (DeclarationType idtype edata)
     deriving (Show, Eq, Functor)
 
 newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }

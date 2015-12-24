@@ -624,6 +624,8 @@ funDeclaration = do
 
 declaration :: Parser (Declaration UnresolvedReference ParseData)
 declaration = do
+    pos <- tokenData <$> P.lookAhead P.anyToken
+
     export <- P.optionMaybe $ token Tokens.TExport
     let exportFlag = case export of
             Just _ -> Export
@@ -634,7 +636,7 @@ declaration = do
             <|> typeDeclaration
             <|> funDeclaration
             <|> letDeclaration
-    return $ Declaration exportFlag declType
+    return $ Declaration exportFlag pos declType
 
 importDecl :: Parser Import
 importDecl = do

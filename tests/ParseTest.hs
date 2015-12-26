@@ -143,3 +143,7 @@ test_fun_with_return_annotation = do
 test_prop_and_functions_chain = do
     assertExprParses noSemiExpression "a()().b.c().d().e.f"
         (ELookup () (ELookup () (EApp () (ELookup () (EApp () (ELookup () (ELookup () (EApp () (EApp () (EIdentifier () "a") []) []) "b") "c") []) "d") []) "e") "f")
+
+test_let_if_indentation = do
+    assertExprParses letDeclaration "let x = if\n True\nthen\n 1\nelse\n 2"
+        (DLet () LImmutable (PBinding "x") Nothing $ EIfThenElse () (EIdentifier () "True") (ELiteral () $ LInteger 1) (ELiteral () $ LInteger 2))

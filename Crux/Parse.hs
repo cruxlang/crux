@@ -23,11 +23,11 @@ type ParseExpression = Expression UnresolvedReference ParseData
 type ParseDeclaration = DeclarationType UnresolvedReference ParseData
 
 data IndentReq
-    = AnyIndent
-    | LeftMost
-    | AtIndent Pos
-    | IndentPast (Token Pos)
-    | CloseSymbol (Token Pos)
+    = IRLeftMost
+    -- TODO: we can kill this if the appropriate parsers always returned the initial token
+    | IRAtColumn Pos
+    | IRDeeper (Token Pos)
+    | IRAtOrDeeper (Token Pos)
     deriving (Show)
 
 data IndentMatch
@@ -37,20 +37,19 @@ data IndentMatch
 
 indentationPredicate :: Pos -> IndentReq -> IndentMatch
 indentationPredicate p = \case
-    AnyIndent -> IndentOK
-    LeftMost -> if 0 == posLineStart p
+    IRLeftMost -> if 0 == posLineStart p
         then IndentOK
         else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
-    AtIndent indent -> if posLine p == posLine indent || posLineStart p == posLineStart indent
+    IRAtColumn indent -> if posLine p == posLine indent || posLineStart p == posLineStart indent
         then IndentOK
         else if posLineStart p > posLineStart indent
             then UnexpectedIndent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
             else UnexpectedDedent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
-    IndentPast t -> let tPos = tokenData t in
+    IRDeeper t -> let tPos = tokenData t in
         if posLine tPos == posLine p || posLineStart p > posLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation past " ++ show t ++ " p = " ++ show p
-    CloseSymbol t -> let tPos = tokenData t in
+    IRAtOrDeeper t -> let tPos = tokenData t in
         if posLine tPos == posLine p || posLineStart p >= posLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation at or past " ++ show t ++ " p = " ++ show p
@@ -69,7 +68,7 @@ enclosed :: Parser (Token Pos) -> Parser (Token Pos) -> Parser a -> Parser a
 enclosed open close body = do
     openToken <- open
     rv <- body
-    withIndentation (CloseSymbol openToken) $ do
+    withIndentation (IRAtOrDeeper openToken) $ do
         void $ close
     return rv
 
@@ -142,13 +141,13 @@ anyIdentifier = do
 ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
     pr <- token TIf
-    condition <- noSemiExpression
+    condition <- withIndentation (IRDeeper pr) noSemiExpression
     -- TODO: do we need to enforce indentation here?
     let exprIf = do
-            _ <- token TThen
-            ifTrue <- noSemiExpression
-            _ <- token TElse
-            ifFalse <- noSemiExpression
+            thenToken <- token TThen
+            ifTrue <- withIndentation (IRDeeper thenToken) noSemiExpression
+            elseToken <- token TElse
+            ifFalse <- withIndentation (IRDeeper elseToken) noSemiExpression
             return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
     let blockIf = do
             ifTrue <- blockExpression
@@ -157,7 +156,8 @@ ifThenElseExpression = do
                 blockExpression <|> ifThenElseExpression
             return $ EIfThenElse (tokenData pr) condition ifTrue ifFalse
 
-    exprIf <|> blockIf
+    withIndentation (IRAtOrDeeper pr) $
+        exprIf <|> blockIf
 
 whileExpression :: Parser ParseExpression
 whileExpression = do
@@ -380,7 +380,7 @@ irrefutablePattern = do
 letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- token TLet
-    withIndentation (IndentPast tlet) $ do
+    withIndentation (IRDeeper tlet) $ do
         mut <- P.option LImmutable (token TMutable >> return LMutable)
         pat <- irrefutablePattern <|> fmap (PBinding . snd) lowerIdentifier
         typeAnn <- P.optionMaybe $ do
@@ -502,7 +502,7 @@ typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
     declareToken <- token TDeclare
-    withIndentation (IndentPast declareToken) $ do
+    withIndentation (IRDeeper declareToken) $ do
         name <- anyIdentifier
         _ <- token TColon
         ti <- typeIdent
@@ -536,9 +536,8 @@ cruxDataDeclaration = do
     name <- typeName
     typeVars <- P.many typeVariableName
 
-    _ <- token TOpenBrace
-    variants <- delimited variantDefinition (token TComma)
-    _ <- token TCloseBrace
+    variants <- braced $
+        delimited variantDefinition (token TComma)
     moduleName <- readModuleName
     return $ DData name moduleName typeVars variants
 
@@ -562,22 +561,21 @@ jsDataDeclaration :: Parser ParseDeclaration
 jsDataDeclaration = do
     _ <- token TJSFFI
     name <- typeName
-    _ <- token TOpenBrace
-    variants <- delimited jsVariantDefinition (token TComma)
-    _ <- token TCloseBrace
+    variants <- braced $ do
+        delimited jsVariantDefinition (token TComma)
     moduleName <- readModuleName
     return $ DJSData name moduleName variants
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
-    _ <- token TData
-    withIndentation AnyIndent $
+    dataToken <- token TData
+    withIndentation (IRDeeper dataToken) $
         jsDataDeclaration <|> cruxDataDeclaration
 
 typeDeclaration :: Parser ParseDeclaration
 typeDeclaration = do
     typeToken <- token TType
-    withIndentation (IndentPast typeToken) $ do
+    withIndentation (IRDeeper typeToken) $ do
         name <- typeName
         vars <- P.many typeVariableName
         _ <- token TEqual
@@ -596,12 +594,12 @@ blockExpression :: Parser ParseExpression
 blockExpression = do
     -- TODO: use braced, which needs to return the start pos
     br <- token TOpenBrace
-    body <- withIndentation (IndentPast br) $ P.optionMaybe semiExpression >>= \case
+    body <- withIndentation (IRDeeper br) $ P.optionMaybe semiExpression >>= \case
         Nothing -> return []
-        Just first -> withIndentation (AtIndent $ edata first) $ do
+        Just first -> withIndentation (IRAtColumn $ edata first) $ do
             rest <- P.many semiExpression
             return $ first : rest
-    withIndentation (CloseSymbol br) $ do
+    withIndentation (IRAtOrDeeper br) $ do
         void $ token TCloseBrace
     return $ case body of
         [] -> ELiteral (tokenData br) LUnit
@@ -612,7 +610,7 @@ blockExpression = do
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- token Tokens.TFun
-    withIndentation AnyIndent $ do
+    withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
         params <- parenthesized $ P.sepBy funArgument (token TComma)
         returnAnn <- P.optionMaybe $ do
@@ -648,12 +646,9 @@ importDecl = do
 
 imports :: Parser [Import]
 imports = do
-    _ <- token TImport
-    withIndentation AnyIndent $ do
-        _ <- token TOpenBrace
-        imp <- delimited importDecl (token TComma)
-        _ <- token TCloseBrace
-        return imp
+    importToken <- token TImport
+    withIndentation (IRDeeper importToken) $ do
+        braced $ delimited importDecl (token TComma)
 
 parseModule :: Parser ParsedModule
 parseModule = do
@@ -667,7 +662,7 @@ parseModule = do
 
 runParser :: Parser a -> ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError a)
 runParser parser moduleName sourceName tokens = do
-    (flip runReaderT) (moduleName, LeftMost) $ do
+    (flip runReaderT) (moduleName, IRLeftMost) $ do
         P.runParserT parser () sourceName tokens
 
 parse :: ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)

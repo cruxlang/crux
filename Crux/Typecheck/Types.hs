@@ -2,6 +2,7 @@ module Crux.Typecheck.Types
     ( Env(..)
     , UnificationError(..)
     , showTypeVarIO
+    , formatPos
     , errorToString
     ) where
 
@@ -40,6 +41,7 @@ data UnificationError a
     | IntrinsicError a String
     | NotAnLVar a String
     | TdnrLhsTypeUnknown a String
+    | ExportError a String
     deriving (Eq, Typeable)
 
 instance Show a => Show (UnificationError a) where
@@ -49,7 +51,8 @@ instance Show a => Show (UnificationError a) where
     show (OccursCheckFailed a) = "OccursCheckFailed " ++ show a
     show (IntrinsicError a s) = "IntrinsicError " ++ show a ++ " " ++ show s
     show (NotAnLVar a t) = "NotAnLVar " ++ show a ++ " " ++ show t
-    show (TdnrLhsTypeUnknown a s) = "TdnrLhsTypeUnknown " ++ show a ++ s
+    show (TdnrLhsTypeUnknown a s) = "TdnrLhsTypeUnknown " ++ show a ++ " " ++ s
+    show (ExportError a s) = "ExportError " ++ show a ++ " " ++ s
 
 instance (Show a, Typeable a) => Exception (UnificationError a)
 
@@ -83,6 +86,9 @@ showTypeVarIO tvar = do
         TPrimitive ty ->
             return $ show ty
 
+formatPos :: Pos -> String
+formatPos Pos{..} = printf "%i,%i" posLine posCol
+
 errorToString :: UnificationError Pos -> IO String
 errorToString (UnificationError pos message at bt) = do
     as <- showTypeVarIO at
@@ -103,3 +109,5 @@ errorToString (NotAnLVar pos s) = do
     return $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s
 errorToString (TdnrLhsTypeUnknown pos s) = do
     return $ printf "Methods only work on values with known concrete types at %i,%i\n\t%s" (posLine pos) (posCol pos) s
+errorToString (ExportError pos s) = do
+    return $ printf "Export error at %s: %s" (formatPos pos) s

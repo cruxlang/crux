@@ -45,8 +45,9 @@ library
                  , optparse-applicative
 
     default-extensions: OverloadedStrings
-              , MultiWayIf
-              , LambdaCase
+                      , MultiWayIf
+                      , LambdaCase
+                      , RecordWildCards
 
     ghc-options: -Wall
     -- ghc-options: -Werror

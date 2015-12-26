@@ -699,3 +699,22 @@ test_cannot_omit_arguments = do
         , "let _ = f()"
         ]
     assertUnificationError (Pos 0 2 9) "((TUnbound 14)) -> Unit" "() -> Unit" result
+
+test_exported_sum_cannot_depend_on_non_exported_type = do
+    result <- runMultiModule $ HashMap.fromList
+        [ ( "A", T.unlines
+            [ "data A {}"
+            , "export data B { B(A) }"
+            ]
+          )
+        , ("Main", T.unlines
+            [ "import { A(...) }"
+            ]
+          )
+        ]
+    err <- assertLeft result
+    case err of
+        ExportError _pos message ->
+            assertEqual "Variant \"B\" of exported data type \"B\" depends on nonexported data type \"A\" (defined at 1,1)" message
+        _ ->
+            assertFailure $ "Expected ExportError but got " ++ show err

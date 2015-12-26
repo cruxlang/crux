@@ -48,6 +48,24 @@ childEnv env@Env{..} = do
         , eTypeBindings  = typeBindings
         }
 
+findDeclByName :: Module idtype edata -> Name -> Maybe (Declaration idtype edata)
+findDeclByName modul name =
+    let go decls = case decls of
+            [] -> Nothing
+            (d:rest) ->
+                if match then Just d else go rest
+              where
+                Declaration _ _ dt = d
+                match = case dt of
+                    DDeclare n _              | n == name -> True
+                    DLet _ _ (PBinding n) _ _ | n == name -> True
+                    DFun (FunDef _ n _ _ _)   | n == name -> True
+                    DData n _ _ _             | n == name -> True
+                    DJSData n _ _             | n == name -> True
+                    DType (TypeAlias n _ _)   | n == name -> True
+                    _ -> False
+    in go (mDecls modul)
+
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
     let fold acc ty = case (acc, ty) of
@@ -231,6 +249,8 @@ withPositionInformation expr a = catch a handle
         throwIO (NotAnLVar (edata expr) s)
     handle (TdnrLhsTypeUnknown () s) =
         throwIO (TdnrLhsTypeUnknown (edata expr) s)
+    handle (ExportError () s) =
+        throwIO (ExportError (edata expr) s)
 
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
@@ -720,9 +740,6 @@ buildTypeEnvironment loadedModules modul = do
                 HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings e)
 
             DData dname _ typeVariables variants -> do
-                -- IS THIS RIGHT??
-                -- no tests
-
                 env <- childEnv e
 
                 tyVars <- forM typeVariables $ \tv ->
@@ -795,7 +812,7 @@ buildTypeEnvironment loadedModules modul = do
     let env = e{eTypeBindings=typeEnv, eTypeAliases=ta}
 
     -- Second, unify parameter types
-    forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
+    forM_ (mDecls modul) $ \(Declaration exportFlag declPos decl) -> case decl of
         DData name _ _typeVarNames variants -> do
             Just (_, ty) <- HashTable.lookup name typeEnv
             TUserType typeDef _ <- readIORef ty
@@ -805,6 +822,16 @@ buildTypeEnvironment loadedModules modul = do
                 forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
                     let Just qv = HashMap.lookup name qvars
                     env' <- addQvarTable env qv
+
+                    case (exportFlag, typeIdent) of
+                        (Export, TypeIdent tiName _)
+                            | Just (Declaration NoExport dpos _) <- findDeclByName modul tiName ->
+                                throwIO $ ExportError declPos $
+                                    printf "Variant %s of exported data type %s depends on nonexported data type %s (defined at %s)"
+                                        (show $ vname v) (show name) (show tiName) (formatPos dpos)
+                        _ ->
+                            return ()
+
                     t <- resolveTypeIdent env' NewTypesAreErrors typeIdent
                     unify typeVar t
         _ -> return ()
@@ -941,3 +968,5 @@ throwTypeError (NotAnLVar pos s) = do
     error $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s
 throwTypeError (TdnrLhsTypeUnknown pos s) = do
     error $ printf "TDNR %i,%i\n\t%s" (posLine pos) (posCol pos) s
+throwTypeError (ExportError pos s) = do
+    error $ printf "Export error %s\n\t%s" (formatPos pos) s

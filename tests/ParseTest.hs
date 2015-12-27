@@ -147,3 +147,7 @@ test_prop_and_functions_chain = do
 test_let_if_indentation = do
     assertExprParses letDeclaration "let x = if\n True\nthen\n 1\nelse\n 2"
         (DLet () LImmutable (PBinding "x") Nothing $ EIfThenElse () (EIdentifier () "True") (ELiteral () $ LInteger 1) (ELiteral () $ LInteger 2))
+
+test_multiline_function_argument_indentation = do
+    assertExprParses letDeclaration "let x = foo(fun() {\n}, 1)"
+        (DLet () LImmutable (PBinding "x") Nothing $ EApp () (EIdentifier () "foo") [EFun () [] Nothing $ ELiteral () LUnit, ELiteral () $ LInteger 1])

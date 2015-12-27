@@ -42,15 +42,15 @@ indentationPredicate p = \case
         else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
     IRAtColumn indent -> if posLine p == posLine indent || posLineStart p == posLineStart indent
         then IndentOK
-        else if posLineStart p > posLineStart indent
+        else if posCol p > posLineStart indent
             then UnexpectedIndent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
             else UnexpectedDedent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
     IRDeeper t -> let tPos = tokenData t in
-        if posLine tPos == posLine p || posLineStart p > posLineStart tPos
+        if posLine tPos == posLine p || posCol p > posLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation past " ++ show t ++ " p = " ++ show p
     IRAtOrDeeper t -> let tPos = tokenData t in
-        if posLine tPos == posLine p || posLineStart p >= posLineStart tPos
+        if posLine tPos == posLine p || posCol p >= posLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation at or past " ++ show t ++ " p = " ++ show p
 

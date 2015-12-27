@@ -57,3 +57,14 @@ match x {
 Unlike Haskell, exhaustiveness check failures are errors, not warnings.
 
 (An aside, we should totally copy Rust's match guard syntax.)
+
+## Types
+
+In Haskell, types and type variables are distinguished by case.  That is, in `data Some a`, `Some` is the type and `a` is the variable.  This matters in function annotations:
+
+```
+fun f(x: Option Int, y: a) {
+}
+```
+
+There, because `a` is lowercase, the y parameter has a quantified type.  To eliminate the case distinction, we will need to add explicit introduction of type variables, a la TypeScript, C#, Java, Rust, or Swift.  We want explicit introduction of type variables anyway because we want Crux to have ScopedTypeVariables semantics.  Thus, we won't need to use case to distinguish between types and type variables.

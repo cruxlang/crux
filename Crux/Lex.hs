@@ -27,7 +27,7 @@ pos = do
         P.putState (sourceLine, sourceColumn)
         return sourceColumn
 
-    return $ Pos (newLineStart - 1) sourceLine sourceColumn
+    return $ Pos newLineStart sourceLine sourceColumn
 
 integerLiteral :: Parser (Token Pos)
 integerLiteral = do

@@ -122,7 +122,7 @@ test_arithmetic = do
 
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x) }" ]
-    assertEqual result $ Left $ UnboundSymbol (Pos 0 1 21) "foo"
+    assertEqual result $ Left $ UnboundSymbol (Pos 1 1 21) "foo"
 
 test_recursive = do
     result <- run $ T.unlines
@@ -162,7 +162,7 @@ test_occurs_on_fun = do
         [ "fun bad() { bad }"
         ]
 
-    assertEqual (Left $ OccursCheckFailed (Pos 0 1 1)) result
+    assertEqual (Left $ OccursCheckFailed (Pos 1 1 1)) result
 
 test_occurs_on_sum = do
     result <- run $ T.unlines
@@ -170,14 +170,14 @@ test_occurs_on_sum = do
         , "fun bad(a) { Cons(a, a) }"
         ]
 
-    assertEqual (Left $ OccursCheckFailed (Pos 0 2 14)) result
+    assertEqual (Left $ OccursCheckFailed (Pos 1 2 14)) result
 
 test_occurs_on_record = do
     result <- run $ T.unlines
         [ "fun bad(p) { { field: bad(p) } }"
         ]
 
-    assertEqual (Left $ OccursCheckFailed (Pos 0 1 1)) result
+    assertEqual (Left $ OccursCheckFailed (Pos 1 1 1)) result
 
 test_row_polymorphic_records = do
     result <- run $ T.unlines
@@ -207,7 +207,7 @@ test_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js"
         ]
-    assertEqual (Left $ IntrinsicError (Pos 0 1 11) "Intrinsic _unsafe_js is not a value") result
+    assertEqual (Left $ IntrinsicError (Pos 1 1 11) "Intrinsic _unsafe_js is not a value") result
 
 test_unsafe_coerce = do
     result <- run $ T.unlines
@@ -223,7 +223,7 @@ test_annotation_is_checked = do
         [ "let i: Number = \"hody\""
         ]
 
-    assertUnificationError (Pos 0 1 1) "Number" "String" result
+    assertUnificationError (Pos 1 1 1) "Number" "String" result
 
 test_record_annotation_is_checked = do
     result <- run $ T.unlines
@@ -240,7 +240,7 @@ test_arrays_of_different_types_cannot_unify = do
     result <- run $ T.unlines
         [ "let _ = [[0], [\"\"]]"
         ]
-    assertUnificationError (Pos 0 1 9) "Number" "String" result
+    assertUnificationError (Pos 1 1 9) "Number" "String" result
 
 test_array_iteration = do
     result <- run $ T.unlines
@@ -257,7 +257,7 @@ test_record_annotation_is_checked2 = do
         , "let _ = main()"
         ]
 
-    assertUnificationError (Pos 4 3 5) "{}" "{log: (TUnbound 15),f...}" result
+    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 15),f...}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_type_alias = do
@@ -361,7 +361,7 @@ test_cannot_assign_to_immutable_binding = do
         ]
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
-    assertEqual (Left $ NotAnLVar (Pos 4 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
+    assertEqual (Left $ NotAnLVar (Pos 5 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
 
 test_assign_to_mutable_record_field = do
     result <- run $ T.unlines
@@ -387,7 +387,7 @@ test_cannot_assign_to_immutable_record_field = do
 
     assertEqual
         -- (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
-        (Left $ NotAnLVar (Pos 4 3 5) "ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
+        (Left $ NotAnLVar (Pos 5 3 5) "ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
         result
 
 test_mutable_record_field_requirement_is_inferred = do
@@ -405,7 +405,7 @@ test_mutable_record_field_requirement_is_inferred = do
         ]
 
     assertEqual
-        (Left $ RecordMutabilityUnificationError (Pos 4 8 5) "x" "Record field mutability does not match")
+        (Left $ RecordMutabilityUnificationError (Pos 5 8 5) "x" "Record field mutability does not match")
         result
 
 test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
@@ -538,7 +538,7 @@ test_polymorphic_type_annotations_are_universally_quantified2 = do
         , "let g: (a) -> a = fun (i) { i }"
         , "let _ = f(g(\"hello\"))"
         ]
-    assertUnificationError (Pos 0 3 9) "Number" "String" rv
+    assertUnificationError (Pos 1 3 9) "Number" "String" rv
 
 test_polymorphic_type_annotations_are_universally_quantified3 =
     assertCompiles
@@ -551,7 +551,7 @@ test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
         [ "let f: (a) -> Number = fun (i) { i }"
         ]
-    assertUnificationError (Pos 0 1 1) "Number" "TQuant 7" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant 7" rv
 
 test_type_annotations_on_function_decls =
     assertCompiles
@@ -562,7 +562,7 @@ test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int(x: a): Number { x }"
         ]
-    assertUnificationError (Pos 0 1 1) "Number" "TQuant 10" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant 10" rv
 
 test_arrays =
     assertOutput
@@ -698,7 +698,7 @@ test_cannot_omit_arguments = do
         [ "fun f(x) {}"
         , "let _ = f()"
         ]
-    assertUnificationError (Pos 0 2 9) "((TUnbound 14)) -> Unit" "() -> Unit" result
+    assertUnificationError (Pos 1 2 9) "((TUnbound 14)) -> Unit" "() -> Unit" result
 
 test_exported_sum_cannot_depend_on_non_exported_type = do
     result <- runMultiModule $ HashMap.fromList

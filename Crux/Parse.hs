@@ -37,7 +37,7 @@ data IndentMatch
 
 indentationPredicate :: Pos -> IndentReq -> IndentMatch
 indentationPredicate p = \case
-    IRLeftMost -> if 0 == posLineStart p
+    IRLeftMost -> if 1 == posLineStart p
         then IndentOK
         else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
     IRAtColumn indent -> if posLine p == posLine indent || posLineStart p == posLineStart indent

@@ -11,3 +11,8 @@ http://www.scala-js.org/
 https://lists.swift.org/pipermail/swift-evolution/Week-of-Mon-20151207/001948.html
 
 http://blog.ezyang.com/2015/12/the-convergence-of-compilers-build-systems-and-package-managers/
+
+# Koka
+
+http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
+http://www.rise4fun.com/koka/tutorial

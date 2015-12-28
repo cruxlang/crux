@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
-BUILD_DIR=`~/.local/bin/stack path --local-install-root`/bin/web-playground-exe.jsexe
+# TODO: detect non-system stack installs too
+STACK=stack
+
+BUILD_DIR=`"$STACK" path --local-install-root`/bin/web-playground-exe.jsexe
 SRC="lib.js out.js rts.js runmain.js"
 
-~/.local/bin/stack build
+"$STACK" build
 
 for s in $SRC; do
     cp $BUILD_DIR/$s stage

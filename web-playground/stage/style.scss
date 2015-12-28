@@ -1,0 +1,46 @@
+.crux-playground {
+  $browser-padding: 12px;
+  $separator-padding: $browser-padding / 2;
+  
+  box-sizing: border-box;
+  height: 100vh;
+  margin: 0;
+  padding: $browser-padding;
+  background-color: #dce4da;
+  
+  textarea {
+    resize: none;
+    font-family: monospace;
+    outline: none;
+    background-color: white;
+  }
+
+  display: flex;
+  flex-direction: column;
+  
+  .header {
+    flex: 0 0 auto;
+    padding: 0 0 $browser-padding 0;
+  }
+
+  .body {
+    flex: 1 0 auto;
+
+    display: flex;
+    flex-direction: row;
+
+    .source {
+      flex: 1 1 auto;
+      margin-right: $separator-padding;
+    }
+
+    .output {
+      flex: 1 1 auto;
+      margin-left: $separator-padding;
+    }
+
+    .output.has-errors {
+      color: red;
+    }
+  }
+}

@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script language="javascript" src="rts.js"></script>
-    <script language="javascript" src="lib.js"></script>
-    <script language="javascript" src="out.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+    <script src="rts.js"></script>
+    <script src="lib.js"></script>
+    <script src="out.js"></script>
     <link rel="stylesheet" type="text/css" href="style.css">
   </head>
-  <body>
+  <body class="crux-playground">
+    <div class="header">
+      <button class="run">Run</button>
+    </div>
+    <div class="body">
+      <textarea class="source" spellcheck="false" disabled="true"></textarea>
+      <textarea class="output" spellcheck="false" readonly="true"></textarea>
+    </div>
   </body>
-  <div id="actions">
-      <button id="compile">Compile</button>
-      <button id="run">Run</button>
-  </div>
-  <div id="errors">
-  </div>
-  <div id="source">
-      <textarea id="crux_source">
+<script id="initial_example" type="application/crux">
 data Node {}
 
 type Document = {
@@ -36,49 +37,9 @@ fun main() {
 }
 
 let _ = main()
-</textarea>
-      <div id="js_source"></div>
-  </div>
+</script>
+
   <script src="runmain.js"></script>
-  <script>
-    function compileCrux(source) {
-        var ret = {};
-        window.hs_compileCrux(source, ret);
-        console.log(ret);
-        return ret;
-    }
+  <script src="playground.js"></script>
 
-    function main() {
-        var textArea = document.getElementById('crux_source');
-        var resultDiv = document.getElementById('js_source');
-        var errorDiv = document.getElementById('errors');
-        var runButton = document.getElementById('run');
-        var compileButton = document.getElementById('compile');
-
-        compileButton.addEventListener('click', function () {
-            var content = textArea.value;
-            var res = compileCrux(content);
-            if (res.error) {
-                errorDiv.textContent = res.error;
-            } else {
-                errorDiv.textContent = '';
-                resultDiv.textContent = res.result;
-            }
-        });
-
-        runButton.addEventListener('click', function () {
-            var content = textArea.value;
-            var res = compileCrux(content);
-            if (res.error) {
-                errorDiv.textContent = res.error;
-            } else {
-                errorDiv.textContent = '';
-                resultDiv.textContent = res.result;
-                eval(res.result);
-            }
-        });
-    }
-
-    main();
-  </script>
 </html>

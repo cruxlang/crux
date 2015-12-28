@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # TODO: detect non-system stack installs too
 STACK=stack
 
@@ -7,7 +9,8 @@ BUILD_DIR=`"$STACK" path --local-install-root`/bin/web-playground-exe.jsexe
 SRC="lib.js out.js rts.js runmain.js"
 
 "$STACK" build
-
 for s in $SRC; do
     cp $BUILD_DIR/$s stage
 done
+
+sass stage/style.scss > stage/style.css

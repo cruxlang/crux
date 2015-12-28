@@ -3,3 +3,5 @@
 /stage/out.js
 /stage/rts.js
 /stage/runmain.js
+/.sass-cache/
+/stage/*.css.map

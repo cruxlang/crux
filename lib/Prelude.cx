@@ -11,11 +11,8 @@ export data jsffi Boolean {
 }
 
 // HACK: TODO: Create a submodule for strings so we can just call this length()
-let _strlen: (String) -> Number =
-    _unsafe_js("function strlen(s) { return s.length; }")
-
 export fun strlen(s: String): Number {
-    _strlen(s)
+    _unsafe_coerce(s).length
 }
 
 // Option

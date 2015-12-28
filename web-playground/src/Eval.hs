@@ -16,7 +16,7 @@ foreign import javascript unsafe "eval($1)"
 foreign import javascript unsafe "$1[\"textContent\"] = $2"
     js_setTextContent :: JSRef HTMLElement -> JSString -> IO ()
 
-foreign import javascript unsafe "window.hs_compileCrux = $1"
+foreign import javascript unsafe "window.hs_compileCrux = $1; window.postMessage('crux-playground-loaded', '*')"
     js_setTheFunction :: JSFun a -> IO ()
 
 setTextContent :: (IsHTMLElement el, ToJSString s) => el -> s -> IO ()

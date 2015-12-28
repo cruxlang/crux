@@ -1,0 +1,5 @@
+/.stack-work/
+/stage/lib.js
+/stage/out.js
+/stage/rts.js
+/stage/runmain.js

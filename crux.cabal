@@ -26,6 +26,7 @@ library
                    , Crux.Typecheck
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
+                   , Crux.Typecheck.Env
 
     build-depends: base >=4.7
                  , parsec ==3.1.9
@@ -48,6 +49,7 @@ library
                       , MultiWayIf
                       , LambdaCase
                       , RecordWildCards
+                      , NamedFieldPuns
 
     ghc-options: -Wall
     -- ghc-options: -Werror

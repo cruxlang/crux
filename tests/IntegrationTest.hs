@@ -33,7 +33,10 @@ runProgram' p = do
         fmap T.pack $ do
             readProcessWithExitCode "node" [path'] "" >>= \case
                 (ExitSuccess, stdout, _) -> return stdout
-                (ExitFailure code, _, stderr) ->
+                (ExitFailure code, _, stderr) -> do
+                    putStrLn $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
+                    putStrLn "Code:"
+                    T.putStrLn js
                     fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
 
 run :: Text -> IO (Either (UnificationError Pos) Text)

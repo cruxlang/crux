@@ -28,7 +28,7 @@ data Env = Env
     , eBindings      :: !(IORef (HashMap Name (ResolvedReference, LetMutability, TypeVar)))
     , eLocalBindings :: !(IORef (HashMap Name (ResolvedReference, LetMutability, TypeVar)))
     , eTypeBindings  :: !(IORef (HashMap Name (ResolvedReference, TypeVar)))
-    , eTypeAliases   :: !(HashMap Text TypeAlias)
+    , eTypeAliases   :: !(IORef (HashMap Text TypeAlias))
     , eReturnType    :: !(Maybe TypeVar) -- Nothing if top-level expression
     , eInLoop        :: !Bool
     }

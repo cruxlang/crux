@@ -113,7 +113,7 @@ export fun encodeString(v: String): JsonValue {
 
 export let nullJSValue: JsonValue = _unsafe_js("null")
 
-export fun encodeNullable(encode, o) : JsonValue {
+export fun encodeNullable(encode : (a) -> JsonValue, o : Option a) : JsonValue {
     match o {
         None        => nullJSValue;
         Some(value) => encode(value);

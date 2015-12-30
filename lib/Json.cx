@@ -3,13 +3,13 @@ data Error {
     Error(String)
 }
 
-data UntypedJs {}
+data JsonValue {}
 
-let _typeOf: (UntypedJs) -> String = _unsafe_js("function (x) { return typeof x; }")
+let _typeOf: (JsonValue) -> String = _unsafe_js("function (x) { return typeof x; }")
 let _throw: (Error) -> anyOther = _unsafe_js("function (e) { throw e; }")
-let _isNull: (UntypedJs) -> Boolean = _unsafe_js("function (o) { return o === null; }")
-let _getAttr: (UntypedJs, String) -> any2 = _unsafe_js("function (o, k) { return o[k]; }")
-let _parseJson: (String) -> UntypedJs = _unsafe_js("function (s) { return JSON.parse(s); }")
+let _isNull: (JsonValue) -> Boolean = _unsafe_js("function (o) { return o === null; }")
+let _getAttr: (JsonValue, String) -> any2 = _unsafe_js("function (o, k) { return o[k]; }")
+let _parseJson: (String) -> JsonValue = _unsafe_js("function (s) { return JSON.parse(s); }")
 
 let _isArray = _unsafe_js("function (a) { return Array.isArray(a); }")
 
@@ -21,29 +21,29 @@ fun assert(b: Boolean, error: String) {
     }
 }
 
-fun assertTypeOf(a: UntypedJs, expectedType: String) {
+fun assertTypeOf(a: JsonValue, expectedType: String) {
     let t = _typeOf(a);
     if expectedType != t {
         _throw(Error("Wanted " + expectedType + " but got " + t + ": " + _stringify(a)))
     }
 }
 
-export fun decodeNumber(a: UntypedJs): Number {
+export fun decodeNumber(a: JsonValue): Number {
     assertTypeOf(a, "number")
     return _unsafe_coerce(a)
 }
 
-export fun decodeBoolean(a: UntypedJs): Boolean {
+export fun decodeBoolean(a: JsonValue): Boolean {
     assertTypeOf(a, "boolean")
     return _unsafe_coerce(a)
 }
 
-export fun decodeString(a: UntypedJs): String {
+export fun decodeString(a: JsonValue): String {
     assertTypeOf(a, "string")
     return _unsafe_coerce(a)
 }
 
-export fun decodeNullable(decoder: (UntypedJs) -> any): (UntypedJs) -> Option any {
+export fun decodeNullable(decoder: (JsonValue) -> any): (JsonValue) -> Option any {
     fun(a) {
         if (_isNull(a)) {
             return None
@@ -54,8 +54,8 @@ export fun decodeNullable(decoder: (UntypedJs) -> any): (UntypedJs) -> Option an
 }
 
 export fun decodeArray(
-    elementDecoder: (UntypedJs) -> element
-): (UntypedJs) -> Array element {
+    elementDecoder: (JsonValue) -> element
+): (JsonValue) -> Array element {
     fun (arr) {
         assert(_isArray(arr), "Expected array but got " + _stringify(arr))
 
@@ -68,14 +68,65 @@ export fun decodeArray(
 }
 
 export fun decodeKey(
-    keyDecoder: (UntypedJs) -> element,
-    obj: UntypedJs,
+    keyDecoder: (JsonValue) -> element,
+    obj: JsonValue,
     key: String
 ): element {
     assertTypeOf(obj, "object")
     return keyDecoder(_getAttr(obj, key))
 }
 
-export fun fromString(s: String, decoder: (UntypedJs) -> any): any {
+export fun fromString(s: String, decoder: (JsonValue) -> any): any {
     decoder(_parseJson(s))
 }
+
+// Encoder
+
+// Crux needs tuples.
+data ObjectMember {
+    ObjectMember(String, JsonValue)
+}
+
+let setProperty = _unsafe_js("function(o, k, v) { o[k] = v; }")
+
+export fun encodeObject(members: Array ObjectMember): JsonValue {
+    let v = _unsafe_js("{}")
+
+    // TODO: need irrefutable pattern matches in iteration
+    for member in members {
+        match member {
+            ObjectMember(key, value) => setProperty(v, key, value);
+        }
+    }
+
+    return _unsafe_coerce(v)
+}
+
+export fun encodeArray(v: Array JsonValue): JsonValue {
+    // we know that the crux representation of arrays lines up with javascript
+    return _unsafe_coerce(v)
+}
+
+export fun encodeString(v: String): JsonValue {
+    return _unsafe_coerce(v)
+}
+
+export let nullJSValue: JsonValue = _unsafe_js("null")
+
+export fun encodeNullable(encode, o) : JsonValue {
+    match o {
+        None        => nullJSValue;
+        Some(value) => encode(value);
+    }
+}
+
+fun encodeNumber(v: Number): JsonValue {
+    return _unsafe_coerce(v)
+}
+
+fun encodeBoolean(v: Boolean): JsonValue {
+    return _unsafe_coerce(v)
+}
+
+
+export let renderJSON: (JsonValue) -> String = _unsafe_js("JSON.stringify")

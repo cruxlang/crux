@@ -7,17 +7,34 @@ fun decodeHorpen(o) {
     decodeKey(decodeNullable(decodeString), o, "hello")
 }
 
-fun main() {
-    let example1 = "\"hello\"";
-    print(fromString(example1, decodeString));
+fun decodeExample() {
+    let example1 = "\"hello\""
+    print(fromString(example1, decodeString))
 
-    print(fromString(example1, decodeNullable(decodeString)));
+    print(fromString(example1, decodeNullable(decodeString)))
 
-    let example2 = "{\"hello\":null}";
-    print(fromString(example2, decodeHorpen));
+    let example2 = "{\"hello\":null}"
+    print(fromString(example2, decodeHorpen))
 
-    let example3 = "[{\"hello\":null}, {\"hello\":\"world\"}, {\"hello\":null}]";
+    let example3 = "[{\"hello\":null}, {\"hello\":\"world\"}, {\"hello\":null}]"
     print(fromString(example3, decodeArray(decodeHorpen)))
+}
+
+fun encodeHorpen(message) {
+    encodeObject([
+        ObjectMember("hello", encodeNullable(encodeString, message))
+    ])
+}
+
+fun encodeExample() {
+    let strings = [None, Some("world"), None]
+    let encoded = encodeArray(map(encodeHorpen, strings))
+    print(renderJSON(encoded))
+}
+
+fun main() {
+    decodeExample()
+    encodeExample()
 }
 
 let _ = main()

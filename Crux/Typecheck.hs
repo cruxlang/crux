@@ -314,7 +314,8 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
     ELookup _ lhs propName -> do
         lhs' <- check env lhs
         ty <- freshType env
-        recTy <- newIORef $ TRecord $ RecordType RecordFree [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+        row <- freshRowVariable env
+        recTy <- newIORef $ TRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
         unify (edata lhs') recTy
         return $ ELookup ty lhs' propName
 

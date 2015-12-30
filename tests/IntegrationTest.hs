@@ -260,7 +260,7 @@ test_record_annotation_is_checked2 = do
         , "let _ = main()"
         ]
 
-    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 15),f...}" result
+    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 15),..._16}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_type_alias = do

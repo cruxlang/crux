@@ -288,6 +288,12 @@ We instantiate the argument type {x:Number, y:Number, ...} and unify with {x:Num
 This yields {x:Number, y:Number, z:Number}
 -}
 
+newtype RowVariable = RowVariable { unRowVariable :: Int }
+    deriving (Eq)
+
+instance Show RowVariable where
+    show (RowVariable i) = show i
+
 -- An open record can be unified with another record type that has extra properties.
 -- F u F == Free record with union of properties
 -- F u Q == Verify that LHS fields are all present in RHS.  Unifies to RHS.
@@ -295,7 +301,7 @@ This yields {x:Number, y:Number, z:Number}
 -- C u C == Fields must intersect exactly.  Types unify.  Closed record.
 -- F u C == Fields of free record must be present in the closed record and they must unify.  Closed record.
 -- Q u C == I think this always fails to unify.
-data RecordOpen = RecordFree | RecordQuantified | RecordClose
+data RecordOpen = RecordFree RowVariable | RecordQuantified RowVariable | RecordClose
     deriving (Show, Eq)
 
 type TypeVar = IORef MutableTypeVar

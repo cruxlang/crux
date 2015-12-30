@@ -10,11 +10,19 @@ import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
 import           Crux.Typecheck.Types
 
-freshType :: Env -> IO TypeVar
-freshType Env{eNextTypeIndex} = do
+freshTypeIndex :: Env -> IO Int
+freshTypeIndex Env{eNextTypeIndex} = do
     modifyIORef' eNextTypeIndex (+1)
-    index <- readIORef eNextTypeIndex
+    readIORef eNextTypeIndex
+
+freshType :: Env -> IO TypeVar
+freshType env = do
+    index <- freshTypeIndex env
     newIORef $ TUnbound index
+
+freshRowVariable :: Env -> IO RowVariable
+freshRowVariable env =
+    RowVariable <$> freshTypeIndex env
 
 instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
@@ -65,7 +73,7 @@ instantiate' subst env ty = do
                 return (b, TypeRow{trName, trMut=mut', trTyVar=rowTy'})
 
             let (changedOpen, open') = case open of
-                    RecordQuantified -> (True, RecordFree)
+                    RecordQuantified i -> (True, RecordFree i)
                     _ -> (False, open)
             tr <- newIORef $ TRecord $ RecordType open' (map snd rows')
             return (changedOpen || or (map fst rows'), tr)
@@ -90,8 +98,9 @@ quantify ty = do
             forM_ rows' $ \TypeRow{..} -> do
                 quantify trTyVar
             let open' = case open of
-                    RecordFree -> RecordQuantified
-                    _ -> open
+                    RecordFree ti -> RecordQuantified ti
+                    _             -> open
+
             writeIORef ty $ TRecord $ RecordType open' rows'
         TPrimitive {} ->
             return ()
@@ -151,8 +160,13 @@ unifyRecord av bv = do
     let aFields = sort $ map trName aRows
     let bFields = sort $ map trName bRows
 
-    when (aOpen == RecordQuantified || bOpen == RecordQuantified) $
-        error "Internal error: Encountered a quantified record.  This should have been instantiated away"
+    case (aOpen, bOpen) of
+        (RecordQuantified _, _) ->
+            error "Internal error: Encountered a quantified record.  This should have been instantiated away"
+        (_, RecordQuantified _) ->
+            error "Internal error: Encountered a quantified record.  This should have been instantiated away"
+        _ ->
+            return ()
 
     let aRequired = RecordClose == aOpen
         bRequired = RecordClose == bOpen
@@ -184,11 +198,11 @@ unifyRecord av bv = do
                 error "Internal error in unifyRecord: This should be very impossible"
 
     let open' = case (aOpen, bOpen) of
-            (RecordClose, _)         -> RecordClose
-            (_, RecordClose)         -> RecordClose
-            (RecordQuantified, _)    -> RecordQuantified
-            (_, RecordQuantified)    -> RecordQuantified
-            (RecordFree, RecordFree) -> RecordFree
+            (RecordClose, _)             -> RecordClose
+            (_, RecordClose)             -> RecordClose
+            (RecordQuantified i, _)      -> RecordQuantified i
+            (_, RecordQuantified i)      -> RecordQuantified i
+            (RecordFree i, RecordFree _) -> RecordFree i -- I am pretty sure this is ok
 
     writeIORef av $ TRecord $ RecordType open' newFields
     writeIORef bv $ TBound av

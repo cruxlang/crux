@@ -79,8 +79,8 @@ showTypeVarIO tvar = do
             rowTypes <- mapM (showTypeVarIO . trTyVar) rows'
             let showRow (name, ty) = Text.unpack name <> ": " <> ty
             let dotdotdot = case open' of
-                    RecordFree -> ["f..."]
-                    RecordQuantified -> ["q..."]
+                    RecordFree i -> ["..._" ++ show i]
+                    RecordQuantified i -> ["...t" ++ show i]
                     RecordClose -> []
             return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
         TPrimitive ty ->

@@ -721,3 +721,18 @@ test_exported_sum_cannot_depend_on_non_exported_type = do
             assertEqual "Variant \"B\" of exported data type \"B\" depends on nonexported data type \"A\" (defined at 1,1)" message
         _ ->
             assertFailure $ "Expected ExportError but got " ++ show err
+
+test_can_import_types_with_cyclic_dependencies = do
+    result <- runMultiModule $ HashMap.fromList
+        [ ("A", T.unlines
+            [ "export data A { A(B), NA }"
+            , "export data B { B(A), NB }"
+            ]
+          )
+        , ("Main", T.unlines
+            [ "import { A(...) }"
+            , "let a = A(B(NA))"
+            ]
+          )
+        ]
+    assertEqual (Right "") result

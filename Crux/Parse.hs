@@ -297,12 +297,12 @@ basicExpression =
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
     let app lhs = do
-            argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
+            argList <- parenthesized $ delimited noSemiExpression (token TComma)
             return $ EApp (edata lhs) lhs argList
         methodApp lhs = do
             _ <- token TRightArrow
             methodName <- anyIdentifier
-            argList <- parenthesized $ P.sepBy noSemiExpression (token TComma)
+            argList <- parenthesized $ delimited noSemiExpression (token TComma)
             return $ EMethodApp (edata lhs) lhs methodName argList
         prop lhs = do
             _ <- token TDot

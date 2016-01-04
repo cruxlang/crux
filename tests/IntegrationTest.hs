@@ -673,6 +673,17 @@ test_boolean_expressions = do
         ]
         "true\n"
 
+test_name_functions_javascript_keywords = do
+    assertOutput
+        [ "export fun catch() {"
+        , "  let enum = ()"
+        , "}"
+        , "let _ = catch()"
+        , "export let finally = catch"
+        , "let _ = finally()"
+        ]
+        ""
+
 test_prelude_provides_None = do
     assertCompiles
         [ "let a = None"

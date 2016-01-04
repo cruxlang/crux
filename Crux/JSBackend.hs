@@ -14,24 +14,78 @@ renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSe
 renderTemporary :: Int -> Text
 renderTemporary = Text.pack . ("$" <>). show
 
+-- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
+jsKeywords :: [Text]
+jsKeywords =
+    [ "break"
+    , "case"
+    , "class"
+    , "catch"
+    , "const"
+    , "continue"
+    , "debugger"
+    , "default"
+    , "delete"
+    , "do"
+    , "else"
+    , "export"
+    , "extends"
+    , "finally"
+    , "for"
+    , "function"
+    , "if"
+    , "import"
+    , "in"
+    , "instanceof"
+    , "new"
+    , "return"
+    , "super"
+    , "switch"
+    , "this"
+    , "throw"
+    , "try"
+    , "typeof"
+    , "var"
+    , "void"
+    , "while"
+    , "with"
+    , "yield"
+    -- reserved
+    , "enum"
+    , "implements"
+    , "interface"
+    , "public"
+    , "private"
+    , "protected"
+    , "package"
+    , "static"
+    , "let"
+    , "await"
+    ]
+
+renderJSName :: Text -> Text
+renderJSName n = if elem n jsKeywords
+    then n <> "$"
+    else n
+
 renderOutput :: Gen.Output -> JSTree.Expression -> JSTree.Statement
 renderOutput output input = case output of
-    Gen.NewLocalBinding name -> JSTree.SVar name $ Just input
-    Gen.ExistingLocalBinding name -> JSTree.SAssign (JSTree.EIdentifier name) input
+    Gen.NewLocalBinding name -> JSTree.SVar (renderJSName name) $ Just input
+    Gen.ExistingLocalBinding name -> JSTree.SAssign (JSTree.EIdentifier $ renderJSName name) input
     Gen.NewTemporary i -> JSTree.SVar (renderTemporary i) $ Just input
     Gen.ExistingTemporary i -> JSTree.SAssign (JSTree.EIdentifier $ renderTemporary i) input
     Gen.OutputProperty v name -> JSTree.SAssign (JSTree.ELookup (renderValue v) name) input
 
 renderResolvedReference :: ResolvedReference -> JSTree.Expression
 renderResolvedReference = JSTree.EIdentifier . \case
-    Local n -> n
-    ThisModule n -> n
+    Local n -> renderJSName n
+    ThisModule n -> renderJSName n
     OtherModule mn n -> renderModuleName mn <> "." <> n
     Builtin n -> n
 
 renderValue :: Gen.Value -> JSTree.Expression
 renderValue value = case value of
-    Gen.LocalBinding name -> JSTree.EIdentifier name
+    Gen.LocalBinding name -> JSTree.EIdentifier $ renderJSName name
     Gen.Temporary i -> JSTree.EIdentifier $ renderTemporary i
     Gen.ResolvedBinding n -> renderResolvedReference n
     Gen.Property v n -> JSTree.ELookup (renderValue v) n
@@ -46,7 +100,7 @@ renderValue value = case value of
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
-    Gen.EmptyLocalBinding name -> JSTree.SVar name Nothing
+    Gen.EmptyLocalBinding name -> JSTree.SVar (renderJSName name) Nothing
     Gen.EmptyTemporary i -> JSTree.SVar (renderTemporary i) Nothing
     Gen.Assign output value -> renderOutput output $ renderValue value
     Gen.BinIntrinsic output op lhs rhs ->
@@ -154,7 +208,7 @@ renderJSVariant (JSVariant name value) =
 renderExports :: ExportFlag -> [Name] -> [JSTree.Statement]
 renderExports NoExport _ = []
 renderExports Export names =
-    map (\n -> JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "exports") n) $ JSTree.EIdentifier n) names
+    map (\n -> JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "exports") n) $ JSTree.EIdentifier $ renderJSName n) names
 
 renderDeclaration :: Gen.Declaration -> [JSTree.Statement]
 renderDeclaration (Gen.Declaration export decl) = case decl of
@@ -167,7 +221,7 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
         let exports = renderExports export $ map (\(JSVariant n _) -> n) variants in
         renderedVariants ++ exports
     Gen.DFun name params body ->
-        let func = JSTree.SFunction name params $ map renderInstruction body in
+        let func = JSTree.SFunction (renderJSName name) params $ map renderInstruction body in
         func : renderExports export [name]
     Gen.DLet pat defn ->
         case pat of
@@ -175,7 +229,7 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
                 map renderInstruction defn
             PBinding name ->
                 let zz = map renderInstruction defn
-                in zz ++ renderExports export [name]
+                in zz ++ renderExports export [renderJSName name]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body

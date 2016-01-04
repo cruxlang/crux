@@ -64,22 +64,31 @@ readIndentReq = fmap snd ask
 withIndentation :: MonadReader (a, b) m => b -> m r -> m r
 withIndentation i = local $ \(mn, _) -> (mn, i)
 
-enclosed :: Parser (Token Pos) -> Parser (Token Pos) -> Parser a -> Parser a
+enclosed :: Parser (Token Pos) -> Parser b -> Parser a -> Parser (Pos, a)
 enclosed open close body = do
     openToken <- open
     rv <- body
     withIndentation (IRAtOrDeeper openToken) $ do
         void $ close
-    return rv
+    return (tokenData openToken, rv)
+
+parenthesized' :: Parser a -> Parser (Pos, a)
+parenthesized' = enclosed (token TOpenParen) (token TCloseParen)
 
 parenthesized :: Parser a -> Parser a
-parenthesized = enclosed (token TOpenParen) (token TCloseParen)
+parenthesized p = fmap snd $ parenthesized' p
+
+braced' :: Parser a -> Parser (Pos, a)
+braced' = enclosed (token TOpenBrace) (token TCloseBrace)
 
 braced :: Parser a -> Parser a
-braced = enclosed (token TOpenBrace) (token TCloseBrace)
+braced p = fmap snd $ braced' p
+
+bracketed' :: Parser a -> Parser (Pos, a)
+bracketed' = enclosed (token TOpenBracket) (token TCloseBracket)
 
 bracketed :: Parser a -> Parser a
-bracketed = enclosed (token TOpenBracket) (token TCloseBracket)
+bracketed p = fmap snd $ bracketed' p
 
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
@@ -188,23 +197,20 @@ unitLiteralExpression = do
 
 arrayLiteralExpression :: Parser ParseExpression
 arrayLiteralExpression = do
-    t <- token TOpenBracket
-    exprs <- delimited noSemiExpression (token TComma)
-    _ <- token TCloseBracket
-    return $ EArrayLiteral (tokenData t) exprs
+    (pos, exprs) <- bracketed' $ delimited noSemiExpression $ token TComma
+    return $ EArrayLiteral pos exprs
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
-    t <- token TOpenBrace
     let keyValuePair = do
             name <- anyIdentifier
             _ <- token TColon
             expr <- noSemiExpression
             return (name, expr)
-    pairs <- P.sepBy keyValuePair $ token TComma
-    _ <- token TCloseBrace
 
-    return $ ERecordLiteral (tokenData t) (HashMap.fromList pairs)
+    (pos, pairs) <- braced' $ delimited keyValuePair $ token TComma
+
+    return $ ERecordLiteral pos (HashMap.fromList pairs)
 
 integerLiteralExpression :: Parser ParseExpression
 integerLiteralExpression = do
@@ -264,15 +270,10 @@ noParenPattern :: Parser RefutablePattern
 noParenPattern = do
     txt <- anyIdentifier
     if isCapitalized txt then do
-        -- TODO: port this to use parenthesized <|> ...
-        op <- P.optionMaybe $ token TOpenParen
-        case op of
-          Just _ -> do
-            params <- delimited pattern (token TComma)
-            _ <- token TCloseParen
-            return $ RPConstructor txt params
-          Nothing -> do
-            return $ RPConstructor txt []
+        let withArgs = do
+                params <- parenthesized $ delimited pattern (token TComma)
+                return $ RPConstructor txt params
+        withArgs <|> (return $ RPConstructor txt [])
     else do
         return $ RPIrrefutable $ PBinding txt
 
@@ -519,15 +520,9 @@ variantDefinition :: Parser Variant
 variantDefinition = do
     ctorname <- anyIdentifier
 
-    -- TODO: port this to parenthesized <|>
-    op <- P.optionMaybe $ token TOpenParen
-    ctordata <- case op of
-        Just _ -> do
-            cd <- delimited dataDeclTypeIdent (token TComma)
-            _ <- token TCloseParen
-            return cd
-        Nothing -> do
-            return []
+    let withArgs = do
+            parenthesized $ delimited dataDeclTypeIdent (token TComma)
+    ctordata <- withArgs <|> return []
 
     return $ Variant ctorname ctordata
 
@@ -612,7 +607,7 @@ funDeclaration = do
     tfun <- token Tokens.TFun
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
-        params <- parenthesized $ P.sepBy funArgument (token TComma)
+        params <- parenthesized $ delimited funArgument (token TComma)
         returnAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent

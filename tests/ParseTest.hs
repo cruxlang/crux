@@ -8,6 +8,7 @@ import           Crux.AST
 import           Crux.Lex
 import qualified Data.Text as T
 import           Test.Framework
+import Data.HashMap.Strict (fromList)
 
 discardData expr = fmap (const ()) expr
 
@@ -161,3 +162,13 @@ test_parameter_list_indentation = do
             ]
     assertExprParses letDeclaration source
         (DLet () LImmutable PWildcard Nothing $ EApp () (EIdentifier () "foo") [ELiteral () $ LInteger 1, ELiteral () $ LInteger 2])
+
+test_record_literal_trailing_comma = do
+    let source = T.unlines
+            [ "let _ = {"
+            , "  a: 1,"
+            , "  b: 2,"
+            , "}"
+            ]
+    assertExprParses letDeclaration source
+        (DLet () LImmutable PWildcard Nothing $ ERecordLiteral () $ fromList [("a", ELiteral () $ LInteger 1), ("b", ELiteral () $ LInteger 2)])

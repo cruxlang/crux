@@ -1,0 +1,1 @@
+Crux has no mechanism for structs with defined memory layout, including unboxed data.  Do records have sufficiently good performance for our goals?  (Can we achieve go- or java-like perf without contortions?)

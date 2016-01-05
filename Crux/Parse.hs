@@ -197,18 +197,16 @@ unitLiteralExpression = do
 
 arrayLiteralExpression :: Parser ParseExpression
 arrayLiteralExpression = do
-    (pos, exprs) <- bracketed' $ delimited noSemiExpression $ token TComma
+    (pos, exprs) <- bracketed' $ commaDelimited noSemiExpression
     return $ EArrayLiteral pos exprs
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
-    let keyValuePair = do
-            name <- anyIdentifier
-            _ <- token TColon
-            expr <- noSemiExpression
-            return (name, expr)
-
-    (pos, pairs) <- braced' $ delimited keyValuePair $ token TComma
+    (pos, pairs) <- braced' $ commaDelimited $ do
+        name <- anyIdentifier
+        _ <- token TColon
+        expr <- noSemiExpression
+        return (name, expr)
 
     return $ ERecordLiteral pos (HashMap.fromList pairs)
 
@@ -254,7 +252,7 @@ identifierExpression = do
 functionExpression :: Parser ParseExpression
 functionExpression = do
     tfun <- token Tokens.TFun
-    args <- parenthesized $ P.sepBy funArgument (token TComma)
+    args <- parenthesized $ commaDelimited funArgument
     returnAnn <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
@@ -271,7 +269,7 @@ noParenPattern = do
     txt <- anyIdentifier
     if isCapitalized txt then do
         let withArgs = do
-                params <- parenthesized $ delimited pattern (token TComma)
+                params <- parenthesized $ commaDelimited pattern
                 return $ RPConstructor txt params
         withArgs <|> (return $ RPConstructor txt [])
     else do
@@ -298,12 +296,12 @@ basicExpression =
 applicationExpression :: Parser ParseExpression
 applicationExpression = do
     let app lhs = do
-            argList <- parenthesized $ delimited noSemiExpression (token TComma)
+            argList <- parenthesized $ commaDelimited noSemiExpression
             return $ EApp (edata lhs) lhs argList
         methodApp lhs = do
             _ <- token TRightArrow
             methodName <- anyIdentifier
-            argList <- parenthesized $ delimited noSemiExpression (token TComma)
+            argList <- parenthesized $ commaDelimited noSemiExpression
             return $ EMethodApp (edata lhs) lhs methodName argList
         prop lhs = do
             _ <- token TDot
@@ -412,8 +410,8 @@ noSemiExpression =
     <|> booleanExpression
 
 -- Parse elements separated by a delimiter.  Differs from P.many in that a dangling delimiter is permitted.
-delimited :: Parser a -> Parser b -> Parser [a]
-delimited parseElement delim = do
+delimited :: Parser b -> Parser a -> Parser [a]
+delimited delim parseElement = do
     let go acc = do
             d <- P.optionMaybe delim
             case d of
@@ -429,27 +427,25 @@ delimited parseElement delim = do
         Nothing -> return []
         Just f -> fmap reverse $ go [f]
 
+commaDelimited :: Parser a -> Parser [a]
+commaDelimited = delimited $ token TComma
+
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent = do
-    let propTypePair = do
-            mut <- P.optionMaybe (
-                (token TMutable *> pure LMutable) <|>
-                (token TConst *> pure LImmutable))
-            name <- anyIdentifier
-            _ <- token TColon
-            ty <- typeIdent
-            return (name, mut, ty)
-
-    props <- braced $ do
-        props <- delimited propTypePair (token TComma)
-        _ <- P.optional $ token TComma
-        return props
+    props <- braced $ commaDelimited $ do
+        mut <- P.optionMaybe (
+            (token TMutable *> pure LMutable) <|>
+            (token TConst *> pure LImmutable))
+        name <- anyIdentifier
+        _ <- token TColon
+        ty <- typeIdent
+        return (name, mut, ty)
     return $ RecordIdent props
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do
     argTypes <- P.try $ do
-        argTypes <- parenthesized $ P.sepBy typeIdent (token TComma)
+        argTypes <- parenthesized $ commaDelimited typeIdent
         _ <- token TRightArrow
         return argTypes
     retType <- typeIdent
@@ -520,8 +516,7 @@ variantDefinition :: Parser Variant
 variantDefinition = do
     ctorname <- anyIdentifier
 
-    let withArgs = do
-            parenthesized $ delimited dataDeclTypeIdent (token TComma)
+    let withArgs = parenthesized $ commaDelimited dataDeclTypeIdent
     ctordata <- withArgs <|> return []
 
     return $ Variant ctorname ctordata
@@ -531,8 +526,7 @@ cruxDataDeclaration = do
     name <- typeName
     typeVars <- P.many typeVariableName
 
-    variants <- braced $
-        delimited variantDefinition (token TComma)
+    variants <- braced $ commaDelimited variantDefinition
     moduleName <- readModuleName
     return $ DData name moduleName typeVars variants
 
@@ -556,8 +550,7 @@ jsDataDeclaration :: Parser ParseDeclaration
 jsDataDeclaration = do
     _ <- token TJSFFI
     name <- typeName
-    variants <- braced $ do
-        delimited jsVariantDefinition (token TComma)
+    variants <- braced $ commaDelimited jsVariantDefinition
     moduleName <- readModuleName
     return $ DJSData name moduleName variants
 
@@ -607,7 +600,7 @@ funDeclaration = do
     tfun <- token Tokens.TFun
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
-        params <- parenthesized $ delimited funArgument (token TComma)
+        params <- parenthesized $ commaDelimited funArgument
         returnAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent
@@ -643,7 +636,7 @@ imports :: Parser [Import]
 imports = do
     importToken <- token TImport
     withIndentation (IRDeeper importToken) $ do
-        braced $ delimited importDecl (token TComma)
+        braced $ commaDelimited importDecl
 
 parseModule :: Parser ParsedModule
 parseModule = do

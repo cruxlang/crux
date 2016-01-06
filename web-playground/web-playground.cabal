@@ -26,12 +26,12 @@ library
                      , text
                      , unordered-containers
   default-language:    Haskell2010
-  ghc-options: -Wall
+  ghcjs-options: -Wall -Werror
 
 executable web-playground-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  --ghc-options:         
+  ghcjs-options: -Wall -Werror
   build-depends:       base
                      , web-playground
   default-language:    Haskell2010

@@ -5,44 +5,23 @@ module Lib
     ( run
     ) where
 
-import           Control.Monad                 (void)
-import           Control.Monad.Trans           (liftIO)
 import qualified Data.HashMap.Strict as HashMap
-import           Control.Exception (try)
-import           GHCJS.Foreign
-import           Crux.AST                      (ModuleName (..),
-                                                ModuleSegment (..))
-import qualified Crux.AST                      as AST
-import qualified Crux.JSBackend                as JS
-import           Crux.Typecheck.Types          (UnificationError, errorToString)
-import           GHCJS.Types                   (JSRef, JSString)
-import qualified Crux.Gen                      as Gen
-import           Crux.Module                   (newMemoryLoader, loadProgram)
-import           Data.FileEmbed                (embedFile)
-import           Data.IORef                    (newIORef, readIORef)
-import           Data.String                   (fromString)
-import           Data.Text                     (Text)
-import qualified Data.Text                     as T
-import           Data.Text.Encoding            (decodeUtf8)
-import           Eval                          (js_eval, setTextContent, js_setTheFunction)
-import           GHCJS.DOM                     (runWebGUI,
-                                                webViewGetDomDocument)
-import           GHCJS.DOM.Document            (documentCreateElement,
-                                                documentGetBody,
-                                                documentGetElementById)
-import           GHCJS.DOM.Element             (elementOnclick,
-                                                elementQuerySelector)
-import           GHCJS.DOM.HTMLElement         (castToHTMLElement,
-                                                htmlElementGetInnerText,
-                                                htmlElementSetInnerText)
-import           GHCJS.DOM.HTMLTextAreaElement (castToHTMLTextAreaElement)
-import           GHCJS.DOM.HTMLTextAreaElement (htmlTextAreaElementGetValue)
-import           GHCJS.DOM.Node                (nodeAppendChild)
-import           GHCJS.Foreign                 (toJSString)
+import Control.Exception (try)
+import GHCJS.Foreign
+import qualified Crux.JSBackend as JS
+import Crux.Typecheck.Types (errorToString)
+import GHCJS.Types (JSRef, JSString)
+import qualified Crux.Gen as Gen
+import Crux.Module (newMemoryLoader, loadProgram)
+import Data.FileEmbed (embedFile)
+import Data.Text (Text)
+import Data.Text.Encoding (decodeUtf8)
+import Eval (js_setTheFunction)
+import GHCJS.DOM (runWebGUI)
 
+compile :: Text -> IO Text
 compile source = do
-    let mainModuleName = "Main"
-        preludeSource = decodeUtf8 $(embedFile "../lib/Prelude.cx")
+    let preludeSource = decodeUtf8 $(embedFile "../lib/Prelude.cx")
 
         loader = newMemoryLoader $ HashMap.fromList
             [ ("Prelude", preludeSource)

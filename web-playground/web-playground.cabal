@@ -16,10 +16,10 @@ extra-source-files:  ../lib/Prelude.cx
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib, Eval
+  exposed-modules:     Lib
   build-depends:       base >= 4.7 && < 5
                      , ghcjs-base
-                     , ghcjs-dom
+                     , ghcjs-prim
                      , crux
                      , mtl
                      , file-embed

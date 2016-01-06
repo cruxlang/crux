@@ -3,8 +3,13 @@ packages:
 - '.'
 - '..'
 resolver: lts-3.12
-compiler: ghcjs-0.1.0.20150924_ghc-7.10.2
+compiler: ghcjs-0.2.0.20151029_ghc-7.10.2
 compiler-check: match-exact
+setup-info:
+  ghcjs:
+    source:
+      ghcjs-0.2.0.20151029_ghc-7.10.2:
+        url: "https://github.com/nrolland/ghcjs/releases/download/v0.2.0.20151029/ghcjs-0.2.0.20151029.tar.gz"
 extra-deps:
 - crux-0.1.0.0
-- ghcjs-dom-0.1.1.3
+- ghcjs-dom-0.2.3.1

@@ -1,0 +1,6 @@
+/.stack-work/
+/.sass-cache/
+/stage/crux.js
+/stage/style.css
+/stage/*.css.map
+/dist/

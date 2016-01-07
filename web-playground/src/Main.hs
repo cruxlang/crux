@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Lib
-    ( run
+module Main
+    ( main
     ) where
 
 import Control.Exception (try)
@@ -12,9 +12,9 @@ import Data.FileEmbed (embedFile)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
 import GHCJS.Concurrent (OnBlocked(ThrowWouldBlock))
-import GHCJS.Foreign.Callback (syncCallback2)
+import GHCJS.Foreign.Callback (Callback, syncCallback2)
 import Data.JSString.Text (textToJSString, textFromJSString)
-import GHCJS.Types (JSVal, JSString)
+import GHCJS.Types (JSVal, JSString, jsval)
 import JavaScript.Object (setProp)
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
@@ -39,12 +39,17 @@ compileJS :: JSString -> IO JSString
 compileJS src =
     textToJSString <$> compile (textFromJSString src)
 
-foreign import javascript unsafe "window.hs_compileCrux = $1; window.postMessage('crux-playground-loaded', '*')"
-    js_setTheFunction :: JSVal -> IO ()
+foreign import javascript unsafe "global[$1] = $2"
+    js_exportFunction :: JSVal -> JSVal -> IO ()
 
-run :: IO ()
-run = do
-    callback <- syncCallback2 ThrowWouldBlock $ \source resultObject -> do
+exportCallback :: String -> IO (Callback a) -> IO ()
+exportCallback name cbAction = do
+    cb <- cbAction
+    js_exportFunction (pToJSVal name) (jsval cb)
+
+main :: IO ()
+main = do
+    exportCallback "compileCrux" $ syncCallback2 ThrowWouldBlock $ \source resultObject -> do
         r <- try $ compileJS $ pFromJSVal source
         case r of
             Right code ->
@@ -52,4 +57,3 @@ run = do
             Left err -> do
                 s <- errorToString err
                 setProp "error" (pToJSVal s) (unsafeCoerce resultObject)
-    js_setTheFunction $ unsafeCoerce callback

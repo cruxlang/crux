@@ -1,7 +1,6 @@
 /.stack-work/
-/stage/lib.js
-/stage/out.js
-/stage/rts.js
-/stage/runmain.js
 /.sass-cache/
+/stage/crux.js
+/stage/style.css
 /stage/*.css.map
+/dist/

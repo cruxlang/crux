@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 
 set -e
+cd "$(dirname "$0")"/..
 
 # TODO: detect non-system stack installs too
 STACK=stack
-
-BUILD_DIR=`"$STACK" path --local-install-root`/bin/web-playground-exe.jsexe
-SRC="lib.js out.js rts.js runmain.js"
+BUILD_DIR=`"$STACK" path --local-install-root`/bin/crux-js-exe.jsexe
+SRC="rts.js lib.js out.js" # we do our own runmain.js
 
 "$STACK" build
-for s in $SRC; do
-    cp $BUILD_DIR/$s stage
+mkdir -p dist
+cat jsbits/wrap.intro.js > dist/crux.js
+for src in $SRC; do
+    cat "$BUILD_DIR/$src" >> dist/crux.js
 done
+cat jsbits/wrap.outro.js >> dist/crux.js
 
+cp dist/crux.js stage/
 sass stage/style.scss > stage/style.css

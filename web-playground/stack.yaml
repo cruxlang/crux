@@ -12,4 +12,4 @@ setup-info:
         url: "https://github.com/nrolland/ghcjs/releases/download/v0.2.0.20151029/ghcjs-0.2.0.20151029.tar.gz"
 extra-deps:
 - crux-0.1.0.0
-- ghcjs-dom-0.2.3.1
+

@@ -49,6 +49,8 @@ exportCallback name cbAction = do
 
 main :: IO ()
 main = do
+    -- TODO: we can return the result object instead of taking it as an argument
+    -- when we upgrade ghcjs.  we would use syncCallback1' in that case.
     exportCallback "compileCrux" $ syncCallback2 ThrowWouldBlock $ \source resultObject -> do
         r <- try $ compileJS $ pFromJSVal source
         case r of

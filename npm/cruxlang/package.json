@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Crux Language Compiler",  
   "bin": {
-    "cruxjs": "./cli.js",
+    "cruxjs": "./cli.js"
   },
   "repository": {
     "type": "git",

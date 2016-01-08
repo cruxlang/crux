@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 "use strict";
 const crux = require('./src/crux.js');
 const fs = require('fs');

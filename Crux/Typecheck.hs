@@ -125,7 +125,8 @@ isLValue env expr = case expr of
                     Nothing -> do
                         -- This should  be impossible because type inference should have either failed, or
                         -- caused this record type to include the field by now.
-                        error "Internal compiler error: calling isLValue on a nonexistent property"
+                        ltys <- showTypeVarIO lty
+                        error $ printf "Internal compiler error: calling isLValue on a nonexistent property %s of record %s" (show propName) ltys
             _ ->
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
     _ -> return False

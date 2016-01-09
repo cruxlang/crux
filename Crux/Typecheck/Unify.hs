@@ -3,12 +3,12 @@
 
 module Crux.Typecheck.Unify where
 
-import           Data.List              (nub, sort)
-import qualified Data.Text              as Text
 import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
 import           Crux.Typecheck.Types
+import           Data.List             (sort)
+import           Text.Printf           (printf)
 
 freshTypeIndex :: Env -> IO Int
 freshTypeIndex Env{eNextTypeIndex} = do
@@ -153,59 +153,75 @@ lookupTypeRow name rows = case rows of
 
 unifyRecord :: TypeVar -> TypeVar -> IO ()
 unifyRecord av bv = do
-    TRecord a <- readIORef av
-    TRecord b <- readIORef bv
-    let RecordType aOpen aRows = a
-        RecordType bOpen bRows = b
+    TRecord (RecordType aOpen aRows) <- readIORef av
+    TRecord (RecordType bOpen bRows) <- readIORef bv
     let aFields = sort $ map trName aRows
     let bFields = sort $ map trName bRows
 
+    let coincidentRows = [(a, b) | a <- aRows, b <- bRows, trName a == trName b]
+    let aOnlyRows = filter (\row -> trName row `notElem` bFields) aRows
+    let bOnlyRows = filter (\row -> trName row `notElem` aFields) bRows
+    let names trs = map trName trs
+
+    coincidentRows' <- forM coincidentRows $ \(lhs, rhs) -> do
+        case unifyRecordMutability (trMut lhs) (trMut rhs) of
+            Left err -> throwIO $ RecordMutabilityUnificationError () (trName lhs) err
+            Right mut -> do
+                unify (trTyVar lhs) (trTyVar rhs)
+                return TypeRow
+                    { trName = trName lhs
+                    , trMut = mut
+                    , trTyVar = trTyVar lhs
+                    }
+
     case (aOpen, bOpen) of
-        (RecordQuantified _, _) ->
-            error "Internal error: Encountered a quantified record.  This should have been instantiated away"
-        (_, RecordQuantified _) ->
-            error "Internal error: Encountered a quantified record.  This should have been instantiated away"
-        _ ->
-            return ()
-
-    let aRequired = RecordClose == aOpen
-        bRequired = RecordClose == bOpen
-
-    let allKeys :: [Name]
-        allKeys = nub $ sort (aFields ++ bFields)
-    newFields <- forM allKeys $ \key -> do
-        case (aRequired, lookupTypeRow key aRows, bRequired, lookupTypeRow key bRows) of
-            (_, Just (m1, t1), _, Just (m2, t2)) -> do
-                case unifyRecordMutability m1 m2 of
-                    -- Left err -> error $ printf "Could not unify mutability of record field %s: %s" (show key) err
-                    Left err -> throwIO $ RecordMutabilityUnificationError () key err
-                    Right mut -> do
-                        unify t1 t2
-                        return TypeRow{trName=key, trMut=mut, trTyVar=t1}
-
-            (_    , Just (m1, t1), False, Nothing) ->
-                return TypeRow{trName=key, trMut=m1, trTyVar=t1}
-            (False, Nothing, _    , Just (m2, t2)) ->
-                return TypeRow{trName=key, trMut=m2, trTyVar=t2}
-
-            (True, Nothing, _, _) ->
-                unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
-
-            (_, _, True, Nothing) ->
-                unificationError ("Field '" ++ Text.unpack key ++ "' not found in quantified record") av bv
-
-            (False, Nothing, False, Nothing) -> do
-                error "Internal error in unifyRecord: This should be very impossible"
-
-    let open' = case (aOpen, bOpen) of
-            (RecordClose, _)             -> RecordClose
-            (_, RecordClose)             -> RecordClose
-            (RecordQuantified i, _)      -> RecordQuantified i
-            (_, RecordQuantified i)      -> RecordQuantified i
-            (RecordFree i, RecordFree _) -> RecordFree i -- I am pretty sure this is ok
-
-    writeIORef av $ TRecord $ RecordType open' newFields
-    writeIORef bv $ TBound av
+        (RecordClose, RecordClose)
+            | null aOnlyRows && null bOnlyRows -> do
+                writeIORef bv (TRecord $ RecordType RecordClose coincidentRows')
+                writeIORef av (TBound bv)
+            | otherwise ->
+                unificationError "Closed row types must match exactly" av bv
+        (RecordClose, RecordFree {})
+            | null bOnlyRows -> do
+                writeIORef av (TRecord $ RecordType RecordClose coincidentRows')
+                writeIORef bv (TBound av)
+            | otherwise ->
+                unificationError (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
+        (RecordFree {}, RecordClose)
+            | null aOnlyRows -> do
+                writeIORef bv (TRecord $ RecordType RecordClose coincidentRows')
+                writeIORef av (TBound bv)
+            | otherwise ->
+                unificationError (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
+        (RecordClose, RecordQuantified {}) ->
+            error "Cannot unify closed record with quantified record"
+        (RecordQuantified {}, RecordClose) ->
+            error "Cannot unify closed record with quantified record"
+        (RecordFree {}, RecordFree {}) -> do
+            writeIORef bv (TRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows ++ bOnlyRows))
+            writeIORef av (TBound bv)
+        (RecordFree {}, RecordQuantified {})
+            | null aOnlyRows -> do
+                writeIORef bv (TRecord $ RecordType bOpen coincidentRows')
+                writeIORef av (TBound bv)
+            | otherwise ->
+                error "lhs record has rows not in quantified record"
+        (RecordQuantified {}, RecordFree {})
+            | null bOnlyRows -> do
+                writeIORef av (TRecord $ RecordType aOpen coincidentRows')
+                writeIORef bv (TBound av)
+            | otherwise ->
+                error "rhs record has rows not in quantified record"
+        (RecordQuantified a, RecordQuantified b)
+            | not (null aOnlyRows) ->
+                error "lhs quantified record has rows not in rhs quantified record"
+            | not (null bOnlyRows) ->
+                error "rhs quantified record has rows not in lhs quantified record"
+            | a /= b ->
+                error "Quantified records do not have the same qvar!"
+            | otherwise -> do
+                writeIORef av (TRecord $ RecordType aOpen coincidentRows')
+                writeIORef av (TBound bv)
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of

@@ -18,7 +18,7 @@ data Pos = Pos
     deriving (Eq)
 
 instance Show Pos where
-    show Pos{..} = "<" <> show posLineStart <> ">" <> show posLine <> ":" <> show posCol
+    show Pos{..} = "Pos " ++ show posLineStart ++ " " ++ show posLine ++ " " ++ show posCol
 
 data TokenType
     = TInteger Integer

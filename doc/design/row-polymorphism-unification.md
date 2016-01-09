@@ -52,12 +52,11 @@ Unification failure.  There exists many pairs of row sets such that `...p /= ...
 
 ### Algorithm
 
-1. Unify fields whose names coincide.
-2. If the right-side record is free
-    * Copy fields from the left side to the right side.
-    * Rewrite the left-side type to be a `TBound` to the right-side type
-    * Important question: Is it necessary for free row variables to support `TBound`?
-3. If the left-side record is free
-    * As in step 2, with the types reversed
-4. If the left or right-side records are quantified
-    * Fail unification unless both records' row variables are quantified with the same `QVar`
+First, unify intersecting fields, then:
+
+C u C --> Fields must exactly coincide
+C u F --> Fail if rhs has new properties.  rewrite rhs to be `TBound` to lhs
+C u Q --> Fail.
+F u F --> Copy lhs properties to rhs.  Rewrite lhs to be `TBound` to rhs
+F u Q --> Fail if lhs has new properties.  Rewrite lhs to be `TBound` to rhs
+Q u Q --> Fail unless `QVars` are equal

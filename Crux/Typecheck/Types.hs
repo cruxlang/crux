@@ -64,7 +64,8 @@ showTypeVarIO tvar = do
             return $ "(TUnbound " ++ show i ++ ")"
         TBound x -> do
             inner <- showTypeVarIO x
-            return $ "(TBound " ++ show inner ++ ")"
+            -- return inner
+            return $ "(TBound " ++ inner ++ ")"
         TQuant i -> do
             return $ "TQuant " ++ show i
         TFun arg ret -> do

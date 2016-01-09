@@ -153,6 +153,11 @@ lookupTypeRow name rows = case rows of
 
 unifyRecord :: TypeVar -> TypeVar -> IO ()
 unifyRecord av bv = do
+    -- do
+    --     putStrLn " -- unifyRecord --"
+    --     putStr "\t" >> showTypeVarIO av >>= putStrLn
+    --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
+
     TRecord (RecordType aOpen aRows) <- readIORef av
     TRecord (RecordType bOpen bRows) <- readIORef bv
     let aFields = sort $ map trName aRows
@@ -183,13 +188,13 @@ unifyRecord av bv = do
                 unificationError "Closed row types must match exactly" av bv
         (RecordClose, RecordFree {})
             | null bOnlyRows -> do
-                writeIORef av (TRecord $ RecordType RecordClose coincidentRows')
+                writeIORef av (TRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows))
                 writeIORef bv (TBound av)
             | otherwise ->
                 unificationError (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
         (RecordFree {}, RecordClose)
             | null aOnlyRows -> do
-                writeIORef bv (TRecord $ RecordType RecordClose coincidentRows')
+                writeIORef bv (TRecord $ RecordType RecordClose (coincidentRows' ++ bOnlyRows))
                 writeIORef av (TBound bv)
             | otherwise ->
                 unificationError (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
@@ -202,13 +207,13 @@ unifyRecord av bv = do
             writeIORef av (TBound bv)
         (RecordFree {}, RecordQuantified {})
             | null aOnlyRows -> do
-                writeIORef bv (TRecord $ RecordType bOpen coincidentRows')
+                writeIORef bv (TRecord $ RecordType bOpen (coincidentRows' ++ bOnlyRows))
                 writeIORef av (TBound bv)
             | otherwise ->
                 error "lhs record has rows not in quantified record"
         (RecordQuantified {}, RecordFree {})
             | null bOnlyRows -> do
-                writeIORef av (TRecord $ RecordType aOpen coincidentRows')
+                writeIORef av (TRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows))
                 writeIORef bv (TBound av)
             | otherwise ->
                 error "rhs record has rows not in quantified record"
@@ -222,6 +227,12 @@ unifyRecord av bv = do
             | otherwise -> do
                 writeIORef av (TRecord $ RecordType aOpen coincidentRows')
                 writeIORef av (TBound bv)
+
+    -- do
+    --     putStrLn "\t -- after --"
+    --     putStr "\t" >> showTypeVarIO av >>= putStrLn
+    --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
+    --     putStrLn ""
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of

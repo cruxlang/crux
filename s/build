@@ -17,5 +17,6 @@ done
 cat jsbits/wrap.outro.js >> dist/crux.js
 
 cp dist/crux.js stage/
+mkdir -p npm/cruxlang/src/
 cp dist/crux.js npm/cruxlang/src/
 sass stage/style.scss > stage/style.css

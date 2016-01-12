@@ -1,6 +1,6 @@
-
 module Crux.Main (main) where
 
+import qualified Crux.Error as Error
 import qualified Crux.JSBackend     as JS
 import qualified Crux.Gen            as Gen
 import           Crux.Module         (loadProgramFromFile)
@@ -45,13 +45,16 @@ main = do
         [] -> help
         (_:_:_) -> help
         [fn] -> do
-            program <- loadProgramFromFile fn `catch` throwTypeError
-            --let outfile = F.replaceExtension fn "js"
-            if ast options then
-                putStrLn $ ppShow program
-            else do
-                program'' <- Gen.generateProgram program
-                putStr $ Text.unpack $ JS.generateJS program''
-            -- putStrLn $ ppShow (concatMap generateDecl typetree')
-             --T.writeFile outfile $ JSTree.renderDocument doc
-            exitWith ExitSuccess
+            loadProgramFromFile fn `catch` throwTypeError >>= \case
+                Left (_, err) -> do
+                    putStrLn $ Error.renderError err
+                    exitWith $ ExitFailure 1
+                Right program -> do
+                    if ast options then
+                        putStrLn $ ppShow program
+                    else do
+                        program'' <- Gen.generateProgram program
+                        putStr $ Text.unpack $ JS.generateJS program''
+                    -- putStrLn $ ppShow (concatMap generateDecl typetree')
+                     --T.writeFile outfile $ JSTree.renderDocument doc
+                    exitWith ExitSuccess

@@ -3,14 +3,15 @@
 
 module JSBackendTest (htf_thisModulesTests) where
 
+import qualified Crux.Error as Error
 import qualified Crux.JSBackend as JS
-import qualified Crux.Gen        as Gen
-import qualified Crux.JSTree     as JSTree
+import qualified Crux.Gen as Gen
+import qualified Crux.JSTree as JSTree
 import qualified Crux.Module
 import           Data.Text       (Text)
 import           Test.Framework
 
-genDoc' :: Text -> IO (Either String Text)
+genDoc' :: Text -> IO (Either Error.Error Text)
 genDoc' src = do
     mod' <- Crux.Module.loadModuleFromSource "Main" "<string>" src
     case mod' of
@@ -24,7 +25,7 @@ genDoc :: Text -> IO Text
 genDoc src = do
     rv <- genDoc' src
     case rv of
-        Left err -> error err
+        Left err -> error $ Error.renderError err
         Right stmts -> return stmts
 
 test_direct_prints = do

@@ -2,8 +2,11 @@
 
 module Crux.Module where
 
-import           Control.Exception     (ErrorCall (..))
+import Control.Exception (try)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Either (EitherT(..), left)
 import qualified Crux.AST              as AST
+import qualified Crux.Error            as Error
 import qualified Crux.Lex              as Lex
 import qualified Crux.MutableHashTable as HashTable
 import qualified Crux.Parse            as Parse
@@ -20,7 +23,7 @@ import           System.Directory      (doesFileExist, getCurrentDirectory)
 import           System.Environment    (getExecutablePath)
 import qualified System.FilePath       as FP
 
-type ModuleLoader = AST.ModuleName -> IO (Either String AST.ParsedModule)
+type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
@@ -73,39 +76,32 @@ defaultModuleLoader name = do
         preludeSource <- loadPreludeSource
         parseModuleFromSource "Prelude" "<Prelude>" preludeSource
     else
-        return $ Left $ "unknown module: " <> (Text.unpack $ AST.printModuleName name)
+        return $ Left $ Error.UnknownModule name
 
-loadPrelude :: IO AST.LoadedModule
-loadPrelude = do
-    loadPreludeSource >>= loadPreludeFromSource
+loadPrelude :: IO (Either Error.Error AST.LoadedModule)
+loadPrelude = loadPreludeSource >>= loadPreludeFromSource
 
-loadPreludeFromSource :: Text -> IO AST.LoadedModule
-loadPreludeFromSource preludeSource =
-    loadModuleFromSource' id [] "Prelude" "Prelude" preludeSource >>= \case
-        Left err -> do
-            throwIO $ ErrorCall $ "Failed to load Prelude: " ++ show err
-        Right m -> return m
+loadPreludeFromSource :: Text -> IO (Either Error.Error AST.LoadedModule)
+loadPreludeFromSource = loadModuleFromSource' id [] "Prelude" "Prelude"
 
-parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either String AST.ParsedModule)
+parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource moduleName filename source = do
-    let l = Lex.lexSource filename source
-    case l of
+    case Lex.lexSource filename source of
         Left err ->
-            return $ Left $ "Lex error: " <> show err
-        Right l' -> do
-            p <- Parse.parse moduleName filename l'
-            case p of
+            return $ Left $ Error.LexError err
+        Right tokens -> do
+            case Parse.parse moduleName filename tokens of
                 Left err ->
-                    return $ Left $ "Parse error: " <> show err
+                    return $ Left $ Error.ParseError err
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: AST.ModuleName -> FilePath -> IO (Either String AST.ParsedModule)
+parseModuleFromFile :: AST.ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromFile moduleName filename = do
     source <- BS.readFile filename
     parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
 
-loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> AST.ModuleName -> FilePath -> Text -> IO (Either String AST.LoadedModule)
+loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource' adjust loadedModules moduleName filename source = do
     parseModuleFromSource moduleName filename source >>= \case
         Left err ->
@@ -113,11 +109,11 @@ loadModuleFromSource' adjust loadedModules moduleName filename source = do
         Right mod' -> do
             fmap Right $ Typecheck.run loadedModules $ adjust mod'
 
-loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either String AST.LoadedModule)
-loadModuleFromSource moduleName filename source = do
-    prelude <- loadPrelude
+loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
+loadModuleFromSource moduleName filename source = runEitherT $ do
+    prelude <- EitherT $ loadPrelude
     let lm = [("Prelude", prelude)]
-    loadModuleFromSource' addPrelude lm moduleName filename source
+    EitherT $ loadModuleFromSource' addPrelude lm moduleName filename source
 
 importsOf :: AST.Module a b -> [AST.ModuleName]
 importsOf m =
@@ -126,40 +122,45 @@ importsOf m =
 addPrelude :: AST.Module a b -> AST.Module a b
 addPrelude m = m { AST.mImports = AST.UnqualifiedImport "Prelude" : AST.mImports m }
 
+type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
+
 loadModule ::
        ModuleLoader
     -> IORef (HashMap AST.ModuleName AST.LoadedModule)
     -> AST.ModuleName
     -> Bool
-    -> IO AST.LoadedModule
-loadModule loader loadedModules moduleName shouldAddPrelude = do
-    HashTable.lookup moduleName loadedModules >>= \case
+    -> IO (ProgramLoadResult AST.LoadedModule)
+loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
+    lift (HashTable.lookup moduleName loadedModules) >>= \case
         Just m ->
             return m
         Nothing -> do
-            parsedModuleResult <- loader moduleName
+            parsedModuleResult <- lift $ loader moduleName
             parsedModule <- case parsedModuleResult of
-                Left err -> fail $ "Error loading module: " <> err
+                Left err -> left (moduleName, err)
                 Right m
                     | shouldAddPrelude -> return $ addPrelude m
                     | otherwise -> return m
 
-            forM_ (importsOf parsedModule) $ \referencedModule ->
-                loadModule loader loadedModules referencedModule shouldAddPrelude
+            forM_ (importsOf parsedModule) $ \referencedModule -> do
+                EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
 
-            lm <- readIORef loadedModules
-            loadedModule <- Typecheck.run lm parsedModule
-            HashTable.insert moduleName loadedModule loadedModules
-            return loadedModule
+            lm <- lift $ readIORef loadedModules
+            (lift $ try $ Typecheck.run lm parsedModule) >>= \case
+                Left unificationError -> do
+                    left (moduleName, Error.UnificationError unificationError)
+                Right loadedModule -> do
+                    lift $ HashTable.insert moduleName loadedModule loadedModules
+                    return loadedModule
 
-loadProgram :: ModuleLoader -> AST.ModuleName -> IO AST.Program
-loadProgram loader main = do
-    loadedModules <- newIORef []
+loadProgram :: ModuleLoader -> AST.ModuleName -> IO (ProgramLoadResult AST.Program)
+loadProgram loader main = runEitherT $ do
+    loadedModules <- lift $ newIORef []
 
-    _ <- loadModule loader loadedModules "Prelude" False
-    mainModule <- loadModule loader loadedModules main True
+    _ <- EitherT $ loadModule loader loadedModules "Prelude" False
+    mainModule <- EitherT $ loadModule loader loadedModules main True
 
-    otherModules <- readIORef loadedModules
+    otherModules <- lift $ readIORef loadedModules
     return AST.Program
         { AST.pMainModule = mainModule
         , AST.pOtherModules = otherModules
@@ -188,9 +189,9 @@ newMemoryLoader sources moduleName = do
             ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
             source
         Nothing ->
-            return $ Left $ "Unknown module: " ++ show moduleName
+            return $ Left $ Error.UnknownModule moduleName
 
-loadProgramFromFile :: FilePath -> IO AST.Program
+loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, basename) = FP.splitFileName path
@@ -201,7 +202,7 @@ loadProgramFromFile path = do
 
     loadProgram loader "Main"
 
-loadProgramFromSource :: Text -> IO AST.Program
+loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
     preludeSource <- loadPreludeSource
     let loader = newMemoryLoader $ HashMap.fromList
@@ -210,7 +211,7 @@ loadProgramFromSource mainModuleSource = do
             ]
     loadProgram loader "Main"
 
-loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO AST.Program
+loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
     prelude <- loadPreludeSource
     let loader = newMemoryLoader (HashMap.insert "Prelude" prelude sources)

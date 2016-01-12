@@ -5,28 +5,30 @@ module ParseTest (htf_thisModulesTests) where
 
 import           Crux.Parse
 import           Crux.AST
-import           Crux.Lex
+import qualified Crux.Lex as Lex
 import qualified Data.Text as T
 import           Test.Framework
+import qualified Text.Parsec as P
 import Data.HashMap.Strict (fromList)
 
 discardData expr = fmap (const ()) expr
 
+runParse :: Parser a -> T.Text -> IO (Either P.ParseError a)
 runParse parser source =
-    case Crux.Lex.lexSource "<>" source of
+    case Lex.lexSource "<>" source of
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens ->
-            runParser parser "hs.ParseTest" "<>" tokens
+            return $ runParser parser "hs.ParseTest" "<>" tokens
 
 
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
 assertParseOk parser source expected f = do
-    case Crux.Lex.lexSource "<>" source of
+    case Lex.lexSource "<>" source of
         Left err ->
             assertFailure $ "Lexer error: " ++ show err
         Right tokens -> do
-            res <- runParser parser "hs.ParseTest" "<>" tokens
+            let res = runParser parser "hs.ParseTest" "<>" tokens
             case res of
                 Right result -> assertEqualVerbose (T.unpack source) expected (f result)
                 Left err -> assertFailure ("Parse failed: " ++ show err)

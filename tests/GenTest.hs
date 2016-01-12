@@ -10,8 +10,9 @@ import Test.Framework
 import qualified Crux.AST as AST
 import qualified Crux.Module
 import qualified Crux.Gen as Gen
+import qualified Crux.Error as Error
 
-genDoc' :: Text -> IO (Either String Gen.Module)
+genDoc' :: Text -> IO (Either Error.Error Gen.Module)
 genDoc' src = do
     mod' <- Crux.Module.loadModuleFromSource "Main" "<string>" src
     case mod' of
@@ -24,7 +25,7 @@ genDoc :: Text -> IO Gen.Module
 genDoc src = do
     rv <- genDoc' src
     case rv of
-        Left err -> error err
+        Left err -> error $ Error.renderError err
         Right stmts -> return stmts
 
 test_return_at_top_level_is_error = do

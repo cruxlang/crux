@@ -10,6 +10,7 @@ cabal-version:       >=1.10
 
 library
     exposed-modules: Crux.AST
+                   , Crux.Error
                    , Crux.Gen
                    , Crux.Intrinsic
                    , Crux.JSBackend
@@ -33,6 +34,7 @@ library
                  , text
                  , bytestring
                  , containers
+                 , either
                  , mtl
                  , aeson
                  , directory

@@ -8,7 +8,7 @@ module Crux.Parse where
 
 import           Control.Applicative ((<|>))
 import           Crux.AST            as AST
-import Control.Monad.Trans.Reader (ReaderT, runReaderT)
+import Control.Monad.Trans.Reader (Reader, runReader)
 import Control.Monad.Reader.Class (MonadReader, ask, local)
 import qualified Crux.JSTree         as JSTree
 import           Crux.Prelude
@@ -17,7 +17,7 @@ import           Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
 
-type Parser = P.ParsecT [Token Pos] () (ReaderT (ModuleName, IndentReq) IO)
+type Parser = P.ParsecT [Token Pos] () (Reader (ModuleName, IndentReq))
 type ParseData = Pos
 type ParseExpression = Expression UnresolvedReference ParseData
 type ParseDeclaration = DeclarationType UnresolvedReference ParseData
@@ -648,10 +648,10 @@ parseModule = do
         , mDecls = doc
         }
 
-runParser :: Parser a -> ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError a)
+runParser :: Parser a -> ModuleName -> P.SourceName -> [Token Pos] -> Either P.ParseError a
 runParser parser moduleName sourceName tokens = do
-    (flip runReaderT) (moduleName, IRLeftMost) $ do
-        P.runParserT parser () sourceName tokens
+    let parseResult = P.runParserT parser () sourceName tokens
+    runReader parseResult (moduleName, IRLeftMost)
 
-parse :: ModuleName -> P.SourceName -> [Token Pos] -> IO (Either P.ParseError ParsedModule)
+parse :: ModuleName -> P.SourceName -> [Token Pos] -> Either P.ParseError ParsedModule
 parse = runParser parseModule

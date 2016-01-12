@@ -5,9 +5,9 @@
 
 module IntegrationTest where
 
-import           Control.Exception    (try)
 import qualified Crux.AST             as AST
 import qualified Crux.JSBackend      as JS
+import qualified Crux.Error as Error
 import qualified Crux.Gen             as Gen
 import qualified Crux.Module
 import           Crux.Tokens          (Pos (..))
@@ -39,15 +39,17 @@ runProgram' p = do
                     T.putStrLn js
                     fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
 
-run :: Text -> IO (Either (UnificationError Pos) Text)
-run src = try $ do
-    m <- Crux.Module.loadProgramFromSource src
-    runProgram' m
+run :: Text -> IO (Either Error.Error Text)
+run src = do
+    Crux.Module.loadProgramFromSource src >>= \case
+        Left (_, e) -> return $ Left e
+        Right m -> fmap Right $ runProgram' m
 
-runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either (UnificationError Pos) Text)
-runMultiModule sources = try $ do
-    m <- Crux.Module.loadProgramFromSources sources
-    runProgram' m
+runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either Error.Error Text)
+runMultiModule sources = do
+    Crux.Module.loadProgramFromSources sources >>= \case
+        Left (_, e) -> return $ Left e
+        Right m -> fmap Right $ runProgram' m
 
 assertCompiles src = do
     result <- run $ T.unlines src
@@ -61,8 +63,8 @@ assertOutput src outp = do
         Right a -> assertEqual outp a
         Left err -> assertFailure $ "Compile failure: " ++ show err
 
-assertUnificationError :: Pos -> String -> String -> Either (UnificationError Pos) a -> IO ()
-assertUnificationError pos a b (Left (UnificationError actualPos _ at bt)) = do
+assertUnificationError :: Pos -> String -> String -> Either Error.Error a -> IO ()
+assertUnificationError pos a b (Left (Error.UnificationError (UnificationError actualPos _ at bt))) = do
     assertEqual pos actualPos
 
     as <- showTypeVarIO at
@@ -125,7 +127,7 @@ test_arithmetic = do
 
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x) }" ]
-    assertEqual result $ Left $ UnboundSymbol (Pos 1 1 21) "foo"
+    assertEqual result $ Left $ Error.UnificationError $ UnboundSymbol (Pos 1 1 21) "foo"
 
 test_recursive = do
     result <- run $ T.unlines
@@ -165,7 +167,7 @@ test_occurs_on_fun = do
         [ "fun bad() { bad }"
         ]
 
-    assertEqual (Left $ OccursCheckFailed (Pos 1 1 1)) result
+    assertEqual (Left $ Error.UnificationError $ OccursCheckFailed (Pos 1 1 1)) result
 
 test_occurs_on_sum = do
     result <- run $ T.unlines
@@ -173,14 +175,14 @@ test_occurs_on_sum = do
         , "fun bad(a) { Cons(a, a) }"
         ]
 
-    assertEqual (Left $ OccursCheckFailed (Pos 1 2 14)) result
+    assertEqual (Left $ Error.UnificationError $ OccursCheckFailed (Pos 1 2 14)) result
 
 test_occurs_on_record = do
     result <- run $ T.unlines
         [ "fun bad(p) { { field: bad(p) } }"
         ]
 
-    assertEqual (Left $ OccursCheckFailed (Pos 1 1 1)) result
+    assertEqual (Left $ Error.UnificationError $ OccursCheckFailed (Pos 1 1 1)) result
 
 test_row_polymorphic_records = do
     result <- run $ T.unlines
@@ -210,7 +212,7 @@ test_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js"
         ]
-    assertEqual (Left $ IntrinsicError (Pos 1 1 11) "Intrinsic _unsafe_js is not a value") result
+    assertEqual (Left $ Error.UnificationError $ IntrinsicError (Pos 1 1 11) "Intrinsic _unsafe_js is not a value") result
 
 test_unsafe_coerce = do
     result <- run $ T.unlines
@@ -364,7 +366,7 @@ test_cannot_assign_to_immutable_binding = do
         ]
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
-    assertEqual (Left $ NotAnLVar (Pos 5 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
+    assertEqual (Left $ Error.UnificationError $ NotAnLVar (Pos 5 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
 
 test_assign_to_mutable_record_field = do
     result <- run $ T.unlines
@@ -390,7 +392,7 @@ test_cannot_assign_to_immutable_record_field = do
 
     assertEqual
         -- (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
-        (Left $ NotAnLVar (Pos 5 3 5) "ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
+        (Left $ Error.UnificationError $ NotAnLVar (Pos 5 3 5) "ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
         result
 
 test_mutable_record_field_requirement_is_inferred = do
@@ -408,7 +410,7 @@ test_mutable_record_field_requirement_is_inferred = do
         ]
 
     assertEqual
-        (Left $ RecordMutabilityUnificationError (Pos 5 8 5) "x" "Record field mutability does not match")
+        (Left $ Error.UnificationError $ RecordMutabilityUnificationError (Pos 5 8 5) "x" "Record field mutability does not match")
         result
 
 test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
@@ -728,7 +730,7 @@ test_exported_sum_cannot_depend_on_non_exported_type = do
         ]
     err <- assertLeft result
     case err of
-        ExportError _pos message ->
+        Error.UnificationError (ExportError _pos message) ->
             assertEqual "Variant \"B\" of exported data type \"B\" depends on nonexported data type \"A\" (defined at 1,1)" message
         _ ->
             assertFailure $ "Expected ExportError but got " ++ show err

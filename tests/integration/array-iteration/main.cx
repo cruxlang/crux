@@ -1,0 +1,1 @@
+let _ = each([0, 1], print)

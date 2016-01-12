@@ -1,0 +1,5 @@
+let _ = if False {
+    print("nay")
+} else if True {
+    print("yay")
+}

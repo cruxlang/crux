@@ -1,0 +1,11 @@
+fun manhattan(p) { p.x + p.y }
+
+let zero = { x: 0, y: 0 }
+let myhouse = {x: 33, y: 44, z:8}
+
+fun main() {
+    print(manhattan(zero))
+    print(manhattan(myhouse))
+}
+
+let _ = main()

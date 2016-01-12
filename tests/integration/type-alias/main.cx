@@ -1,0 +1,5 @@
+type Hoot = Number
+type Boast = Number
+let a: Hoot = 55
+let b: Boast = 4
+let _ = print(a + b)

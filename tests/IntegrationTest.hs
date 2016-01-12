@@ -102,92 +102,9 @@ test_integration_tests = do
         when ("main.cx" `elem` filenames) $ do
             runIntegrationTest d
 
-test_hello_world = do
-    result <- run $ T.unlines
-        [ "let _ = print(\"Hello, World!\")"
-        ]
-    assertEqual (Right "Hello, World!\n") result
-
-test_integer = do
-    result <- run $ T.unlines
-        [ "let x = 1"
-        , "let y = x"
-        , "let _ = print(toString(y))"
-        ]
-    assertEqual (Right "1\n") result
-
-test_data_types = do
-    result <- run $ T.unlines
-        [ "data IntList {"
-        , "    Element(Number, IntList),"
-        , "    Nil,"
-        , "}"
-        , "let mylist = Element(1, Element(2, Nil))"
-        , "let _ = print(mylist)"
-        ]
-
-    assertEqual (Right "[ 'Element', 1, [ 'Element', 2, [ 'Nil' ] ] ]\n") result
-
-test_pattern_matches_can_be_expressions_that_yield_values = do
-    result <- run $ T.unlines
-        [ "data IntList {"
-        , "    Element(Number, IntList),"
-        , "    Nil,"
-        , "}"
-        , ""
-        , "let list = Element(1, Element(2, Nil))"
-        , "let len = match list {"
-        , "    Element(num, Nil) => 1;"
-        , "    Element(numOne, Element(numTwo, Nil)) => 2;"
-        , "    Nil => 0;"
-        , "}"
-        , "let _ = print(len)"
-        ]
-    assertEqual (Right "2\n") result
-
-test_arithmetic = do
-    result <- run $ T.unlines
-        [ "let hypot_squared = fun (x, y) { x * x + y * y }"
-        , "let _ = print(hypot_squared(4, 3))"
-        ]
-    assertEqual (Right "25\n") result
-
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x) }" ]
     assertEqual result $ Left $ Error.UnificationError $ UnboundSymbol (Pos 1 1 21) "foo"
-
-test_recursive = do
-    result <- run $ T.unlines
-        [ "data IntList { Cons(Number, IntList), Nil }"
-        , "fun len(l) {"
-        , "    match l {"
-        , "        Nil => 0;"
-        , "        Cons(num, tail) => 1 + len(tail);"
-        , "    }"
-        , "}"
-        , "let _ = print(len(Cons(5, Nil)))"
-        ]
-    assertEqual (Right "1\n") result
-
-test_recursive_data = do
-    result <- run $ T.unlines
-        [ "data List a {"
-        , "    Cons(a, List a),"
-        , "    Nil"
-        , "}"
-        , ""
-        , "let s = Cons(5, Cons(6, Cons(7, Nil)))"
-        , ""
-        , "fun len(list) {"
-        , "    match list {"
-        , "        Nil => 0;"
-        , "        Cons(x, tail) => 1 + len(tail);"
-        , "    }"
-        , "}"
-        , ""
-        , "let _ = print(len(s))"
-        ]
-    assertEqual (Right "3\n") result
 
 test_occurs_on_fun = do
     result <- run $ T.unlines
@@ -211,44 +128,11 @@ test_occurs_on_record = do
 
     assertEqual (Left $ Error.UnificationError $ OccursCheckFailed (Pos 1 1 1)) result
 
-test_row_polymorphic_records = do
-    result <- run $ T.unlines
-        [ "fun manhattan(p) { p.x + p.y }"
-        , ""
-        , "let zero = { x: 0, y: 0 }"
-        , "let myhouse = {x: 33, y: 44, z:8}"
-        , ""
-        , "fun main() {"
-        , "    print(manhattan(zero))"
-        , "    print(manhattan(myhouse))"
-        , "}"
-        , ""
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "0\n77\n") result
-
-test_unsafe_js_intrinsic = do
-    result <- run $ T.unlines
-        [ "let c = _unsafe_js(\"console\")"
-        , "let _ = c.log(\"hoop\")"
-        ]
-    assertEqual (Right "hoop\n") result
-
 test_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js"
         ]
     assertEqual (Left $ Error.UnificationError $ IntrinsicError (Pos 1 1 11) "Intrinsic _unsafe_js is not a value") result
-
-test_unsafe_coerce = do
-    result <- run $ T.unlines
-        [ "let message = \"ohai\""
-        , "let coerced = _unsafe_coerce(message)"
-        , "let _ = print(5 + coerced)"
-        ]
-
-    assertEqual (Right "5ohai\n") result
 
 test_annotation_is_checked = do
     result <- run $ T.unlines
@@ -257,28 +141,11 @@ test_annotation_is_checked = do
 
     assertUnificationError (Pos 1 1 1) "Number" "String" result
 
-test_record_annotation_is_checked = do
-    result <- run $ T.unlines
-        [ "let c: {log: (String) -> ()} = _unsafe_js(\"console\")"
-        , "fun main() {"
-        , "    c.log(\"Hoop\")"
-        , "}"
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "Hoop\n") result
-
 test_arrays_of_different_types_cannot_unify = do
     result <- run $ T.unlines
         [ "let _ = [[0], [\"\"]]"
         ]
     assertUnificationError (Pos 1 1 9) "Number" "String" result
-
-test_array_iteration = do
-    result <- run $ T.unlines
-        [ "let _ = each([0, 1], print)"
-        ]
-    assertEqual (Right "0\n1\n") result
 
 test_record_annotation_is_checked2 = do
     result <- run $ T.unlines
@@ -291,59 +158,6 @@ test_record_annotation_is_checked2 = do
 
     assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 15),..._16}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
-
-test_type_alias = do
-    result <- run $ T.unlines
-        [ "type Hoot = Number"
-        , "type Boast = Number"
-        , "let a: Hoot = 55"
-        , "let b: Boast = 4"
-        , "let _ = print(a + b)"
-        ]
-    assertEqual (Right "59\n") result
-
-test_parameterized_type_alias = do
-    result <- run $ T.unlines
-        [ "data List a { Nil, Cons(a, List a) }"
-        , "type Bogo a = List a"
-        , "let hoop: Bogo Number = Cons(5, Nil)"
-        ]
-    assertEqual (Right "") result
-
-test_if_then_else = do
-    result <- run $ T.unlines
-        [ "let _ = if False then print(\"This should not run\")"
-        , "        else print(\"Falso!\")"
-        ]
-
-    assertEqual (Right "Falso!\n") result
-
-test_if_then_else_2 = do
-    result <- run $ T.unlines
-        [ "let _ = if False then if True then print(\"One\")"
-        , "        else print(\"Two\")"
-        , "        else print(\"Three\")"
-        ]
-
-    assertEqual (Right "Three\n") result
-
-test_if_block = do
-    result <- run $ T.unlines
-        [ "let _ = if True { print(\"yay\") }"
-        , "let _ = if False { print(\"nay\") }"
-        ]
-    assertEqual (Right "yay\n") result
-
-test_if_else_if_block = do
-    result <- run $ T.unlines
-        [ "let _ = if False { print(\"nay\") } else if True { print(\"yay\") }"
-        ]
-    assertEqual (Right "yay\n") result
-
-{-
-test_if_block_else_block = do
-    return ()
--}
 
 test_comments = do
     result <- run $ T.unlines

@@ -1,0 +1,2 @@
+let _ = if True { print("yay") }
+let _ = if False { print("nay") }

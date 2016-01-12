@@ -1,6 +1,5 @@
 (function() {
   function compileCrux(source) {
-    debugger;
     return window.compileCrux(source);
   }
 

@@ -1,0 +1,6 @@
+fun main() {
+    let mutable x = 2
+    x = x + 1
+    print(x)
+}
+let _ = main()

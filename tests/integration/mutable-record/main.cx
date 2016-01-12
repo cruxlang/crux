@@ -1,0 +1,6 @@
+fun main() {
+    let a: {x: Number} = {x: 44}
+    a.x = 22
+    print(a)
+}
+let _ = main()

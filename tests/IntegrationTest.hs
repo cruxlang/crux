@@ -159,43 +159,6 @@ test_record_annotation_is_checked2 = do
     assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 15),..._16}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
-test_comments = do
-    result <- run $ T.unlines
-        [ "// A list is either Nil, the empty case, or"
-        , "// it is Cons an element and another list."
-        , "data List a { Nil, Cons(a, List a), }"
-        , ""
-        , "/* TODO: Decide on an optimal name for this type alias"
-        , " type Bogo = List */"
-        , "type Bogo a = List a"
-        , ""
-        , "let hoop: Bogo Number = Cons(5, Nil)"
-        ]
-    assertEqual (Right "") result
-
-test_comments2 = do
-    result <- run $ T.unlines
-        [ "/* this is a test */"
-        , "let u = 8"
-        ]
-    assertEqual (Right "") result
-
-test_nested_comments = do
-    result <- run $ "/* /* foo */ */"
-    assertEqual (Right "") result
-
-test_let_mutable = do
-    result <- run $ T.unlines
-        [ "fun main() {"
-        , "    let mutable x = 2"
-        , "    x = x + 1"
-        , "    print(x)"
-        , "}"
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "3\n") result
-
 test_cannot_assign_to_immutable_binding = do
     result <- run $ T.unlines
         [ "fun main() {"
@@ -208,18 +171,6 @@ test_cannot_assign_to_immutable_binding = do
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
     assertEqual (Left $ Error.UnificationError $ NotAnLVar (Pos 5 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
-
-test_assign_to_mutable_record_field = do
-    result <- run $ T.unlines
-        [ "fun main() {"
-        , "    let a: {x: Number} = {x: 44}"
-        , "    a.x = 22"
-        , "    print(a)"
-        , "}"
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "{ x: 22 }\n") result
 
 test_cannot_assign_to_immutable_record_field = do
     result <- run $ T.unlines

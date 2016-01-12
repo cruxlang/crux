@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -e
-
-(cd stage && python -m SimpleHTTPServer 8080)

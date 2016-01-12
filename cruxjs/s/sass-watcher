@@ -1,5 +1,0 @@
-#!/bin/bash
-
-set -e
-
-sass --watch stage/style.scss:stage/style.css

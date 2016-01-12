@@ -1,7 +1,7 @@
 flags: {}
 packages:
 - '.'
-- '..'
+- '../crux'
 resolver: lts-3.12
 compiler: ghcjs-0.2.0.20151230_ghc-7.10.2
 compiler-check: match-exact

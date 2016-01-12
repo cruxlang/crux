@@ -1,41 +1,37 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, LambdaCase #-}
 
 module Main
     ( main
     ) where
 
-import Control.Exception (try)
 import Crux.Module (newMemoryLoader, loadProgram)
-import Crux.Typecheck.Types (errorToString)
 import Data.FileEmbed (embedFile)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
 import GHCJS.Foreign.Callback (Callback, syncCallback1')
-import Data.JSString.Text (textToJSString, textFromJSString)
-import GHCJS.Types (JSVal, JSString, jsval)
+import GHCJS.Types (JSVal, jsval)
 import qualified JavaScript.Object as Object
+import qualified Crux.AST as AST
+import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
 import qualified Data.HashMap.Strict as HashMap
 import GHCJS.Marshal.Pure (pFromJSVal, pToJSVal)
 
-compile :: Text -> IO Text
+compile :: Text -> IO (Either (AST.ModuleName, Error.Error) Text)
 compile source = do
-    let preludeSource = decodeUtf8 $(embedFile "../lib/Prelude.cx")
+    let preludeSource = decodeUtf8 $(embedFile "../crux/lib/Prelude.cx")
 
         loader = newMemoryLoader $ HashMap.fromList
             [ ("Prelude", preludeSource)
             , ("Main", source)
             ]
 
-    program <- loadProgram loader "Main"
-    program' <- Gen.generateProgram program
-    return $ JS.generateJS program'
-
-compileJS :: JSString -> IO JSString
-compileJS src =
-    textToJSString <$> compile (textFromJSString src)
+    loadProgram loader "Main" >>= \case
+        Left err -> return $ Left err
+        Right program -> do
+            program' <- Gen.generateProgram program
+            return $ Right $ JS.generateJS program'
 
 foreign import javascript unsafe "global[$1] = $2"
     js_exportFunction :: JSVal -> JSVal -> IO ()
@@ -51,11 +47,11 @@ main = do
     -- when we upgrade ghcjs.  we would use syncCallback1' in that case.
     exportCallback "compileCrux" $ syncCallback1' $ \source -> do
         resultObject <- Object.create
-        r <- try $ compileJS $ pFromJSVal source
+        r <- compile $ pFromJSVal source
         case r of
             Right code ->
                 Object.setProp "result" (pToJSVal code) resultObject
-            Left err -> do
-                s <- errorToString err
+            Left (_, err) -> do
+                let s = Error.renderError err
                 Object.setProp "error" (pToJSVal s) resultObject
         return $ jsval resultObject

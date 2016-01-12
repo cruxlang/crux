@@ -78,6 +78,8 @@ test-suite tests
                  , crux
                  , process
                  , filepath
+                 , directory
+                 , pathwalk
                  , temporary
                  , unordered-containers
                  , raw-strings-qq

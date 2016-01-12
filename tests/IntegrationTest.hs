@@ -5,6 +5,7 @@
 
 module IntegrationTest where
 
+import Control.Monad (when)
 import qualified Crux.AST             as AST
 import qualified Crux.JSBackend      as JS
 import qualified Crux.Error as Error
@@ -22,6 +23,9 @@ import           System.IO.Temp       (withSystemTempFile)
 import           System.Process       (readProcessWithExitCode)
 import           Test.Framework
 import           Text.RawString.QQ    (r)
+import qualified System.Directory.PathWalk as PathWalk
+import qualified System.FilePath as FilePath
+import System.Directory (doesDirectoryExist)
 
 runProgram' :: AST.Program -> IO Text
 runProgram' p = do
@@ -74,6 +78,29 @@ assertUnificationError pos a b (Left (Error.UnificationError (UnificationError a
 
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
+
+runIntegrationTest :: FilePath -> IO ()
+runIntegrationTest root = do
+    let mainPath = FilePath.combine root "main.cx"
+    let stdoutPath = FilePath.combine root "stdout.txt"
+    expected <- fmap T.pack $ readFile stdoutPath
+
+    Crux.Module.loadProgramFromFile mainPath >>= \case
+        Left err -> do
+            fail $ show err
+        Right program -> do
+            putStrLn $ "testing program " ++ mainPath
+            stdout <- runProgram' program
+            assertEqual expected stdout
+
+test_integration_tests = do
+    let integrationRoot = "tests/integration"
+    exists <- doesDirectoryExist integrationRoot
+    when (not exists) $ do
+        fail $ "Integration test directory " ++ integrationRoot ++ " does not exist!"
+    PathWalk.pathWalk integrationRoot $ \d _dirnames filenames -> do
+        when ("main.cx" `elem` filenames) $ do
+            runIntegrationTest d
 
 test_hello_world = do
     result <- run $ T.unlines

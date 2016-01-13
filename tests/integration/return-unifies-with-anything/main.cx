@@ -1,0 +1,7 @@
+fun a() {
+    let p =
+        if True
+            then return "hody"
+            else 22
+    toString(p)
+}

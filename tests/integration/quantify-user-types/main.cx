@@ -1,0 +1,12 @@
+data Option a {
+    None,
+    Some(a)
+}
+
+let isNull = _unsafe_js("function(o) { return null === o; }")
+
+fun toMaybeString(o) {
+    if isNull(o)
+        then None
+        else Some(_unsafe_coerce(o))
+}

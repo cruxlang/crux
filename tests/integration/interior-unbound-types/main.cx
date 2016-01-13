@@ -1,0 +1,4 @@
+let _unsafe_new = _unsafe_js("function (len) { return new Array(len); }")
+export fun replicate(element, len) {
+    let arr = _unsafe_new(len)
+}

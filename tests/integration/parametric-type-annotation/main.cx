@@ -1,0 +1,2 @@
+data Option a { None, Some(a) }
+let x: Option Number = Some(22)

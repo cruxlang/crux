@@ -1,0 +1,6 @@
+data jsffi Method {
+    Get = "GET",
+    Post = "POST",
+}
+let result: Method = Get
+let _ = print(result)

@@ -1,0 +1,3 @@
+let f: (Number) -> Number = fun (i) { i }
+let g: (a) -> b = fun (i) { _unsafe_coerce(i) }
+let _ = f(g("hello"))

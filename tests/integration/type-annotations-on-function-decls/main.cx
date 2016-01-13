@@ -1,0 +1,1 @@
+fun id_int(x: int): int { x }

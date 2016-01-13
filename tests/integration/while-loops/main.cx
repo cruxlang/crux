@@ -1,0 +1,23 @@
+fun fib(n) {
+    let mutable count = n
+    let mutable a = 0
+    let mutable b = 1
+
+    while count > 0 {
+        let t = a
+        a = b
+        b = b + t
+        count = count - 1
+    }
+    a
+}
+
+fun main() {
+    let mutable i = 1
+    while i < 10 {
+        print(fib(i))
+        i = i + 1
+    }
+}
+
+let _ = main()

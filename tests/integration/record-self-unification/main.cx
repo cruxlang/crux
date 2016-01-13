@@ -1,0 +1,5 @@
+let r = {}
+fun main(o) {
+    if False then o else r
+}
+let _ = main(r)

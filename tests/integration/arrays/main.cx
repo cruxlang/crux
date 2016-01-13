@@ -1,0 +1,7 @@
+fun main() {
+    let arr = replicate("toot", 4)
+    each(arr, fun(e) {
+        print(e)
+    })
+}
+let _ = main()

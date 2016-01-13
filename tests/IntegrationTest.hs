@@ -205,130 +205,6 @@ test_mutable_record_field_requirement_is_inferred = do
         (Left $ Error.UnificationError $ RecordMutabilityUnificationError (Pos 5 8 5) "x" "Record field mutability does not match")
         result
 
-test_inferred_record_field_accepts_either_mutable_or_immutable_fields = do
-    result <- run $ T.unlines
-        [ "fun manhattan(p) {"
-        , "    p.x + p.y"
-        , "}"
-        , ""
-        , "fun main() {"
-        , "    let a: {const x: Number, const y: Number} = {x:44, y:0}"
-        , "    print(manhattan(a))"
-        , ""
-        , "    let b: {mutable x: Number, mutable y: Number} = {x:0, y:0}"
-        , "    print(manhattan(b))"
-        , "}"
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "44\n0\n") result
-
-test_jsffi_data_type_names_and_values_can_be_used = do
-    result <- run $ T.unlines
-        [ "data jsffi Method {"
-        , "    Get=\"GET\","
-        , "    Post=\"POST\","
-        , "}"
-        , "let result: Method = Get"
-        , "let _ = print(result)"
-        ]
-
-    assertEqual (Right "GET\n") result
-
-test_record_self_unification = do
-    result <- run $ T.unlines
-        [ "let r = {}"
-        , "fun main(o) {"
-        , "    if False then o else r"
-        , "}"
-        , "let _ = main(r)"
-        ]
-
-    assertEqual (Right "") result
-
-test_return_unifies_with_anything = do
-    result <- run $ T.unlines
-        [ "fun a() {"
-        , "    let p ="
-        , "        if True"
-        , "            then return \"hody\""
-        , "            else 22"
-        , "    toString(p)"
-        , "}"
-        ]
-
-    assertEqual (Right "") result
-
-test_while_loops = do
-    result <- run $ T.unlines
-        [ "fun fib(n) {"
-        , "    let mutable count = n"
-        , "    let mutable a = 0"
-        , "    let mutable b = 1"
-        , ""
-        , "    while count > 0 {"
-        , "        let t = a"
-        , "        a = b"
-        , "        b = b + t"
-        , "        count = count - 1"
-        , "    }"
-        , "    a"
-        , "}"
-        , ""
-        , "fun main() {"
-        , "    let mutable i = 1"
-        , "    while i < 10 {"
-        , "        print(fib(i))"
-        , "        i = i + 1"
-        , "    }"
-        , "}"
-        , ""
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "1\n1\n2\n3\n5\n8\n13\n21\n34\n") result
-
-test_quantify_user_types_correctly =
-    assertCompiles
-        [ "data Option a {"
-        , "    None,"
-        , "    Some(a)"
-        , "}"
-        , ""
-        , "let isNull = _unsafe_js(\"function(o) { return null === o; }\")"
-        , ""
-        , "fun toMaybeString(o) {"
-        , "    if isNull(o)"
-        , "        then None"
-        , "        else Some(_unsafe_coerce(o))"
-        , "}"
-        ]
-
-test_interior_unbound_types_are_ok =
-    assertCompiles
-        [ "let _unsafe_new = _unsafe_js(\"function (len) { return new Array(len); }\")"
-        , "export fun replicate(element, len) {"
-        , "    let arr = _unsafe_new(len)"
-        , "}"
-        ]
-
-test_type_annotation_for_parametric_type =
-    assertCompiles
-        [ "data Option a { None, Some(a) }"
-        , "let x: Option Number = Some(22)"
-        ]
-
-test_polymorphic_type_annotations_are_universally_quantified =
-    assertCompiles
-        [ "data Option a { None, Some(a) }"
-        , ""
-        , "let none: () -> Option a = fun () { None }"
-        , ""
-        , "fun f() {"
-        , "    let n: Option Number = none()"
-        , "}"
-        ]
-
 test_polymorphic_type_annotations_are_universally_quantified2 = do
     rv <- run $ T.unlines
         [ "let f: (Number) -> Number = fun (i) { i }"
@@ -337,67 +213,17 @@ test_polymorphic_type_annotations_are_universally_quantified2 = do
         ]
     assertUnificationError (Pos 1 3 9) "Number" "String" rv
 
-test_polymorphic_type_annotations_are_universally_quantified3 =
-    assertCompiles
-        [ "let f: (Number) -> Number = fun (i) { i }"
-        , "let g: (a) -> b = fun (i) { _unsafe_coerce(i) }"
-        , "let _ = f(g(\"hello\"))"
-        ]
-
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
         [ "let f: (a) -> Number = fun (i) { i }"
         ]
     assertUnificationError (Pos 1 1 1) "Number" "TQuant 7" rv
 
-test_type_annotations_on_function_decls =
-    assertCompiles
-        [ "fun id_int(x: int): int { x }"
-        ]
-
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int(x: a): Number { x }"
         ]
     assertUnificationError (Pos 1 1 1) "Number" "TQuant 10" rv
-
-test_arrays =
-    assertOutput
-        [ "fun main() {"
-        , "    let arr = replicate(\"toot\", 4)"
-        , "    each(arr, fun(e) {"
-        , "        print(e)"
-        , "    })"
-        , "}"
-        , "let _ = main()"
-        ]
-        "toot\ntoot\ntoot\ntoot\n"
-
-test_concatenate_strings = do
-    assertOutput ["let _ = print(\"foo\" + \"bar\")"] "foobar\n"
-
-test_quantified_record = do
-    assertCompiles
-        [ "fun errorResponse(response, statusCode: Number) {"
-        , "    response.statusCode = statusCode"
-        , "}"
-        , "fun handleRequest(response) {"
-        , "    errorResponse(response, 405)"
-        , "    errorResponse(response, 404)"
-        , "}"
-        ]
-
-test_for_loop = do
-    result <- run $ T.unlines
-        [ "fun main() {"
-        , "  for x in [1, 2, 3] {"
-        , "    print(x)"
-        , "  }"
-        , "}"
-        , "let _ = main()"
-        ]
-
-    assertEqual (Right "1\n2\n3\n") result
 
 test_export_and_import = do
     main <- return $ T.unlines

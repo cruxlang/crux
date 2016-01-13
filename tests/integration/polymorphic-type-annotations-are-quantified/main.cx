@@ -1,0 +1,7 @@
+data Option a { None, Some(a) }
+
+let none: () -> Option a = fun () { None }
+
+fun f() {
+    let n: Option Number = none()
+}

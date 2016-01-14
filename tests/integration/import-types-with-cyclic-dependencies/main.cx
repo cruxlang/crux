@@ -1,0 +1,2 @@
+import { A(...) }
+let a = A(B(NA))

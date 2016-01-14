@@ -1,0 +1,2 @@
+export data A { A(B), NA }
+export data B { B(A), NB }

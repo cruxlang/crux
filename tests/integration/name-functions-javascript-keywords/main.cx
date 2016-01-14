@@ -1,0 +1,6 @@
+export fun catch() {
+  let enum = ()
+}
+let _ = catch()
+export let finally = catch
+let _ = finally()

@@ -1,0 +1,2 @@
+let _ = print("foo"->endsWith("oo"))
+let _ = print("bar"->endsWith("oo"))

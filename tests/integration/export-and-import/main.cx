@@ -1,0 +1,8 @@
+import {
+  MyModule(...)
+}
+fun main() {
+  print("outside")
+  fn()
+}
+let _ = main()

@@ -382,7 +382,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         (rr, tyref) <- do
             resolveReference env txt >>= \case
                 Just (a@(Local _), b) -> do
-                    -- Don't instantiate locals.
+                    -- Don't instantiate locals.  Let generalization is tricky.
                     return (a, b)
                 Just (a, b) -> do
                     b' <- instantiate env b

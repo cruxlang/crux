@@ -48,7 +48,7 @@ buildPatternEnv exprType env patt = case patt of
         return ()
 
     RPIrrefutable (PBinding pname) -> do
-        HashTable.insert pname (ThisModule pname, LImmutable, exprType) (eBindings env)
+        HashTable.insert pname (ThisModule pname, LImmutable, exprType) (eValueBindings env)
 
     RPConstructor cname cargs -> do
         ctor <- typeFromConstructor env cname
@@ -88,7 +88,7 @@ walkMutableTypeVar tyvar = do
 
 lookupBinding :: Name -> Env -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 lookupBinding name Env{..} = do
-    localBinding <- HashTable.lookup name eBindings
+    localBinding <- HashTable.lookup name eValueBindings
     case localBinding of
         Just _ ->
             return localBinding
@@ -145,7 +145,7 @@ resolveType _pos _env (KnownReference _moduleName _name) = do
 resolveGlobalName :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, TypeVar))
 resolveGlobalName env ref = case ref of
     UnknownReference name -> do
-        result <- HashTable.lookup name (eBindings env)
+        result <- HashTable.lookup name (eValueBindings env)
         return $ case result of
             Just (rr, _, t) ->
                 Just (rr, t)
@@ -581,7 +581,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         let expr = EFun pos' args returnAnn body
         in withPositionInformation expr $ do
             ty <- freshType env
-            HashTable.insert name (ThisModule name, LImmutable, ty) (eBindings env)
+            HashTable.insert name (ThisModule name, LImmutable, ty) (eValueBindings env)
             expr'@(EFun _ _ _ body') <- check env expr
             unify (edata expr') ty
             quantify ty
@@ -602,7 +602,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
                 PWildcard -> do
                     return ()
                 PBinding name -> do
-                    HashTable.insert name (ThisModule name, mut, ty) (eBindings env)
+                    HashTable.insert name (ThisModule name, mut, ty) (eValueBindings env)
             quantify ty
             return $ DLet (edata expr') mut pat maybeAnnot expr'
 

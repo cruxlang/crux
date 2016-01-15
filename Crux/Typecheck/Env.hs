@@ -32,7 +32,7 @@ data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
 newEnv :: HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
 newEnv eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
-    eBindings <- newIORef HashMap.empty
+    eValueBindings <- newIORef HashMap.empty
     eLocalBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
     eTypeAliases <- newIORef HashMap.empty
@@ -43,11 +43,11 @@ newEnv eLoadedModules eReturnType = do
 
 childEnv :: Env -> IO Env
 childEnv env@Env{..} = do
-    bindings'    <- HashTable.clone eBindings
+    bindings'    <- HashTable.clone eValueBindings
     localBindings' <- HashTable.clone eLocalBindings
     typeBindings <- HashTable.clone eTypeBindings
     return env
-        { eBindings      = bindings'
+        { eValueBindings      = bindings'
         , eLocalBindings = localBindings'
         , eTypeBindings  = typeBindings
         }
@@ -270,7 +270,7 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
                     return ()
 
         ctorType <- computeVariantType vparameters
-        HashTable.insert vname (mkName vname, LImmutable, ctorType) (eBindings env)
+        HashTable.insert vname (mkName vname, LImmutable, ctorType) (eValueBindings env)
 
 buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
 buildTypeEnvironment loadedModules modul = do
@@ -298,11 +298,11 @@ buildTypeEnvironment loadedModules modul = do
                 case pat of
                     PWildcard -> return ()
                     PBinding name -> do
-                        HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings env)
+                        HashTable.insert name (OtherModule importName name, LImmutable, tr') (eValueBindings env)
 
             DFun (FunDef tr name _params _retAnn _body) -> do
                 tr' <- unfreezeTypeVar tr
-                HashTable.insert name (OtherModule importName name, LImmutable, tr') (eBindings env)
+                HashTable.insert name (OtherModule importName name, LImmutable, tr') (eValueBindings env)
 
             _ -> return ()
 
@@ -363,18 +363,18 @@ addDataDeclsToEnvironment env modul decls mkName = do
 
     forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        HashTable.insert name (Builtin name, LImmutable, iType) (eBindings env)
+        HashTable.insert name (Builtin name, LImmutable, iType) (eValueBindings env)
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
     forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
         DDeclare name typeIdent -> do
             t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
-            HashTable.insert name (mkName name, LImmutable, t) (eBindings env)
+            HashTable.insert name (mkName name, LImmutable, t) (eValueBindings env)
         DData {} -> do
             return ()
         DJSData name _ variants -> do
             Just (_, userType) <- HashTable.lookup name (eTypeBindings env)
             forM_ variants $ \(JSVariant variantName _value) -> do
-                HashTable.insert variantName (mkName variantName, LImmutable, userType) (eBindings env)
+                HashTable.insert variantName (mkName variantName, LImmutable, userType) (eValueBindings env)
         _ -> return ()

@@ -33,7 +33,6 @@ newEnv :: HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
 newEnv eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eValueBindings <- newIORef HashMap.empty
-    eLocalBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
     eTypeAliases <- newIORef HashMap.empty
     return Env
@@ -43,13 +42,11 @@ newEnv eLoadedModules eReturnType = do
 
 childEnv :: Env -> IO Env
 childEnv env@Env{..} = do
-    bindings'    <- HashTable.clone eValueBindings
-    localBindings' <- HashTable.clone eLocalBindings
+    valueBindings' <- HashTable.clone eValueBindings
     typeBindings <- HashTable.clone eTypeBindings
     return env
-        { eValueBindings      = bindings'
-        , eLocalBindings = localBindings'
-        , eTypeBindings  = typeBindings
+        { eValueBindings = valueBindings'
+        , eTypeBindings = typeBindings
         }
 
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]

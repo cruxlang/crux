@@ -6,6 +6,7 @@
 module IntegrationTest where
 
 import Control.Monad (when)
+import Data.Monoid ((<>))
 import qualified Crux.AST             as AST
 import qualified Crux.JSBackend      as JS
 import qualified Crux.Error as Error
@@ -79,6 +80,12 @@ assertUnificationError pos a b (Left (Error.UnificationError (UnificationError a
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
 
+failWithError :: String -> AST.ModuleName -> Error.Error -> IO ()
+failWithError root moduleName err = do
+    let moduleName' = AST.printModuleName moduleName
+    let err' = Error.renderError err
+    assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
+
 runIntegrationTest :: FilePath -> IO ()
 runIntegrationTest root = do
     let mainPath = FilePath.combine root "main.cx"
@@ -86,8 +93,8 @@ runIntegrationTest root = do
     expected <- fmap T.pack $ readFile stdoutPath
 
     Crux.Module.loadProgramFromFile mainPath >>= \case
-        Left err -> do
-            fail $ show err
+        Left (moduleName, err) -> do
+            failWithError root moduleName err
         Right program -> do
             putStrLn $ "testing program " ++ mainPath
             stdout <- runProgram' program

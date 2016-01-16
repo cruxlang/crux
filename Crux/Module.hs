@@ -115,9 +115,12 @@ loadModuleFromSource moduleName filename source = runEitherT $ do
     let lm = [("Prelude", prelude)]
     EitherT $ loadModuleFromSource' addPrelude lm moduleName filename source
 
+getModuleName :: AST.Import -> AST.ModuleName
+getModuleName (AST.UnqualifiedImport mn) = mn
+getModuleName (AST.QualifiedImport mn _) = mn
+
 importsOf :: AST.Module a b -> [AST.ModuleName]
-importsOf m =
-    map (\(AST.UnqualifiedImport i) -> i) (AST.mImports m)
+importsOf m = map getModuleName $ AST.mImports m
 
 addPrelude :: AST.Module a b -> AST.Module a b
 addPrelude m = m { AST.mImports = AST.UnqualifiedImport "Prelude" : AST.mImports m }

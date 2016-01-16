@@ -626,11 +626,15 @@ declaration = do
 
 importDecl :: Parser Import
 importDecl = do
-    mname <- P.sepBy1 anyIdentifier (token TDot)
-    _ <- parenthesized $ token TEllipsis
-    let prefix = fmap ModuleSegment $ init mname
-    let name = ModuleSegment $ last mname
-    return $ UnqualifiedImport $ ModuleName prefix name
+    segments <- P.sepBy1 anyIdentifier (token TDot)
+    let prefix = fmap ModuleSegment $ init segments
+    let base = ModuleSegment $ last segments
+    let moduleName = ModuleName prefix base
+    (P.optionMaybe $ parenthesized $ token TEllipsis) >>= \case
+        Nothing -> do
+            return $ QualifiedImport moduleName $ unModuleSegment base
+        Just _ -> do
+            return $ UnqualifiedImport moduleName
 
 imports :: Parser [Import]
 imports = do

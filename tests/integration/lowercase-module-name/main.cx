@@ -1,0 +1,9 @@
+import {
+  mymodule
+}
+
+fun main() {
+  mymodule.thing()
+}
+
+let _ = main()

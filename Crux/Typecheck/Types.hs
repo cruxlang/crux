@@ -1,5 +1,6 @@
 module Crux.Typecheck.Types
-    ( Env(..)
+    ( ValueReference(..)
+    , Env(..)
     , UnificationError(..)
     , showTypeVarIO
     , formatPos
@@ -22,13 +23,19 @@ import           Text.Printf  (printf)
 -- TODO: newtype this somewhere and import it
 type Name = Text
 
+type HashTable k v = IORef (HashMap k v)
+
+data ValueReference
+    = ValueReference ResolvedReference LetMutability TypeVar
+    | ModuleReference ModuleName
+
 data Env = Env
-    { eLoadedModules :: !(HashMap ModuleName LoadedModule)
-    , eNextTypeIndex :: !(IORef Int)
-    , eValueBindings :: !(IORef (HashMap Name (ResolvedReference, LetMutability, TypeVar)))
-    , eTypeBindings  :: !(IORef (HashMap Name (ResolvedReference, TypeVar)))
-    , eTypeAliases   :: !(IORef (HashMap Text TypeAlias))
-    , eReturnType    :: !(Maybe TypeVar) -- Nothing if top-level expression
+    { eLoadedModules :: HashMap ModuleName LoadedModule
+    , eNextTypeIndex :: IORef Int
+    , eValueBindings :: HashTable Name ValueReference
+    , eTypeBindings  :: HashTable Name (ResolvedReference, TypeVar)
+    , eTypeAliases   :: HashTable Text TypeAlias
+    , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop        :: !Bool
     }
 

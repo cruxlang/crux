@@ -52,9 +52,11 @@ data RefutablePattern
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype edata
+    -- Values
     = DDeclare Name TypeIdent
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun (FunDef idtype edata)
+    -- Types
     | DData Name ModuleName [TypeVariable] [Variant]
     | DJSData Name ModuleName [JSVariant]
     | DType TypeAlias
@@ -89,7 +91,7 @@ instance IsString ModuleName where
 printModuleName :: ModuleName -> Text
 printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $ a <> [b]
 
- -- TODO: add QualifiedReference ImportName Name
+-- TODO: add QualifiedReference ImportName Name
 data UnresolvedReference
     = UnknownReference Name
     | KnownReference ModuleName Name
@@ -112,7 +114,9 @@ resolvedReferenceName (ThisModule t) = t
 resolvedReferenceName (OtherModule _ t) = t
 resolvedReferenceName (Builtin t) = t
 
-data Import = UnqualifiedImport ModuleName
+data Import
+    = UnqualifiedImport ModuleName
+    | QualifiedImport ModuleName Name
     deriving (Show, Eq)
 
 data Module idtype edata = Module

@@ -16,6 +16,7 @@ import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
+import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
@@ -48,7 +49,7 @@ buildPatternEnv exprType env patt = case patt of
         return ()
 
     RPIrrefutable (PBinding pname) -> do
-        HashTable.insert pname (ThisModule pname, LImmutable, exprType) (eValueBindings env)
+        HashTable.insert pname (ValueReference (ThisModule pname) LImmutable exprType) (eValueBindings env)
 
     RPConstructor cname cargs -> do
         ctor <- typeFromConstructor env cname
@@ -87,7 +88,10 @@ walkMutableTypeVar tyvar = do
             return tyvar
 
 lookupBinding :: Name -> Env -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
-lookupBinding name Env{..} = HashTable.lookup name eValueBindings
+lookupBinding name Env{..} = do
+    HashTable.lookup name eValueBindings >>= \case
+        Just (ValueReference a b c) -> return $ Just (a, b, c)
+        _ -> return $ Nothing
 
 isLValue :: Env -> Expression ResolvedReference TypeVar -> IO Bool
 isLValue env expr = case expr of
@@ -141,34 +145,62 @@ resolveReference env ref = case ref of
     UnknownReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
         return $ case result of
-            Just (rr, _, t) -> Just (rr, t)
-            Nothing -> Nothing
+            Just (ValueReference rr _ t) -> Just (rr, t)
+            _ -> Nothing
     KnownReference moduleName name
         | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
-        , Just func <- findExportedValue modul name -> do
+        , Just func <- findExportedFunction modul name -> do
             funTy <- unfreezeTypeVar $ typeForFunDef func
             return $ Just (OtherModule moduleName name, funTy)
         | otherwise -> do
             fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
-findExportedValue :: Module a b -> Text -> Maybe (FunDef a b)
-findExportedValue modul name = do
-    let go decls = case decls of
-            [] -> Nothing
-            ((Declaration Export _pos declType):rest)
-                -- | DDeclare n _ <- declType, n == name ->
-                --     return $ Just decl
-                -- | DLet _ _ (PBinding n) _ _ <- declType, n == name ->
-                --     return $ Just decl
-                | DFun fd@(FunDef _ n _ _ _) <- declType, n == name ->
-                    Just fd
-                | otherwise ->
-                    go rest
-            ((Declaration _ _ _): rest) ->
-                go rest
+findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
+findExportedValueByName env moduleName name = runMaybeT $ do
+    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
+    decl <- MaybeT $ return $ findExportedDeclaration modul name
+    (typeVar, mutability) <- case decl of
+        DDeclare _ _typeIdent -> do
+            fail "TODO: resolve the TypeIdent on type checking, use the resolved ImmutableTypeVar here"
+        DLet typeVar mutability _ _ _ -> do
+            return (typeVar, mutability)
+        DFun (FunDef typeVar _ _ _ _) -> do
+            return (typeVar, LImmutable)
+        DData _ _ _ _ -> do
+            MaybeT $ return Nothing
+        DJSData _ _ _ -> do
+            MaybeT $ return Nothing
+        DType _ -> do
+            MaybeT $ return Nothing
+    tv <- liftIO $ unfreezeTypeVar typeVar
+    return (OtherModule moduleName name, mutability, tv)
 
-    go $ mDecls modul
+findExportedFunction :: Module a b -> Name -> Maybe (FunDef a b)
+findExportedFunction modul name = do
+    declType <- findExportedDeclaration modul name
+    case declType of
+        DFun fd@(FunDef _ _ _ _ _) -> Just fd
+        _ -> Nothing
 
+findFirstOf :: [a] -> (a -> Maybe b) -> Maybe b
+findFirstOf [] _ = Nothing
+findFirstOf (x:xs) f = case f x of
+    Just y -> Just y
+    Nothing -> findFirstOf xs f
+
+findExportedDeclaration :: Module a b -> Name -> Maybe (DeclarationType a b)
+findExportedDeclaration modul name =
+    findFirstOf (mDecls modul) $ \case
+        Declaration Export _pos declType -> case declType of
+            DDeclare n _ | n == name -> Just declType
+            -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
+            DLet _ _ (PBinding n) _ _ | n == name -> Just declType
+            DFun (FunDef _ n _ _ _) | n == name -> Just declType
+            DData n _ _ _ | n == name -> Just declType
+            DJSData n _ _ | n == name -> Just declType
+            DType (TypeAlias n _ _) | n == name -> Just declType
+            _ -> Nothing
+        Declaration NoExport _ _ -> Nothing
 
 withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
 withPositionInformation expr a = catch a handle
@@ -239,7 +271,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             forM_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env NewTypesAreQuantified ann
                 unify pt annTy
-            HashTable.insert p (Local p, LImmutable, pt) valueBindings'
+            HashTable.insert p (ValueReference (Local p) LImmutable pt) valueBindings'
 
         let env' = env
                 { eValueBindings=valueBindings'
@@ -295,12 +327,26 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         error "Unexpected: EIntrinsic encountered during typechecking"
 
     ELookup _ lhs propName -> do
-        lhs' <- check env lhs
-        ty <- freshType env
-        row <- freshRowVariable env
-        recTy <- newIORef $ TRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
-        unify (edata lhs') recTy
-        return $ ELookup ty lhs' propName
+        let valueLookup = do
+                -- if lhs is ident and in bindings, then go go go
+                -- else turn into QualifiedReference and go go go
+                lhs' <- check env lhs
+                ty <- freshType env
+                row <- freshRowVariable env
+                recTy <- newIORef $ TRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+                unify (edata lhs') recTy
+                return $ ELookup ty lhs' propName
+        case lhs of
+            EIdentifier _ (UnknownReference name) -> do
+                HashTable.lookup name (eValueBindings env) >>= \case
+                    Just (ModuleReference mn) -> do
+                        findExportedValueByName env mn propName >>= \case
+                            -- TODO: where does mutability go?
+                            Just (resolvedRef, _mutability, typeVar) -> do
+                                return $ EIdentifier typeVar resolvedRef
+                            _ -> valueLookup
+                    _ -> valueLookup
+            _ -> valueLookup
 
     EMatch _ matchExpr cases -> do
         resultType <- freshType env
@@ -323,7 +369,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             PWildcard -> do
                 return ()
             PBinding name -> do
-                HashTable.insert name (Local name, mut, ty) (eValueBindings env)
+                HashTable.insert name (ValueReference (Local name) mut ty) (eValueBindings env)
         unify ty (edata expr'')
         forM_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
@@ -470,7 +516,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         over' <- checkExpecting arrayType env over
 
         bindings' <- HashTable.clone (eValueBindings env)
-        HashTable.insert name (Local name, LImmutable, iteratorType) bindings'
+        HashTable.insert name (ValueReference (Local name) LImmutable iteratorType) bindings'
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
@@ -562,7 +608,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         let expr = EFun pos' args returnAnn body
         in withPositionInformation expr $ do
             ty <- freshType env
-            HashTable.insert name (ThisModule name, LImmutable, ty) (eValueBindings env)
+            HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
             expr'@(EFun _ _ _ body') <- check env expr
             unify (edata expr') ty
             quantify ty
@@ -583,7 +629,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
                 PWildcard -> do
                     return ()
                 PBinding name -> do
-                    HashTable.insert name (ThisModule name, mut, ty) (eValueBindings env)
+                    HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
             quantify ty
             return $ DLet (edata expr') mut pat maybeAnnot expr'
 

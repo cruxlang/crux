@@ -19,6 +19,7 @@ import           Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST                  as AST
 import           Crux.Prelude
+import Crux.Module (importsOf)
 import           Data.Graph                (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict       as HashMap
 
@@ -331,9 +332,6 @@ generateModule AST.Module{..} = do
     decls <- fmap snd $ runWriterT $ do
         forM_ mDecls $ generateDecl env
     return decls
-
-importsOf :: AST.Module a b -> [AST.ModuleName]
-importsOf AST.Module{..} = map (\(AST.UnqualifiedImport mn) -> mn) mImports
 
 generateProgram :: AST.Program -> IO Program
 generateProgram AST.Program{..} = do

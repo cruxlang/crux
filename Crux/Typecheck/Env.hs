@@ -149,6 +149,7 @@ addQvarTable env@Env{..} qvarTable = do
         (HashMap.fromList [(name, (ThisModule name, ty)) | (name, ty) <- qvarTable])
     return env { eTypeBindings = newBindings }
 
+-- TODO: merge this with findExportedDeclaration
 findDeclByName :: Module idtype edata -> Name -> Maybe (Declaration idtype edata)
 findDeclByName modul name =
     let go decls = case decls of
@@ -267,7 +268,7 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
                     return ()
 
         ctorType <- computeVariantType vparameters
-        HashTable.insert vname (mkName vname, LImmutable, ctorType) (eValueBindings env)
+        HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
 buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
 buildTypeEnvironment loadedModules modul = do
@@ -282,26 +283,29 @@ buildTypeEnvironment loadedModules modul = do
     -- inject stuff from the prelude into this global environment
     -- TODO: rather than injecting symbols, we may need a mechanism to refer
     -- to imported symbols
-    forM_ (mImports modul) $ \(UnqualifiedImport importName) -> do
-        importedModule <- case HashMap.lookup importName loadedModules of
-            Just im -> return im
-            Nothing -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
+    forM_ (mImports modul) $ \case
+        UnqualifiedImport importName -> do
+            importedModule <- case HashMap.lookup importName loadedModules of
+                Just im -> return im
+                Nothing -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
 
-        addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
+            addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
-        forM_ (exportedDecls $ mDecls importedModule) $ \decl -> case decl of
-            DLet tr _mutability pat _ _ -> do
-                tr' <- unfreezeTypeVar tr
-                case pat of
-                    PWildcard -> return ()
-                    PBinding name -> do
-                        HashTable.insert name (OtherModule importName name, LImmutable, tr') (eValueBindings env)
+            forM_ (exportedDecls $ mDecls importedModule) $ \decl -> case decl of
+                DLet tr _mutability pat _ _ -> do
+                    tr' <- unfreezeTypeVar tr
+                    case pat of
+                        PWildcard -> return ()
+                        PBinding name -> do
+                            HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 
-            DFun (FunDef tr name _params _retAnn _body) -> do
-                tr' <- unfreezeTypeVar tr
-                HashTable.insert name (OtherModule importName name, LImmutable, tr') (eValueBindings env)
+                DFun (FunDef tr name _params _retAnn _body) -> do
+                    tr' <- unfreezeTypeVar tr
+                    HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 
-            _ -> return ()
+                _ -> return ()
+        QualifiedImport moduleName importName -> do
+            HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
 
     addDataDeclsToEnvironment env modul [decl | Declaration _ _ decl <- mDecls modul] ThisModule
 
@@ -360,18 +364,18 @@ addDataDeclsToEnvironment env modul decls mkName = do
 
     forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        HashTable.insert name (Builtin name, LImmutable, iType) (eValueBindings env)
+        HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
 
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
     forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
         DDeclare name typeIdent -> do
             t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
-            HashTable.insert name (mkName name, LImmutable, t) (eValueBindings env)
+            HashTable.insert name (ValueReference (mkName name) LImmutable t) (eValueBindings env)
         DData {} -> do
             return ()
         DJSData name _ variants -> do
             Just (_, userType) <- HashTable.lookup name (eTypeBindings env)
             forM_ variants $ \(JSVariant variantName _value) -> do
-                HashTable.insert variantName (mkName variantName, LImmutable, userType) (eValueBindings env)
+                HashTable.insert variantName (ValueReference (mkName variantName) LImmutable userType) (eValueBindings env)
         _ -> return ()

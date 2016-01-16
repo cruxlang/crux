@@ -14,7 +14,7 @@ import qualified Crux.Error as Error
 
 genDoc' :: Text -> IO (Either Error.Error Gen.Module)
 genDoc' src = do
-    mod' <- Crux.Module.loadModuleFromSource "Main" "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource "main" "<string>" src
     case mod' of
         Left err ->
             return $ Left err
@@ -46,7 +46,7 @@ test_return_from_branch = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "Prelude" "True")
+            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "prelude" "True")
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
@@ -61,7 +61,7 @@ test_branch_with_value = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet (AST.PBinding "x")
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "Prelude" "True")
+            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "prelude" "True")
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 2

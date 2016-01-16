@@ -259,7 +259,7 @@ test_exported_sum_cannot_depend_on_non_exported_type = do
             , "export data B { B(A) }"
             ]
           )
-        , ("Main", T.unlines
+        , ("main", T.unlines
             [ "import { A(...) }"
             ]
           )

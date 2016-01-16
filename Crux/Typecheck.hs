@@ -452,7 +452,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             TUserType TUserTypeDef{..} _ -> do
                 return tuModuleName
             TPrimitive _ -> do
-                return "Prelude"
+                return "prelude"
             _ -> do
                 ts <- showTypeVarIO lhsType
                 throwIO $ TdnrLhsTypeUnknown () ts

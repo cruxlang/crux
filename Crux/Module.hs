@@ -68,13 +68,13 @@ loadCompilerConfig = do
 loadPreludeSource :: IO Text
 loadPreludeSource = do
     config <- loadCompilerConfig
-    TextIO.readFile $ preludePath config FP.</> "Prelude.cx"
+    TextIO.readFile $ preludePath config FP.</> "prelude.cx"
 
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
-    if name == "Prelude" then do
+    if name == "prelude" then do
         preludeSource <- loadPreludeSource
-        parseModuleFromSource "Prelude" "<Prelude>" preludeSource
+        parseModuleFromSource "prelude" "<Prelude>" preludeSource
     else
         return $ Left $ Error.UnknownModule name
 
@@ -82,7 +82,7 @@ loadPrelude :: IO (Either Error.Error AST.LoadedModule)
 loadPrelude = loadPreludeSource >>= loadPreludeFromSource
 
 loadPreludeFromSource :: Text -> IO (Either Error.Error AST.LoadedModule)
-loadPreludeFromSource = loadModuleFromSource' id [] "Prelude" "Prelude"
+loadPreludeFromSource = loadModuleFromSource' id [] "prelude" "prelude"
 
 parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource moduleName filename source = do
@@ -112,7 +112,7 @@ loadModuleFromSource' adjust loadedModules moduleName filename source = do
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
     prelude <- EitherT $ loadPrelude
-    let lm = [("Prelude", prelude)]
+    let lm = [("prelude", prelude)]
     EitherT $ loadModuleFromSource' addPrelude lm moduleName filename source
 
 getModuleName :: AST.Import -> AST.ModuleName
@@ -123,7 +123,7 @@ importsOf :: AST.Module a b -> [AST.ModuleName]
 importsOf m = map getModuleName $ AST.mImports m
 
 addPrelude :: AST.Module a b -> AST.Module a b
-addPrelude m = m { AST.mImports = AST.UnqualifiedImport "Prelude" : AST.mImports m }
+addPrelude m = m { AST.mImports = AST.UnqualifiedImport "prelude" : AST.mImports m }
 
 type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
 
@@ -160,7 +160,7 @@ loadProgram :: ModuleLoader -> AST.ModuleName -> IO (ProgramLoadResult AST.Progr
 loadProgram loader main = runEitherT $ do
     loadedModules <- lift $ newIORef []
 
-    _ <- EitherT $ loadModule loader loadedModules "Prelude" False
+    _ <- EitherT $ loadModule loader loadedModules "prelude" False
     mainModule <- EitherT $ loadModule loader loadedModules main True
 
     otherModules <- lift $ readIORef loadedModules
@@ -180,7 +180,7 @@ newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newFSModuleLoader config root mainModulePath moduleName = do
     e1 <- doesFileExist $ (preludePath config) FP.</> moduleNameToPath moduleName
     let path = if e1 then preludePath config else root
-    if moduleName == "Main"
+    if moduleName == "main"
         then parseModuleFromFile moduleName mainModulePath
         else parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
 
@@ -203,19 +203,19 @@ loadProgramFromFile path = do
         (_, ".cx") -> return ()
         _ -> fail "Please load .cx file"
 
-    loadProgram loader "Main"
+    loadProgram loader "main"
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
     preludeSource <- loadPreludeSource
     let loader = newMemoryLoader $ HashMap.fromList
-            [ ("Prelude", preludeSource)
-            , ("Main", mainModuleSource)
+            [ ("prelude", preludeSource)
+            , ("main", mainModuleSource)
             ]
-    loadProgram loader "Main"
+    loadProgram loader "main"
 
 loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
     prelude <- loadPreludeSource
-    let loader = newMemoryLoader (HashMap.insert "Prelude" prelude sources)
-    loadProgram loader "Main"
+    let loader = newMemoryLoader (HashMap.insert "prelude" prelude sources)
+    loadProgram loader "main"

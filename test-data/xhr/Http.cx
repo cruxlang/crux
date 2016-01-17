@@ -1,4 +1,5 @@
-data jsffi ReadyState {
+
+export data jsffi ReadyState {
     Unsent = 0,
     Opened = 1,
     HeadersReceived = 2,
@@ -6,18 +7,18 @@ data jsffi ReadyState {
     Done = 4,
 }
 
-data jsffi Method {
+export data jsffi Method {
     Get = "GET",
     Post = "POST",
     Put = "PUT",
     Delete = "DELETE",
 }
 
-type Url = String
-type EventName = String
-type EventHandler = () -> ()
+export type Url = String
+export type EventName = String
+export type EventHandler = () -> ()
 
-type XMLHttpRequest = {
+export type XMLHttpRequest = {
     send: () -> (),
     abort: () -> (),
     open: (Method, Url) -> (),
@@ -27,7 +28,7 @@ type XMLHttpRequest = {
     //getRequestHeader: (String) -> Unityped,
 }
 
-data XHR { XHR(XMLHttpRequest) }
+export data XHR { XHR(XMLHttpRequest) }
 
 export fun newXhr() {
     let result: XMLHttpRequest = _unsafe_js("new XMLHttpRequest")

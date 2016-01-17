@@ -375,7 +375,9 @@ addDataDeclsToEnvironment env modul decls mkName = do
         DData {} -> do
             return ()
         DJSData name _ variants -> do
-            Just (_, userType) <- HashTable.lookup name (eTypeBindings env)
+            (_, userType) <- HashTable.lookup name (eTypeBindings env) >>= \case
+                Nothing -> error $ printf "DJSData: Could not find name %s" (show name)
+                Just a -> return a
             forM_ variants $ \(JSVariant variantName _value) -> do
                 HashTable.insert variantName (ValueReference (mkName variantName) LImmutable userType) (eValueBindings env)
         _ -> return ()

@@ -13,6 +13,7 @@ data Error
     = LexError P.ParseError
     | ParseError P.ParseError
     | UnknownModule AST.ModuleName
+    | ModuleNotFound AST.ModuleName
     | UnificationError (Typecheck.UnificationError Tokens.Pos)
     deriving (Eq, Show)
 
@@ -20,4 +21,5 @@ renderError :: Error -> String
 renderError (LexError e) = "Lex error: " ++ show e
 renderError (ParseError e) = "Parse error: " ++ show e
 renderError (UnknownModule mn) = "Unknown module: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError (ModuleNotFound mn) = "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (UnificationError ue) = "Unification error: " ++ show ue

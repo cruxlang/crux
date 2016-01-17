@@ -2,7 +2,8 @@
 
 module Crux.Module where
 
-import Control.Exception (try)
+import Control.Exception (try, tryJust)
+import System.IO.Error (isDoesNotExistError)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(..), left)
 import qualified Crux.AST              as AST
@@ -97,9 +98,9 @@ parseModuleFromSource moduleName filename source = do
                     return $ Right mod'
 
 parseModuleFromFile :: AST.ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
-parseModuleFromFile moduleName filename = do
-    source <- BS.readFile filename
-    parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
+parseModuleFromFile moduleName filename = runEitherT $ do
+    source <- EitherT $ tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName else Nothing) $ BS.readFile filename
+    EitherT $ parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
 
 loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource' adjust loadedModules moduleName filename source = do
@@ -180,9 +181,10 @@ newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newFSModuleLoader config root mainModulePath moduleName = do
     e1 <- doesFileExist $ (preludePath config) FP.</> moduleNameToPath moduleName
     let path = if e1 then preludePath config else root
-    if moduleName == "main"
-        then parseModuleFromFile moduleName mainModulePath
-        else parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
+    if moduleName == "main" then do
+        parseModuleFromFile moduleName mainModulePath
+    else do
+        parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
 
 newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
 newMemoryLoader sources moduleName = do

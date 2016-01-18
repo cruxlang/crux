@@ -109,6 +109,7 @@ instantiate :: Env -> TypeVar -> IO TypeVar
 instantiate env t = do
     subst <- HashTable.new
     (didAnything, t') <- instantiate' subst env t
+
     return $ if didAnything
         then t'
         else t

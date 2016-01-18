@@ -3,6 +3,7 @@ module Crux.Typecheck.Types
     , Env(..)
     , UnificationError(..)
     , showTypeVarIO
+    , renderTypeVarIO
     , formatPos
     , errorToString
     ) where
@@ -62,28 +63,29 @@ instance Show a => Show (UnificationError a) where
 
 instance (Show a, Typeable a) => Exception (UnificationError a)
 
-showTypeVarIO :: TypeVar -> IO [Char]
-showTypeVarIO tvar = do
+showTypeVarIO' :: Bool -> TypeVar -> IO [Char]
+showTypeVarIO' showBound tvar = do
     tvar' <- readIORef tvar
     case tvar' of
         TUnbound i -> do
             return $ "(TUnbound " ++ show i ++ ")"
         TBound x -> do
-            inner <- showTypeVarIO x
-            -- return inner
-            return $ "(TBound " ++ inner ++ ")"
+            inner <- showTypeVarIO' showBound x
+            if showBound
+                then return $ "(TBound " ++ inner ++ ")" ++ show showBound
+                else return inner
         TQuant i -> do
             return $ "TQuant " ++ show i
         TFun arg ret -> do
-            as <- mapM showTypeVarIO arg
-            rs <- showTypeVarIO ret
+            as <- mapM (showTypeVarIO' showBound) arg
+            rs <- showTypeVarIO' showBound ret
             return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
         TUserType def tvars -> do
-            tvs <- mapM showTypeVarIO tvars
+            tvs <- mapM (showTypeVarIO' showBound) tvars
             return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
         TRecord (RecordType open' rows') -> do
             let rowNames = map trName rows'
-            rowTypes <- mapM (showTypeVarIO . trTyVar) rows'
+            rowTypes <- mapM (showTypeVarIO' showBound . trTyVar) rows'
             let showRow (name, ty) = Text.unpack name <> ": " <> ty
             let dotdotdot = case open' of
                     RecordFree i -> ["..._" ++ show i]
@@ -92,6 +94,12 @@ showTypeVarIO tvar = do
             return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
         TPrimitive ty ->
             return $ show ty
+
+showTypeVarIO :: TypeVar -> IO String
+showTypeVarIO = showTypeVarIO' True
+
+renderTypeVarIO :: TypeVar -> IO String
+renderTypeVarIO = showTypeVarIO' False
 
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%i,%i" posLine posCol

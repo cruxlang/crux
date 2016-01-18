@@ -1,0 +1,7 @@
+fun double_x(r) {
+    r.x = r.x + r.x
+    r
+}
+
+let a = double_x({ x : 22, y : 11 })
+let _ = print(a.y)

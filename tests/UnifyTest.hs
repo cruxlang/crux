@@ -4,11 +4,13 @@
 module UnifyTest (htf_thisModulesTests) where
 
 import Test.Framework
+import qualified Data.HashMap.Strict as HashMap
 import Control.Exception (try)
 import Data.IORef
 import Crux.AST
 import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
+import Crux.Typecheck.Env (newEnv)
 
 test_quantified_with_number = do
     lhs <- newIORef $ TPrimitive $ Number
@@ -17,3 +19,21 @@ test_quantified_with_number = do
         case a of
             (Left UnificationError {}) -> return ()
             _ -> assertFailure ("BLAH " ++ show a)
+
+test_function_taking_record = do
+    env <- newEnv HashMap.empty Nothing
+
+    numTy <- newIORef $ TPrimitive $ Number
+    argType <- newIORef $ TRecord (RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy])
+    retType <- newIORef $ TBound argType
+    funType <- newIORef $ TFun [argType] retType
+
+    funTypei <- instantiate env funType
+    argTypei <- readIORef funTypei >>= \(TFun [a] _) ->
+        return a
+
+    recordLiteralType <- newIORef $ TRecord (RecordType (RecordClose) [TypeRow "x" RImmutable numTy])
+    unify argTypei recordLiteralType
+
+    s <- renderTypeVarIO funTypei
+    assertEqual "({x: Number}) -> {x: Number}" s

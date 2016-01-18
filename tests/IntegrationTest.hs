@@ -83,7 +83,7 @@ assertUnificationError _ _ _ _ =
 failWithError :: String -> AST.ModuleName -> Error.Error -> IO ()
 failWithError root moduleName err = do
     let moduleName' = AST.printModuleName moduleName
-    let err' = Error.renderError err
+    err' <- Error.renderError err
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 
 runIntegrationTest :: FilePath -> IO ()

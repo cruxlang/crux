@@ -47,7 +47,7 @@ main = do
         [fn] -> do
             loadProgramFromFile fn `catch` throwTypeError >>= \case
                 Left (_, err) -> do
-                    putStrLn $ Error.renderError err
+                    Error.renderError err >>= putStrLn
                     exitWith $ ExitFailure 1
                 Right program -> do
                     if ast options then

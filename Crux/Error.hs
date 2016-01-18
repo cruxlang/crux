@@ -17,9 +17,9 @@ data Error
     | TypeError (Typecheck.TypeError Tokens.Pos)
     deriving (Eq, Show)
 
-renderError :: Error -> String
-renderError (LexError e) = "Lex error: " ++ show e
-renderError (ParseError e) = "Parse error: " ++ show e
-renderError (UnknownModule mn) = "Unknown module: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError (ModuleNotFound mn) = "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError (TypeError ue) = "Unification error: " ++ show ue
+renderError :: Error -> IO String
+renderError (LexError e) = return $ "Lex error: " ++ show e
+renderError (ParseError e) = return $ "Parse error: " ++ show e
+renderError (UnknownModule mn) = return $ "Unknown module: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError (TypeError ue) = Typecheck.errorToString ue

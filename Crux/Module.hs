@@ -2,7 +2,7 @@
 
 module Crux.Module where
 
-import Control.Exception (try, tryJust)
+import Control.Exception (tryJust)
 import System.IO.Error (isDoesNotExistError)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Either (EitherT(..), left)
@@ -102,13 +102,23 @@ parseModuleFromFile moduleName filename = runEitherT $ do
     source <- EitherT $ tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName else Nothing) $ BS.readFile filename
     EitherT $ parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
 
-loadModuleFromSource' :: (AST.ParsedModule -> AST.ParsedModule) -> HashMap AST.ModuleName AST.LoadedModule -> AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
+loadModuleFromSource'
+    :: (AST.ParsedModule -> AST.ParsedModule)
+    -> HashMap AST.ModuleName AST.LoadedModule
+    -> AST.ModuleName
+    -> FilePath
+    -> Text
+    -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource' adjust loadedModules moduleName filename source = do
     parseModuleFromSource moduleName filename source >>= \case
         Left err ->
             return $ Left err
         Right mod' -> do
-            fmap Right $ Typecheck.run loadedModules $ adjust mod'
+            (Typecheck.run loadedModules $ adjust mod') >>= \case
+                Left err -> do
+                    return $ Left $ Error.TypeError err
+                Right m -> do
+                    return $ Right m
 
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
@@ -150,9 +160,9 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
                 EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
 
             lm <- lift $ readIORef loadedModules
-            (lift $ try $ Typecheck.run lm parsedModule) >>= \case
-                Left unificationError -> do
-                    left (moduleName, Error.UnificationError unificationError)
+            (lift $ Typecheck.run lm parsedModule) >>= \case
+                Left typeError -> do
+                    left (moduleName, Error.TypeError typeError)
                 Right loadedModule -> do
                     lift $ HashTable.insert moduleName loadedModule loadedModules
                     return loadedModule

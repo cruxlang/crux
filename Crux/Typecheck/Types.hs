@@ -1,7 +1,9 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module Crux.Typecheck.Types
     ( ValueReference(..)
     , Env(..)
-    , UnificationError(..)
+    , TypeError(..)
     , showTypeVarIO
     , renderTypeVarIO
     , formatPos
@@ -40,7 +42,7 @@ data Env = Env
     , eInLoop        :: !Bool
     }
 
-data UnificationError a
+data TypeError a
     = UnificationError a String TypeVar TypeVar
     | RecordMutabilityUnificationError a Name String
     | UnboundSymbol a UnresolvedReference
@@ -49,9 +51,9 @@ data UnificationError a
     | NotAnLVar a String
     | TdnrLhsTypeUnknown a String
     | ExportError a String
-    deriving (Eq, Typeable)
+    deriving (Eq, Typeable, Functor)
 
-instance Show a => Show (UnificationError a) where
+instance Show a => Show (TypeError a) where
     show (UnificationError a s _ _) = "UnificationError " ++ show a ++ " " ++ s ++ " _ _"
     show (RecordMutabilityUnificationError a s m) = "RecordMutabilityUnificationError " ++ show a ++ " " ++ show s ++ " " ++ show m
     show (UnboundSymbol a s) = "UnboundSymbol " ++ show a ++ " " ++ show s
@@ -61,7 +63,7 @@ instance Show a => Show (UnificationError a) where
     show (TdnrLhsTypeUnknown a s) = "TdnrLhsTypeUnknown " ++ show a ++ " " ++ s
     show (ExportError a s) = "ExportError " ++ show a ++ " " ++ s
 
-instance (Show a, Typeable a) => Exception (UnificationError a)
+instance (Show a, Typeable a) => Exception (TypeError a)
 
 showTypeVarIO' :: Bool -> TypeVar -> IO [Char]
 showTypeVarIO' showBound tvar = do
@@ -104,7 +106,7 @@ renderTypeVarIO = showTypeVarIO' False
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%i,%i" posLine posCol
 
-errorToString :: UnificationError Pos -> IO String
+errorToString :: TypeError Pos -> IO String
 errorToString (UnificationError pos message at bt) = do
     as <- showTypeVarIO at
     bs <- showTypeVarIO bt

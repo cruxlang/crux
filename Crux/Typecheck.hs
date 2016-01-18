@@ -3,7 +3,7 @@
 
 module Crux.Typecheck where
 
-import           Control.Exception     (ErrorCall (..))
+import           Control.Exception     (try, ErrorCall (..))
 import           Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
@@ -205,23 +205,8 @@ findExportedDeclaration modul name =
 withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
 withPositionInformation expr a = catch a handle
   where
-    handle :: UnificationError () -> IO a
-    handle (UnificationError () message at bt) =
-        throwIO (UnificationError (edata expr) message at bt :: UnificationError Pos)
-    handle (RecordMutabilityUnificationError () s m) =
-        throwIO (RecordMutabilityUnificationError (edata expr) s m)
-    handle (UnboundSymbol () message) =
-        throwIO (UnboundSymbol (edata expr) message)
-    handle (OccursCheckFailed ()) =
-        throwIO (OccursCheckFailed (edata expr))
-    handle (IntrinsicError () message) =
-        throwIO (IntrinsicError (edata expr) message)
-    handle (NotAnLVar () s) =
-        throwIO (NotAnLVar (edata expr) s)
-    handle (TdnrLhsTypeUnknown () s) =
-        throwIO (TdnrLhsTypeUnknown (edata expr) s)
-    handle (ExportError () s) =
-        throwIO (ExportError (edata expr) s)
+    handle :: TypeError () -> IO a
+    handle e = throwIO $ fmap (\() -> edata expr) e
 
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
@@ -633,15 +618,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
             quantify ty
             return $ DLet (edata expr') mut pat maybeAnnot expr'
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO LoadedModule
-run loadedModules modul = do
-        env <- buildTypeEnvironment loadedModules modul
-        decls <- forM (mDecls modul) (checkDecl env)
-        freezeModule modul
-            { mDecls=decls
-            }
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either (TypeError Pos) LoadedModule)
+run loadedModules modul = try $ do
+    env <- buildTypeEnvironment loadedModules modul
+    decls <- forM (mDecls modul) (checkDecl env)
+    freezeModule modul
+        { mDecls=decls
+        }
 
-throwTypeError :: UnificationError Pos -> IO b
+throwTypeError :: TypeError Pos -> IO b
 throwTypeError (UnificationError pos message at bt) = do
     as <- showTypeVarIO at
     bs <- showTypeVarIO bt

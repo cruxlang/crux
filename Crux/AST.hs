@@ -7,11 +7,12 @@
 
 module Crux.AST where
 
-import qualified Crux.JSTree  as JSTree
+import qualified Crux.JSTree   as JSTree
 import           Crux.Prelude
-import           Crux.Tokens  (Pos)
-import qualified Crux.Tokens  as Tokens
-import qualified Data.Text    as Text
+import           Crux.Tokens   (Pos)
+import qualified Crux.Tokens   as Tokens
+import           Data.Hashable (Hashable (..))
+import qualified Data.Text     as Text
 
 type Name = Text -- Temporary
 type TypeName = Text
@@ -294,6 +295,9 @@ This yields {x:Number, y:Number, z:Number}
 
 newtype RowVariable = RowVariable { unRowVariable :: Int }
     deriving (Eq)
+
+instance Hashable RowVariable where
+    hashWithSalt salt (RowVariable i) = hashWithSalt salt i
 
 instance Show RowVariable where
     show (RowVariable i) = show i

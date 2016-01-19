@@ -252,6 +252,19 @@ test_cannot_omit_arguments = do
         ]
     assertUnificationError (Pos 1 2 9) "((TUnbound 14)) -> Unit" "() -> Unit" result
 
+test_row_variables_are_checked = do
+    result <- run $ T.unlines
+        [ "fun double_x(r) {"
+        , "    r.x = r.x + r.x"
+        , "    r"
+        , "}"
+        , ""
+        , "let a = double_x({ x : 22, y : 11 })"
+        , "let _ = print(a.z)"
+        ]
+    assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound 39),..._40}" result
+
+
 test_exported_sum_cannot_depend_on_non_exported_type = do
     result <- runMultiModule $ HashMap.fromList
         [ ( "A", T.unlines

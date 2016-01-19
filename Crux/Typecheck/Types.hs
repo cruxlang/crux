@@ -16,6 +16,7 @@ import Crux.AST
     , RecordType (..), ResolvedReference
     , TUserTypeDef (..), TypeAlias, TypeRow (..)
     , TypeVar, UnresolvedReference
+    , printModuleName
     )
 import           Crux.Prelude
 import           Crux.Tokens  (Pos (..))
@@ -51,6 +52,7 @@ data TypeError a
     | NotAnLVar a String
     | TdnrLhsTypeUnknown a String
     | ExportError a String
+    | ModuleReferenceError a ModuleName Name
     deriving (Eq, Typeable, Functor)
 
 instance Show a => Show (TypeError a) where
@@ -62,6 +64,7 @@ instance Show a => Show (TypeError a) where
     show (NotAnLVar a t) = "NotAnLVar " ++ show a ++ " " ++ show t
     show (TdnrLhsTypeUnknown a s) = "TdnrLhsTypeUnknown " ++ show a ++ " " ++ s
     show (ExportError a s) = "ExportError " ++ show a ++ " " ++ s
+    show (ModuleReferenceError a mn n) = "ModuleReferenceError " ++ show a ++ " " ++ show mn ++ " " ++ show n
 
 instance (Show a, Typeable a) => Exception (TypeError a)
 
@@ -128,3 +131,5 @@ errorToString (TdnrLhsTypeUnknown pos s) = do
     return $ printf "Methods only work on values with known concrete types at %i,%i\n\t%s" (posLine pos) (posCol pos) s
 errorToString (ExportError pos s) = do
     return $ printf "Export error at %s: %s" (formatPos pos) s
+errorToString (ModuleReferenceError pos moduleName name) = do
+    return $ printf "Module %s does not export %s at %i,%i" (Text.unpack $ printModuleName moduleName) (Text.unpack name) (posLine pos) (posCol pos)

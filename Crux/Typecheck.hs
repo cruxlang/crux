@@ -329,7 +329,8 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                             -- TODO: where does mutability go?
                             Just (resolvedRef, _mutability, typeVar) -> do
                                 return $ EIdentifier typeVar resolvedRef
-                            _ -> valueLookup
+                            Nothing -> do
+                                throwIO $ ModuleReferenceError () mn propName
                     _ -> valueLookup
             _ -> valueLookup
 
@@ -625,26 +626,3 @@ run loadedModules modul = try $ do
     freezeModule modul
         { mDecls=decls
         }
-
-throwTypeError :: TypeError Pos -> IO b
-throwTypeError (UnificationError pos message at bt) = do
-    as <- showTypeVarIO at
-    bs <- showTypeVarIO bt
-    let m
-            | null message = ""
-            | otherwise = "\n" ++ message
-    error $ printf "Unification error at %i,%i\n\t%s\n\t%s%s" (posLine pos) (posCol pos) as bs m
-throwTypeError (RecordMutabilityUnificationError pos key message) =
-    error $ printf "Unification error at %i,%i: Could not unify mutability of record field %s: %s" (posLine pos) (posCol pos) (show key) message
-throwTypeError (UnboundSymbol pos message) =
-    error $ printf "Unbound symbol at %i,%i\n\t%s" (posLine pos) (posCol pos) (show message)
-throwTypeError (OccursCheckFailed pos) =
-    error $ printf "Occurs check failed at %i,%i" (posLine pos) (posCol pos)
-throwTypeError (IntrinsicError pos message) =
-    error $ printf "%s at %i,%i" message (posLine pos) (posCol pos)
-throwTypeError (NotAnLVar pos s) = do
-    error $ printf "Not an LVar at %i,%i\n\t%s" (posLine pos) (posCol pos) s
-throwTypeError (TdnrLhsTypeUnknown pos s) = do
-    error $ printf "TDNR %i,%i\n\t%s" (posLine pos) (posCol pos) s
-throwTypeError (ExportError pos s) = do
-    error $ printf "Export error %s\n\t%s" (formatPos pos) s

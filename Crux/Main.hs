@@ -5,7 +5,6 @@ import qualified Crux.JSBackend     as JS
 import qualified Crux.Gen            as Gen
 import           Crux.Module         (loadProgramFromFile)
 import           Crux.Prelude
-import           Crux.Typecheck      (throwTypeError)
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
 import           System.Exit         (ExitCode (..), exitWith)
@@ -45,7 +44,7 @@ main = do
         [] -> help
         (_:_:_) -> help
         [fn] -> do
-            loadProgramFromFile fn `catch` throwTypeError >>= \case
+            loadProgramFromFile fn >>= \case
                 Left (_, err) -> do
                     Error.renderError err >>= putStrLn
                     exitWith $ ExitFailure 1

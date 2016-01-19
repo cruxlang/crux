@@ -10,6 +10,13 @@ export data jsffi Boolean {
     False = false,
 }
 
+export fun not(b: Boolean): Boolean {
+    match b {
+        True => False;
+        False => True;
+    }
+}
+
 // HACK: TODO: Create a submodule for strings so we can just call this length()
 // BIGGER TODO: add a length trait
 export fun strlen(s: String): Number {

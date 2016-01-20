@@ -17,6 +17,7 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import qualified Crux.Error as Error
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
@@ -621,10 +622,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
             quantify ty
             return $ DLet (edata expr') mut pat maybeAnnot expr'
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either (TypeError Pos) LoadedModule)
-run loadedModules modul = try $ do
-    env <- buildTypeEnvironment loadedModules modul
-    decls <- forM (mDecls modul) (checkDecl env)
-    freezeModule modul
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either Error.Error LoadedModule)
+run loadedModules modul = runEitherT $ do
+    env <- EitherT $ (try $ buildTypeEnvironment loadedModules modul) >>= \case
+        Left err -> return $ Left $ Error.TypeError err
+        Right result -> return result
+    decls <- forM (mDecls modul) $ \decl -> do
+        (lift $ try $ checkDecl env decl) >>= \case
+            Left err -> left $ Error.TypeError err
+            Right d -> return d
+    lift $ freezeModule modul
         { mDecls=decls
         }

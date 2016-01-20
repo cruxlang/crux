@@ -1,5 +1,4 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
 
 module Crux.Typecheck.Unify where
 
@@ -43,6 +42,13 @@ instantiateUserType subst env def tyVars = do
         return variant{tvParameters=map snd paramTypes}
     return (userType, variants)
 
+instantiateRecord
+    :: IORef (HashMap Int TypeVar)
+    -> IORef (HashMap RowVariable TypeVar)
+    -> Env
+    -> [TypeRow TypeVar]
+    -> RecordOpen
+    -> IO (Bool, IORef MutableTypeVar)
 instantiateRecord subst recordSubst env rows open = do
     rows' <- forM rows $ \TypeRow{..} -> do
         (b, rowTy') <- instantiate' subst recordSubst env trTyVar

@@ -13,6 +13,7 @@ library
                    , Crux.Error
                    , Crux.Gen
                    , Crux.Intrinsic
+                   , Crux.IORef
                    , Crux.JSBackend
                    , Crux.JSGen.Types
                    , Crux.JSTree

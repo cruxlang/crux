@@ -3,10 +3,12 @@ module Crux.Prelude
     , module Control.Exception
     , module Control.Monad
     , module Control.Monad.IO.Class
+    , module Control.Monad.Trans.Class
+    , module Control.Monad.Trans.Either
     , module Data.Foldable
     , module Data.Hashable
     , module Data.HashMap.Strict
-    , module Data.IORef
+    , module Crux.IORef
     , module Data.Monoid
     , module Data.String
     , module Data.Text
@@ -18,11 +20,13 @@ module Crux.Prelude
 
 import Data.Foldable (foldl', foldlM)
 import Data.Text (Text)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef, modifyIORef')
+import Crux.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef, modifyIORef')
 import Data.Monoid (Monoid(..), mconcat, (<>), mempty)
 import Debug.Trace (trace, traceM, traceShow, traceShowM)
 import Control.Monad (forM, forM_, when, foldM, void)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Either (EitherT(..), left)
 import Control.Exception (throwIO, catch, Exception)
 import Data.Typeable (Typeable)
 import Control.Applicative ((<$>), (<*>), (<*), (*>), pure)

@@ -4,8 +4,6 @@ module Crux.Module where
 
 import Control.Exception (tryJust)
 import System.IO.Error (isDoesNotExistError)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT(..), left)
 import qualified Crux.AST              as AST
 import qualified Crux.Error            as Error
 import qualified Crux.Lex              as Lex
@@ -109,16 +107,9 @@ loadModuleFromSource'
     -> FilePath
     -> Text
     -> IO (Either Error.Error AST.LoadedModule)
-loadModuleFromSource' adjust loadedModules moduleName filename source = do
-    parseModuleFromSource moduleName filename source >>= \case
-        Left err ->
-            return $ Left err
-        Right mod' -> do
-            (Typecheck.run loadedModules $ adjust mod') >>= \case
-                Left err -> do
-                    return $ Left $ Error.TypeError err
-                Right m -> do
-                    return $ Right m
+loadModuleFromSource' adjust loadedModules moduleName filename source = runEitherT $ do
+    mod' <- EitherT $ parseModuleFromSource moduleName filename source
+    EitherT $ Typecheck.run loadedModules $ adjust mod'
 
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
@@ -162,7 +153,7 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
             lm <- lift $ readIORef loadedModules
             (lift $ Typecheck.run lm parsedModule) >>= \case
                 Left typeError -> do
-                    left (moduleName, Error.TypeError typeError)
+                    left (moduleName, typeError)
                 Right loadedModule -> do
                     lift $ HashTable.insert moduleName loadedModule loadedModules
                     return loadedModule

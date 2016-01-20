@@ -13,6 +13,7 @@ module Crux.Typecheck.Env
     ) where
 
 import           Crux.AST
+import qualified Crux.Error as Error
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
 import qualified Crux.MutableHashTable as HashTable
@@ -25,6 +26,7 @@ import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
+import Control.Monad.IO.Class
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
@@ -271,17 +273,17 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
 -- TODO(chad): return an Either
-buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
-buildTypeEnvironment loadedModules thisModule = do
+buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO (Either Error.Error Env)
+buildTypeEnvironment loadedModules thisModule = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
     strTy  <- newIORef $ TPrimitive String
 
-    env <- newEnv loadedModules Nothing
+    env <- liftIO $ newEnv loadedModules Nothing
     HashTable.insert "Number" (Builtin "Number", numTy) (eTypeBindings env)
     HashTable.insert "String" (Builtin "String", strTy) (eTypeBindings env)
 
-    intrinsics <- Intrinsic.intrinsics
+    intrinsics <- liftIO $ Intrinsic.intrinsics
     forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
         HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
@@ -290,32 +292,31 @@ buildTypeEnvironment loadedModules thisModule = do
         UnqualifiedImport importName -> do
             importedModule <- case HashMap.lookup importName loadedModules of
                 Just im -> return im
-                -- TODO: InternalCompilerError
-                Nothing -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
+                Nothing -> left $ Error.InternalCompilerError $ Error.DependentModuleNotLoaded importName
 
-            addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
+            liftIO $ addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
             forM_ (exportedDecls $ mDecls importedModule) $ \case
                 DDeclare tr name _typeIdent -> do
-                    tr' <- unfreezeTypeVar tr
+                    tr' <- lift $ unfreezeTypeVar tr
                     HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 
                 DLet tr _mutability pat _ _ -> do
-                    tr' <- unfreezeTypeVar tr
+                    tr' <- lift $ unfreezeTypeVar tr
                     case pat of
                         PWildcard -> return ()
                         PBinding name -> do
                             HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 
                 DFun (FunDef tr name _params _retAnn _body) -> do
-                    tr' <- unfreezeTypeVar tr
+                    tr' <- lift $ unfreezeTypeVar tr
                     HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 
                 _ -> return ()
         QualifiedImport moduleName importName -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
 
-    addDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
+    liftIO $ addDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
 
     return env
 

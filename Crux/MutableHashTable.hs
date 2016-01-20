@@ -2,38 +2,37 @@ module Crux.MutableHashTable where
 
 import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
-import qualified Data.IORef          as IORef
 
-new :: IO (IORef (HashMap key value))
-new = IORef.newIORef HashMap.empty
+new :: MonadIO m => m (IORef (HashMap key value))
+new = newIORef HashMap.empty
 
-read :: IORef (HashMap key value) -> IO (HashMap key value)
-read = IORef.readIORef
+read :: MonadIO m => IORef (HashMap key value) -> m (HashMap key value)
+read = readIORef
 
-insert :: (Hashable key, Eq key) => key -> value -> IORef (HashMap key value) -> IO ()
+insert :: (Hashable key, Eq key, MonadIO m) => key -> value -> IORef (HashMap key value) -> m ()
 insert k v hm = do
-    IORef.modifyIORef hm $ HashMap.insert k v
+    modifyIORef hm $ HashMap.insert k v
 
-lookup :: (Hashable key, Eq key) => key -> IORef (HashMap key value) -> IO (Maybe value)
+lookup :: (Hashable key, Eq key, MonadIO m) => key -> IORef (HashMap key value) -> m (Maybe value)
 lookup k hm = do
-    h <- IORef.readIORef hm
+    h <- readIORef hm
     return $ HashMap.lookup k h
 
-clone :: IORef (HashMap key value) -> IO (IORef (HashMap key value))
+clone :: MonadIO m => IORef (HashMap key value) -> m (IORef (HashMap key value))
 clone hm = do
-    h <- IORef.readIORef hm
-    IORef.newIORef h
+    h <- readIORef hm
+    newIORef h
 
 -- Create a new mutable hash table containing the union of the two provided mutable hash tables
-merge :: (Eq key, Hashable key) => IORef (HashMap key value) -> IORef (HashMap key value) -> IO (IORef (HashMap key value))
+merge :: (Eq key, Hashable key, MonadIO m) => IORef (HashMap key value) -> IORef (HashMap key value) -> m (IORef (HashMap key value))
 merge a b = do
-    a' <- IORef.readIORef a
-    b' <- IORef.readIORef b
+    a' <- readIORef a
+    b' <- readIORef b
 
-    IORef.newIORef $ HashMap.union a' b'
+    newIORef $ HashMap.union a' b'
 
 -- Create a new mutable hash table containing the union of the provided mutable and immutable hash tables.
-mergeImmutable :: (Eq key, Hashable key) => IORef (HashMap key value) -> HashMap key value -> IO (IORef (HashMap key value))
+mergeImmutable :: (Eq key, Hashable key, MonadIO m) => IORef (HashMap key value) -> HashMap key value -> m (IORef (HashMap key value))
 mergeImmutable a b = do
-    a' <- IORef.readIORef a
-    IORef.newIORef $ HashMap.union a' b
+    a' <- readIORef a
+    newIORef $ HashMap.union a' b

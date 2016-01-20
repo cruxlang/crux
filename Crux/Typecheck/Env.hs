@@ -104,7 +104,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                             params <- mapM go typeParameters
                             newIORef $ TUserType def params
                         | otherwise ->
-                            error $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
+                            fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
                     _ ->
                         return ty
             Nothing -> do
@@ -159,7 +159,7 @@ findDeclByName modul name =
               where
                 Declaration _ _ dt = d
                 match = case dt of
-                    DDeclare n _              | n == name -> True
+                    DDeclare _ n _            | n == name -> True
                     DLet _ _ (PBinding n) _ _ | n == name -> True
                     DFun (FunDef _ n _ _ _)   | n == name -> True
                     DData n _ _ _             | n == name -> True
@@ -270,8 +270,9 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
         ctorType <- computeVariantType vparameters
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
+-- TODO(chad): return an Either
 buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO Env
-buildTypeEnvironment loadedModules modul = do
+buildTypeEnvironment loadedModules thisModule = do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
     strTy  <- newIORef $ TPrimitive String
@@ -280,15 +281,25 @@ buildTypeEnvironment loadedModules modul = do
     HashTable.insert "Number" (Builtin "Number", numTy) (eTypeBindings env)
     HashTable.insert "String" (Builtin "String", strTy) (eTypeBindings env)
 
-    forM_ (mImports modul) $ \case
+    intrinsics <- Intrinsic.intrinsics
+    forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
+        let Intrinsic{..} = intrin
+        HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
+
+    forM_ (mImports thisModule) $ \case
         UnqualifiedImport importName -> do
             importedModule <- case HashMap.lookup importName loadedModules of
                 Just im -> return im
+                -- TODO: InternalCompilerError
                 Nothing -> fail $ "dependent module not loaded: " <> (Text.unpack $ printModuleName importName)
 
             addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
             forM_ (exportedDecls $ mDecls importedModule) $ \case
+                DDeclare tr name _typeIdent -> do
+                    tr' <- unfreezeTypeVar tr
+                    HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
+
                 DLet tr _mutability pat _ _ -> do
                     tr' <- unfreezeTypeVar tr
                     case pat of
@@ -304,7 +315,7 @@ buildTypeEnvironment loadedModules modul = do
         QualifiedImport moduleName importName -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
 
-    addDataDeclsToEnvironment env modul [decl | Declaration _ _ decl <- mDecls modul] ThisModule
+    addDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
 
     return env
 
@@ -316,7 +327,7 @@ addDataDeclsToEnvironment ::
     -> IO ()
 addDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
-    forM_ decls $ \decl -> case decl of
+    forM_ decls $ \case
         DJSData name moduleName variants -> do
             -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
             variants' <- forM variants $ \(JSVariant variantName _value) -> do
@@ -357,23 +368,14 @@ addDataDeclsToEnvironment env modul decls mkName = do
     forM_ dataDecls' $ \(name, exportFlag, pos, _typeDef, tyVar, qvars, variants) ->
         addVariants env name modul exportFlag pos qvars tyVar variants mkName
 
-    intrinsics <- Intrinsic.intrinsics
-
-    forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
-        let Intrinsic{..} = intrin
-        HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
-
     -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
     -- with the TypeVars created in the type environment.
     forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
-        DDeclare name typeIdent -> do
-            t <- resolveTypeIdent env NewTypesAreQuantified typeIdent
-            HashTable.insert name (ValueReference (mkName name) LImmutable t) (eValueBindings env)
         DData {} -> do
             return ()
         DJSData name _ variants -> do
             (_, userType) <- HashTable.lookup name (eTypeBindings env) >>= \case
-                Nothing -> error $ printf "DJSData: Could not find name %s" (show name)
+                Nothing -> fail $ printf "DJSData: Could not find name %s" (show name)
                 Just a -> return a
             forM_ variants $ \(JSVariant variantName _value) -> do
                 HashTable.insert variantName (ValueReference (mkName variantName) LImmutable userType) (eValueBindings env)

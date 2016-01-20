@@ -178,6 +178,7 @@ generate env expr = case expr of
                 for lhs' $ \lhs'' -> do
                     return $ OutputProperty lhs'' propName
             AST.EIdentifier _ name -> case name of
+                AST.Ambient n -> return $ Just $ ExistingLocalBinding n
                 AST.Local n -> return $ Just $ ExistingLocalBinding n
                 AST.ThisModule n -> return $ Just $ ExistingLocalBinding n
                 AST.OtherModule _ _ -> fail "cannot assign to imported names"
@@ -307,7 +308,7 @@ subBlockWithOutput env output expr = do
 generateDecl :: Show t => Env -> AST.Declaration AST.ResolvedReference t -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = do
     case decl of
-        AST.DDeclare _ _ -> do
+        AST.DDeclare _ _ _ -> do
             -- declarations are not reflected into the IR
             return ()
         AST.DData name _ _ variants -> do

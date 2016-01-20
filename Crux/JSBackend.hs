@@ -78,6 +78,7 @@ renderOutput output input = case output of
 
 renderResolvedReference :: ResolvedReference -> JSTree.Expression
 renderResolvedReference = JSTree.EIdentifier . \case
+    Ambient n -> renderJSName n
     Local n -> renderJSName n
     ThisModule n -> renderJSName n
     OtherModule mn n -> renderModuleName mn <> "." <> n

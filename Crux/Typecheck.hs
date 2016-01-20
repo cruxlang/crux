@@ -160,8 +160,8 @@ findExportedValueByName env moduleName name = runMaybeT $ do
     modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
     decl <- MaybeT $ return $ findExportedDeclaration modul name
     (typeVar, mutability) <- case decl of
-        DDeclare _ _typeIdent -> do
-            fail "TODO: resolve the TypeIdent on type checking, use the resolved ImmutableTypeVar here"
+        DDeclare typeVar _ _typeIdent -> do
+            return (typeVar, LImmutable)
         DLet typeVar mutability _ _ _ -> do
             return (typeVar, mutability)
         DFun (FunDef typeVar _ _ _ _) -> do
@@ -192,7 +192,7 @@ findExportedDeclaration :: Module a b -> Name -> Maybe (DeclarationType a b)
 findExportedDeclaration modul name =
     findFirstOf (mDecls modul) $ \case
         Declaration Export _pos declType -> case declType of
-            DDeclare n _ | n == name -> Just declType
+            DDeclare _ n _ | n == name -> Just declType
             -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
             DLet _ _ (PBinding n) _ _ | n == name -> Just declType
             DFun (FunDef _ n _ _ _) | n == name -> Just declType
@@ -581,8 +581,10 @@ typeForFunDef (FunDef ty _ _ _ _) = ty
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of
-    DDeclare name typeIdent -> do
-        return $ DDeclare name typeIdent
+    DDeclare _pos name typeIdent -> do
+        ty <- resolveTypeIdent env NewTypesAreQuantified typeIdent
+        HashTable.insert name (ValueReference (Ambient name) LImmutable ty) (eValueBindings env)
+        return $ DDeclare ty name typeIdent
     DData name moduleName typeVars variants -> do
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name moduleName typeVars variants

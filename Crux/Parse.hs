@@ -503,7 +503,7 @@ declareDeclaration = do
         name <- anyIdentifier
         _ <- token TColon
         ti <- typeIdent
-        return $ DDeclare name ti
+        return $ DDeclare (tokenData declareToken) name ti
 
 -- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int
 dataDeclTypeIdent :: Parser TypeIdent

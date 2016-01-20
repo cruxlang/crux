@@ -54,7 +54,7 @@ data RefutablePattern
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype edata
     -- Values
-    = DDeclare Name TypeIdent
+    = DDeclare edata Name TypeIdent
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun (FunDef idtype edata)
     -- Types
@@ -103,13 +103,15 @@ instance IsString UnresolvedReference where
     fromString = UnknownReference . Text.pack
 
 data ResolvedReference
-    = Local Name
+    = Ambient Name
+    | Local Name
     | ThisModule Name
     | OtherModule ModuleName Name
     | Builtin Name
     deriving (Show, Eq)
 
 resolvedReferenceName :: ResolvedReference -> Text
+resolvedReferenceName (Ambient t) = t
 resolvedReferenceName (Local t) = t
 resolvedReferenceName (ThisModule t) = t
 resolvedReferenceName (OtherModule _ t) = t

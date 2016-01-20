@@ -1,0 +1,10 @@
+import {
+    mymod
+}
+
+fun main() {
+    let a = mymod.x
+    mymod.foo(a)
+}
+
+let _ = main()

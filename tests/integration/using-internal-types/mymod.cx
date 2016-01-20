@@ -1,0 +1,11 @@
+data MyThing {
+    MyThing
+}
+
+export fun foo(x) {
+    match x {
+        MyThing => print("hi");
+    }
+}
+
+export let x = MyThing

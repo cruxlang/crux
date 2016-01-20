@@ -112,7 +112,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                 case res2 of
                     Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
                         when (length aliasParams /= length typeParameters) $
-                            error $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
+                            fail $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
 
                         argTypes <- mapM (resolveTypeIdent env resolvePolicy) typeParameters
 
@@ -126,7 +126,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                         HashTable.insert typeName (ThisModule typeName, tyVar) eTypeBindings
                         return tyVar
                     Nothing ->
-                        error $ printf "Constructor refers to nonexistent type %s" (show typeName)
+                        fail $ printf "Constructor refers to nonexistent type %s" (show typeName)
 
     go (RecordIdent rows) = do
         rows' <- forM rows $ \(trName, mut, rowTypeIdent) -> do
@@ -280,9 +280,6 @@ buildTypeEnvironment loadedModules modul = do
     HashTable.insert "Number" (Builtin "Number", numTy) (eTypeBindings env)
     HashTable.insert "String" (Builtin "String", strTy) (eTypeBindings env)
 
-    -- inject stuff from the prelude into this global environment
-    -- TODO: rather than injecting symbols, we may need a mechanism to refer
-    -- to imported symbols
     forM_ (mImports modul) $ \case
         UnqualifiedImport importName -> do
             importedModule <- case HashMap.lookup importName loadedModules of
@@ -291,7 +288,7 @@ buildTypeEnvironment loadedModules modul = do
 
             addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
-            forM_ (exportedDecls $ mDecls importedModule) $ \decl -> case decl of
+            forM_ (exportedDecls $ mDecls importedModule) $ \case
                 DLet tr _mutability pat _ _ -> do
                     tr' <- unfreezeTypeVar tr
                     case pat of

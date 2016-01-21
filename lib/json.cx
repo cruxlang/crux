@@ -16,7 +16,7 @@ let _isArray = _unsafe_js("function (a) { return Array.isArray(a); }")
 let _stringify = _unsafe_js("function (o) { return JSON.stringify(o); }")
 
 fun assert(b: Boolean, error: String) {
-    if b {} else {
+    if not(b) {
         _throw(Error(error))
     }
 }

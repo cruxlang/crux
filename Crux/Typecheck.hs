@@ -18,6 +18,7 @@ import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import qualified Crux.Error as Error
+import Crux.Util
 
 copyIORef :: IORef a -> IO (IORef a)
 copyIORef ior = do
@@ -26,21 +27,17 @@ copyIORef ior = do
 
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
-    let fold acc ty = case (acc, ty) of
-            (Just a, _) -> return $ Just a
-            (Nothing, ut) -> do
-                ut' <- readIORef ut
-                case ut' of
-                    TUserType def _ -> do
-                        let TUserTypeDef { tuVariants = variants } = def
-                        case [v | v@(TVariant vname _) <- variants, vname == cname] of
-                            [v] -> return $ Just (ut, v)
-                            [] -> return Nothing
-                            _ -> error "This should never happen: Type has multiple variants with the same constructor name"
-                    _ ->
-                        return Nothing
     typeBindings <- readIORef $ eTypeBindings env
-    foldlM fold Nothing (fmap snd $ HashMap.elems typeBindings)
+    findFirstOfM (fmap snd $ HashMap.elems typeBindings) $ \ut -> do
+        readIORef ut >>= \case
+            TUserType def _ -> do
+                let TUserTypeDef { tuVariants = variants } = def
+                case [v | v@(TVariant vname _) <- variants, vname == cname] of
+                    [v] -> return $ Just (ut, v)
+                    [] -> return Nothing
+                    _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
+            _ ->
+                return Nothing
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -182,12 +179,6 @@ findExportedFunction modul name = do
     case declType of
         DFun fd@(FunDef _ _ _ _ _) -> Just fd
         _ -> Nothing
-
-findFirstOf :: [a] -> (a -> Maybe b) -> Maybe b
-findFirstOf [] _ = Nothing
-findFirstOf (x:xs) f = case f x of
-    Just y -> Just y
-    Nothing -> findFirstOf xs f
 
 findExportedDeclaration :: Module a b -> Name -> Maybe (DeclarationType a b)
 findExportedDeclaration modul name =

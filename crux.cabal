@@ -29,6 +29,7 @@ library
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
                    , Crux.Typecheck.Env
+                   , Crux.Util
 
     build-depends: base >=4.7
                  , parsec ==3.1.9

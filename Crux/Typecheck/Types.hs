@@ -38,6 +38,10 @@ data ValueReference
 data TypeReference
     = TypeBinding ResolvedReference TypeVar
     | TypeAlias Name [Name] TypeIdent
+    deriving (Eq)
+instance Show TypeReference where
+    show (TypeBinding rr _tv) = "TypeBinding " ++ show rr ++ " <typevar>"
+    show (TypeAlias name params typeIdent) = "TypeAlias " ++ show name ++ " " ++ show params ++ " " ++ show typeIdent
 
 data Env = Env
     { eLoadedModules :: HashMap ModuleName LoadedModule

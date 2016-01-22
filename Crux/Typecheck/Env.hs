@@ -268,7 +268,7 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
 -- TODO(chad): return an Either
-buildTypeEnvironment :: (Show j, Show a) => HashMap ModuleName LoadedModule -> Module j a -> IO (Either Error.Error Env)
+buildTypeEnvironment :: HashMap ModuleName LoadedModule -> Module j a -> IO (Either Error.Error Env)
 buildTypeEnvironment loadedModules thisModule = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number

@@ -2,6 +2,7 @@
 
 module Crux.Typecheck.Types
     ( ValueReference(..)
+    , TypeReference(..)
     , Env(..)
     , TypeError(..)
     , showTypeVarIO
@@ -14,8 +15,9 @@ import Crux.AST
     ( LetMutability, LoadedModule, ModuleName
     , MutableTypeVar (..), RecordOpen (..)
     , RecordType (..), ResolvedReference
-    , TUserTypeDef (..), TypeAlias, TypeRow (..)
+    , TUserTypeDef (..), TypeRow (..)
     , TypeVar, UnresolvedReference
+    , TypeIdent
     , printModuleName
     )
 import           Crux.Prelude
@@ -33,12 +35,15 @@ data ValueReference
     = ValueReference ResolvedReference LetMutability TypeVar
     | ModuleReference ModuleName
 
+data TypeReference
+    = TypeBinding ResolvedReference TypeVar
+    | TypeAlias Name [Name] TypeIdent
+
 data Env = Env
     { eLoadedModules :: HashMap ModuleName LoadedModule
     , eNextTypeIndex :: IORef Int
     , eValueBindings :: HashTable Name ValueReference
-    , eTypeBindings  :: HashTable Name (ResolvedReference, TypeVar)
-    , eTypeAliases   :: HashTable Text TypeAlias
+    , eTypeBindings  :: HashTable Name TypeReference
     , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop        :: !Bool
     }

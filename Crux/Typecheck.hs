@@ -28,16 +28,17 @@ copyIORef ior = do
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
     typeBindings <- readIORef $ eTypeBindings env
-    findFirstOfM (fmap snd $ HashMap.elems typeBindings) $ \ut -> do
-        readIORef ut >>= \case
-            TUserType def _ -> do
-                let TUserTypeDef { tuVariants = variants } = def
-                case [v | v@(TVariant vname _) <- variants, vname == cname] of
-                    [v] -> return $ Just (ut, v)
-                    [] -> return Nothing
-                    _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
-            _ ->
-                return Nothing
+    findFirstOfM (HashMap.elems typeBindings) $ \case
+        TypeBinding _ ut -> do
+            readIORef ut >>= \case
+                TUserType def _ -> do
+                    let TUserTypeDef { tuVariants = variants } = def
+                    case [v | v@(TVariant vname _) <- variants, vname == cname] of
+                        [v] -> return $ Just (ut, v)
+                        [] -> return Nothing
+                        _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
+                _ -> return Nothing
+        _ -> return Nothing
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -129,9 +130,9 @@ isLValue env expr = case expr of
 
 resolveType :: Pos -> Env -> UnresolvedReference -> IO TypeVar
 resolveType pos env (UnknownReference name) = do
-    res <- HashTable.lookup name (eTypeBindings env)
-    case res of
-        Just (_, t) -> return t
+    HashTable.lookup name (eTypeBindings env) >>= \case
+        Just (TypeBinding _ t) -> return t
+        Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
         Nothing -> do
             tb <- readIORef $ eTypeBindings env
             throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
@@ -168,7 +169,7 @@ findExportedValueByName env moduleName name = runMaybeT $ do
             MaybeT $ return Nothing
         DJSData _ _ _ -> do
             MaybeT $ return Nothing
-        DType _ -> do
+        DTypeAlias _ _ _ -> do
             MaybeT $ return Nothing
     tv <- liftIO $ unfreezeTypeVar typeVar
     return (OtherModule moduleName name, mutability, tv)
@@ -190,7 +191,7 @@ findExportedDeclaration modul name =
             DFun (FunDef _ n _ _ _) | n == name -> Just declType
             DData n _ _ _ | n == name -> Just declType
             DJSData n _ _ | n == name -> Just declType
-            DType (TypeAlias n _ _) | n == name -> Just declType
+            DTypeAlias n _ _ | n == name -> Just declType
             _ -> Nothing
         Declaration NoExport _ _ -> Nothing
 
@@ -582,8 +583,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         return $ DData name moduleName typeVars variants
     DJSData name moduleName variants -> do
         return $ DJSData name moduleName variants
-    DType (TypeAlias name typeVars ident) -> do
-        return $ DType $ TypeAlias name typeVars ident
+    DTypeAlias name typeVars ident -> do
+        return $ DTypeAlias name typeVars ident
     DFun (FunDef pos' name args returnAnn body) ->
         let expr = EFun pos' args returnAnn body
         in withPositionInformation expr $ do

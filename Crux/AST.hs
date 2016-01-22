@@ -35,9 +35,6 @@ data FunDef idtype edata = FunDef edata Name [(Name, Maybe TypeIdent)] (Maybe Ty
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
 
-data TypeAlias = TypeAlias Name [Name] TypeIdent
-    deriving (Show, Eq)
-
 -- Irrefutable only -- should it be called IrrefutablePattern?
 -- This very easily could grow PTuple or irrefutable constructor matches.
 data Pattern
@@ -60,7 +57,7 @@ data DeclarationType idtype edata
     -- Types
     | DData Name ModuleName [TypeVariable] [Variant]
     | DJSData Name ModuleName [JSVariant]
-    | DType TypeAlias
+    | DTypeAlias Name [Name] TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data ExportFlag = Export | NoExport

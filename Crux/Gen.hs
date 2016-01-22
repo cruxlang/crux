@@ -322,7 +322,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
                 AST.PWildcard -> subBlock env defn
                 AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
             writeDeclaration $ Declaration export $ DLet pat defn'
-        AST.DType {} ->
+        AST.DTypeAlias {} ->
             -- type aliases are not reflected into the IR
             return ()
 

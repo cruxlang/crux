@@ -1,5 +1,4 @@
-
-Crux is a principled, practical AltJS language that aims to provide an easy, familiar programming environment that
+Crux is a principled, practical language that aims to provide an easy, familiar programming environment that
 does not compromise on rock-solid fundamentals.
 
 # Big Ideas

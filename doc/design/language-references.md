@@ -14,3 +14,4 @@ An ordered set of interesting language design resources.
 * Want to Write a Compiler? Just Read These Two Papers - http://prog21.dadgum.com/30.html
 * Want to Write a Compiler? Just Read These Two Papers (HN Comments) - https://news.ycombinator.com/item?id=10786842
 * Want to Write a Compiler? Just Read These Two Papers (Reddit Comments) - https://www.reddit.com/r/programming/comments/3y1fdz/want_to_write_a_compiler_just_read_these_two/
+* Sound and Complete Bidirectional Typechecking for Higher-Rank Polymorphism with Existentials and Indexed Types - http://arxiv.org/abs/1601.05106

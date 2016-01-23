@@ -3,13 +3,13 @@ data Error {
     Error(String)
 }
 
-export data JsonValue {}
+export data JSONValue {}
 
-let _typeOf: (JsonValue) -> String = _unsafe_js("function (x) { return typeof x; }")
+let _typeOf: (JSONValue) -> String = _unsafe_js("function (x) { return typeof x; }")
 let _throw: (Error) -> anyOther = _unsafe_js("function (e) { throw e; }")
-let _isNull: (JsonValue) -> Boolean = _unsafe_js("function (o) { return o === null; }")
-let _getAttr: (JsonValue, String) -> any2 = _unsafe_js("function (o, k) { return o[k]; }")
-let _parseJson: (String) -> JsonValue = _unsafe_js("function (s) { return JSON.parse(s); }")
+let _isNull: (JSONValue) -> Boolean = _unsafe_js("function (o) { return o === null; }")
+let _getAttr: (JSONValue, String) -> any2 = _unsafe_js("function (o, k) { return o[k]; }")
+let _parseJson: (String) -> JSONValue = _unsafe_js("function (s) { return JSON.parse(s); }")
 
 let _isArray = _unsafe_js("function (a) { return Array.isArray(a); }")
 
@@ -21,29 +21,29 @@ fun assert(b: Boolean, error: String) {
     }
 }
 
-fun assertTypeOf(a: JsonValue, expectedType: String) {
+fun assertTypeOf(a: JSONValue, expectedType: String) {
     let t = _typeOf(a);
     if expectedType != t {
         _throw(Error("Wanted " + expectedType + " but got " + t + ": " + _stringify(a)))
     }
 }
 
-export fun decodeNumber(a: JsonValue): Number {
+export fun decodeNumber(a: JSONValue): Number {
     assertTypeOf(a, "number")
     return _unsafe_coerce(a)
 }
 
-export fun decodeBoolean(a: JsonValue): Boolean {
+export fun decodeBoolean(a: JSONValue): Boolean {
     assertTypeOf(a, "boolean")
     return _unsafe_coerce(a)
 }
 
-export fun decodeString(a: JsonValue): String {
+export fun decodeString(a: JSONValue): String {
     assertTypeOf(a, "string")
     return _unsafe_coerce(a)
 }
 
-export fun decodeNullable(decoder: (JsonValue) -> any): (JsonValue) -> Option any {
+export fun decodeNullable(decoder: (JSONValue) -> any): (JSONValue) -> Option any {
     fun(a) {
         if (_isNull(a)) {
             return None
@@ -54,8 +54,8 @@ export fun decodeNullable(decoder: (JsonValue) -> any): (JsonValue) -> Option an
 }
 
 export fun decodeArray(
-    elementDecoder: (JsonValue) -> element
-): (JsonValue) -> Array element {
+    elementDecoder: (JSONValue) -> element
+): (JSONValue) -> Array element {
     fun (arr) {
         assert(_isArray(arr), "Expected array but got " + _stringify(arr))
 
@@ -68,15 +68,15 @@ export fun decodeArray(
 }
 
 export fun decodeKey(
-    keyDecoder: (JsonValue) -> element,
-    obj: JsonValue,
+    keyDecoder: (JSONValue) -> element,
+    obj: JSONValue,
     key: String
 ): element {
     assertTypeOf(obj, "object")
     return keyDecoder(_getAttr(obj, key))
 }
 
-export fun fromString(s: String, decoder: (JsonValue) -> any): any {
+export fun fromString(s: String, decoder: (JSONValue) -> any): any {
     decoder(_parseJson(s))
 }
 
@@ -84,12 +84,12 @@ export fun fromString(s: String, decoder: (JsonValue) -> any): any {
 
 // Crux needs tuples.
 export data ObjectMember {
-    ObjectMember(String, JsonValue)
+    ObjectMember(String, JSONValue)
 }
 
 let setProperty = _unsafe_js("function(o, k, v) { o[k] = v; }")
 
-export fun encodeObject(members: Array ObjectMember): JsonValue {
+export fun encodeObject(members: Array ObjectMember): JSONValue {
     let v = _unsafe_js("{}")
 
     // TODO: need irrefutable pattern matches in iteration
@@ -102,31 +102,31 @@ export fun encodeObject(members: Array ObjectMember): JsonValue {
     return _unsafe_coerce(v)
 }
 
-export fun encodeArray(v: Array JsonValue): JsonValue {
+export fun encodeArray(v: Array JSONValue): JSONValue {
     // we know that the crux representation of arrays lines up with javascript
     return _unsafe_coerce(v)
 }
 
-export fun encodeString(v: String): JsonValue {
+export fun encodeString(v: String): JSONValue {
     return _unsafe_coerce(v)
 }
 
-export let nullJSValue: JsonValue = _unsafe_js("null")
+export let nullJSValue: JSONValue = _unsafe_js("null")
 
-export fun encodeNullable(encode : (a) -> JsonValue, o : Option a) : JsonValue {
+export fun encodeNullable(encode : (a) -> JSONValue, o : Option a) : JSONValue {
     match o {
         None        => nullJSValue;
         Some(value) => encode(value);
     }
 }
 
-fun encodeNumber(v: Number): JsonValue {
+fun encodeNumber(v: Number): JSONValue {
     return _unsafe_coerce(v)
 }
 
-fun encodeBoolean(v: Boolean): JsonValue {
+fun encodeBoolean(v: Boolean): JSONValue {
     return _unsafe_coerce(v)
 }
 
 
-export let renderJSON: (JsonValue) -> String = _unsafe_js("JSON.stringify")
+export let renderJSON: (JSONValue) -> String = _unsafe_js("JSON.stringify")

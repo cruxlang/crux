@@ -310,7 +310,8 @@ unify av bv
                     unificationError "" av bv
 
             (TUserType ad atv, TUserType bd btv)
-                | tuName ad == tuName bd -> do
+                | userTypeIdentity ad == userTypeIdentity bd -> do
+                    -- TODO: assert the two lists have the same length
                     mapM_ (uncurry unify) (zip atv btv)
                 | otherwise -> do
                     unificationError "" av bv

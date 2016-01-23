@@ -270,6 +270,9 @@ data TUserTypeDef typevar = TUserTypeDef
     , tuVariants   :: ![TVariant typevar]
     } deriving (Show, Eq)
 
+userTypeIdentity :: TUserTypeDef a -> (Name, ModuleName)
+userTypeIdentity ut = (tuName ut, tuModuleName ut)
+
 data RowMutability
     = RMutable
     | RImmutable

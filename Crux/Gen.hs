@@ -314,7 +314,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
             writeDeclaration $ Declaration export $ DData name variants
         AST.DJSData name _ variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
-        AST.DFun (AST.FunDef _ name params _retAnn body) -> do
+        AST.DFun _ name params _retAnn body -> do
             body' <- subBlockWithReturn env body
             writeDeclaration $ Declaration export $ DFun name (map fst params) body'
         AST.DLet _ _mut pat _ defn -> do

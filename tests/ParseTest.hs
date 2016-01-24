@@ -125,23 +125,23 @@ test_polymorphic_data = do
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"
-        (DFun $ FunDef () "f" [] Nothing (ELiteral () $ LUnit))
+        (DFun () "f" [] Nothing (ELiteral () $ LUnit))
 
 test_fun_with_return = do
     assertExprParses funDeclaration "fun f() { return 1 }"
-        (DFun $ FunDef () "f" [] Nothing (EReturn () $ ELiteral () $ LInteger $ 1))
+        (DFun () "f" [] Nothing (EReturn () $ ELiteral () $ LInteger $ 1))
 
 test_fun_with_argument_annotations = do
     assertExprParses funDeclaration "fun f(x: Number) { 1 }"
-        (DFun $ FunDef () "f" [("x", Just $ TypeIdent "Number" [])] Nothing (ELiteral () $ LInteger 1))
+        (DFun () "f" [("x", Just $ TypeIdent "Number" [])] Nothing (ELiteral () $ LInteger 1))
 
 test_fun_that_takes_function = do
     assertExprParses funDeclaration "fun f(x: (Number) -> String) { x(1) }"
-        (DFun $ FunDef () "f" [("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))] Nothing (EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1]))
+        (DFun () "f" [("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))] Nothing (EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1]))
 
 test_fun_with_return_annotation = do
     assertExprParses funDeclaration "fun f() : Number { 5 }"
-        (DFun $ FunDef () "f" [] (Just $ TypeIdent "Number" []) (ELiteral () $ LInteger 5))
+        (DFun () "f" [] (Just $ TypeIdent "Number" []) (ELiteral () $ LInteger 5))
 
 test_prop_and_functions_chain = do
     assertExprParses noSemiExpression "a()().b.c().d().e.f"

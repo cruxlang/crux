@@ -158,7 +158,7 @@ findDeclByName modul name =
                 match = case dt of
                     DDeclare _ n _            | n == name -> True
                     DLet _ _ (PBinding n) _ _ | n == name -> True
-                    DFun (FunDef _ n _ _ _)   | n == name -> True
+                    DFun _ n _ _ _            | n == name -> True
                     DData n _ _ _             | n == name -> True
                     DJSData n _ _             | n == name -> True
                     DTypeAlias n _ _          | n == name -> True
@@ -303,7 +303,7 @@ buildTypeEnvironment loadedModules thisModule = runEitherT $ do
                         PBinding name -> do
                             HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 
-                DFun (FunDef tr name _params _retAnn _body) -> do
+                DFun tr name _params _retAnn _body -> do
                     tr' <- lift $ unfreezeTypeVar tr
                     HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
 

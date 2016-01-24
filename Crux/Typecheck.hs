@@ -167,7 +167,7 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
                 return Nothing
         DLet _ _ PWildcard _ _ -> do
             return Nothing
-        DFun (FunDef typeVar name _ _ _) -> do
+        DFun typeVar name _ _ _ -> do
             if name == valueName then
                 return $ Just (typeVar, LImmutable)
             else
@@ -565,7 +565,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         return $ DJSData name moduleName variants
     DTypeAlias name typeVars ident -> do
         return $ DTypeAlias name typeVars ident
-    DFun (FunDef pos' name args returnAnn body) ->
+    DFun pos' name args returnAnn body ->
         let expr = EFun pos' args returnAnn body
         in withPositionInformation expr $ do
             ty <- freshType env
@@ -573,7 +573,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
             expr'@(EFun _ _ _ body') <- check env expr
             unify (edata expr') ty
             quantify ty
-            return $ DFun $ FunDef (edata expr') name args returnAnn body'
+            return $ DFun (edata expr') name args returnAnn body'
     DLet pos' mut pat maybeAnnot expr ->
         let fakeExpr = ELet pos' mut pat maybeAnnot expr
         in withPositionInformation fakeExpr $ do

@@ -606,7 +606,7 @@ funDeclaration = do
             typeIdent
 
         body <- blockExpression
-        return $ DFun $ FunDef (tokenData tfun) name params returnAnn body
+        return $ DFun (tokenData tfun) name params returnAnn body
 
 declaration :: Parser (Declaration UnresolvedReference ParseData)
 declaration = do

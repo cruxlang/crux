@@ -29,9 +29,6 @@ data Variant = Variant
     , vparameters :: [TypeIdent]
     } deriving (Show, Eq)
 
-data FunDef idtype edata = FunDef edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
-    deriving (Show, Eq, Functor, Foldable, Traversable)
-
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
 
@@ -53,7 +50,7 @@ data DeclarationType idtype edata
     -- Values
     = DDeclare edata Name TypeIdent
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
-    | DFun (FunDef idtype edata)
+    | DFun edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     -- Types
     | DData Name ModuleName [TypeVariable] [Variant]
     | DJSData Name ModuleName [JSVariant]

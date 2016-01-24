@@ -1,7 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 
-module Crux.Typecheck where
+module Crux.Typecheck
+    ( run
+    ) where
 
 import           Control.Exception     (try, ErrorCall (..))
 import           Crux.AST
@@ -19,11 +21,6 @@ import           Text.Printf           (printf)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import qualified Crux.Error as Error
 import Crux.Util
-
-copyIORef :: IORef a -> IO (IORef a)
-copyIORef ior = do
-    v <- readIORef ior
-    newIORef v
 
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do
@@ -541,9 +538,6 @@ freezeTypeVar tv = do
         TPrimitive t ->
             return $ IPrimitive t
 
-freezeIntrinsic :: IntrinsicId i TypeVar -> IO (IntrinsicId i ImmutableTypeVar)
-freezeIntrinsic = traverse freeze
-
 freeze :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
 freeze = traverse freezeTypeVar
 
@@ -557,9 +551,6 @@ freezeModule Module{..} = do
         { mImports=mImports
         , mDecls=decls
         }
-
-typeForFunDef :: FunDef a b -> b
-typeForFunDef (FunDef ty _ _ _ _) = ty
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of

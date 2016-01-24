@@ -146,13 +146,12 @@ resolveReference env ref = case ref of
         return $ case result of
             Just (ValueReference rr _ t) -> Just (rr, t)
             _ -> Nothing
-    KnownReference moduleName name
-        | Just modul <- HashMap.lookup moduleName (eLoadedModules env)
-        , Just func <- findExportedFunction modul name -> do
-            funTy <- unfreezeTypeVar $ typeForFunDef func
-            return $ Just (OtherModule moduleName name, funTy)
-        | otherwise -> do
-            fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
+    KnownReference moduleName name -> do
+        findExportedValueByName env moduleName name >>= \case
+            Just (rr, _mutability, typevar) ->
+                -- TODO: what do we do with mutability?
+                return $ Just (rr, typevar)
+            Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
 findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 findExportedValueByName env moduleName valueName = runMaybeT $ do
@@ -163,6 +162,7 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
                 return $ Just (typeVar, LImmutable)
             else
                 return Nothing
+        -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
         DLet typeVar mutability (PBinding name) _ _ -> do
             if name == valueName then
                 return $ Just (typeVar, mutability)
@@ -183,27 +183,6 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
             return Nothing
     tv <- lift $ unfreezeTypeVar typeVar
     return (OtherModule moduleName valueName, mutability, tv)
-
-findExportedFunction :: Module a b -> Name -> Maybe (FunDef a b)
-findExportedFunction modul name = do
-    declType <- findExportedDeclaration modul name
-    case declType of
-        DFun fd@(FunDef _ _ _ _ _) -> Just fd
-        _ -> Nothing
-
-findExportedDeclaration :: Module a b -> Name -> Maybe (DeclarationType a b)
-findExportedDeclaration modul name =
-    findFirstOf (mDecls modul) $ \case
-        Declaration Export _pos declType -> case declType of
-            DDeclare _ n _ | n == name -> Just declType
-            -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
-            DLet _ _ (PBinding n) _ _ | n == name -> Just declType
-            DFun (FunDef _ n _ _ _) | n == name -> Just declType
-            DData n _ _ _ | n == name -> Just declType
-            DJSData n _ _ | n == name -> Just declType
-            DTypeAlias n _ _ | n == name -> Just declType
-            _ -> Nothing
-        Declaration NoExport _ _ -> Nothing
 
 withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
 withPositionInformation expr a = catch a handle

@@ -9,7 +9,7 @@ import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
 import           Crux.Tokens           (Pos (..))
 import           Crux.Typecheck.Env    (ResolvePolicy (..), buildTypeEnvironment, childEnv, resolveTypeIdent,
-                                        unfreezeTypeVar)
+                                        unfreezeTypeVar, exportedDecls)
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict   as HashMap
@@ -155,24 +155,34 @@ resolveReference env ref = case ref of
             fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
 findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
-findExportedValueByName env moduleName name = runMaybeT $ do
+findExportedValueByName env moduleName valueName = runMaybeT $ do
     modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    decl <- MaybeT $ return $ findExportedDeclaration modul name
-    (typeVar, mutability) <- case decl of
-        DDeclare typeVar _ _typeIdent -> do
-            return (typeVar, LImmutable)
-        DLet typeVar mutability _ _ _ -> do
-            return (typeVar, mutability)
-        DFun (FunDef typeVar _ _ _ _) -> do
-            return (typeVar, LImmutable)
+    (typeVar, mutability) <- MaybeT $ findFirstOfM (exportedDecls $ mDecls modul) $ \case
+        DDeclare typeVar name _typeIdent -> do
+            if name == valueName then
+                return $ Just (typeVar, LImmutable)
+            else
+                return Nothing
+        DLet typeVar mutability (PBinding name) _ _ -> do
+            if name == valueName then
+                return $ Just (typeVar, mutability)
+            else
+                return Nothing
+        DLet _ _ PWildcard _ _ -> do
+            return Nothing
+        DFun (FunDef typeVar name _ _ _) -> do
+            if name == valueName then
+                return $ Just (typeVar, LImmutable)
+            else
+                return Nothing
         DData _ _ _ _ -> do
-            MaybeT $ return Nothing
+            return Nothing
         DJSData _ _ _ -> do
-            MaybeT $ return Nothing
+            return Nothing
         DTypeAlias _ _ _ -> do
-            MaybeT $ return Nothing
-    tv <- liftIO $ unfreezeTypeVar typeVar
-    return (OtherModule moduleName name, mutability, tv)
+            return Nothing
+    tv <- lift $ unfreezeTypeVar typeVar
+    return (OtherModule moduleName valueName, mutability, tv)
 
 findExportedFunction :: Module a b -> Name -> Maybe (FunDef a b)
 findExportedFunction modul name = do

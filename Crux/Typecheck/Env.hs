@@ -6,7 +6,7 @@ module Crux.Typecheck.Env
     , buildTypeEnvironment
     , unfreezeTypeVar
     , resolveTypeIdent
-
+    , exportedDecls
     , addDataType
     , resolveVariantTypes
     , addVariants

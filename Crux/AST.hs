@@ -24,10 +24,8 @@ data Literal
     | LUnit
     deriving (Show, Eq)
 
-data Variant = Variant
-    { vname       :: Name
-    , vparameters :: [TypeIdent]
-    } deriving (Show, Eq)
+data Variant = Variant Name [TypeIdent]
+    deriving (Show, Eq)
 
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)

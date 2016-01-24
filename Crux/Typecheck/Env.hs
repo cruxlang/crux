@@ -177,7 +177,7 @@ createUserTypeDef env name moduleName typeVarNames variants = do
         quantify ft
         return ft
 
-    variants' <- forM variants $ \Variant{..} -> do
+    variants' <- forM variants $ \(Variant vname vparameters) -> do
         tvParameters <- forM vparameters $
             const $ freshType env
         let tvName = vname
@@ -223,8 +223,8 @@ resolveVariantTypes env qvars typeDef variants = do
         HashTable.insert name (TypeBinding qName qTyVar) (eTypeBindings e)
 
     let TUserTypeDef { tuVariants } = typeDef
-    forM_ (zip variants tuVariants) $ \(v, tv) -> do
-        forM_ (zip (vparameters v) (tvParameters tv)) $ \(typeIdent, typeVar) -> do
+    forM_ (zip variants tuVariants) $ \(Variant _ vparameters, tv) -> do
+        forM_ (zip vparameters (tvParameters tv)) $ \(typeIdent, typeVar) -> do
             t <- resolveTypeIdent e NewTypesAreErrors typeIdent
             unify typeVar t
 

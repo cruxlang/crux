@@ -192,7 +192,7 @@ generateMatchVars matchVar patt = case patt of
             ]
 
 renderVariant :: Variant -> JSTree.Statement
-renderVariant Variant{..} = case vparameters of
+renderVariant (Variant vname vparameters) = case vparameters of
     [] ->
         JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString vname])
     _ ->

@@ -512,14 +512,14 @@ dataDeclTypeIdent = do
     params <- P.many typeIdent'
     return $ TypeIdent name params
 
-variantDefinition :: Parser Variant
+variantDefinition :: Parser (Variant Pos)
 variantDefinition = do
-    ctorname <- anyIdentifier
+    (pos, ctorname) <- anyIdentifierWithPos
 
     let withArgs = parenthesized $ commaDelimited dataDeclTypeIdent
     ctordata <- withArgs <|> return []
 
-    return $ Variant ctorname ctordata
+    return $ Variant pos ctorname ctordata
 
 cruxDataDeclaration :: Parser ParseDeclaration
 cruxDataDeclaration = do

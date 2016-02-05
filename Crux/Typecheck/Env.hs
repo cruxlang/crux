@@ -165,11 +165,12 @@ findDeclByName modul name =
                     _ -> False
     in go (mDecls modul)
 
+-- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env
                   -> Name
                   -> ModuleName
                   -> [a]
-                  -> [Variant]
+                  -> [Variant _edata]
                   -> IO (TUserTypeDef TypeVar, IORef MutableTypeVar)
 createUserTypeDef env name moduleName typeVarNames variants = do
     typeVars <- forM typeVarNames $ const $ do
@@ -177,7 +178,7 @@ createUserTypeDef env name moduleName typeVarNames variants = do
         quantify ft
         return ft
 
-    variants' <- forM variants $ \(Variant vname vparameters) -> do
+    variants' <- forM variants $ \(Variant _typeVar vname vparameters) -> do
         tvParameters <- forM vparameters $
             const $ freshType env
         let tvName = vname
@@ -195,11 +196,12 @@ createUserTypeDef env name moduleName typeVarNames variants = do
 
 type QVars = [(Name, (ResolvedReference, TypeVar))]
 
+-- TODO: what do we do with this when types are resolved at type-checking type
 addDataType :: Env
             -> ModuleName
             -> Name
             -> [TypeName]
-            -> [Variant]
+            -> [Variant _edata]
             -> IO (TUserTypeDef TypeVar, TypeVar, QVars)
 addDataType env importName dname typeVariables variants = do
     e <- childEnv env
@@ -212,10 +214,11 @@ addDataType env importName dname typeVariables variants = do
     let t = [(tn, (OtherModule importName tn, tv)) | (tn, tv) <- zip typeVariables tyVars]
     return (typeDef, tyVar, t)
 
+-- TODO: what do we do with this when types are resolved at type-checking time
 resolveVariantTypes :: Env
                     -> QVars
                     -> TUserTypeDef TypeVar
-                    -> [Variant]
+                    -> [Variant zzz]
                     -> IO ()
 resolveVariantTypes env qvars typeDef variants = do
     e <- childEnv env
@@ -223,7 +226,7 @@ resolveVariantTypes env qvars typeDef variants = do
         HashTable.insert name (TypeBinding qName qTyVar) (eTypeBindings e)
 
     let TUserTypeDef { tuVariants } = typeDef
-    forM_ (zip variants tuVariants) $ \(Variant _ vparameters, tv) -> do
+    forM_ (zip variants tuVariants) $ \(Variant _typeVar _name vparameters, tv) -> do
         forM_ (zip vparameters (tvParameters tv)) $ \(typeIdent, typeVar) -> do
             t <- resolveTypeIdent e NewTypesAreErrors typeIdent
             unify typeVar t
@@ -237,7 +240,7 @@ addVariants ::
              -> a
              -> QVars
              -> IORef MutableTypeVar
-             -> [Variant]
+             -> [Variant edata]
              -> (Name -> ResolvedReference)
              -> IO ()
 addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName = do
@@ -245,14 +248,12 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
     forM_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
         HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
 
-    let computeVariantType argTypeIdents = case argTypeIdents of
-            [] ->
-                return userTypeVar
-            _ -> do
-                resolvedArgTypes <- mapM (resolveTypeIdent e NewTypesAreErrors) argTypeIdents
-                newIORef $ TFun resolvedArgTypes userTypeVar
+    let computeVariantType [] = return userTypeVar
+        computeVariantType argTypeIdents = do
+            resolvedArgTypes <- mapM (resolveTypeIdent e NewTypesAreErrors) argTypeIdents
+            newIORef $ TFun resolvedArgTypes userTypeVar
 
-    forM_ variants $ \(Variant vname vparameters) -> do
+    forM_ variants $ \(Variant _typeVar vname vparameters) -> do
 
         forM_ vparameters $ \parameter ->
             case (exportFlag, parameter) of

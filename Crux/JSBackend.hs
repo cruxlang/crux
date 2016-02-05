@@ -191,8 +191,8 @@ generateMatchVars matchVar patt = case patt of
             | (index, subPattern) <- zip [1..] subpatterns
             ]
 
-renderVariant :: Variant -> JSTree.Statement
-renderVariant (Variant vname vparameters) = case vparameters of
+renderVariant :: Variant () -> JSTree.Statement
+renderVariant (Variant () vname vparameters) = case vparameters of
     [] ->
         JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString vname])
     _ ->
@@ -215,7 +215,7 @@ renderDeclaration :: Gen.Declaration -> [JSTree.Statement]
 renderDeclaration (Gen.Declaration export decl) = case decl of
     Gen.DData _name variants ->
         let renderedVariants = map renderVariant variants in
-        let exports = renderExports export $ map (\(Variant n _) -> n) variants in
+        let exports = renderExports export $ map (\(Variant () n _) -> n) variants in
         renderedVariants ++ exports
     Gen.DJSData _name variants ->
         let renderedVariants = map renderJSVariant variants in

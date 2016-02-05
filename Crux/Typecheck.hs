@@ -45,11 +45,10 @@ buildPatternEnv exprType env patt = case patt of
         return ()
 
     RPIrrefutable (PBinding pname) -> do
-        HashTable.insert pname (ValueReference (ThisModule pname) LImmutable exprType) (eValueBindings env)
+        HashTable.insert pname (ValueReference (Local pname) LImmutable exprType) (eValueBindings env)
 
     RPConstructor cname cargs -> do
-        ctor <- typeFromConstructor env cname
-        case ctor of
+        typeFromConstructor env cname >>= \case
             Just (ctorTy, _) -> do
                 t <- readIORef ctorTy
                 case t of
@@ -554,26 +553,13 @@ freezeModule Module{..} = do
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of
+
+    {- VALUE DEFINITIONS -}
+
     DDeclare _pos name typeIdent -> do
         ty <- resolveTypeIdent env NewTypesAreQuantified typeIdent
         HashTable.insert name (ValueReference (Ambient name) LImmutable ty) (eValueBindings env)
         return $ DDeclare ty name typeIdent
-    DData name moduleName typeVars variants -> do
-        -- TODO: Verify that all types referred to by variants exist, or are typeVars
-        return $ DData name moduleName typeVars variants
-    DJSData name moduleName variants -> do
-        return $ DJSData name moduleName variants
-    DTypeAlias name typeVars ident -> do
-        return $ DTypeAlias name typeVars ident
-    DFun pos' name args returnAnn body ->
-        let expr = EFun pos' args returnAnn body
-        in withPositionInformation expr $ do
-            ty <- freshType env
-            HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
-            expr'@(EFun _ _ _ body') <- check env expr
-            unify (edata expr') ty
-            quantify ty
-            return $ DFun (edata expr') name args returnAnn body'
     DLet pos' mut pat maybeAnnot expr ->
         let fakeExpr = ELet pos' mut pat maybeAnnot expr
         in withPositionInformation fakeExpr $ do
@@ -593,9 +579,59 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
                     HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
             quantify ty
             return $ DLet (edata expr') mut pat maybeAnnot expr'
+    DFun pos' name args returnAnn body ->
+        let expr = EFun pos' args returnAnn body
+        in withPositionInformation expr $ do
+            ty <- freshType env
+            HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
+            expr'@(EFun _ _ _ body') <- check env expr
+            unify (edata expr') ty
+            quantify ty
+            return $ DFun (edata expr') name args returnAnn body'
+
+    {- TYPE DEFINITIONS -}
+
+    DData name moduleName typeParameters variants -> do
+        dataTypeVar <- freshType env
+
+        env' <- childEnv env
+        forM_ typeParameters $ \tpName -> do
+            qvar <- freshType env'
+            HashTable.insert tpName (TypeBinding (Local tpName) qvar) (eTypeBindings env')
+
+        let computeVariantType [] = return dataTypeVar
+            computeVariantType argTypeIdents = do
+                resolvedArgTypes <- mapM (resolveTypeIdent env' NewTypesAreErrors) argTypeIdents
+                newIORef $ TFun resolvedArgTypes dataTypeVar
+
+        typedVariants <- forM variants $ \(Variant _pos vname vparameters) -> do
+            ctorType <- computeVariantType vparameters
+            --HashTable.insert vname (ValueReference (ThisModule vname) LImmutable ctorType) (eValueBindings env)
+            return $ Variant ctorType vname vparameters
+
+        -- TODO: Verify that all types referred to by variants exist, or are typeVars
+        return $ DData name moduleName typeParameters typedVariants
+    DJSData name moduleName variants -> do
+        return $ DJSData name moduleName variants
+    DTypeAlias name typeVars ident -> do
+        return $ DTypeAlias name typeVars ident
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either Error.Error LoadedModule)
 run loadedModules modul = runEitherT $ do
+    {-
+
+    prepopulate environment with imports
+    * eTypeBindings
+    * eValueBindings
+    * ePatternBindings??
+
+    for all decls, populate types
+    then populate type aliases
+    then populate data constructors
+
+    then typecheck all value definitions
+    -}
+
     env <- EitherT $ (try $ buildTypeEnvironment loadedModules modul) >>= \case
         Left err -> return $ Left $ Error.TypeError err
         Right result -> return result

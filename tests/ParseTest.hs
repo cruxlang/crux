@@ -121,7 +121,7 @@ test_times = do
 
 test_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe a { Some(a), None, };"
-        (DData "Maybe" "hs.ParseTest" ["a"] [Variant "Some" [TypeIdent "a" []],Variant "None" []])
+        (DData "Maybe" "hs.ParseTest" ["a"] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"

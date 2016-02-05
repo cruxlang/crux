@@ -96,7 +96,7 @@ data Instruction
 type Env = IORef Int
 
 data DeclarationType
-    = DData Name [AST.Variant]
+    = DData Name [AST.Variant ()]
     | DJSData Name [AST.JSVariant]
     | DFun Name [Name] [Instruction]
     | DLet AST.Pattern [Instruction]
@@ -311,7 +311,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
             -- declarations are not reflected into the IR
             return ()
         AST.DData name _ _ variants -> do
-            writeDeclaration $ Declaration export $ DData name variants
+            writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
         AST.DJSData name _ variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun _ name params _retAnn body -> do

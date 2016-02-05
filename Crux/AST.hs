@@ -24,8 +24,8 @@ data Literal
     | LUnit
     deriving (Show, Eq)
 
-data Variant = Variant Name [TypeIdent]
-    deriving (Show, Eq)
+data Variant edata = Variant edata Name [TypeIdent]
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
@@ -50,7 +50,7 @@ data DeclarationType idtype edata
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     -- Types
-    | DData Name ModuleName [TypeVariable] [Variant]
+    | DData Name ModuleName [TypeVariable] [Variant edata]
     | DJSData Name ModuleName [JSVariant]
     | DTypeAlias Name [Name] TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

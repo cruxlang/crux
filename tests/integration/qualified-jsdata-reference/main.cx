@@ -1,0 +1,2 @@
+import { prelude }
+let _ = prelude.True

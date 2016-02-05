@@ -160,13 +160,11 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
             else
                 return Nothing
         -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
-        DLet typeVar mutability (PBinding name) _ _ -> do
-            if name == valueName then
-                return $ Just (typeVar, mutability)
-            else
-                return Nothing
-        DLet _ _ PWildcard _ _ -> do
-            return Nothing
+        DLet typeVar mutability binding _ _ -> do
+            return $ case binding of
+                PBinding name | name == valueName -> Just (typeVar, mutability)
+                PBinding _ -> Nothing
+                PWildcard -> Nothing
         DFun typeVar name _ _ _ -> do
             if name == valueName then
                 return $ Just (typeVar, LImmutable)
@@ -174,8 +172,12 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
                 return Nothing
         DData _ _ _ _ -> do
             return Nothing
-        DJSData _ _ _ _ -> do
-            return Nothing
+        DJSData typeVar _ _ variants -> do
+            findFirstOfM variants $ \(JSVariant name _) -> do
+                if name == valueName then
+                    return $ Just (typeVar, LImmutable)
+                else
+                    return Nothing
         DTypeAlias _ _ _ -> do
             return Nothing
     tv <- lift $ unfreezeTypeVar typeVar
@@ -555,11 +557,11 @@ freezeModule Module{..} = do
 -- Phase 2a
 registerJSFFIDecl :: Env -> Declaration UnresolvedReference Pos -> IO ()
 registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
-    DDeclare _ _ _ -> return ()
-    DLet _ _ _ _ _ -> return ()
-    DFun _ _ _ _ _ -> return()
+    DDeclare {} -> return ()
+    DLet {} -> return ()
+    DFun {} -> return()
 
-    DData _ _ _ _ -> return ()
+    DData {} -> return ()
     DJSData _pos name moduleName variants -> do
         -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
         variants' <- forM variants $ \(JSVariant variantName _value) -> do
@@ -579,7 +581,7 @@ registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
         forM_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
         return ()
-    DTypeAlias _ _ _ -> return ()
+    DTypeAlias {} -> return ()
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of

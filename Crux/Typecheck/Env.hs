@@ -269,7 +269,7 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
         ctorType <- computeVariantType vparameters
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
--- TODO(chad): return an Either
+-- TODO(chad): return an Either instead of throwing exceptions
 buildTypeEnvironment :: HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
 buildTypeEnvironment loadedModules imports = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
@@ -372,21 +372,7 @@ addThisModuleDataDeclsToEnvironment ::
 addThisModuleDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
     forM_ decls $ \case
-        DJSData _typeVar name moduleName variants -> do
-            -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
-            variants' <- forM variants $ \(JSVariant variantName _value) -> do
-                let tvParameters = []
-                let tvName = variantName
-                return TVariant{..}
-
-            let typeDef = TUserTypeDef
-                    { tuName = name
-                    , tuModuleName = moduleName
-                    , tuParameters = []
-                    , tuVariants = variants'
-                    }
-            userType <- newIORef $ TUserType typeDef []
-            HashTable.insert name (TypeBinding (mkName name) userType) (eTypeBindings env)
+        DJSData {} -> return ()
 
         DTypeAlias name params ident ->
             HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)

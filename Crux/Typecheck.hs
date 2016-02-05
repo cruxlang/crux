@@ -173,7 +173,7 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
                 return Nothing
         DData _ _ _ _ -> do
             return Nothing
-        DJSData _ _ _ -> do
+        DJSData _ _ _ _ -> do
             return Nothing
         DTypeAlias _ _ _ -> do
             return Nothing
@@ -551,6 +551,34 @@ freezeModule Module{..} = do
         , mDecls=decls
         }
 
+registerJSFFIDecl :: Env -> Declaration UnresolvedReference Pos -> IO ()
+registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
+    DDeclare _ _ _ -> return ()
+    DLet _ _ _ _ _ -> return ()
+    DFun _ _ _ _ _ -> return()
+
+    DData _ _ _ _ -> return ()
+    DJSData _pos name moduleName variants -> do
+        -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
+        variants' <- forM variants $ \(JSVariant variantName _value) -> do
+            let tvParameters = []
+            let tvName = variantName
+            return TVariant{..}
+
+        let typeDef = TUserTypeDef
+                { tuName = name
+                , tuModuleName = moduleName
+                , tuParameters = []
+                , tuVariants = variants'
+                }
+        userType <- newIORef $ TUserType typeDef []
+        HashTable.insert name (TypeBinding (Local name) userType) (eTypeBindings env)
+
+        forM_ variants $ \(JSVariant variantName _value) -> do
+            HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
+        return ()
+    DTypeAlias _ _ _ -> return ()
+
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of
 
@@ -592,6 +620,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
     {- TYPE DEFINITIONS -}
 
     DData name moduleName typeParameters variants -> do
+        -- make this a TUserTypeDef
         dataTypeVar <- freshType env
 
         env' <- childEnv env
@@ -611,30 +640,45 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
 
         -- TODO: Verify that all types referred to by variants exist, or are typeVars
         return $ DData name moduleName typeParameters typedVariants
-    DJSData name moduleName variants -> do
-        return $ DJSData name moduleName variants
+    DJSData _pos name moduleName variants -> do
+        -- TODO: add an internal compiler error if the name is not in bindings
+        -- TODO: error when a name is inserted into type bindings twice at top level
+        (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        return $ DJSData typeVar name moduleName variants
     DTypeAlias name typeVars ident -> do
         return $ DTypeAlias name typeVars ident
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either Error.Error LoadedModule)
 run loadedModules modul = runEitherT $ do
     {-
+    populate environment:
+        eTypeBindings
+        eValueBindings
+        ePatternBindings
 
-    prepopulate environment with imports
-    * eTypeBindings
-    * eValueBindings
-    * ePatternBindings??
+    phase 1:
+        register all qualified imports
+        register all unqualified imports
 
-    for all decls, populate types
-    then populate type aliases
-    then populate data constructors
+    phase 2:
+      a. register all jsffi types and data constructors
+      b. register all data types (and only the types)
+      c. register all type aliases
+      d. register all data type constructors (using same qvars from before)
 
-    then typecheck all value definitions
+    phase 3:
+        type check all values in order
     -}
 
+    -- Phase 1
     env <- EitherT $ (try $ buildTypeEnvironment loadedModules modul) >>= \case
         Left err -> return $ Left $ Error.TypeError err
         Right result -> return result
+
+    -- Phase 2a
+    lift $ forM_ (mDecls modul) $ \decl -> do
+        registerJSFFIDecl env decl
+
     decls <- forM (mDecls modul) $ \decl -> do
         (lift $ try $ checkDecl env decl) >>= \case
             Left err -> left $ Error.TypeError err

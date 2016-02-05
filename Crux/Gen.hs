@@ -312,7 +312,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
             return ()
         AST.DData name _ _ variants -> do
             writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
-        AST.DJSData name _ variants -> do
+        AST.DJSData _ name _ variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun _ name params _retAnn body -> do
             body' <- subBlockWithReturn env body

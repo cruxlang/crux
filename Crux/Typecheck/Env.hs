@@ -160,7 +160,7 @@ findDeclByName modul name =
                     DLet _ _ (PBinding n) _ _ | n == name -> True
                     DFun _ n _ _ _            | n == name -> True
                     DData n _ _ _             | n == name -> True
-                    DJSData n _ _             | n == name -> True
+                    DJSData _ n _ _           | n == name -> True
                     DTypeAlias n _ _          | n == name -> True
                     _ -> False
     in go (mDecls modul)
@@ -290,7 +290,7 @@ buildTypeEnvironment loadedModules thisModule = runEitherT $ do
                 Just im -> return im
                 Nothing -> left $ Error.InternalCompilerError $ Error.DependentModuleNotLoaded importName
 
-            liftIO $ addDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
+            liftIO $ addLoadedDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
             forM_ (exportedDecls $ mDecls importedModule) $ \case
                 DDeclare tr name _typeIdent -> do
@@ -312,20 +312,68 @@ buildTypeEnvironment loadedModules thisModule = runEitherT $ do
         QualifiedImport moduleName importName -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
 
-    liftIO $ addDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
+    liftIO $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
 
     return env
 
-addDataDeclsToEnvironment ::
+addLoadedDataDeclsToEnvironment ::
+       Env
+    -> Module idtype ImmutableTypeVar
+    -> [DeclarationType idtype ImmutableTypeVar]
+    -> (Name -> ResolvedReference)
+    -> IO ()
+addLoadedDataDeclsToEnvironment env modul decls mkName = do
+    -- First, populate the type environment.  Variant parameter types are all initially free.
+    forM_ decls $ \case
+        DJSData typeVar name _moduleName _variants -> do
+            userType <- unfreezeTypeVar typeVar
+            HashTable.insert name (TypeBinding (mkName name) userType) (eTypeBindings env)
+
+        DTypeAlias name params ident ->
+            HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)
+
+        DDeclare {} -> return ()
+        DData {}    -> return ()
+        DFun {}     -> return ()
+        DLet {}     -> return ()
+
+    dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
+        DData name moduleName typeVarNames variants ->
+            return $ Just (name, exportFlag, pos, moduleName, typeVarNames, variants)
+        _ ->
+            return Nothing
+
+    dataDecls' <- forM dataDecls $ \(name, exportFlag, pos, moduleName, typeVarNames, variants) -> do
+        (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
+        return (name, exportFlag, pos, typeDef, tyVar, qvars, variants)
+
+    forM_ dataDecls' $ \(_name, _exportFlag, _pos, typeDef, _tyVar, qvars, variants) ->
+        resolveVariantTypes env qvars typeDef variants
+
+    forM_ dataDecls' $ \(name, exportFlag, pos, _typeDef, tyVar, qvars, variants) ->
+        addVariants env name modul exportFlag pos qvars tyVar variants mkName
+
+    -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
+    -- with the TypeVars created in the type environment.
+    forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
+        DData {} -> do
+            return ()
+        DJSData userType _name _ variants -> do
+            forM_ variants $ \(JSVariant variantName _value) -> do
+                tvar <- unfreezeTypeVar userType
+                HashTable.insert variantName (ValueReference (mkName variantName) LImmutable tvar) (eValueBindings env)
+        _ -> return ()
+
+addThisModuleDataDeclsToEnvironment ::
        Env
     -> Module idtype edata
     -> [DeclarationType t1 t2]
     -> (Name -> ResolvedReference)
     -> IO ()
-addDataDeclsToEnvironment env modul decls mkName = do
+addThisModuleDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
     forM_ decls $ \case
-        DJSData name moduleName variants -> do
+        DJSData _typeVar name moduleName variants -> do
             -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
             variants' <- forM variants $ \(JSVariant variantName _value) -> do
                 let tvParameters = []
@@ -364,17 +412,3 @@ addDataDeclsToEnvironment env modul decls mkName = do
 
     forM_ dataDecls' $ \(name, exportFlag, pos, _typeDef, tyVar, qvars, variants) ->
         addVariants env name modul exportFlag pos qvars tyVar variants mkName
-
-    -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
-    -- with the TypeVars created in the type environment.
-    forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
-        DData {} -> do
-            return ()
-        DJSData name _ variants -> do
-            userType <- HashTable.lookup name (eTypeBindings env) >>= \case
-                Just (TypeBinding _ userType) -> return userType
-                Just (TypeAlias _ _ _) -> fail $ printf "DJSData: Name %s was an alias" (show name)
-                Nothing -> fail $ printf "DJSData: Could not find name %s" (show name)
-            forM_ variants $ \(JSVariant variantName _value) -> do
-                HashTable.insert variantName (ValueReference (mkName variantName) LImmutable userType) (eValueBindings env)
-        _ -> return ()

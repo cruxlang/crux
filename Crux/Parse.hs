@@ -548,11 +548,11 @@ jsVariantDefinition = do
 
 jsDataDeclaration :: Parser ParseDeclaration
 jsDataDeclaration = do
-    _ <- token TJSFFI
+    jsffiToken <- token TJSFFI
     name <- typeName
     variants <- braced $ commaDelimited jsVariantDefinition
     moduleName <- readModuleName
-    return $ DJSData name moduleName variants
+    return $ DJSData (tokenData jsffiToken) name moduleName variants
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do

@@ -4,6 +4,7 @@ module Crux.Typecheck.Env
     , newEnv
     , childEnv
     , buildTypeEnvironment
+    , addThisModuleDataDeclsToEnvironment
     , unfreezeTypeVar
     , resolveTypeIdent
     , exportedDecls
@@ -269,8 +270,8 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
 -- TODO(chad): return an Either
-buildTypeEnvironment :: HashMap ModuleName LoadedModule -> Module j a -> IO (Either Error.Error Env)
-buildTypeEnvironment loadedModules thisModule = runEitherT $ do
+buildTypeEnvironment :: HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
+buildTypeEnvironment loadedModules imports = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
     strTy  <- newIORef $ TPrimitive String
@@ -284,7 +285,7 @@ buildTypeEnvironment loadedModules thisModule = runEitherT $ do
         let Intrinsic{..} = intrin
         HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
 
-    forM_ (mImports thisModule) $ \case
+    forM_ imports $ \case
         UnqualifiedImport importName -> do
             importedModule <- case HashMap.lookup importName loadedModules of
                 Just im -> return im
@@ -311,8 +312,6 @@ buildTypeEnvironment loadedModules thisModule = runEitherT $ do
                 _ -> return ()
         QualifiedImport moduleName importName -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
-
-    liftIO $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
 
     return env
 

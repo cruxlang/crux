@@ -5,13 +5,14 @@ module Crux.Typecheck
     ( run
     ) where
 
-import           Control.Exception     (try, ErrorCall (..))
-import           Crux.AST
+import Control.Exception (try, ErrorCall (..))
+import Crux.AST
 import qualified Crux.MutableHashTable as HashTable
-import           Crux.Prelude
-import           Crux.Tokens           (Pos (..))
-import           Crux.Typecheck.Env    (ResolvePolicy (..), buildTypeEnvironment, childEnv, resolveTypeIdent,
-                                        unfreezeTypeVar, exportedDecls)
+import Crux.Prelude
+import Crux.Tokens (Pos (..))
+import Crux.Typecheck.Env (
+    ResolvePolicy (..), buildTypeEnvironment, addThisModuleDataDeclsToEnvironment,
+    childEnv, resolveTypeIdent, unfreezeTypeVar, exportedDecls)
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict   as HashMap
@@ -551,6 +552,7 @@ freezeModule Module{..} = do
         , mDecls=decls
         }
 
+-- Phase 2a
 registerJSFFIDecl :: Env -> Declaration UnresolvedReference Pos -> IO ()
 registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
     DDeclare _ _ _ -> return ()
@@ -649,7 +651,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         return $ DTypeAlias name typeVars ident
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either Error.Error LoadedModule)
-run loadedModules modul = runEitherT $ do
+run loadedModules thisModule = runEitherT $ do
     {-
     populate environment:
         eTypeBindings
@@ -671,18 +673,23 @@ run loadedModules modul = runEitherT $ do
     -}
 
     -- Phase 1
-    env <- EitherT $ (try $ buildTypeEnvironment loadedModules modul) >>= \case
+    env <- EitherT $ (try $ buildTypeEnvironment loadedModules (mImports thisModule)) >>= \case
         Left err -> return $ Left $ Error.TypeError err
         Right result -> return result
 
     -- Phase 2a
-    lift $ forM_ (mDecls modul) $ \decl -> do
+    lift $ forM_ (mDecls thisModule) $ \decl -> do
         registerJSFFIDecl env decl
 
-    decls <- forM (mDecls modul) $ \decl -> do
+    result <- liftIO $ try $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
+    case result of
+        Left err -> left $ Error.TypeError err
+        Right d -> return d
+
+    decls <- forM (mDecls thisModule) $ \decl -> do
         (lift $ try $ checkDecl env decl) >>= \case
             Left err -> left $ Error.TypeError err
             Right d -> return d
-    lift $ freezeModule modul
+    lift $ freezeModule thisModule
         { mDecls=decls
         }

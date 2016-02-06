@@ -16,7 +16,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
     let aModule = Module
             { mImports = []
             , mDecls =
-                [ Declaration Export undefined (DData "DT" aModuleName [] [])
+                [ Declaration Export undefined (DData undefined "DT" aModuleName [] [])
                 ]
             }
     let thisModule = Module

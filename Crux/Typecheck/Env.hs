@@ -160,7 +160,7 @@ findDeclByName modul name =
                     DDeclare _ n _            | n == name -> True
                     DLet _ _ (PBinding n) _ _ | n == name -> True
                     DFun _ n _ _ _            | n == name -> True
-                    DData n _ _ _             | n == name -> True
+                    DData _ n _ _ _           | n == name -> True
                     DJSData _ n _ _           | n == name -> True
                     DTypeAlias n _ _          | n == name -> True
                     _ -> False
@@ -204,13 +204,13 @@ addDataType :: Env
             -> [TypeName]
             -> [Variant _edata]
             -> IO (TUserTypeDef TypeVar, TypeVar, QVars)
-addDataType env importName dname typeVariables variants = do
+addDataType env importName typeName typeVariables variants = do
     e <- childEnv env
     tyVars <- forM typeVariables $ \tv ->
         resolveTypeIdent e NewTypesAreQuantified (TypeIdent tv [])
 
-    (typeDef, tyVar) <- createUserTypeDef e dname importName tyVars variants
-    HashTable.insert dname (TypeBinding (OtherModule importName dname) tyVar) (eTypeBindings env)
+    (typeDef, tyVar) <- createUserTypeDef e typeName importName tyVars variants
+    HashTable.insert typeName (TypeBinding (OtherModule importName typeName) tyVar) (eTypeBindings env)
 
     let t = [(tn, (OtherModule importName tn, tv)) | (tn, tv) <- zip typeVariables tyVars]
     return (typeDef, tyVar, t)
@@ -337,7 +337,8 @@ addLoadedDataDeclsToEnvironment env modul decls mkName = do
         DLet {}     -> return ()
 
     dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
-        DData name moduleName typeVarNames variants ->
+        -- TODO: we should use typeVar here
+        DData _typeVar name moduleName typeVarNames variants ->
             return $ Just (name, exportFlag, pos, moduleName, typeVarNames, variants)
         _ ->
             return Nothing
@@ -383,7 +384,7 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
         DLet {}     -> return ()
 
     dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
-        DData name moduleName typeVarNames variants ->
+        DData _pos name moduleName typeVarNames variants ->
             return $ Just (name, exportFlag, pos, moduleName, typeVarNames, variants)
         _ ->
             return Nothing

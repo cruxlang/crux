@@ -159,7 +159,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
         PBinding name -> [(name, mutability, typeVar)]
         PWildcard -> []
     DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
-    DData _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
+    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
     DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
     DTypeAlias _ _ _ -> []
 
@@ -179,7 +179,7 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
-    DData _ _ _ _ -> [] -- TODO refer to exported type aliases
+    DData typeVar name _ _ _ -> [(name, typeVar)]
     DJSData typeVar name _ _ -> [(name, typeVar)]
     DTypeAlias _ _ _ -> [] -- TODO refer to exported type aliases
 
@@ -634,30 +634,29 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
 
     {- TYPE DEFINITIONS -}
 
-    DData name moduleName typeParameters variants -> do
-        -- make this a TUserTypeDef
-        dataTypeVar <- freshType env
+    DData _pos name moduleName typeParameters variants -> do
+        -- TODO: add an internal compiler error if the name is not in bindings
+        -- TODO: error when a name is inserted into type bindings twice at top level
+        -- TODO: is there a better way to carry this information from environment
+        -- setup through type checking of decls?
+        (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
 
         env' <- childEnv env
         forM_ typeParameters $ \tpName -> do
             qvar <- freshType env'
             HashTable.insert tpName (TypeBinding (Local tpName) qvar) (eTypeBindings env')
 
-        let computeVariantType [] = return dataTypeVar
-            computeVariantType argTypeIdents = do
-                resolvedArgTypes <- mapM (resolveTypeIdent env' NewTypesAreErrors) argTypeIdents
-                newIORef $ TFun resolvedArgTypes dataTypeVar
-
         typedVariants <- forM variants $ \(Variant _pos vname vparameters) -> do
-            ctorType <- computeVariantType vparameters
-            --HashTable.insert vname (ValueReference (ThisModule vname) LImmutable ctorType) (eValueBindings env)
+            (Just (ValueReference _rr _mut ctorType)) <- HashTable.lookup vname (eValueBindings env)
             return $ Variant ctorType vname vparameters
 
-        -- TODO: Verify that all types referred to by variants exist, or are typeVars
-        return $ DData name moduleName typeParameters typedVariants
+        return $ DData typeVar name moduleName typeParameters typedVariants
+
     DJSData _pos name moduleName variants -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
+        -- TODO: is there a better way to carry this information from environment
+        -- setup through type checking of decls?
         (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
         return $ DJSData typeVar name moduleName variants
     DTypeAlias name typeVars ident -> do

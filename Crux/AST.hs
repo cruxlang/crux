@@ -50,7 +50,7 @@ data DeclarationType idtype edata
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     -- Types
-    | DData Name ModuleName [TypeVariable] [Variant edata]
+    | DData edata Name ModuleName [TypeVariable] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]
     | DTypeAlias Name [Name] TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

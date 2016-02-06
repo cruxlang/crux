@@ -521,14 +521,14 @@ variantDefinition = do
 
     return $ Variant pos ctorname ctordata
 
-cruxDataDeclaration :: Parser ParseDeclaration
-cruxDataDeclaration = do
+cruxDataDeclaration :: Pos -> Parser ParseDeclaration
+cruxDataDeclaration pos = do
     name <- typeName
     typeVars <- P.many typeVariableName
 
     variants <- braced $ commaDelimited variantDefinition
     moduleName <- readModuleName
-    return $ DData name moduleName typeVars variants
+    return $ DData pos name moduleName typeVars variants
 
 jsValue :: Parser JSTree.Literal
 jsValue =
@@ -546,19 +546,20 @@ jsVariantDefinition = do
     ctorvalue <- jsValue
     return $ JSVariant ctorname ctorvalue
 
-jsDataDeclaration :: Parser ParseDeclaration
-jsDataDeclaration = do
-    jsffiToken <- token TJSFFI
+jsDataDeclaration :: Pos -> Parser ParseDeclaration
+jsDataDeclaration pos = do
+    _ <- token TJSFFI
     name <- typeName
     variants <- braced $ commaDelimited jsVariantDefinition
     moduleName <- readModuleName
-    return $ DJSData (tokenData jsffiToken) name moduleName variants
+    return $ DJSData pos name moduleName variants
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do
     dataToken <- token TData
+    let pos = tokenData dataToken
     withIndentation (IRDeeper dataToken) $
-        jsDataDeclaration <|> cruxDataDeclaration
+        jsDataDeclaration pos <|> cruxDataDeclaration pos
 
 typeDeclaration :: Parser ParseDeclaration
 typeDeclaration = do

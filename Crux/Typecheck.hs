@@ -641,11 +641,6 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         -- setup through type checking of decls?
         (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
 
-        env' <- childEnv env
-        forM_ typeParameters $ \tpName -> do
-            qvar <- freshType env'
-            HashTable.insert tpName (TypeBinding (Local tpName) qvar) (eTypeBindings env')
-
         typedVariants <- forM variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference _rr _mut ctorType)) <- HashTable.lookup vname (eValueBindings env)
             return $ Variant ctorType vname vparameters

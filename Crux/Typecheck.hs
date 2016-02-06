@@ -150,36 +150,26 @@ resolveReference env ref = case ref of
                 return $ Just (rr, typevar)
             Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
+getAllExportedValues :: LoadedModule -> [(Name, LetMutability, ImmutableTypeVar)]
+getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+    DDeclare typeVar name _typeIdent -> [(name, LImmutable, typeVar)]
+    -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
+    DLet typeVar mutability binding _ _ -> case binding of
+        PBinding name -> [(name, mutability, typeVar)]
+        PWildcard -> []
+    DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
+    DData _ _ _ _ -> [] -- TODO
+    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
+    DTypeAlias _ _ _ -> []
+
 findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 findExportedValueByName env moduleName valueName = runMaybeT $ do
     modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    (typeVar, mutability) <- MaybeT $ findFirstOfM (exportedDecls $ mDecls modul) $ \case
-        DDeclare typeVar name _typeIdent -> do
-            if name == valueName then
-                return $ Just (typeVar, LImmutable)
-            else
-                return Nothing
-        -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
-        DLet typeVar mutability binding _ _ -> do
-            return $ case binding of
-                PBinding name | name == valueName -> Just (typeVar, mutability)
-                PBinding _ -> Nothing
-                PWildcard -> Nothing
-        DFun typeVar name _ _ _ -> do
-            if name == valueName then
-                return $ Just (typeVar, LImmutable)
-            else
-                return Nothing
-        DData _ _ _ _ -> do
-            return Nothing
-        DJSData typeVar _ _ variants -> do
-            findFirstOfM variants $ \(JSVariant name _) -> do
-                if name == valueName then
-                    return $ Just (typeVar, LImmutable)
-                else
-                    return Nothing
-        DTypeAlias _ _ _ -> do
-            return Nothing
+    (typeVar, mutability) <- MaybeT $ return $ findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
+        if name == valueName then
+            Just (typeVar, mutability)
+        else
+            Nothing
     tv <- lift $ unfreezeTypeVar typeVar
     return (OtherModule moduleName valueName, mutability, tv)
 

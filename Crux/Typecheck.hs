@@ -125,29 +125,30 @@ isLValue env expr = case expr of
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
     _ -> return False
 
-resolveType :: Pos -> Env -> UnresolvedReference -> IO TypeVar
-resolveType pos env (UnknownReference name) = do
+resolveTypeReference :: Pos -> Env -> UnresolvedReference -> IO TypeVar
+resolveTypeReference pos env (UnknownReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
         Just (TypeBinding _ t) -> return t
         Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
         Nothing -> do
             tb <- readIORef $ eTypeBindings env
             throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
-resolveType _pos _env (KnownReference _moduleName _name) = do
-    fail "TODO: resolveType implementation for KnownReference"
+resolveTypeReference _pos env (KnownReference moduleName name) = do
+    findExportedTypeByName env moduleName name >>= \case
+        Just (_, tv) -> return tv
+        Nothing -> fail "No exported type in module. TODO: this error message"
 
-resolveReference :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, TypeVar))
-resolveReference env ref = case ref of
+resolveValueReference :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
+resolveValueReference env ref = case ref of
     UnknownReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
         return $ case result of
-            Just (ValueReference rr _ t) -> Just (rr, t)
+            Just (ValueReference rr mut t) -> Just (rr, mut, t)
             _ -> Nothing
     KnownReference moduleName name -> do
         findExportedValueByName env moduleName name >>= \case
-            Just (rr, _mutability, typevar) ->
-                -- TODO: what do we do with mutability?
-                return $ Just (rr, typevar)
+            Just (rr, mutability, typevar) ->
+                return $ Just (rr, mutability, typevar)
             Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
 getAllExportedValues :: LoadedModule -> [(Name, LetMutability, ImmutableTypeVar)]
@@ -173,6 +174,26 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
     tv <- lift $ unfreezeTypeVar typeVar
     return (OtherModule moduleName valueName, mutability, tv)
 
+getAllExportedTypes :: LoadedModule -> [(Name, ImmutableTypeVar)]
+getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+    DDeclare {} -> []
+    DLet {} -> []
+    DFun {} -> []
+    DData _ _ _ _ -> [] -- TODO refer to exported type aliases
+    DJSData typeVar name _ _ -> [(name, typeVar)]
+    DTypeAlias _ _ _ -> [] -- TODO refer to exported type aliases
+
+findExportedTypeByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, TypeVar))
+findExportedTypeByName env moduleName typeName = runMaybeT $ do
+    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
+    typeVar <- MaybeT $ return $ findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
+        if name == typeName then
+            Just typeVar
+        else
+            Nothing
+    tv <- lift $ unfreezeTypeVar typeVar
+    return (OtherModule moduleName typeName, tv)
+
 withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
 withPositionInformation expr a = catch a handle
   where
@@ -182,7 +203,7 @@ withPositionInformation expr a = catch a handle
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
-    arrayType <- resolveType pos env (UnknownReference "Array")
+    arrayType <- resolveTypeReference pos env (UnknownReference "Array")
     readIORef arrayType >>= \case
         TUserType td [_elementType] -> do
             newArrayType <- newIORef $ TUserType td [elementType]
@@ -191,7 +212,7 @@ resolveArrayType pos env = do
 
 resolveBooleanType :: Pos -> Env -> IO TypeVar
 resolveBooleanType pos env = do
-    resolveType pos env (UnknownReference "Boolean")
+    resolveTypeReference pos env (UnknownReference "Boolean")
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
@@ -383,11 +404,11 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier _pos txt -> do
         (rr, tyref) <- do
-            resolveReference env txt >>= \case
-                Just (a@(Local _), b) -> do
+            resolveValueReference env txt >>= \case
+                Just (a@(Local _), _mutability, b) -> do
                     -- Don't instantiate locals.  Let generalization is tricky.
                     return (a, b)
-                Just (a, b) -> do
+                Just (a, _mutability, b) -> do
                     b' <- instantiate env b
                     return (a, b')
                 Nothing ->

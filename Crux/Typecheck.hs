@@ -158,7 +158,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
         PBinding name -> [(name, mutability, typeVar)]
         PWildcard -> []
     DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
-    DData _ _ _ _ -> [] -- TODO
+    DData _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
     DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
     DTypeAlias _ _ _ -> []
 

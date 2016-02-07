@@ -44,7 +44,8 @@ instance Show TypeReference where
     show (TypeAlias name params typeIdent) = "TypeAlias " ++ show name ++ " " ++ show params ++ " " ++ show typeIdent
 
 data Env = Env
-    { eLoadedModules :: HashMap ModuleName LoadedModule
+    { eThisModule    :: ModuleName
+    , eLoadedModules :: HashMap ModuleName LoadedModule
     , eNextTypeIndex :: IORef Int
     , eValueBindings :: HashTable Name ValueReference
     , eTypeBindings  :: HashTable Name TypeReference

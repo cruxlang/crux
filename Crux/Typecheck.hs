@@ -133,10 +133,13 @@ resolveTypeReference pos env (UnknownReference name) = do
         Nothing -> do
             tb <- readIORef $ eTypeBindings env
             throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
-resolveTypeReference _pos env (KnownReference moduleName name) = do
-    findExportedTypeByName env moduleName name >>= \case
-        Just (_, tv) -> return tv
-        Nothing -> fail "No exported type in module. TODO: this error message"
+resolveTypeReference pos env (KnownReference moduleName name) = do
+    if moduleName == eThisModule env then do
+        resolveTypeReference pos env (UnknownReference name)
+    else do
+        findExportedTypeByName env moduleName name >>= \case
+            Just (_, tv) -> return tv
+            Nothing -> fail "No exported type in module. TODO: this error message"
 
 resolveValueReference :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 resolveValueReference env ref = case ref of
@@ -212,7 +215,7 @@ resolveArrayType pos env = do
 
 resolveBooleanType :: Pos -> Env -> IO TypeVar
 resolveBooleanType pos env = do
-    resolveTypeReference pos env (UnknownReference "Boolean")
+    resolveTypeReference pos env (KnownReference "prelude" "Boolean")
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
@@ -657,8 +660,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
     DTypeAlias name typeVars ident -> do
         return $ DTypeAlias name typeVars ident
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> IO (Either Error.Error LoadedModule)
-run loadedModules thisModule = runEitherT $ do
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> IO (Either Error.Error LoadedModule)
+run loadedModules thisModule thisModuleName = runEitherT $ do
     {-
     populate environment:
         eTypeBindings
@@ -680,7 +683,7 @@ run loadedModules thisModule = runEitherT $ do
     -}
 
     -- Phase 1
-    env <- EitherT $ (try $ buildTypeEnvironment loadedModules (mImports thisModule)) >>= \case
+    env <- EitherT $ (try $ buildTypeEnvironment thisModuleName loadedModules (mImports thisModule)) >>= \case
         Left err -> return $ Left $ Error.TypeError err
         Right result -> return result
 

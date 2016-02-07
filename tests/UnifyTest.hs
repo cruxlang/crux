@@ -22,7 +22,7 @@ test_quantified_with_number = do
             _ -> assertFailure ("BLAH " ++ show a)
 
 test_function_taking_record = do
-    env <- newEnv HashMap.empty Nothing
+    env <- newEnv "main" HashMap.empty Nothing
 
     numTy <- newIORef $ TPrimitive $ Number
     argType <- newIORef $ TRecord (RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy])

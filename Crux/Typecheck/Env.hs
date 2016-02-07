@@ -31,8 +31,8 @@ import           Text.Printf           (printf)
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
 
-newEnv :: HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
-newEnv eLoadedModules eReturnType = do
+newEnv :: ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
+newEnv eThisModule eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eValueBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
@@ -270,13 +270,13 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
 
 -- TODO(chad): return an Either instead of throwing exceptions
-buildTypeEnvironment :: HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
-buildTypeEnvironment loadedModules imports = runEitherT $ do
+buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
+buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
     numTy  <- newIORef $ TPrimitive Number
     strTy  <- newIORef $ TPrimitive String
 
-    env <- liftIO $ newEnv loadedModules Nothing
+    env <- liftIO $ newEnv thisModuleName loadedModules Nothing
     HashTable.insert "Number" (TypeBinding (Builtin "Number") numTy) (eTypeBindings env)
     HashTable.insert "String" (TypeBinding (Builtin "String") strTy) (eTypeBindings env)
 

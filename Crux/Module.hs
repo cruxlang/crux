@@ -109,7 +109,7 @@ loadModuleFromSource'
     -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource' adjust loadedModules moduleName filename source = runEitherT $ do
     mod' <- EitherT $ parseModuleFromSource moduleName filename source
-    EitherT $ Typecheck.run loadedModules $ adjust mod'
+    EitherT $ Typecheck.run loadedModules (adjust mod') moduleName
 
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
@@ -151,7 +151,7 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
                 EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
 
             lm <- lift $ readIORef loadedModules
-            (lift $ Typecheck.run lm parsedModule) >>= \case
+            (lift $ Typecheck.run lm parsedModule moduleName) >>= \case
                 Left typeError -> do
                     left (moduleName, typeError)
                 Right loadedModule -> do

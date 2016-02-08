@@ -9,6 +9,7 @@ import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
 import           System.Exit         (ExitCode (..), exitWith)
 import           Text.Show.Pretty    (ppShow)
+import System.IO
 
 data Options = Options
      { ast   :: Bool
@@ -46,7 +47,7 @@ main = do
         [fn] -> do
             loadProgramFromFile fn >>= \case
                 Left (_, err) -> do
-                    Error.renderError err >>= putStrLn
+                    Error.renderError err >>= hPutStrLn stderr
                     exitWith $ ExitFailure 1
                 Right program -> do
                     if ast options then

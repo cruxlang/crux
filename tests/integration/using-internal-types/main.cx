@@ -3,7 +3,7 @@ import {
 }
 
 fun main() {
-    let a = mymod.x
+    let a = mymod.theValue
     mymod.foo(a)
 }
 

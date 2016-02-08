@@ -1,0 +1,2 @@
+import { mymod }
+let _ = mymod.Happy

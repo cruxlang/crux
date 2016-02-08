@@ -8,4 +8,4 @@ export fun foo(x) {
     }
 }
 
-export let x = MyThing
+export let theValue = MyThing

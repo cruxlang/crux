@@ -1,0 +1,8 @@
+export data D {
+  D,
+  E(String),
+}
+
+export fun f(v: D) {
+  print("in f")
+}

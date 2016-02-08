@@ -255,7 +255,6 @@ addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName 
             newIORef $ TFun resolvedArgTypes userTypeVar
 
     forM_ variants $ \(Variant _typeVar vname vparameters) -> do
-
         forM_ vparameters $ \parameter ->
             case (exportFlag, parameter) of
                 (Export, TypeIdent tiName _)

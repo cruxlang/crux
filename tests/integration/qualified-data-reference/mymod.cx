@@ -1,4 +1,0 @@
-export data Emotion {
-  Happy,
-  Sad,
-}

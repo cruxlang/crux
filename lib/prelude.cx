@@ -54,7 +54,7 @@ export fun get(a: Array a, idx: number) {
     _unsafe_get(a, idx)
 }
 
-export fun length(a: Array a): Number {
+export fun len(a: Array a): Number {
     _unsafe_coerce(a).length
 }
 
@@ -72,8 +72,8 @@ export fun replicate(element: a, len: Number): Array a {
 
 export fun each(arr: Array a, f: (a) -> b): () {
     let mutable i = 0
-    let len = length(arr)
-    while i < len {
+    let length = len(arr)
+    while i < length {
         f(_unsafe_get(arr, i))
         i = i + 1
     }

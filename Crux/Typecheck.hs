@@ -22,6 +22,7 @@ import           Text.Printf           (printf)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import qualified Crux.Error as Error
 import Crux.Util
+import Crux.Typecheck.Monad
 
 typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
 typeFromConstructor env cname = do

@@ -14,7 +14,6 @@ module Crux.Gen
     , generateProgram
     ) where
 
-import           Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST                  as AST
 import           Crux.Prelude

@@ -8,6 +8,10 @@ module Crux.Typecheck.Env
     , unfreezeTypeVar
     , resolveTypeIdent
     , exportedDecls
+    , getAllExportedValues
+    , findExportedValueByName
+    , getAllExportedTypes
+    , findExportedTypeByName
     , addDataType
     , resolveVariantTypes
     , addVariants
@@ -27,6 +31,7 @@ import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
+import Crux.Util
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
@@ -292,27 +297,57 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
 
             liftIO $ addLoadedDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
-            forM_ (exportedDecls $ mDecls importedModule) $ \case
-                DDeclare tr name _typeIdent -> do
-                    tr' <- lift $ unfreezeTypeVar tr
-                    HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
+            for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
+                tr' <- lift $ unfreezeTypeVar tr
+                HashTable.insert name (ValueReference (OtherModule importName name) mutability tr') (eValueBindings env)
 
-                DLet tr _mutability pat _ _ -> do
-                    tr' <- lift $ unfreezeTypeVar tr
-                    case pat of
-                        PWildcard -> return ()
-                        PBinding name -> do
-                            HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
-
-                DFun tr name _params _retAnn _body -> do
-                    tr' <- lift $ unfreezeTypeVar tr
-                    HashTable.insert name (ValueReference (OtherModule importName name) LImmutable tr') (eValueBindings env)
-
-                _ -> return ()
         QualifiedImport moduleName importName -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
 
     return env
+
+getAllExportedValues :: LoadedModule -> [(Name, LetMutability, ImmutableTypeVar)]
+getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+    DDeclare typeVar name _typeIdent -> [(name, LImmutable, typeVar)]
+    -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
+    DLet typeVar mutability binding _ _ -> case binding of
+        PBinding name -> [(name, mutability, typeVar)]
+        PWildcard -> []
+    DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
+    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
+    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
+    DTypeAlias _ _ _ -> []
+
+findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
+findExportedValueByName env moduleName valueName = runMaybeT $ do
+    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
+    (typeVar, mutability) <- MaybeT $ return $ findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
+        if name == valueName then
+            Just (typeVar, mutability)
+        else
+            Nothing
+    tv <- lift $ unfreezeTypeVar typeVar
+    return (OtherModule moduleName valueName, mutability, tv)
+
+getAllExportedTypes :: LoadedModule -> [(Name, ImmutableTypeVar)]
+getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+    DDeclare {} -> []
+    DLet {} -> []
+    DFun {} -> []
+    DData typeVar name _ _ _ -> [(name, typeVar)]
+    DJSData typeVar name _ _ -> [(name, typeVar)]
+    DTypeAlias _ _ _ -> [] -- TODO refer to exported type aliases
+
+findExportedTypeByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, TypeVar))
+findExportedTypeByName env moduleName typeName = runMaybeT $ do
+    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
+    typeVar <- MaybeT $ return $ findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
+        if name == typeName then
+            Just typeVar
+        else
+            Nothing
+    tv <- lift $ unfreezeTypeVar typeVar
+    return (OtherModule moduleName typeName, tv)
 
 addLoadedDataDeclsToEnvironment ::
        Env
@@ -346,22 +381,8 @@ addLoadedDataDeclsToEnvironment env modul decls mkName = do
         (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
         return (name, exportFlag, pos, typeDef, tyVar, qvars, variants)
 
-    forM_ dataDecls' $ \(_name, _exportFlag, _pos, typeDef, _tyVar, qvars, variants) ->
+    for_ dataDecls' $ \(_name, _exportFlag, _pos, typeDef, _tyVar, qvars, variants) ->
         resolveVariantTypes env qvars typeDef variants
-
-    forM_ dataDecls' $ \(name, exportFlag, pos, _typeDef, tyVar, qvars, variants) ->
-        addVariants env name modul exportFlag pos qvars tyVar variants mkName
-
-    -- Note to self: Here we need to match the names of the types of each variant up with concrete types, but also
-    -- with the TypeVars created in the type environment.
-    forM_ (mDecls modul) $ \(Declaration _ _ decl) -> case decl of
-        DData {} -> do
-            return ()
-        DJSData userType _name _ variants -> do
-            forM_ variants $ \(JSVariant variantName _value) -> do
-                tvar <- unfreezeTypeVar userType
-                HashTable.insert variantName (ValueReference (mkName variantName) LImmutable tvar) (eValueBindings env)
-        _ -> return ()
 
 addThisModuleDataDeclsToEnvironment ::
        Env

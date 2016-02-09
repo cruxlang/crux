@@ -38,3 +38,14 @@ runTC m = do
         return $ TCSuccess result warnings
     else
         return $ TCFail errors warnings
+
+-- temporary -- used to convert existing code
+bridgeTC :: TC a -> IO (Either Error a)
+bridgeTC m = do
+    tcWarnings <- newIORef []
+    tcErrors <- newIORef []
+    result <- runReaderT m TCState{..}
+    errors <- reverse <$> readIORef tcErrors
+    return $ case errors of
+        [] -> Right result
+        (x:_) -> Left x

@@ -10,21 +10,18 @@ import Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import Crux.Prelude
 import Crux.Tokens (Pos (..))
-import Crux.Typecheck.Env (
-    ResolvePolicy (..), buildTypeEnvironment, addThisModuleDataDeclsToEnvironment,
-    childEnv, resolveTypeIdent, unfreezeTypeVar, exportedDecls)
+import Crux.Typecheck.Env
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
-import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import qualified Crux.Error as Error
 import Crux.Util
-import Crux.Typecheck.Monad
+--import Crux.Typecheck.Monad
 
-typeFromConstructor :: Env -> Name -> IO (Maybe (TypeVar, TVariant TypeVar))
+typeFromConstructor :: Env -> Name -> IO (Maybe TypeVar)
 typeFromConstructor env cname = do
     typeBindings <- readIORef $ eTypeBindings env
     findFirstOfM (HashMap.elems typeBindings) $ \case
@@ -33,7 +30,7 @@ typeFromConstructor env cname = do
                 TUserType def _ -> do
                     let TUserTypeDef { tuVariants = variants } = def
                     case [v | v@(TVariant vname _) <- variants, vname == cname] of
-                        [v] -> return $ Just (ut, v)
+                        [_v] -> return $ Just ut
                         [] -> return Nothing
                         _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
                 _ -> return Nothing
@@ -41,8 +38,9 @@ typeFromConstructor env cname = do
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
+-- TODO: wipe this out and replace it with ePatternBindings in Env
 buildPatternEnv :: TypeVar -> Env -> RefutablePattern -> IO ()
-buildPatternEnv exprType env patt = case patt of
+buildPatternEnv exprType env = \case
     RPIrrefutable PWildcard -> do
         return ()
 
@@ -51,7 +49,7 @@ buildPatternEnv exprType env patt = case patt of
 
     RPConstructor cname cargs -> do
         typeFromConstructor env cname >>= \case
-            Just (ctorTy, _) -> do
+            Just ctorTy -> do
                 t <- readIORef ctorTy
                 case t of
                     TUserType def tyVars -> do
@@ -154,49 +152,6 @@ resolveValueReference env ref = case ref of
             Just (rr, mutability, typevar) ->
                 return $ Just (rr, mutability, typevar)
             Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
-
-getAllExportedValues :: LoadedModule -> [(Name, LetMutability, ImmutableTypeVar)]
-getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
-    DDeclare typeVar name _typeIdent -> [(name, LImmutable, typeVar)]
-    -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
-    DLet typeVar mutability binding _ _ -> case binding of
-        PBinding name -> [(name, mutability, typeVar)]
-        PWildcard -> []
-    DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
-    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
-    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
-    DTypeAlias _ _ _ -> []
-
-findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
-findExportedValueByName env moduleName valueName = runMaybeT $ do
-    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    (typeVar, mutability) <- MaybeT $ return $ findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
-        if name == valueName then
-            Just (typeVar, mutability)
-        else
-            Nothing
-    tv <- lift $ unfreezeTypeVar typeVar
-    return (OtherModule moduleName valueName, mutability, tv)
-
-getAllExportedTypes :: LoadedModule -> [(Name, ImmutableTypeVar)]
-getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
-    DDeclare {} -> []
-    DLet {} -> []
-    DFun {} -> []
-    DData typeVar name _ _ _ -> [(name, typeVar)]
-    DJSData typeVar name _ _ -> [(name, typeVar)]
-    DTypeAlias _ _ _ -> [] -- TODO refer to exported type aliases
-
-findExportedTypeByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, TypeVar))
-findExportedTypeByName env moduleName typeName = runMaybeT $ do
-    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    typeVar <- MaybeT $ return $ findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
-        if name == typeName then
-            Just typeVar
-        else
-            Nothing
-    tv <- lift $ unfreezeTypeVar typeVar
-    return (OtherModule moduleName typeName, tv)
 
 withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
 withPositionInformation expr a = catch a handle

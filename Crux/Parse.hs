@@ -260,20 +260,20 @@ functionExpression = do
     return $ EFun (tokenData tfun) args returnAnn body
 
 pattern :: Parser RefutablePattern
-pattern = do
-    let parenPattern = parenthesized pattern
-    parenPattern <|> noParenPattern
+pattern = parenthesized pattern <|> noParenPattern
 
 noParenPattern :: Parser RefutablePattern
 noParenPattern = do
-    txt <- anyIdentifier
-    if isCapitalized txt then do
-        let withArgs = do
-                params <- parenthesized $ commaDelimited pattern
-                return $ RPConstructor txt params
-        withArgs <|> (return $ RPConstructor txt [])
-    else do
-        return $ RPIrrefutable $ PBinding txt
+    let wildCardPattern = token TWildcard *> return (RPIrrefutable PWildcard)
+    wildCardPattern <|> do
+        txt <- anyIdentifier
+        if isCapitalized txt then do
+            let withArgs = do
+                    params <- parenthesized $ commaDelimited pattern
+                    return $ RPConstructor txt params
+            withArgs <|> (return $ RPConstructor txt [])
+        else do
+            return $ RPIrrefutable $ PBinding txt
 
 matchExpression :: Parser ParseExpression
 matchExpression = do

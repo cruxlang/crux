@@ -1,0 +1,7 @@
+fun main() {
+  match None {
+    Some(x) => print("some");
+    _ => print("none");
+  }
+}
+let _ = main()

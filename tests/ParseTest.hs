@@ -8,19 +8,9 @@ import           Crux.AST
 import qualified Crux.Lex as Lex
 import qualified Data.Text as T
 import           Test.Framework
-import qualified Text.Parsec as P
 import Data.HashMap.Strict (fromList)
 
 discardData expr = fmap (const ()) expr
-
-runParse :: Parser a -> T.Text -> IO (Either P.ParseError a)
-runParse parser source =
-    case Lex.lexSource "<>" source of
-        Left err ->
-            assertFailure $ "Lexer error: " ++ show err
-        Right tokens ->
-            return $ runParser parser "hs.ParseTest" "<>" tokens
-
 
 -- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
 assertParseOk parser source expected f = do
@@ -70,13 +60,6 @@ test_let = do
 test_let2 = do
     assertExprParses letExpression "let a = (5)"
         (ELet () LImmutable (PBinding "a") Nothing (ELiteral () (LInteger 5)))
-
-test_let_with_uppercase_is_not_ok = do
-    let source = "let PORT = 8000;"
-    r <- runParse letExpression source
-    case r of
-        Right _ -> assertFailure "It shouldn't be legal to assign to an uppercased symbol."
-        Left _ -> return ()
 
 test_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"

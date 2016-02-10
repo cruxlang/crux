@@ -264,16 +264,17 @@ pattern = parenthesized pattern <|> noParenPattern
 
 noParenPattern :: Parser RefutablePattern
 noParenPattern = do
-    let wildCardPattern = token TWildcard *> return (RPIrrefutable PWildcard)
-    wildCardPattern <|> do
-        txt <- anyIdentifier
-        if isCapitalized txt then do
-            let withArgs = do
-                    params <- parenthesized $ commaDelimited pattern
-                    return $ RPConstructor txt params
+    let constructorPattern = do
+            (_, txt) <- upperIdentifier
+            let withArgs = RPConstructor txt <$> (parenthesized $ commaDelimited pattern)
             withArgs <|> (return $ RPConstructor txt [])
-        else do
-            return $ RPIrrefutable $ PBinding txt
+    constructorPattern <|> (RPIrrefutable <$> irrefutablePattern)
+
+irrefutablePattern :: Parser Pattern
+irrefutablePattern = do
+    let wildcardPattern = token TWildcard *> return PWildcard
+    let bindingPattern = PBinding <$> anyIdentifier
+    wildcardPattern <|> bindingPattern
 
 matchExpression :: Parser ParseExpression
 matchExpression = do
@@ -370,11 +371,6 @@ assignExpression = do
     lhs <- P.try (applicationExpression <* token TEqual)
     rhs <- noSemiExpression
     return $ EAssign (edata lhs) lhs rhs
-
-irrefutablePattern :: Parser Pattern
-irrefutablePattern = do
-    _ <- token TWildcard
-    return PWildcard
 
 letExpression :: Parser ParseExpression
 letExpression = do

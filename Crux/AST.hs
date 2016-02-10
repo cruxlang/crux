@@ -32,6 +32,8 @@ data JSVariant = JSVariant Name JSTree.Literal
 
 -- Irrefutable only -- should it be called IrrefutablePattern?
 -- This very easily could grow PTuple or irrefutable constructor matches.
+-- TODO: eventually this will need to be merged with RefutablePattern when we have
+-- dynamic checks for refutability, like a data type with a single data constructor.
 data Pattern
     = PWildcard
     | PBinding Name
@@ -84,15 +86,14 @@ instance IsString ModuleName where
 printModuleName :: ModuleName -> Text
 printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $ a <> [b]
 
--- TODO: add QualifiedReference ImportName Name
 data UnresolvedReference
-    = UnknownReference Name
+    = UnqualifiedReference Name
     | KnownReference ModuleName Name
     deriving (Show, Eq)
 
 -- hack for convenience
 instance IsString UnresolvedReference where
-    fromString = UnknownReference . Text.pack
+    fromString = UnqualifiedReference . Text.pack
 
 data ResolvedReference
     = Ambient Name

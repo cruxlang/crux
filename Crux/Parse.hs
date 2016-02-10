@@ -247,7 +247,7 @@ parseString = do
 identifierExpression :: Parser ParseExpression
 identifierExpression = do
     (pos, txt) <- anyIdentifierWithPos
-    return $ EIdentifier pos $ UnknownReference txt
+    return $ EIdentifier pos $ UnqualifiedReference txt
 
 functionExpression :: Parser ParseExpression
 functionExpression = do

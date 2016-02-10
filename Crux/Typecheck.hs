@@ -21,19 +21,18 @@ import qualified Crux.Error as Error
 import Crux.Util
 --import Crux.Typecheck.Monad
 
-typeFromConstructor :: Env -> Name -> IO (Maybe TypeVar)
+typeFromConstructor :: Env -> Name -> IO (Maybe (TUserTypeDef TypeVar, [TypeVar]))
 typeFromConstructor env cname = do
     typeBindings <- readIORef $ eTypeBindings env
     findFirstOfM (HashMap.elems typeBindings) $ \case
-        TypeBinding _ ut -> do
-            readIORef ut >>= \case
-                TUserType def _ -> do
-                    let TUserTypeDef { tuVariants = variants } = def
-                    case [v | v@(TVariant vname _) <- variants, vname == cname] of
-                        [_v] -> return $ Just ut
-                        [] -> return Nothing
-                        _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
-                _ -> return Nothing
+        TypeBinding _ ut -> readIORef ut >>= \case
+            TUserType def tyVars -> do
+                let TUserTypeDef { tuVariants = variants } = def
+                case [v | v@(TVariant vname _) <- variants, vname == cname] of
+                    [_v] -> return $ Just (def, tyVars)
+                    [] -> return Nothing
+                    _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
+            _ -> return Nothing
         _ -> return Nothing
 
 -- | Build up an environment for a case of a match block.
@@ -49,28 +48,24 @@ buildPatternEnv exprType env = \case
 
     RPConstructor cname cargs -> do
         typeFromConstructor env cname >>= \case
-            Just ctorTy -> do
-                t <- readIORef ctorTy
-                case t of
-                    TUserType def tyVars -> do
-                        subst <- HashTable.new
-                        (ty', variants) <- instantiateUserType subst env def tyVars
-                        unify exprType ty'
+            Just (def, tyVars) -> do
+                subst <- HashTable.new
+                (ty', variants) <- instantiateUserType subst env def tyVars
+                unify exprType ty'
 
-                        let findVariant [] = error "findVariant: This should never happen"
-                            findVariant (v:rest)
-                                | tvName v == cname = Just v
-                                | otherwise = findVariant rest
+                let findVariant [] = error "findVariant: This should never happen"
+                    findVariant (v:rest)
+                        | tvName v == cname = Just v
+                        | otherwise = findVariant rest
 
-                        let Just variant = findVariant variants
-                        let TVariant{tvParameters} = variant
+                let Just variant = findVariant variants
+                let TVariant{tvParameters} = variant
 
-                        when (length tvParameters /= length cargs) $
-                            error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
+                when (length tvParameters /= length cargs) $
+                    error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
 
-                        forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
-                            buildPatternEnv vp env arg
-                    _ -> error "buildPatternEnv: Pattern for non-sum type??  This should never happen."
+                forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
+                    buildPatternEnv vp env arg
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
 walkMutableTypeVar :: TypeVar -> IO TypeVar
@@ -125,7 +120,7 @@ isLValue env expr = case expr of
     _ -> return False
 
 resolveTypeReference :: Pos -> Env -> UnresolvedReference -> IO TypeVar
-resolveTypeReference pos env (UnknownReference name) = do
+resolveTypeReference pos env (UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
         Just (TypeBinding _ t) -> return t
         Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
@@ -134,7 +129,7 @@ resolveTypeReference pos env (UnknownReference name) = do
             throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
 resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do
-        resolveTypeReference pos env (UnknownReference name)
+        resolveTypeReference pos env (UnqualifiedReference name)
     else do
         findExportedTypeByName env moduleName name >>= \case
             Just (_, tv) -> return tv
@@ -142,7 +137,7 @@ resolveTypeReference pos env (KnownReference moduleName name) = do
 
 resolveValueReference :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 resolveValueReference env ref = case ref of
-    UnknownReference name -> do
+    UnqualifiedReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
         return $ case result of
             Just (ValueReference rr mut t) -> Just (rr, mut, t)
@@ -162,7 +157,7 @@ withPositionInformation expr a = catch a handle
 resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
-    arrayType <- resolveTypeReference pos env (UnknownReference "Array")
+    arrayType <- resolveTypeReference pos env (UnqualifiedReference "Array")
     readIORef arrayType >>= \case
         TUserType td [_elementType] -> do
             newArrayType <- newIORef $ TUserType td [elementType]
@@ -225,17 +220,17 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         ty <- newIORef $ TFun paramTypes returnType
         return $ EFun ty params retAnn body'
 
-    EApp _ (EIdentifier _ (UnknownReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
+    EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
         t <- freshType env
         return $ EIntrinsic t (IUnsafeJs txt)
-    EApp _ (EIdentifier _ (UnknownReference "_unsafe_js")) _ ->
+    EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) _ ->
         error "_unsafe_js takes just one string literal"
 
-    EApp _ (EIdentifier _ (UnknownReference "_unsafe_coerce")) [subExpr] -> do
+    EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_coerce")) [subExpr] -> do
         t <- freshType env
         subExpr' <- check env subExpr
         return $ EIntrinsic t (IUnsafeCoerce subExpr')
-    EApp _ (EIdentifier _ (UnknownReference "_unsafe_coerce")) _ ->
+    EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_coerce")) _ ->
         error "_unsafe_coerce takes just one argument"
 
     EApp _ fn args -> do
@@ -273,7 +268,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 unify (edata lhs') recTy
                 return $ ELookup ty lhs' propName
         case lhs of
-            EIdentifier _ (UnknownReference name) -> do
+            EIdentifier _ (UnqualifiedReference name) -> do
                 HashTable.lookup name (eValueBindings env) >>= \case
                     Just (ModuleReference mn) -> do
                         findExportedValueByName env mn propName >>= \case
@@ -357,9 +352,9 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
-    EIdentifier _ (UnknownReference "_unsafe_js") ->
+    EIdentifier _ (UnqualifiedReference "_unsafe_js") ->
         throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
-    EIdentifier _ (UnknownReference "_unsafe_coerce") ->
+    EIdentifier _ (UnqualifiedReference "_unsafe_coerce") ->
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier _pos txt -> do
         (rr, tyref) <- do

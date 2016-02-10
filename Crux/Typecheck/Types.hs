@@ -43,14 +43,18 @@ instance Show TypeReference where
     show (TypeBinding rr _tv) = "TypeBinding " ++ show rr ++ " <typevar>"
     show (TypeAlias name params typeIdent) = "TypeAlias " ++ show name ++ " " ++ show params ++ " " ++ show typeIdent
 
+-- same structure as TUserType constructor
+data PatternReference = PatternReference (TUserTypeDef TypeVar) [TypeVar]
+
 data Env = Env
-    { eThisModule    :: ModuleName
+    { eThisModule :: ModuleName
     , eLoadedModules :: HashMap ModuleName LoadedModule
     , eNextTypeIndex :: IORef Int
     , eValueBindings :: HashTable Name ValueReference
-    , eTypeBindings  :: HashTable Name TypeReference
-    , eReturnType    :: Maybe TypeVar -- Nothing if top-level expression
-    , eInLoop        :: !Bool
+    , eTypeBindings :: HashTable Name TypeReference
+    , ePatternBindings :: HashTable Name PatternReference
+    , eReturnType :: Maybe TypeVar -- Nothing if top-level expression
+    , eInLoop :: !Bool
     }
 
 data TypeError a

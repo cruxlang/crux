@@ -1,0 +1,7 @@
+fun main() {
+  match True {
+    False => print("false")
+    True => print("true")
+  }
+}
+let _ = main()

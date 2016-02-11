@@ -17,3 +17,10 @@ So what are Crux's meaningful expressiveness advantages?
 We probably shouldn't use the word "generics".  People who know what they are and want them will see that Crux supports them.  Sadly the Go community has politicized the word into a them-and-us issue.  And Go does support some generics, just not user-defined generics.
 
 Andy raises the good point that we may want to post in more specialized limited communities like LtU to attract the kinds of people who might be interested in helping or providing advice.  That said, we shouldn't announce to HN or anything like that until there's actually a reason someone might try it.
+
+---
+
+"develop at scale"
+"not tied to a particular ecosystem"
+"runs in browsers and the backend"
+"safety - no more NullPointerException or 'undefined is not a function'"

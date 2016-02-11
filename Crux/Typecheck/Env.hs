@@ -153,25 +153,6 @@ addQvarTable env@Env{..} qvarTable = do
         (HashMap.fromList [(name, TypeBinding (ThisModule name) ty) | (name, ty) <- qvarTable])
     return env { eTypeBindings = newBindings }
 
--- TODO: merge this with findExportedDeclaration
-findDeclByName :: Module idtype edata -> Name -> Maybe (Declaration idtype edata)
-findDeclByName modul name =
-    let go decls = case decls of
-            [] -> Nothing
-            (d:rest) ->
-                if match then Just d else go rest
-              where
-                Declaration _ _ dt = d
-                match = case dt of
-                    DDeclare _ n _            | n == name -> True
-                    DLet _ _ (PBinding n) _ _ | n == name -> True
-                    DFun _ n _ _ _            | n == name -> True
-                    DData _ n _ _ _           | n == name -> True
-                    DJSData _ n _ _           | n == name -> True
-                    DTypeAlias n _ _          | n == name -> True
-                    _ -> False
-    in go (mDecls modul)
-
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env
                   -> Name
@@ -399,35 +380,31 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
         DFun {}     -> return ()
         DLet {}     -> return ()
 
-    dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
+    dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration _exportFlag _pos decl) -> case decl of
         DData _pos name moduleName typeVarNames variants ->
-            return $ Just (name, exportFlag, pos, moduleName, typeVarNames, variants)
+            return $ Just (name, moduleName, typeVarNames, variants)
         _ ->
             return Nothing
 
-    dataDecls' <- forM dataDecls $ \(name, exportFlag, pos, moduleName, typeVarNames, variants) -> do
+    dataDecls' <- forM dataDecls $ \(name, moduleName, typeVarNames, variants) -> do
         (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
-        return (name, exportFlag, pos, typeDef, tyVar, qvars, variants)
+        return (typeDef, tyVar, qvars, variants)
 
-    forM_ dataDecls' $ \(_name, _exportFlag, _pos, typeDef, _tyVar, qvars, variants) ->
+    forM_ dataDecls' $ \(typeDef, _tyVar, qvars, variants) ->
         resolveVariantTypes env qvars typeDef variants
 
-    forM_ dataDecls' $ \(name, exportFlag, pos, typeDef, tyVar, qvars, variants) ->
-        addVariants env name modul exportFlag pos typeDef qvars tyVar variants mkName
+    forM_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->
+        addVariants env typeDef qvars tyVar variants mkName
 
-addVariants :: (Show a, Typeable a)
-    => Env
-    -> Name
-    -> Module idtype edata
-    -> ExportFlag
-    -> a
+addVariants
+    :: Env
     -> TUserTypeDef TypeVar
     -> QVars
     -> TypeVar
     -> [Variant edata]
     -> (Name -> ResolvedReference)
     -> IO ()
-addVariants env name modul exportFlag declPos typeDef qvars userTypeVar variants mkName = do
+addVariants env typeDef qvars userTypeVar variants mkName = do
     e <- childEnv env
     forM_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
         HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
@@ -436,16 +413,6 @@ addVariants env name modul exportFlag declPos typeDef qvars userTypeVar variants
         computeVariantType argTypeIdents = newIORef $ TFun argTypeIdents userTypeVar
 
     forM_ variants $ \(Variant _typeVar vname vparameters) -> do
-        forM_ vparameters $ \parameter ->
-            case (exportFlag, parameter) of
-                (Export, TypeIdent tiName _)
-                    | Just (Declaration NoExport dpos _) <- findDeclByName modul tiName ->
-                        throwIO $ ExportError declPos $
-                            printf "Variant %s of exported data type %s depends on nonexported data type %s (defined at %s)"
-                                (show $ vname) (show name) (show tiName) (formatPos dpos)
-                _ ->
-                    return ()
-
         parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
         ctorType <- computeVariantType parameterTypeVars
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)

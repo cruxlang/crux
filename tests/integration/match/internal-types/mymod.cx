@@ -1,0 +1,15 @@
+data Internal {
+  Internal(String)
+}
+
+export data Exported {
+  Exported(Internal)
+}
+
+export let value = Internal("hello")
+
+export fun handle(e) {
+  match e {
+    Internal(s) => print(s);
+  }
+}

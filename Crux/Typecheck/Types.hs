@@ -3,6 +3,7 @@
 module Crux.Typecheck.Types
     ( ValueReference(..)
     , TypeReference(..)
+    , PatternBinding(..)
     , Env(..)
     , TypeError(..)
     , showTypeVarIO
@@ -44,7 +45,10 @@ instance Show TypeReference where
     show (TypeAlias name params typeIdent) = "TypeAlias " ++ show name ++ " " ++ show params ++ " " ++ show typeIdent
 
 -- same structure as TUserType constructor
-data PatternReference = PatternReference (TUserTypeDef TypeVar) [TypeVar]
+data PatternBinding = PatternBinding
+    (TUserTypeDef TypeVar) -- type of value being pattern matched
+    [TypeVar] -- type parameters to type
+    [TypeVar] -- types of data constructor arguments
 
 data Env = Env
     { eThisModule :: ModuleName
@@ -52,7 +56,7 @@ data Env = Env
     , eNextTypeIndex :: IORef Int
     , eValueBindings :: HashTable Name ValueReference
     , eTypeBindings :: HashTable Name TypeReference
-    , ePatternBindings :: HashTable Name PatternReference
+    , ePatternBindings :: HashTable Name PatternBinding
     , eReturnType :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop :: !Bool
     }

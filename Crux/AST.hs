@@ -16,7 +16,6 @@ import qualified Data.Text     as Text
 
 type Name = Text -- Temporary
 type TypeName = Text
-type TypeVariable = Text -- :)
 
 data Literal
     = LInteger Integer
@@ -52,7 +51,7 @@ data DeclarationType idtype edata
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     -- Types
-    | DData edata Name ModuleName [TypeVariable] [Variant edata]
+    | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]
     | DTypeAlias Name [Name] TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -257,14 +256,14 @@ data PrimitiveType
 data TVariant typevar = TVariant
     { tvName       :: Name
     , tvParameters :: [typevar]
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TUserTypeDef typevar = TUserTypeDef
     { tuName       :: !Name
     , tuModuleName :: !ModuleName
     , tuParameters :: ![typevar]
     , tuVariants   :: ![TVariant typevar]
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 userTypeIdentity :: TUserTypeDef a -> (Name, ModuleName)
 userTypeIdentity ut = (tuName ut, tuModuleName ut)

@@ -18,22 +18,6 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import qualified Crux.Error as Error
-import Crux.Util
---import Crux.Typecheck.Monad
-
-typeFromConstructor :: Env -> Name -> IO (Maybe (TUserTypeDef TypeVar, [TypeVar]))
-typeFromConstructor env cname = do
-    typeBindings <- readIORef $ eTypeBindings env
-    findFirstOfM (HashMap.elems typeBindings) $ \case
-        TypeBinding _ ut -> readIORef ut >>= \case
-            TUserType def tyVars -> do
-                let TUserTypeDef { tuVariants = variants } = def
-                case [v | v@(TVariant vname _) <- variants, vname == cname] of
-                    [_v] -> return $ Just (def, tyVars)
-                    [] -> return Nothing
-                    _ -> fail "This should never happen: Type has multiple variants with the same constructor name"
-            _ -> return Nothing
-        _ -> return Nothing
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -47,22 +31,14 @@ buildPatternEnv exprType env = \case
         HashTable.insert pname (ValueReference (Local pname) LImmutable exprType) (eValueBindings env)
 
     RPConstructor cname cargs -> do
-        typeFromConstructor env cname >>= \case
-            Just (def, tyVars) -> do
+        HashTable.lookup cname (ePatternBindings env) >>= \case
+            Just (PatternBinding def tyVars tvParameters) -> do
                 subst <- HashTable.new
-                (ty', variants) <- instantiateUserType subst env def tyVars
+                (ty', _variants) <- instantiateUserType subst env def tyVars
                 unify exprType ty'
 
-                let findVariant [] = error "findVariant: This should never happen"
-                    findVariant (v:rest)
-                        | tvName v == cname = Just v
-                        | otherwise = findVariant rest
-
-                let Just variant = findVariant variants
-                let TVariant{tvParameters} = variant
-
                 when (length tvParameters /= length cargs) $
-                    error $ printf "Pattern should specify %i args but got %i" (length tvParameters) (length cargs)
+                    error $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length tvParameters) (length cargs)
 
                 forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
                     buildPatternEnv vp env arg
@@ -545,6 +521,7 @@ registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
 
         forM_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
+            HashTable.insert variantName (PatternBinding typeDef [] []) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
 
@@ -624,10 +601,10 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
         register all unqualified imports
 
     phase 2:
-      a. register all jsffi types and data constructors
+      a. register all jsffi types and data constructors and patterns
       b. register all data types (and only the types)
       c. register all type aliases
-      d. register all data type constructors (using same qvars from before)
+      d. register all data type constructors and patterns (using same qvars from before)
 
     phase 3:
         type check all values in order

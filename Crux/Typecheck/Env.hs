@@ -41,6 +41,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eValueBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
+    ePatternBindings <- newIORef HashMap.empty
     return Env
         { eInLoop = False
         , ..
@@ -185,8 +186,7 @@ createUserTypeDef env name moduleName typeVarNames variants = do
         return ft
 
     variants' <- forM variants $ \(Variant _typeVar vname vparameters) -> do
-        tvParameters <- forM vparameters $
-            const $ freshType env
+        tvParameters <- forM vparameters $ const $ freshType env
         let tvName = vname
         return TVariant {..}
 
@@ -237,42 +237,6 @@ resolveVariantTypes env qvars typeDef variants = do
             t <- resolveTypeIdent e NewTypesAreErrors typeIdent
             unify typeVar t
 
-addVariants ::
-             (Show a, Typeable a) =>
-                Env
-             -> Name
-             -> Module idtype edata
-             -> ExportFlag
-             -> a
-             -> QVars
-             -> IORef MutableTypeVar
-             -> [Variant edata]
-             -> (Name -> ResolvedReference)
-             -> IO ()
-addVariants env name modul exportFlag declPos qvars userTypeVar variants mkName = do
-    e <- childEnv env
-    forM_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
-        HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
-
-    let computeVariantType [] = return userTypeVar
-        computeVariantType argTypeIdents = do
-            resolvedArgTypes <- mapM (resolveTypeIdent e NewTypesAreErrors) argTypeIdents
-            newIORef $ TFun resolvedArgTypes userTypeVar
-
-    forM_ variants $ \(Variant _typeVar vname vparameters) -> do
-        forM_ vparameters $ \parameter ->
-            case (exportFlag, parameter) of
-                (Export, TypeIdent tiName _)
-                    | Just (Declaration NoExport dpos _) <- findDeclByName modul tiName ->
-                        throwIO $ ExportError declPos $
-                            printf "Variant %s of exported data type %s depends on nonexported data type %s (defined at %s)"
-                                (show $ vname) (show name) (show tiName) (formatPos dpos)
-                _ ->
-                    return ()
-
-        ctorType <- computeVariantType vparameters
-        HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
-
 -- TODO(chad): return an Either instead of throwing exceptions
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
 buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
@@ -300,6 +264,10 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
             for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
                 tr' <- lift $ unfreezeTypeVar tr
                 HashTable.insert name (ValueReference (OtherModule importName name) mutability tr') (eValueBindings env)
+
+            patBindings <- lift $ getAllExportedPatterns importedModule
+            for_ patBindings $ \(name, pb) -> do
+                HashTable.insert name pb (ePatternBindings env)
 
         QualifiedImport moduleName importName -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
@@ -349,6 +317,34 @@ findExportedTypeByName env moduleName typeName = runMaybeT $ do
     tv <- lift $ unfreezeTypeVar typeVar
     return (OtherModule moduleName typeName, tv)
 
+-- we can just use PatternBinding for now
+getAllExportedPatterns :: LoadedModule -> IO [(Name, PatternBinding)]
+getAllExportedPatterns loadedModule = mconcat <$> for (exportedDecls $ mDecls loadedModule) fromDecl
+  where fromDecl :: DeclarationType idtype ImmutableTypeVar -> IO [(Name, PatternBinding)]
+        fromDecl = \case
+            DDeclare {} -> return []
+            DLet {} -> return []
+            DFun {} -> return []
+            DData typeVar _name _ _ variants -> do
+                for variants $ \(Variant vtype name _typeIdent) -> do
+                    let (IUserType def typeVars) = typeVar
+                    let args :: [ImmutableTypeVar]
+                        args = case vtype of
+                            IFun args_ _rv -> args_
+                            _ -> []
+                    def' <- traverse unfreezeTypeVar def
+                    typeVars' <- traverse unfreezeTypeVar typeVars
+                    args' <- traverse unfreezeTypeVar args
+                    return (name, PatternBinding def' typeVars' args')
+
+            DJSData typeVar _name _ jsVariants -> do
+                for jsVariants $ \(JSVariant name _literal) -> do
+                    let (IUserType def _) = typeVar
+                    newDef <- traverse unfreezeTypeVar def
+                    return (name, PatternBinding newDef [] [])
+
+            DTypeAlias _ _ _ -> return []
+
 addLoadedDataDeclsToEnvironment ::
        Env
     -> Module idtype ImmutableTypeVar
@@ -377,11 +373,11 @@ addLoadedDataDeclsToEnvironment env modul decls mkName = do
         _ ->
             return Nothing
 
-    dataDecls' <- forM dataDecls $ \(name, exportFlag, pos, moduleName, typeVarNames, variants) -> do
-        (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
-        return (name, exportFlag, pos, typeDef, tyVar, qvars, variants)
+    dataDecls' <- forM dataDecls $ \(name, _exportFlag, _pos, moduleName, typeVarNames, variants) -> do
+        (typeDef, _tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
+        return (typeDef, qvars, variants)
 
-    for_ dataDecls' $ \(_name, _exportFlag, _pos, typeDef, _tyVar, qvars, variants) ->
+    for_ dataDecls' $ \(typeDef, qvars, variants) ->
         resolveVariantTypes env qvars typeDef variants
 
 addThisModuleDataDeclsToEnvironment ::
@@ -416,5 +412,41 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
     forM_ dataDecls' $ \(_name, _exportFlag, _pos, typeDef, _tyVar, qvars, variants) ->
         resolveVariantTypes env qvars typeDef variants
 
-    forM_ dataDecls' $ \(name, exportFlag, pos, _typeDef, tyVar, qvars, variants) ->
-        addVariants env name modul exportFlag pos qvars tyVar variants mkName
+    forM_ dataDecls' $ \(name, exportFlag, pos, typeDef, tyVar, qvars, variants) ->
+        addVariants env name modul exportFlag pos typeDef qvars tyVar variants mkName
+
+addVariants :: (Show a, Typeable a)
+    => Env
+    -> Name
+    -> Module idtype edata
+    -> ExportFlag
+    -> a
+    -> TUserTypeDef TypeVar
+    -> QVars
+    -> TypeVar
+    -> [Variant edata]
+    -> (Name -> ResolvedReference)
+    -> IO ()
+addVariants env name modul exportFlag declPos typeDef qvars userTypeVar variants mkName = do
+    e <- childEnv env
+    forM_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
+        HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
+
+    let computeVariantType [] = return userTypeVar
+        computeVariantType argTypeIdents = newIORef $ TFun argTypeIdents userTypeVar
+
+    forM_ variants $ \(Variant _typeVar vname vparameters) -> do
+        forM_ vparameters $ \parameter ->
+            case (exportFlag, parameter) of
+                (Export, TypeIdent tiName _)
+                    | Just (Declaration NoExport dpos _) <- findDeclByName modul tiName ->
+                        throwIO $ ExportError declPos $
+                            printf "Variant %s of exported data type %s depends on nonexported data type %s (defined at %s)"
+                                (show $ vname) (show name) (show tiName) (formatPos dpos)
+                _ ->
+                    return ()
+
+        parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
+        ctorType <- computeVariantType parameterTypeVars
+        HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
+        HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars) parameterTypeVars) (ePatternBindings env)

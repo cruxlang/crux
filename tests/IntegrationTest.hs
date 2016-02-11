@@ -37,7 +37,7 @@ runProgram' p = do
         hFlush handle
         fmap T.pack $ do
             readProcessWithExitCode "node" [path'] "" >>= \case
-                (ExitSuccess, stdout, _) -> return stdout
+                (ExitSuccess, stdoutBody, _) -> return stdoutBody
                 (ExitFailure code, _, stderr) -> do
                     putStrLn $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
                     putStrLn "Code:"
@@ -92,13 +92,13 @@ runIntegrationTest root = do
     let stdoutPath = FilePath.combine root "stdout.txt"
     expected <- fmap T.pack $ readFile stdoutPath
 
+    putStrLn $ "testing program " ++ mainPath
     Crux.Module.loadProgramFromFile mainPath >>= \case
         Left (moduleName, err) -> do
             failWithError root moduleName err
         Right program -> do
-            putStrLn $ "testing program " ++ mainPath
-            stdout <- runProgram' program
-            assertEqual expected stdout
+            stdoutBody <- runProgram' program
+            assertEqual expected stdoutBody
 
 test_integration_tests = do
     let integrationRoot = "tests/integration"

@@ -69,15 +69,13 @@ instantiateRecord subst recordSubst env rows open = do
 
 instantiate' :: IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> IO (Bool, TypeVar)
 instantiate' subst recordSubst env ty = do
-    ty' <- readIORef ty
-    case ty' of
+    readIORef ty >>= \case
         TUnbound _ -> do
             return (False, ty)
         TBound tv' -> do
             instantiate' subst recordSubst env tv'
         TQuant name -> do
-            mv <- HashTable.lookup name subst
-            case mv of
+            HashTable.lookup name subst >>= \case
                 Just v ->
                     return (True, v)
                 Nothing -> do
@@ -101,8 +99,7 @@ instantiate' subst recordSubst env ty = do
                     _ -> Nothing
             case rv of
                 Just rv' -> do
-                    r <- HashTable.lookup rv' recordSubst
-                    case r of
+                    HashTable.lookup rv' recordSubst >>= \case
                         Just rec -> return (True, rec)
                         Nothing -> do
                             (co, tr) <- instantiateRecord subst recordSubst env rows open
@@ -115,8 +112,7 @@ instantiate' subst recordSubst env ty = do
 
 quantify :: TypeVar -> IO ()
 quantify ty = do
-    ty' <- readIORef ty
-    case ty' of
+    readIORef ty >>= \case
         TUnbound i -> do
             writeIORef ty (TQuant i)
         TBound t -> do
@@ -181,7 +177,7 @@ unificationError message a b = do
     throwIO $ UnificationError () message a b
 
 lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
-lookupTypeRow name rows = case rows of
+lookupTypeRow name = \case
     [] -> Nothing
     (TypeRow{..}:rest)
         | trName == name -> Just (trMut, trTyVar)

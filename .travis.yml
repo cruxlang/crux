@@ -1,2 +1,22 @@
-language: haskell
-ghc: "7.10"
+sudo: false
+
+env:
+  - CABALVER=1.22 GHCVER=7.10.3
+
+addons:
+  apt:
+    sources:
+      - hvr-ghc
+    packages:
+      - ghc-7.10.3
+      - cabal-install-1.22
+
+before_install:
+  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.cabal/bin:$PATH
+  - ghc --version
+  - cabal --version
+  - travis_retry cabal update
+  - if [ -n "$QC" ]; then cabal install $QC; fi
+
+script:
+  - cabal install --only-dependencies --enable-tests && cabal configure --enable-tests && cabal build && cabal test

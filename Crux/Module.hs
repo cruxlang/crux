@@ -148,7 +148,7 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
                     | shouldAddPrelude -> return $ addPrelude m
                     | otherwise -> return m
 
-            forM_ (importsOf parsedModule) $ \referencedModule -> do
+            for_ (importsOf parsedModule) $ \referencedModule -> do
                 EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
 
             lm <- lift $ readIORef loadedModules

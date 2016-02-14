@@ -37,8 +37,8 @@ instantiateUserType subst env def tyVars = do
             then map snd typeVars'
             else tyVars
     userType <- newTypeVar $ TUserType def typeVars''
-    variants <- forM (tuVariants def) $ \variant -> do
-        paramTypes <- forM (tvParameters variant) $ \param -> do
+    variants <- for (tuVariants def) $ \variant -> do
+        paramTypes <- for (tvParameters variant) $ \param -> do
             instantiate' subst recordSubst env param
         return variant{tvParameters=map snd paramTypes}
     return (userType, variants)
@@ -51,7 +51,7 @@ instantiateRecord
     -> RecordOpen
     -> IO (Bool, TypeVar)
 instantiateRecord subst recordSubst env rows open = do
-    rows' <- forM rows $ \TypeRow{..} -> do
+    rows' <- for rows $ \TypeRow{..} -> do
         (b, rowTy') <- instantiate' subst recordSubst env trTyVar
         let mut' = case trMut of
                 RQuantified -> RFree
@@ -124,9 +124,9 @@ quantify ty = do
             mapM_ quantify param
             quantify ret
         TUserType _ tyParams ->
-            forM_ tyParams quantify
+            for_ tyParams quantify
         TRecord (RecordType open rows') -> do
-            forM_ rows' $ \TypeRow{..} -> do
+            for_ rows' $ \TypeRow{..} -> do
                 quantify trTyVar
             let open' = case open of
                     RecordFree ti -> RecordQuantified ti
@@ -166,7 +166,7 @@ occurs tvr ty = do
         TUserType _ tvars -> do
             mapM_ (occurs tvr) tvars
         TRecord (RecordType _ rows) -> do
-            forM_ rows $ \TypeRow{..} ->
+            for_ rows $ \TypeRow{..} ->
                 occurs tvr trTyVar
         TPrimitive {} ->
             return ()
@@ -201,7 +201,7 @@ unifyRecord av bv = do
     let bOnlyRows = filter (\row -> trName row `notElem` aFields) bRows
     let names trs = map trName trs
 
-    coincidentRows' <- forM coincidentRows $ \(lhs, rhs) -> do
+    coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         case unifyRecordMutability (trMut lhs) (trMut rhs) of
             Left err -> throwIO $ RecordMutabilityUnificationError () (trName lhs) err
             Right mut -> do

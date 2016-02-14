@@ -223,7 +223,7 @@ generate env expr = case expr of
         for value' $ \value'' -> do
             output <- lift $ newTempOutput env
             writeInstruction $ EmptyTemporary output
-            cases' <- forM cases $ \(AST.Case pat expr') -> do
+            cases' <- for cases $ \(AST.Case pat expr') -> do
                 expr'' <- subBlockWithOutput env (ExistingTemporary output) expr'
                 return (pat, expr'')
             writeInstruction $ Match value'' cases'
@@ -277,7 +277,7 @@ generate env expr = case expr of
 
     AST.EReturn _ rv -> do
         rv' <- generate env rv
-        forM_ rv' $ \rv'' -> do
+        for_ rv' $ \rv'' -> do
             writeInstruction $ Return rv''
         return Nothing
 
@@ -330,7 +330,7 @@ generateModule :: Show t => AST.Module AST.ResolvedReference t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
     decls <- fmap snd $ runWriterT $ do
-        forM_ mDecls $ generateDecl env
+        for_ mDecls $ generateDecl env
     return decls
 
 generateProgram :: AST.Program -> IO Program
@@ -343,5 +343,5 @@ generateProgram AST.Program{..} = do
     -- topologically sort
     let sortedModules = map getModule $ reverse $ topSort graph
 
-    forM sortedModules $ \(mod', moduleName, _) ->
+    for sortedModules $ \(mod', moduleName, _) ->
         fmap (moduleName,) $ generateModule mod'

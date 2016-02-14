@@ -42,7 +42,7 @@ buildPatternEnv exprType env = \case
                 when (length tvParameters /= length cargs) $
                     error $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length tvParameters) (length cargs)
 
-                forM_ (zip cargs tvParameters) $ \(arg, vp) -> do
+                for_ (zip cargs tvParameters) $ \(arg, vp) -> do
                     buildPatternEnv vp env arg
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
@@ -171,13 +171,13 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             TFun paramTypes returnType -> do
                 return (paramTypes, returnType)
             _ -> do
-                paramTypes <- forM params $ \_ -> do
+                paramTypes <- for params $ \_ -> do
                     freshType env
                 returnType <- freshType env
                 return (paramTypes, returnType)
 
-        forM_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
-            forM_ pAnn $ \ann -> do
+        for_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
+            for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env NewTypesAreQuantified ann
                 unify pt annTy
             HashTable.insert p (ValueReference (Local p) LImmutable pt) valueBindings'
@@ -188,7 +188,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 , eInLoop=False
                 }
 
-        forM_ retAnn $ \ann -> do
+        for_ retAnn $ \ann -> do
             annTy <- resolveTypeIdent env NewTypesAreQuantified ann
             unify returnType annTy
 
@@ -218,7 +218,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             -- in the case that the type of the function is known, we propogate
             -- the known argument types into the environment so tdnr works
             TFun argTypes resultType -> do
-                args' <- forM (zip argTypes args) $ \(argType, arg) -> do
+                args' <- for (zip argTypes args) $ \(argType, arg) -> do
                     checkExpecting argType env arg
 
                 appTy <- newTypeVar $ TFun (map edata args') resultType
@@ -263,7 +263,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         matchExpr' <- check env matchExpr
 
-        cases' <- forM cases $ \(Case patt caseExpr) -> do
+        cases' <- for cases $ \(Case patt caseExpr) -> do
             env' <- childEnv env
             buildPatternEnv (edata matchExpr') env' patt
             caseExpr' <- check env' caseExpr
@@ -281,7 +281,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             PBinding name -> do
                 HashTable.insert name (ValueReference (Local name) mut ty) (eValueBindings env)
         unify ty (edata expr'')
-        forM_ maybeAnnot $ \annotation -> do
+        for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
             unify ty annotTy
 
@@ -312,14 +312,14 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
     EArrayLiteral _ elements -> do
         (arrayType, elementType) <- resolveArrayType (edata expr) env
-        elements' <- forM elements $ \element -> do
+        elements' <- for elements $ \element -> do
             elementExpr <- check env element
             unify elementType (edata elementExpr)
             return elementExpr
         return $ EArrayLiteral arrayType elements'
 
     ERecordLiteral _ fields -> do
-        fields' <- forM (HashMap.toList fields) $ \(name, fieldExpr) -> do
+        fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
             ty <- freshType env
             fieldExpr' <- check env fieldExpr
             unify ty (edata fieldExpr')
@@ -507,7 +507,7 @@ registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
     DData {} -> return ()
     DJSData _pos name moduleName variants -> do
         -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
-        variants' <- forM variants $ \(JSVariant variantName _value) -> do
+        variants' <- for variants $ \(JSVariant variantName _value) -> do
             let tvParameters = []
             let tvName = variantName
             return TVariant{..}
@@ -521,7 +521,7 @@ registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
         userType <- newTypeVar $ TUserType typeDef []
         HashTable.insert name (TypeBinding (Local name) userType) (eTypeBindings env)
 
-        forM_ variants $ \(JSVariant variantName _value) -> do
+        for_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
             HashTable.insert variantName (PatternBinding typeDef [] []) (ePatternBindings env)
         return ()
@@ -541,7 +541,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         in withPositionInformation fakeExpr $ do
             env' <- childEnv env
             ty <- freshType env'
-            forM_ maybeAnnot $ \annotation -> do
+            for_ maybeAnnot $ \annotation -> do
                 annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
                 unify ty annotTy
 
@@ -574,7 +574,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         -- setup through type checking of decls?
         (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
 
-        typedVariants <- forM variants $ \(Variant _pos vname vparameters) -> do
+        typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference _rr _mut ctorType)) <- HashTable.lookup vname (eValueBindings env)
             return $ Variant ctorType vname vparameters
 
@@ -618,7 +618,7 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
         Right result -> return result
 
     -- Phase 2a
-    lift $ forM_ (mDecls thisModule) $ \decl -> do
+    lift $ for_ (mDecls thisModule) $ \decl -> do
         registerJSFFIDecl env decl
 
     result <- liftIO $ try $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
@@ -626,7 +626,7 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
         Left err -> left $ Error.TypeError err
         Right d -> return d
 
-    decls <- forM (mDecls thisModule) $ \decl -> do
+    decls <- for (mDecls thisModule) $ \decl -> do
         (lift $ try $ checkDecl env decl) >>= \case
             Left err -> left $ Error.TypeError err
             Right d -> return d

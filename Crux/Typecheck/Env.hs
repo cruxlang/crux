@@ -134,7 +134,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                 fail $ printf "Constructor refers to nonexistent type %s" (show typeName)
 
     go (RecordIdent rows) = do
-        rows' <- forM rows $ \(trName, mut, rowTypeIdent) -> do
+        rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
             let trMut = case mut of
                     Nothing -> RFree
                     Just LMutable -> RMutable
@@ -162,13 +162,13 @@ createUserTypeDef :: Env
                   -> [Variant _edata]
                   -> IO (TUserTypeDef TypeVar, TypeVar)
 createUserTypeDef env name moduleName typeVarNames variants = do
-    typeVars <- forM typeVarNames $ const $ do
+    typeVars <- for typeVarNames $ const $ do
         ft <- freshType env
         quantify ft
         return ft
 
-    variants' <- forM variants $ \(Variant _typeVar vname vparameters) -> do
-        tvParameters <- forM vparameters $ const $ freshType env
+    variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
+        tvParameters <- for vparameters $ const $ freshType env
         let tvName = vname
         return TVariant {..}
 
@@ -193,7 +193,7 @@ addDataType :: Env
             -> IO (TUserTypeDef TypeVar, TypeVar, QVars)
 addDataType env importName typeName typeVariables variants = do
     e <- childEnv env
-    tyVars <- forM typeVariables $ \tv ->
+    tyVars <- for typeVariables $ \tv ->
         resolveTypeIdent e NewTypesAreQuantified (TypeIdent tv [])
 
     (typeDef, tyVar) <- createUserTypeDef e typeName importName tyVars variants
@@ -210,12 +210,12 @@ resolveVariantTypes :: Env
                     -> IO ()
 resolveVariantTypes env qvars typeDef variants = do
     e <- childEnv env
-    forM_ qvars $ \(name, (qName, qTyVar)) ->
+    for_ qvars $ \(name, (qName, qTyVar)) ->
         HashTable.insert name (TypeBinding qName qTyVar) (eTypeBindings e)
 
     let TUserTypeDef { tuVariants } = typeDef
-    forM_ (zip variants tuVariants) $ \(Variant _typeVar _name vparameters, tv) -> do
-        forM_ (zip vparameters (tvParameters tv)) $ \(typeIdent, typeVar) -> do
+    for_ (zip variants tuVariants) $ \(Variant _typeVar _name vparameters, tv) -> do
+        for_ (zip vparameters (tvParameters tv)) $ \(typeIdent, typeVar) -> do
             t <- resolveTypeIdent e NewTypesAreErrors typeIdent
             unify typeVar t
 
@@ -231,11 +231,11 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
     HashTable.insert "String" (TypeBinding (Builtin "String") strTy) (eTypeBindings env)
 
     intrinsics <- liftIO $ Intrinsic.intrinsics
-    forM_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
+    for_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
         HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
 
-    forM_ imports $ \case
+    for_ imports $ \case
         UnqualifiedImport importName -> do
             importedModule <- case HashMap.lookup importName loadedModules of
                 Just im -> return im
@@ -335,7 +335,7 @@ addLoadedDataDeclsToEnvironment ::
     -> IO ()
 addLoadedDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
-    forM_ decls $ \case
+    for_ decls $ \case
         DJSData typeVar name _moduleName _variants -> do
             userType <- unfreezeTypeVar typeVar
             HashTable.insert name (TypeBinding (mkName name) userType) (eTypeBindings env)
@@ -348,14 +348,14 @@ addLoadedDataDeclsToEnvironment env modul decls mkName = do
         DFun {}     -> return ()
         DLet {}     -> return ()
 
-    dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
+    dataDecls <- fmap catMaybes $ for (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
         -- TODO: we should use typeVar here
         DData _typeVar name moduleName typeVarNames variants ->
             return $ Just (name, exportFlag, pos, moduleName, typeVarNames, variants)
         _ ->
             return Nothing
 
-    dataDecls' <- forM dataDecls $ \(name, _exportFlag, _pos, moduleName, typeVarNames, variants) -> do
+    dataDecls' <- for dataDecls $ \(name, _exportFlag, _pos, moduleName, typeVarNames, variants) -> do
         (typeDef, _tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
         return (typeDef, qvars, variants)
 
@@ -370,7 +370,7 @@ addThisModuleDataDeclsToEnvironment ::
     -> IO ()
 addThisModuleDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
-    forM_ decls $ \case
+    for_ decls $ \case
         DJSData {} -> return ()
 
         DTypeAlias name params ident ->
@@ -381,20 +381,20 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
         DFun {}     -> return ()
         DLet {}     -> return ()
 
-    dataDecls <- fmap catMaybes $ forM (mDecls modul) $ \(Declaration _exportFlag _pos decl) -> case decl of
+    dataDecls <- fmap catMaybes $ for (mDecls modul) $ \(Declaration _exportFlag _pos decl) -> case decl of
         DData _pos name moduleName typeVarNames variants ->
             return $ Just (name, moduleName, typeVarNames, variants)
         _ ->
             return Nothing
 
-    dataDecls' <- forM dataDecls $ \(name, moduleName, typeVarNames, variants) -> do
+    dataDecls' <- for dataDecls $ \(name, moduleName, typeVarNames, variants) -> do
         (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
         return (typeDef, tyVar, qvars, variants)
 
-    forM_ dataDecls' $ \(typeDef, _tyVar, qvars, variants) ->
+    for_ dataDecls' $ \(typeDef, _tyVar, qvars, variants) ->
         resolveVariantTypes env qvars typeDef variants
 
-    forM_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->
+    for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->
         addVariants env typeDef qvars tyVar variants mkName
 
 addVariants
@@ -407,13 +407,13 @@ addVariants
     -> IO ()
 addVariants env typeDef qvars userTypeVar variants mkName = do
     e <- childEnv env
-    forM_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
+    for_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
         HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
 
     let computeVariantType [] = return userTypeVar
         computeVariantType argTypeIdents = newTypeVar $ TFun argTypeIdents userTypeVar
 
-    forM_ variants $ \(Variant _typeVar vname vparameters) -> do
+    for_ variants $ \(Variant _typeVar vname vparameters) -> do
         parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
         ctorType <- computeVariantType parameterTypeVars
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)

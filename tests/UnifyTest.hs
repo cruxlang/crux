@@ -5,13 +5,13 @@
 module UnifyTest (htf_thisModulesTests) where
 
 import           Control.Exception    (try)
-import           Crux.AST
 import           Crux.Typecheck.Env   (newEnv)
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict  as HashMap
 import           Data.IORef
 import           Test.Framework
+import Crux.TypeVar
 
 test_quantified_with_number = do
     lhs <- newIORef $ TPrimitive $ Number

@@ -8,13 +8,14 @@ module Crux.Intrinsic
     ) where
 
 import Crux.Prelude
+import Crux.TypeVar
 import qualified Crux.AST as AST
 import qualified Crux.JSGen.Types    as JSGen
 import qualified Crux.JSTree         as JS
 import qualified Data.HashMap.Strict as HashMap
 
 data Intrinsic = Intrinsic
-    { iType :: AST.TypeVar
+    { iType :: TypeVar
     , iGen  :: forall a. JSGen.GenVTable -> JSGen.Env -> AST.Expression Text a -> JSGen.JSWrite JS.Expression
     }
 
@@ -27,8 +28,8 @@ genPlus _ _ _ = error "Unexpected: Only pass EApp to genPlus"
 
 intrinsics :: IO (HashMap AST.Name Intrinsic)
 intrinsics = do
-    numTy <- newIORef $ AST.TPrimitive AST.Number
-    plusTy <- newIORef $ AST.TFun [numTy, numTy] numTy
+    numTy <- newIORef $ TPrimitive Number
+    plusTy <- newIORef $ TFun [numTy, numTy] numTy
     return $ HashMap.fromList
         [ ("+", Intrinsic
             { iType = plusTy

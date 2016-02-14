@@ -20,6 +20,7 @@ library
                    , Crux.Lex
                    , Crux.Main
                    , Crux.Module
+                   , Crux.Module.Types
                    , Crux.MutableHashTable
                    , Crux.Parse
                    , Crux.Prelude
@@ -29,6 +30,7 @@ library
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
                    , Crux.Typecheck.Env
+                   , Crux.TypeVar
                    , Crux.Util
 
     build-depends: base >=4.7

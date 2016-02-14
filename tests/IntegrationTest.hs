@@ -26,6 +26,7 @@ import           Test.Framework
 import           Text.RawString.QQ    (r)
 import qualified System.Directory.PathWalk as PathWalk
 import qualified System.FilePath as FilePath
+import Crux.Module.Types as AST
 import System.Directory (doesDirectoryExist)
 
 runProgram' :: AST.Program -> IO Text

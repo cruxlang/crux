@@ -8,6 +8,7 @@ import           Crux.Prelude
 import           Crux.Typecheck.Types
 import           Data.List             (sort)
 import           Text.Printf           (printf)
+import Crux.TypeVar hiding (Name)
 
 freshTypeIndex :: Env -> IO Int
 freshTypeIndex Env{eNextTypeIndex} = do

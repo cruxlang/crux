@@ -21,6 +21,7 @@ import qualified Data.Text.IO          as TextIO
 import           System.Directory      (doesFileExist, getCurrentDirectory)
 import           System.Environment    (getExecutablePath)
 import qualified System.FilePath       as FP
+import Crux.Module.Types as AST
 
 type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
 

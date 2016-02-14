@@ -20,6 +20,7 @@ import           Crux.Prelude
 import Crux.Module (importsOf)
 import           Data.Graph                (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict       as HashMap
+import qualified Crux.Module.Types as AST
 
 {-
 Instructions can:

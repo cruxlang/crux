@@ -32,6 +32,8 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import Crux.Util
+import Crux.TypeVar hiding (Name)
+import Crux.Module.Types
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)

@@ -12,12 +12,14 @@ module Crux.Typecheck.Types
     , errorToString
     ) where
 
+import Crux.TypeVar
+    ( MutableTypeVar(..), RecordOpen(..), RecordType(..)
+    , TUserTypeDef(..), TypeRow(..), TypeVar
+    )
+import Crux.Module.Types (LoadedModule)
 import Crux.AST
-    ( LetMutability, LoadedModule, ModuleName
-    , MutableTypeVar (..), RecordOpen (..)
-    , RecordType (..), ResolvedReference
-    , TUserTypeDef (..), TypeRow (..)
-    , TypeVar, UnresolvedReference
+    ( LetMutability, ModuleName
+    , ResolvedReference, UnresolvedReference
     , TypeIdent
     , printModuleName
     )

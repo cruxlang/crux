@@ -9,13 +9,12 @@ import           Crux.Typecheck.Env   (newEnv)
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict  as HashMap
-import           Data.IORef
 import           Test.Framework
 import Crux.TypeVar
 
 test_quantified_with_number = do
-    lhs <- newIORef $ TPrimitive $ Number
-    rhs <- newIORef $ TQuant 10
+    lhs <- newTypeVar $ TPrimitive $ Number
+    rhs <- newTypeVar $ TQuant 10
     try (unify lhs rhs) >>= \(a :: Either (TypeError ()) ()) ->
         case a of
             (Left UnificationError {}) -> return ()
@@ -24,16 +23,16 @@ test_quantified_with_number = do
 test_function_taking_record = do
     env <- newEnv "main" HashMap.empty Nothing
 
-    numTy <- newIORef $ TPrimitive $ Number
-    argType <- newIORef $ TRecord (RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy])
-    retType <- newIORef $ TBound argType
-    funType <- newIORef $ TFun [argType] retType
+    numTy <- newTypeVar $ TPrimitive $ Number
+    argType <- newTypeVar $ TRecord (RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy])
+    retType <- newTypeVar $ TBound argType
+    funType <- newTypeVar $ TFun [argType] retType
 
     funTypei <- instantiate env funType
-    argTypei <- readIORef funTypei >>= \(TFun [a] _) ->
+    argTypei <- readTypeVar funTypei >>= \(TFun [a] _) ->
         return a
 
-    recordLiteralType <- newIORef $ TRecord (RecordType (RecordClose) [TypeRow "x" RImmutable numTy])
+    recordLiteralType <- newTypeVar $ TRecord (RecordType (RecordClose) [TypeRow "x" RImmutable numTy])
     unify argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei

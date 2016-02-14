@@ -13,7 +13,8 @@ import qualified Crux.Error as Error
 import qualified Crux.Gen             as Gen
 import qualified Crux.Module
 import           Crux.Tokens          (Pos (..))
-import           Crux.Typecheck.Types (TypeError (..), showTypeVarIO)
+import           Crux.Typecheck.Types (TypeError (..))
+import Crux.TypeVar (showTypeVarIO)
 import qualified Data.HashMap.Strict  as HashMap
 import           Data.Text            (Text)
 import qualified Data.Text            as T

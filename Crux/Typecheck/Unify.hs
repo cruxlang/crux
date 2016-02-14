@@ -18,7 +18,7 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: Env -> IO TypeVar
 freshType env = do
     index <- freshTypeIndex env
-    newIORef $ TUnbound index
+    newTypeVar $ TUnbound index
 
 freshRowVariable :: Env -> IO RowVariable
 freshRowVariable env =
@@ -36,7 +36,7 @@ instantiateUserType subst env def tyVars = do
     let typeVars'' = if and (map fst typeVars')
             then map snd typeVars'
             else tyVars
-    userType <- newIORef $ TUserType def typeVars''
+    userType <- newTypeVar $ TUserType def typeVars''
     variants <- forM (tuVariants def) $ \variant -> do
         paramTypes <- forM (tvParameters variant) $ \param -> do
             instantiate' subst recordSubst env param
@@ -49,7 +49,7 @@ instantiateRecord
     -> Env
     -> [TypeRow TypeVar]
     -> RecordOpen
-    -> IO (Bool, IORef MutableTypeVar)
+    -> IO (Bool, TypeVar)
 instantiateRecord subst recordSubst env rows open = do
     rows' <- forM rows $ \TypeRow{..} -> do
         (b, rowTy') <- instantiate' subst recordSubst env trTyVar
@@ -65,12 +65,12 @@ instantiateRecord subst recordSubst env rows open = do
         _ -> do
             return (False, open)
 
-    tr <- newIORef $ TRecord $ RecordType open' (map snd rows')
+    tr <- newTypeVar $ TRecord $ RecordType open' (map snd rows')
     return (changedOpen || or (map fst rows'), tr)
 
 instantiate' :: IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> IO (Bool, TypeVar)
 instantiate' subst recordSubst env ty = do
-    readIORef ty >>= \case
+    readTypeVar ty >>= \case
         TUnbound _ -> do
             return (False, ty)
         TBound tv' -> do
@@ -87,11 +87,11 @@ instantiate' subst recordSubst env ty = do
             ty1 <- mapM (instantiate' subst recordSubst env) param
             (b2, ty2) <- instantiate' subst recordSubst env ret
             let b = b2 || any fst ty1
-            tfun <- newIORef $ TFun (map snd ty1) ty2
+            tfun <- newTypeVar $ TFun (map snd ty1) ty2
             return (b, tfun)
         TUserType def tyVars -> do
             typeVars' <- mapM (instantiate' subst recordSubst env) tyVars
-            tut <- newIORef $ TUserType def (map snd typeVars')
+            tut <- newTypeVar $ TUserType def (map snd typeVars')
             return (and (map fst typeVars'), tut)
         TRecord (RecordType open rows) -> do
             let rv = case open of
@@ -113,9 +113,9 @@ instantiate' subst recordSubst env ty = do
 
 quantify :: TypeVar -> IO ()
 quantify ty = do
-    readIORef ty >>= \case
+    readTypeVar ty >>= \case
         TUnbound i -> do
-            writeIORef ty (TQuant i)
+            writeTypeVar ty (TQuant i)
         TBound t -> do
             quantify t
         TQuant _ -> do
@@ -132,7 +132,7 @@ quantify ty = do
                     RecordFree ti -> RecordQuantified ti
                     _             -> open
 
-            writeIORef ty $ TRecord $ RecordType open' rows'
+            writeTypeVar ty $ TRecord $ RecordType open' rows'
         TPrimitive {} ->
             return ()
 
@@ -148,7 +148,7 @@ instantiate env t = do
 
 occurs :: MutableTypeVar -> TypeVar -> IO ()
 occurs tvr ty = do
-    ty' <- readIORef ty
+    ty' <- readTypeVar ty
     case ty' of
         TUnbound _
             | ty' == tvr -> do
@@ -191,8 +191,8 @@ unifyRecord av bv = do
     --     putStr "\t" >> showTypeVarIO av >>= putStrLn
     --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
 
-    TRecord (RecordType aOpen aRows) <- readIORef av
-    TRecord (RecordType bOpen bRows) <- readIORef bv
+    TRecord (RecordType aOpen aRows) <- readTypeVar av
+    TRecord (RecordType bOpen bRows) <- readTypeVar bv
     let aFields = sort $ map trName aRows
     let bFields = sort $ map trName bRows
 
@@ -215,20 +215,20 @@ unifyRecord av bv = do
     case (aOpen, bOpen) of
         (RecordClose, RecordClose)
             | null aOnlyRows && null bOnlyRows -> do
-                writeIORef bv (TRecord $ RecordType RecordClose coincidentRows')
-                writeIORef av (TBound bv)
+                writeTypeVar bv (TRecord $ RecordType RecordClose coincidentRows')
+                writeTypeVar av (TBound bv)
             | otherwise ->
                 unificationError "Closed row types must match exactly" av bv
         (RecordClose, RecordFree {})
             | null bOnlyRows -> do
-                writeIORef av (TRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows))
-                writeIORef bv (TBound av)
+                writeTypeVar av (TRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows))
+                writeTypeVar bv (TBound av)
             | otherwise ->
                 unificationError (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
         (RecordFree {}, RecordClose)
             | null aOnlyRows -> do
-                writeIORef bv (TRecord $ RecordType RecordClose (coincidentRows' ++ bOnlyRows))
-                writeIORef av (TBound bv)
+                writeTypeVar bv (TRecord $ RecordType RecordClose (coincidentRows' ++ bOnlyRows))
+                writeTypeVar av (TBound bv)
             | otherwise ->
                 unificationError (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
         (RecordClose, RecordQuantified {}) ->
@@ -236,18 +236,18 @@ unifyRecord av bv = do
         (RecordQuantified {}, RecordClose) ->
             error "Cannot unify closed record with quantified record"
         (RecordFree {}, RecordFree {}) -> do
-            writeIORef bv (TRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows ++ bOnlyRows))
-            writeIORef av (TBound bv)
+            writeTypeVar bv (TRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows ++ bOnlyRows))
+            writeTypeVar av (TBound bv)
         (RecordFree {}, RecordQuantified {})
             | null aOnlyRows -> do
-                writeIORef bv (TRecord $ RecordType bOpen (coincidentRows' ++ bOnlyRows))
-                writeIORef av (TBound bv)
+                writeTypeVar bv (TRecord $ RecordType bOpen (coincidentRows' ++ bOnlyRows))
+                writeTypeVar av (TBound bv)
             | otherwise ->
                 error "lhs record has rows not in quantified record"
         (RecordQuantified {}, RecordFree {})
             | null bOnlyRows -> do
-                writeIORef av (TRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows))
-                writeIORef bv (TBound av)
+                writeTypeVar av (TRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows))
+                writeTypeVar bv (TBound av)
             | otherwise ->
                 error "rhs record has rows not in quantified record"
         (RecordQuantified a, RecordQuantified b)
@@ -258,8 +258,8 @@ unifyRecord av bv = do
             | a /= b ->
                 error "Quantified records do not have the same qvar!"
             | otherwise -> do
-                writeIORef av (TRecord $ RecordType aOpen coincidentRows')
-                writeIORef av (TBound bv)
+                writeTypeVar av (TRecord $ RecordType aOpen coincidentRows')
+                writeTypeVar av (TBound bv)
 
     -- do
     --     putStrLn "\t -- after --"
@@ -286,8 +286,8 @@ unify av bv
     | av == bv =
         return ()
     | otherwise = do
-        a <- readIORef av
-        b <- readIORef bv
+        a <- readTypeVar av
+        b <- readTypeVar bv
 
         case (a, b) of
             (TUnbound aid, TUnbound bid) | aid == bid -> return ()
@@ -295,7 +295,7 @@ unify av bv
             (TBound al, _) -> unify al bv
             (TUnbound _, _) -> do
                 occurs a bv
-                writeIORef av $ TBound bv
+                writeTypeVar av $ TBound bv
 
             (_, TUnbound {}) -> unify bv av
             --(_, TBound {}) -> unify bv av

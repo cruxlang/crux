@@ -6,8 +6,6 @@ module Crux.Typecheck.Types
     , PatternBinding(..)
     , Env(..)
     , TypeError(..)
-    , showTypeVarIO
-    , renderTypeVarIO
     , formatPos
     , errorToString
     ) where
@@ -15,6 +13,7 @@ module Crux.Typecheck.Types
 import Crux.TypeVar
     ( MutableTypeVar(..), RecordOpen(..), RecordType(..)
     , TUserTypeDef(..), TypeRow(..), TypeVar
+    , showTypeVarIO, renderTypeVarIO
     )
 import Crux.Module.Types (LoadedModule)
 import Crux.AST
@@ -87,44 +86,6 @@ instance Show a => Show (TypeError a) where
     show (ModuleReferenceError a mn n) = "ModuleReferenceError " ++ show a ++ " " ++ show mn ++ " " ++ show n
 
 instance (Show a, Typeable a) => Exception (TypeError a)
-
-showTypeVarIO' :: Bool -> TypeVar -> IO [Char]
-showTypeVarIO' showBound tvar = do
-    tvar' <- readIORef tvar
-    case tvar' of
-        TUnbound i -> do
-            return $ "(TUnbound " ++ show i ++ ")"
-        TBound x -> do
-            inner <- showTypeVarIO' showBound x
-            if showBound
-                then return $ "(TBound " ++ inner ++ ")" ++ show showBound
-                else return inner
-        TQuant i -> do
-            return $ "TQuant " ++ show i
-        TFun arg ret -> do
-            as <- mapM (showTypeVarIO' showBound) arg
-            rs <- showTypeVarIO' showBound ret
-            return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
-        TUserType def tvars -> do
-            tvs <- mapM (showTypeVarIO' showBound) tvars
-            return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
-        TRecord (RecordType open' rows') -> do
-            let rowNames = map trName rows'
-            rowTypes <- mapM (showTypeVarIO' showBound . trTyVar) rows'
-            let showRow (name, ty) = Text.unpack name <> ": " <> ty
-            let dotdotdot = case open' of
-                    RecordFree i -> ["..._" ++ show i]
-                    RecordQuantified i -> ["...t" ++ show i]
-                    RecordClose -> []
-            return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
-        TPrimitive ty ->
-            return $ show ty
-
-showTypeVarIO :: TypeVar -> IO String
-showTypeVarIO = showTypeVarIO' True
-
-renderTypeVarIO :: TypeVar -> IO String
-renderTypeVarIO = showTypeVarIO' False
 
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%i,%i" posLine posCol

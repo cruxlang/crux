@@ -1,12 +1,31 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
-module Crux.TypeVar where
+module Crux.TypeVar
+    ( PrimitiveType(..)
+    , RecordOpen(..)
+    , RecordType(..)
+    , TypeRow(..)
+    , RowMutability(..)
+    , RowVariable(..)
+    , TVariant(..)
+    , TUserTypeDef(..)
+    , TypeVar
+    , MutableTypeVar(..)
+    , ImmutableTypeVar(..)
+    , newTypeVar
+    , readTypeVar
+    , writeTypeVar
+    , showTypeVarIO
+    , renderTypeVarIO
+    , userTypeIdentity
+    ) where
 
+import qualified Data.Text as Text
+import Data.List (intercalate)
 import Crux.AST (ModuleName)
 import Crux.Prelude
 
 type Name = Text
-type TypeVar = IORef MutableTypeVar
 
 data PrimitiveType
     = Number
@@ -73,6 +92,9 @@ data RecordOpen = RecordFree RowVariable | RecordQuantified RowVariable | Record
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
+newtype TypeVar = TypeVar (IORef MutableTypeVar)
+    deriving (Eq)
+
 data MutableTypeVar
     = TUnbound Int
     | TBound TypeVar
@@ -84,10 +106,58 @@ data MutableTypeVar
     deriving (Eq)
 
 data ImmutableTypeVar
-    = IUnbound Int
+    = IUnbound Int -- Neither Andy nor I are sure why we need this
     | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar)
     | IPrimitive PrimitiveType
     deriving (Show, Eq)
+
+newTypeVar :: MutableTypeVar -> IO TypeVar
+newTypeVar tv = TypeVar <$> newIORef tv
+
+-- TODO: move this into Crux.TypeVar.Internal.  Only Unify should use it.
+readTypeVar :: TypeVar -> IO MutableTypeVar
+readTypeVar (TypeVar r) = readIORef r
+
+-- TODO: move this into Crux.TypeVar.Internal.  Only Unify should use it.
+writeTypeVar :: TypeVar -> MutableTypeVar -> IO ()
+writeTypeVar (TypeVar r) = writeIORef r
+
+showTypeVarIO' :: Bool -> TypeVar -> IO [Char]
+showTypeVarIO' showBound (TypeVar tvar) = do
+    readIORef tvar >>= \case
+        TUnbound i -> do
+            return $ "(TUnbound " ++ show i ++ ")"
+        TBound x -> do
+            inner <- showTypeVarIO' showBound x
+            if showBound
+                then return $ "(TBound " ++ inner ++ ")" ++ show showBound
+                else return inner
+        TQuant i -> do
+            return $ "TQuant " ++ show i
+        TFun arg ret -> do
+            as <- mapM (showTypeVarIO' showBound) arg
+            rs <- showTypeVarIO' showBound ret
+            return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
+        TUserType def tvars -> do
+            tvs <- mapM (showTypeVarIO' showBound) tvars
+            return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
+        TRecord (RecordType open' rows') -> do
+            let rowNames = map trName rows'
+            rowTypes <- mapM (showTypeVarIO' showBound . trTyVar) rows'
+            let showRow (name, ty) = Text.unpack name <> ": " <> ty
+            let dotdotdot = case open' of
+                    RecordFree i -> ["..._" ++ show i]
+                    RecordQuantified i -> ["...t" ++ show i]
+                    RecordClose -> []
+            return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
+        TPrimitive ty ->
+            return $ show ty
+
+showTypeVarIO :: TypeVar -> IO String
+showTypeVarIO = showTypeVarIO' True
+
+renderTypeVarIO :: TypeVar -> IO String
+renderTypeVarIO = showTypeVarIO' False

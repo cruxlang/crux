@@ -70,7 +70,7 @@ unfreezeTypeDef TUserTypeDef{..} = do
     return td
 
 unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
-unfreezeTypeVar imt = newIORef =<< case imt of
+unfreezeTypeVar imt = newTypeVar =<< case imt of
     IUnbound name ->
         return $ TUnbound name
     IQuant varname -> do
@@ -94,14 +94,13 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
     go typeIdent
   where
     go UnitTypeIdent = do
-        newIORef $ TPrimitive Unit
+        newTypeVar $ TPrimitive Unit
 
     go (TypeIdent typeName typeParameters) = do
         HashTable.lookup typeName eTypeBindings >>= \case
             Just (TypeBinding _ ty) -> do
                 -- TODO: use followTypeVar instead of readIORef
-                ty' <- readIORef ty
-                case ty' of
+                readTypeVar ty >>= \case
                     TPrimitive {}
                         | [] == typeParameters ->
                             return ty
@@ -110,7 +109,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                     TUserType def@TUserTypeDef{tuParameters} _
                         | length tuParameters == length typeParameters -> do
                             params <- mapM go typeParameters
-                            newIORef $ TUserType def params
+                            newTypeVar $ TUserType def params
                         | otherwise ->
                             fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
                     _ ->
@@ -142,12 +141,12 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                     Just LImmutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
-        newIORef $ TRecord $ RecordType RecordClose rows'
+        newTypeVar $ TRecord $ RecordType RecordClose rows'
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- mapM go argTypes
         retPrimitive' <- go retPrimitive
-        newIORef $ TFun argTypes' retPrimitive'
+        newTypeVar $ TFun argTypes' retPrimitive'
 
 addQvarTable :: Env -> [(Name, TypeVar)] -> IO Env
 addQvarTable env@Env{..} qvarTable = do
@@ -161,7 +160,7 @@ createUserTypeDef :: Env
                   -> ModuleName
                   -> [a]
                   -> [Variant _edata]
-                  -> IO (TUserTypeDef TypeVar, IORef MutableTypeVar)
+                  -> IO (TUserTypeDef TypeVar, TypeVar)
 createUserTypeDef env name moduleName typeVarNames variants = do
     typeVars <- forM typeVarNames $ const $ do
         ft <- freshType env
@@ -180,7 +179,7 @@ createUserTypeDef env name moduleName typeVarNames variants = do
             , tuVariants = variants'
             }
 
-    tyVar <- newIORef $ TUserType typeDef typeVars
+    tyVar <- newTypeVar $ TUserType typeDef typeVars
     return (typeDef, tyVar)
 
 type QVars = [(Name, (ResolvedReference, TypeVar))]
@@ -224,8 +223,8 @@ resolveVariantTypes env qvars typeDef variants = do
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
 buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
-    numTy  <- newIORef $ TPrimitive Number
-    strTy  <- newIORef $ TPrimitive String
+    numTy  <- lift $ newTypeVar $ TPrimitive Number
+    strTy  <- lift $ newTypeVar $ TPrimitive String
 
     env <- liftIO $ newEnv thisModuleName loadedModules Nothing
     HashTable.insert "Number" (TypeBinding (Builtin "Number") numTy) (eTypeBindings env)
@@ -412,7 +411,7 @@ addVariants env typeDef qvars userTypeVar variants mkName = do
         HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
 
     let computeVariantType [] = return userTypeVar
-        computeVariantType argTypeIdents = newIORef $ TFun argTypeIdents userTypeVar
+        computeVariantType argTypeIdents = newTypeVar $ TFun argTypeIdents userTypeVar
 
     forM_ variants $ \(Variant _typeVar vname vparameters) -> do
         parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters

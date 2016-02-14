@@ -19,7 +19,7 @@ import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import qualified Crux.Error as Error
 import Crux.Module.Types
-import Crux.TypeVar hiding (Name)
+import Crux.TypeVar
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -48,7 +48,7 @@ buildPatternEnv exprType env = \case
 
 walkMutableTypeVar :: TypeVar -> IO TypeVar
 walkMutableTypeVar tyvar = do
-    tyvar' <- readIORef tyvar
+    tyvar' <- readTypeVar tyvar
     case tyvar' of
         TBound tv -> do
             walkMutableTypeVar tv
@@ -70,7 +70,7 @@ isLValue env expr = case expr of
             _ -> False
     ELookup _ lhs propName -> do
         lty <- walkMutableTypeVar (edata lhs)
-        lty' <- readIORef lty
+        lty' <- readTypeVar lty
         case lty' of
             TRecord (RecordType recordEData rows) -> do
                 case lookupTypeRow propName rows of
@@ -85,7 +85,7 @@ isLValue env expr = case expr of
                         let newRow = TypeRow{trName=propName, trMut=RMutable, trTyVar=rowTy}
                         let newFields = newRow:[tr | tr <- rows, trName tr /= propName]
 
-                        writeIORef lty (TRecord $ RecordType recordEData newFields)
+                        writeTypeVar lty (TRecord $ RecordType recordEData newFields)
 
                         return True
                     Nothing -> do
@@ -136,9 +136,9 @@ resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
     arrayType <- resolveTypeReference pos env (UnqualifiedReference "Array")
-    readIORef arrayType >>= \case
+    readTypeVar arrayType >>= \case
         TUserType td [_elementType] -> do
-            newArrayType <- newIORef $ TUserType td [elementType]
+            newArrayType <- newTypeVar $ TUserType td [elementType]
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
@@ -167,7 +167,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         -- If we know the expected function type, then use its type variables
         -- rather than make new ones.
         -- TODO: use followTypeVar instead of readIORef
-        (paramTypes, returnType) <- readIORef expectedType >>= \case
+        (paramTypes, returnType) <- readTypeVar expectedType >>= \case
             TFun paramTypes returnType -> do
                 return (paramTypes, returnType)
             _ -> do
@@ -195,7 +195,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         body' <- check env' body
         unify returnType $ edata body'
 
-        ty <- newIORef $ TFun paramTypes returnType
+        ty <- newTypeVar $ TFun paramTypes returnType
         return $ EFun ty params retAnn body'
 
     EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
@@ -214,21 +214,21 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
     EApp _ fn args -> do
         fn' <- check env fn
         -- TODO: use followTypeVar instead of readIORef
-        readIORef (edata fn') >>= \case
+        readTypeVar (edata fn') >>= \case
             -- in the case that the type of the function is known, we propogate
             -- the known argument types into the environment so tdnr works
             TFun argTypes resultType -> do
                 args' <- forM (zip argTypes args) $ \(argType, arg) -> do
                     checkExpecting argType env arg
 
-                appTy <- newIORef $ TFun (map edata args') resultType
+                appTy <- newTypeVar $ TFun (map edata args') resultType
                 unify (edata fn') appTy
 
                 return $ EApp resultType fn' args'
             _ -> do
                 args' <- mapM (check env) args
                 result <- freshType env
-                ty <- newIORef $ TFun (map edata args') result
+                ty <- newTypeVar $ TFun (map edata args') result
                 unify (edata fn') ty
                 return $ EApp result fn' args'
 
@@ -242,7 +242,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 lhs' <- check env lhs
                 ty <- freshType env
                 row <- freshRowVariable env
-                recTy <- newIORef $ TRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+                recTy <- newTypeVar $ TRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
                 unify (edata lhs') recTy
                 return $ ELookup ty lhs' propName
         case lhs of
@@ -285,7 +285,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
             unify ty annotTy
 
-        unitTy <- newIORef $ TPrimitive Unit
+        unitTy <- newTypeVar $ TPrimitive Unit
         return $ ELet unitTy mut pat maybeAnnot expr''
 
     EAssign _ lhs rhs -> do
@@ -299,12 +299,12 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             lhs'' <- freeze lhs'
             throwIO $ NotAnLVar () (show lhs'')
 
-        unitType <- newIORef $ TPrimitive Unit
+        unitType <- newTypeVar $ TPrimitive Unit
 
         return $ EAssign unitType lhs' rhs'
 
     ELiteral _ lit -> do
-        litType <- newIORef $ case lit of
+        litType <- newTypeVar $ case lit of
                 LInteger _ -> TPrimitive Number
                 LString _ -> TPrimitive String
                 LUnit -> TPrimitive Unit
@@ -327,7 +327,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
 
-        recordTy <- newIORef $ TRecord $ RecordType RecordClose fieldTypes
+        recordTy <- newTypeVar $ TRecord $ RecordType RecordClose fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     EIdentifier _ (UnqualifiedReference "_unsafe_js") ->
@@ -358,7 +358,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         lhs' <- check env lhs
         lhsType <- walkMutableTypeVar (edata lhs')
         -- TODO: use followTypeVar instead of readIORef
-        moduleName <- readIORef lhsType >>= \case
+        moduleName <- readTypeVar lhsType >>= \case
             TUserType TUserTypeDef{..} _ -> do
                 return tuModuleName
             TPrimitive _ -> do
@@ -408,7 +408,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
     EWhile _ cond body -> do
         booleanType <- resolveBooleanType (edata expr) env
-        unitType <- newIORef $ TPrimitive Unit
+        unitType <- newTypeVar $ TPrimitive Unit
 
         condition' <- check env cond
         unify booleanType (edata condition')
@@ -420,7 +420,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         return $ EWhile unitType condition' body'
 
     EFor pos name over body -> do
-        unitType <- newIORef $ TPrimitive Unit
+        unitType <- newTypeVar $ TPrimitive Unit
 
         (arrayType, iteratorType) <- resolveArrayType pos env
         over' <- checkExpecting arrayType env over
@@ -461,7 +461,7 @@ freezeTypeDef TUserTypeDef{..} = do
 
 freezeTypeVar :: TypeVar -> IO ImmutableTypeVar
 freezeTypeVar tv = do
-    tv' <- readIORef tv
+    tv' <- readTypeVar tv
     case tv' of
         TUnbound i -> do
             return $ IUnbound i
@@ -518,7 +518,7 @@ registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
                 , tuParameters = []
                 , tuVariants = variants'
                 }
-        userType <- newIORef $ TUserType typeDef []
+        userType <- newTypeVar $ TUserType typeDef []
         HashTable.insert name (TypeBinding (Local name) userType) (eTypeBindings env)
 
         forM_ variants $ \(JSVariant variantName _value) -> do

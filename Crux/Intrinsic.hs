@@ -28,8 +28,8 @@ genPlus _ _ _ = error "Unexpected: Only pass EApp to genPlus"
 
 intrinsics :: IO (HashMap AST.Name Intrinsic)
 intrinsics = do
-    numTy <- newIORef $ TPrimitive Number
-    plusTy <- newIORef $ TFun [numTy, numTy] numTy
+    numTy <- newTypeVar $ TPrimitive Number
+    plusTy <- newTypeVar $ TFun [numTy, numTy] numTy
     return $ HashMap.fromList
         [ ("+", Intrinsic
             { iType = plusTy

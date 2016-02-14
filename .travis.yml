@@ -10,6 +10,7 @@ addons:
     packages:
       - ghc-7.10.3
       - cabal-install-1.22
+      - happy-1.19.5
 
 before_install:
   - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.cabal/bin:$PATH

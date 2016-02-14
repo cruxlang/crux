@@ -32,7 +32,7 @@ data RecordSubst
 instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
     recordSubst <- HashTable.new
-    typeVars' <- mapM (instantiate' subst recordSubst env) tyVars
+    typeVars' <- for tyVars $ instantiate' subst recordSubst env
     let typeVars'' = if and (map fst typeVars')
             then map snd typeVars'
             else tyVars
@@ -84,13 +84,13 @@ instantiate' subst recordSubst env ty = do
                     HashTable.insert name tv subst
                     return (True, tv)
         TFun param ret -> do
-            ty1 <- mapM (instantiate' subst recordSubst env) param
+            ty1 <- for param $ instantiate' subst recordSubst env
             (b2, ty2) <- instantiate' subst recordSubst env ret
             let b = b2 || any fst ty1
             tfun <- newTypeVar $ TFun (map snd ty1) ty2
             return (b, tfun)
         TUserType def tyVars -> do
-            typeVars' <- mapM (instantiate' subst recordSubst env) tyVars
+            typeVars' <- for tyVars $ instantiate' subst recordSubst env
             tut <- newTypeVar $ TUserType def (map snd typeVars')
             return (and (map fst typeVars'), tut)
         TRecord (RecordType open rows) -> do
@@ -121,7 +121,7 @@ quantify ty = do
         TQuant _ -> do
             return ()
         TFun param ret -> do
-            mapM_ quantify param
+            for_ param quantify
             quantify ret
         TUserType _ tyParams ->
             for_ tyParams quantify
@@ -161,10 +161,10 @@ occurs tvr ty = do
             | otherwise -> do
                 occurs tvr ty''
         TFun arg ret -> do
-            mapM_ (occurs tvr) arg
+            for_ arg $ occurs tvr
             occurs tvr ret
         TUserType _ tvars -> do
-            mapM_ (occurs tvr) tvars
+            for_ tvars $ occurs tvr
         TRecord (RecordType _ rows) -> do
             for_ rows $ \TypeRow{..} ->
                 occurs tvr trTyVar
@@ -309,7 +309,7 @@ unify av bv
             (TUserType ad atv, TUserType bd btv)
                 | userTypeIdentity ad == userTypeIdentity bd -> do
                     -- TODO: assert the two lists have the same length
-                    mapM_ (uncurry unify) (zip atv btv)
+                    for_ (zip atv btv) $ uncurry unify
                 | otherwise -> do
                     unificationError "" av bv
 
@@ -320,7 +320,7 @@ unify av bv
                 when (length aa /= length ba) $
                     unificationError "" av bv
 
-                mapM_ (uncurry unify) (zip aa ba)
+                for_ (zip aa ba) $ uncurry unify
                 unify ar br
 
             (TFun {}, TPrimitive {}) ->

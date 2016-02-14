@@ -157,7 +157,7 @@ generate env expr = case expr of
 
     AST.EApp _ (AST.ELookup _ this methodName) args -> do
         this' <- generate env this
-        args' <- runMaybeT $ mapM (MaybeT . generate env) args
+        args' <- runMaybeT $ for args $ MaybeT . generate env
         for (both this' args') $ \(this'', args'') -> do
             newInstruction env $ \output -> MethodCall output this'' methodName args''
 
@@ -166,7 +166,7 @@ generate env expr = case expr of
 
     AST.EApp _ fn args -> do
         fn' <- generate env fn
-        args' <- runMaybeT $ mapM (MaybeT . generate env) args
+        args' <- runMaybeT $ for args $ MaybeT . generate env
         for (both fn' args') $ \(fn'', args'') -> do
             newInstruction env $ \output -> Call output fn'' args''
 
@@ -193,11 +193,11 @@ generate env expr = case expr of
         return $ Just $ Literal lit
 
     AST.EArrayLiteral _ elements -> do
-        elements' <- runMaybeT $ mapM (MaybeT . generate env) elements
+        elements' <- runMaybeT $ for elements $ MaybeT . generate env
         return $ fmap ArrayLiteral elements'
 
     AST.ERecordLiteral _ props -> do
-        props' <- runMaybeT $ mapM (MaybeT . generate env) props
+        props' <- runMaybeT $ for props $ MaybeT . generate env
         return $ fmap RecordLiteral props'
 
     AST.EIdentifier _ name -> do

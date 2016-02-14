@@ -138,15 +138,15 @@ showTypeVarIO' showBound (TypeVar tvar) = do
         TQuant i -> do
             return $ "TQuant " ++ show i
         TFun arg ret -> do
-            as <- mapM (showTypeVarIO' showBound) arg
+            as <- for arg $ showTypeVarIO' showBound
             rs <- showTypeVarIO' showBound ret
             return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
         TUserType def tvars -> do
-            tvs <- mapM (showTypeVarIO' showBound) tvars
+            tvs <- for tvars $ showTypeVarIO' showBound
             return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
         TRecord (RecordType open' rows') -> do
             let rowNames = map trName rows'
-            rowTypes <- mapM (showTypeVarIO' showBound . trTyVar) rows'
+            rowTypes <- for rows' $ showTypeVarIO' showBound . trTyVar
             let showRow (name, ty) = Text.unpack name <> ": " <> ty
             let dotdotdot = case open' of
                     RecordFree i -> ["..._" ++ show i]

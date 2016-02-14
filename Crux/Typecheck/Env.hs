@@ -63,7 +63,7 @@ exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
 unfreezeTypeDef :: TUserTypeDef ImmutableTypeVar -> IO (TUserTypeDef TypeVar)
 unfreezeTypeDef TUserTypeDef{..} = do
-    parameters' <- mapM unfreezeTypeVar tuParameters
+    parameters' <- for tuParameters unfreezeTypeVar
     -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
     let td = TUserTypeDef {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
@@ -76,12 +76,12 @@ unfreezeTypeVar imt = newTypeVar =<< case imt of
     IQuant varname -> do
         return $ TQuant varname
     IFun params body -> do
-        params' <- mapM unfreezeTypeVar params
+        params' <- for params unfreezeTypeVar
         body' <- unfreezeTypeVar body
         return $ TFun params' body'
     IUserType td params -> do
         td' <- unfreezeTypeDef td
-        params' <- mapM unfreezeTypeVar params
+        params' <- for params unfreezeTypeVar
         return $ TUserType td' params'
     IRecord rt -> do
         rt' <- traverse unfreezeTypeVar rt
@@ -108,7 +108,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                             error "Primitive types don't take type parameters"
                     TUserType def@TUserTypeDef{tuParameters} _
                         | length tuParameters == length typeParameters -> do
-                            params <- mapM go typeParameters
+                            params <- for typeParameters go
                             newTypeVar $ TUserType def params
                         | otherwise ->
                             fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
@@ -119,7 +119,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                 when (length aliasParams /= length typeParameters) $
                     fail $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
 
-                argTypes <- mapM (resolveTypeIdent env resolvePolicy) typeParameters
+                argTypes <- for typeParameters $ resolveTypeIdent env resolvePolicy
 
                 env' <- addQvarTable env (zip aliasParams argTypes)
 
@@ -144,7 +144,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
         newTypeVar $ TRecord $ RecordType RecordClose rows'
 
     go (FunctionIdent argTypes retPrimitive) = do
-        argTypes' <- mapM go argTypes
+        argTypes' <- for argTypes go
         retPrimitive' <- go retPrimitive
         newTypeVar $ TFun argTypes' retPrimitive'
 

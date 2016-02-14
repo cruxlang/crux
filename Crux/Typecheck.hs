@@ -226,7 +226,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
                 return $ EApp resultType fn' args'
             _ -> do
-                args' <- mapM (check env) args
+                args' <- for args $ check env
                 result <- freshType env
                 ty <- newTypeVar $ TFun (map edata args') result
                 unify (edata fn') ty
@@ -452,7 +452,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
 freezeTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
 freezeTypeDef TUserTypeDef{..} = do
-    parameters' <- mapM freezeTypeVar tuParameters
+    parameters' <- for tuParameters $ freezeTypeVar
     -- Huge hack: don't try to freeze variants because they can be recursive
     let variants' = []
     let td = TUserTypeDef
@@ -470,11 +470,11 @@ freezeTypeVar tv = do
         TQuant i ->
             return $ IQuant i
         TFun arg body -> do
-            arg' <- mapM freezeTypeVar arg
+            arg' <- for arg freezeTypeVar
             body' <- freezeTypeVar body
             return $ IFun arg' body'
         TUserType def tvars -> do
-            tvars' <- mapM freezeTypeVar tvars
+            tvars' <- for tvars freezeTypeVar
             def' <- freezeTypeDef def
             return $ IUserType def' tvars'
         TRecord rt -> do
@@ -491,7 +491,7 @@ freezeDecl (Declaration export pos decl) = fmap (Declaration export pos) $ trave
 
 freezeModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
 freezeModule Module{..} = do
-    decls <- mapM freezeDecl mDecls
+    decls <- for mDecls freezeDecl
     return $ Module
         { mImports=mImports
         , mDecls=decls

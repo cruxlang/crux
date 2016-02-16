@@ -32,7 +32,7 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import Crux.Util
-import Crux.TypeVar hiding (Name)
+import Crux.TypeVar
 import Crux.Module.Types
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
@@ -70,9 +70,9 @@ unfreezeTypeDef TUserTypeDef{..} = do
     return td
 
 unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
-unfreezeTypeVar imt = newTypeVar =<< case imt of
+unfreezeTypeVar = \case
     IUnbound name ->
-        return $ TUnbound name
+        newTypeVar $ TUnbound name
     IQuant varname -> do
         return $ TQuant varname
     IFun params body -> do
@@ -83,9 +83,11 @@ unfreezeTypeVar imt = newTypeVar =<< case imt of
         td' <- unfreezeTypeDef td
         params' <- for params unfreezeTypeVar
         return $ TUserType td' params'
-    IRecord rt -> do
-        rt' <- traverse unfreezeTypeVar rt
-        return $ TRecord rt'
+    IRecord (RecordType open rows) -> do
+        rows' <- for rows $ \row -> do
+            traverse unfreezeTypeVar row
+        recordType <- newIORef $ RecordType open rows'
+        return $ TRecord $ recordType
     IPrimitive pt -> do
         return $ TPrimitive pt
 
@@ -94,13 +96,12 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
     go typeIdent
   where
     go UnitTypeIdent = do
-        newTypeVar $ TPrimitive Unit
+        return $ TPrimitive Unit
 
     go (TypeIdent typeName typeParameters) = do
         HashTable.lookup typeName eTypeBindings >>= \case
             Just (TypeBinding _ ty) -> do
-                -- TODO: use followTypeVar instead of readIORef
-                readTypeVar ty >>= \case
+                followTypeVar ty >>= \case
                     TPrimitive {}
                         | [] == typeParameters ->
                             return ty
@@ -109,7 +110,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                     TUserType def@TUserTypeDef{tuParameters} _
                         | length tuParameters == length typeParameters -> do
                             params <- for typeParameters go
-                            newTypeVar $ TUserType def params
+                            return $ TUserType def params
                         | otherwise ->
                             fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
                     _ ->
@@ -141,12 +142,13 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                     Just LImmutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
-        newTypeVar $ TRecord $ RecordType RecordClose rows'
+        ref <- newIORef $ RecordType RecordClose rows'
+        return $ TRecord ref
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- for argTypes go
         retPrimitive' <- go retPrimitive
-        newTypeVar $ TFun argTypes' retPrimitive'
+        return $ TFun argTypes' retPrimitive'
 
 addQvarTable :: Env -> [(Name, TypeVar)] -> IO Env
 addQvarTable env@Env{..} qvarTable = do
@@ -179,7 +181,7 @@ createUserTypeDef env name moduleName typeVarNames variants = do
             , tuVariants = variants'
             }
 
-    tyVar <- newTypeVar $ TUserType typeDef typeVars
+    let tyVar = TUserType typeDef typeVars
     return (typeDef, tyVar)
 
 type QVars = [(Name, (ResolvedReference, TypeVar))]
@@ -223,8 +225,8 @@ resolveVariantTypes env qvars typeDef variants = do
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
 buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
     -- built-in types. would be nice to move into the prelude somehow.
-    numTy  <- lift $ newTypeVar $ TPrimitive Number
-    strTy  <- lift $ newTypeVar $ TPrimitive String
+    let numTy = TPrimitive Number
+    let strTy = TPrimitive String
 
     env <- liftIO $ newEnv thisModuleName loadedModules Nothing
     HashTable.insert "Number" (TypeBinding (Builtin "Number") numTy) (eTypeBindings env)
@@ -410,11 +412,11 @@ addVariants env typeDef qvars userTypeVar variants mkName = do
     for_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
         HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
 
-    let computeVariantType [] = return userTypeVar
-        computeVariantType argTypeIdents = newTypeVar $ TFun argTypeIdents userTypeVar
+    let computeVariantType [] = userTypeVar
+        computeVariantType argTypeIdents = TFun argTypeIdents userTypeVar
 
     for_ variants $ \(Variant _typeVar vname vparameters) -> do
         parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
-        ctorType <- computeVariantType parameterTypeVars
+        let ctorType = computeVariantType parameterTypeVars
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
         HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars) parameterTypeVars) (ePatternBindings env)

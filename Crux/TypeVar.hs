@@ -10,15 +10,13 @@ module Crux.TypeVar
     , RowVariable(..)
     , TVariant(..)
     , TUserTypeDef(..)
-    , TypeVar
-    , MutableTypeVar(..)
+    , TypeVar(..)
+    , TypeState(..)
     , ImmutableTypeVar(..)
     , newTypeVar
-    , readTypeVar
-    , writeTypeVar
-    , followTypeVar
     , followRecordTypeVar'
     , followRecordTypeVar
+    , followTypeVar
     , showTypeVarIO
     , renderTypeVarIO
     , userTypeIdentity
@@ -109,17 +107,19 @@ followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
-newtype TypeVar = TypeVar (IORef MutableTypeVar)
-    deriving (Eq)
-
-data MutableTypeVar
-    = TUnbound Int
-    | TBound TypeVar
+-- this should be called Type probably, but tons of code calls it TypeVar
+data TypeVar
+    = TypeVar (IORef TypeState)
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
+    deriving (Eq)
+
+data TypeState
+    = TUnbound Int
+    | TBound TypeVar
     deriving (Eq)
 
 data ImmutableTypeVar
@@ -131,9 +131,17 @@ data ImmutableTypeVar
     | IPrimitive PrimitiveType
     deriving (Show, Eq)
 
-newTypeVar :: MutableTypeVar -> IO TypeVar
+newTypeVar :: TypeState -> IO TypeVar
 newTypeVar tv = TypeVar <$> newIORef tv
 
+followTypeVar :: TypeVar -> IO TypeVar
+followTypeVar (TypeVar ref) = do
+    readIORef ref >>= \case
+        TBound tv -> followTypeVar tv
+        TUnbound _ -> return $ TypeVar ref
+followTypeVar tv = return tv
+
+{-
 -- TODO: move this into Crux.TypeVar.Internal.  Only Unify should use it.
 readTypeVar :: TypeVar -> IO MutableTypeVar
 readTypeVar (TypeVar r) = readIORef r
@@ -146,6 +154,7 @@ followTypeVar tv@(TypeVar ref) = readIORef ref >>= \case
 -- TODO: move this into Crux.TypeVar.Internal.  Only Unify should use it.
 writeTypeVar :: TypeVar -> MutableTypeVar -> IO ()
 writeTypeVar (TypeVar r) = writeIORef r
+-}
 
 showRecordTypeVarIO' :: Bool -> IORef RecordTypeVar -> IO String
 showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
@@ -165,28 +174,28 @@ showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
             else inner
 
 showTypeVarIO' :: Bool -> TypeVar -> IO String
-showTypeVarIO' showBound (TypeVar tvar) = do
-    readIORef tvar >>= \case
+showTypeVarIO' showBound = \case
+    TypeVar ref -> readIORef ref >>= \case
         TUnbound i -> do
             return $ "(TUnbound " ++ show i ++ ")"
-        TBound x -> do
-            inner <- showTypeVarIO' showBound x
+        TBound tv -> do
+            inner <- showTypeVarIO' showBound tv
             if showBound
                 then return $ "(TBound " ++ inner ++ ")" ++ show showBound
                 else return inner
-        TQuant i -> do
-            return $ "TQuant " ++ show i
-        TFun arg ret -> do
-            as <- for arg $ showTypeVarIO' showBound
-            rs <- showTypeVarIO' showBound ret
-            return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
-        TUserType def tvars -> do
-            tvs <- for tvars $ showTypeVarIO' showBound
-            return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
-        TRecord rtv ->
-            showRecordTypeVarIO' showBound rtv
-        TPrimitive ty ->
-            return $ show ty
+    TQuant i -> do
+        return $ "TQuant " ++ show i
+    TFun arg ret -> do
+        as <- for arg $ showTypeVarIO' showBound
+        rs <- showTypeVarIO' showBound ret
+        return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
+    TUserType def tvars -> do
+        tvs <- for tvars $ showTypeVarIO' showBound
+        return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
+    TRecord rtv -> do
+        showRecordTypeVarIO' showBound rtv
+    TPrimitive ty ->
+        return $ show ty
 
 showTypeVarIO :: TypeVar -> IO String
 showTypeVarIO = showTypeVarIO' True

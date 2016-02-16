@@ -14,8 +14,8 @@ import Crux.IORef
 import Crux.TypeVar
 
 test_quantified_with_number = do
-    lhs <- newTypeVar $ TPrimitive $ Number
-    rhs <- newTypeVar $ TQuant 10
+    let lhs = TPrimitive $ Number
+    let rhs = TQuant 10
     try (unify lhs rhs) >>= \(a :: Either (TypeError ()) ()) ->
         case a of
             (Left UnificationError {}) -> return ()
@@ -24,18 +24,19 @@ test_quantified_with_number = do
 test_function_taking_record = do
     env <- newEnv "main" HashMap.empty Nothing
 
-    numTy <- newTypeVar $ TPrimitive $ Number
+    let numTy = TPrimitive Number
     rect <- newIORef $ RRecord $ RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy]
-    argType <- newTypeVar $ TRecord $ rect
-    retType <- newTypeVar $ TBound argType
-    funType <- newTypeVar $ TFun [argType] retType
+    let argType = TRecord $ rect
+    bref <- newIORef $ TBound argType
+    let retType = TypeVar bref
+    let funType = TFun [argType] retType
 
     funTypei <- instantiate env funType
-    argTypei <- readTypeVar funTypei >>= \(TFun [a] _) ->
+    argTypei <- followTypeVar funTypei >>= \(TFun [a] _) ->
         return a
 
     rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
-    recordLiteralType <- newTypeVar $ TRecord rect2
+    let recordLiteralType = TRecord rect2
     unify argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei

@@ -188,6 +188,12 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         let ty = TFun paramTypes returnType
         return $ EFun ty params retAnn body'
 
+    -- Compiler intrinsics
+    EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
+        arg' <- check env arg
+        argType <- renderTypeVarIO $ edata arg'
+        putStrLn $ "Debug Type: " ++ argType
+        return arg'
     EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
         t <- freshType env
         return $ EIntrinsic t (IUnsafeJs txt)
@@ -204,7 +210,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
     EApp _ fn args -> do
         fn' <- check env fn
         followTypeVar (edata fn') >>= \case
-            -- in the case that the type of the function is known, we propogate
+            -- in the case that the type of the function is known, we propagate
             -- the known argument types into the environment so tdnr works
             TFun argTypes resultType -> do
                 args' <- for (zip argTypes args) $ \(argType, arg) -> do
@@ -596,7 +602,7 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
         register all unqualified imports
 
     phase 2:
-      a. register all jsffi types and data constructors and patterns
+      a. register all jsffi types (both data constructors and patterns)
       b. register all data types (and only the types)
       c. register all type aliases
       d. register all data type constructors and patterns (using same qvars from before)

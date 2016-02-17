@@ -158,15 +158,10 @@ addQvarTable env@Env{..} qvarTable = do
 createUserTypeDef :: Env
                   -> Name
                   -> ModuleName
-                  -> [a]
+                  -> [TypeVar]
                   -> [Variant _edata]
                   -> IO (TUserTypeDef TypeVar, TypeVar)
-createUserTypeDef env name moduleName typeVarNames variants = do
-    typeVars <- for typeVarNames $ const $ do
-        ft <- freshType env
-        quantify ft
-        return ft
-
+createUserTypeDef env name moduleName typeVars variants = do
     variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
         tvParameters <- for vparameters $ const $ freshType env
         let tvName = vname
@@ -184,7 +179,7 @@ createUserTypeDef env name moduleName typeVarNames variants = do
 
 type QVars = [(Name, (ResolvedReference, TypeVar))]
 
--- TODO: what do we do with this when types are resolved at type-checking type
+-- TODO: what do we do with this when types are resolved at type-checking time
 addDataType :: Env
             -> ModuleName
             -> Name
@@ -195,6 +190,11 @@ addDataType env importName typeName typeVariables variants = do
     e <- childEnv env
     tyVars <- for typeVariables $ \tv ->
         resolveTypeIdent e NewTypesAreQuantified (TypeIdent tv [])
+
+    {-
+    typeVarNames <- for tyVars $ renderTypeVarIO
+    putStrLn $ "addDataType: " ++ show typeName ++ " " ++ show typeVarNames
+    -}
 
     (typeDef, tyVar) <- createUserTypeDef e typeName importName tyVars variants
     HashTable.insert typeName (TypeBinding (OtherModule importName typeName) tyVar) (eTypeBindings env)
@@ -362,8 +362,8 @@ addLoadedDataDeclsToEnvironment env modul decls mkName = do
     for_ dataDecls' $ \(typeDef, qvars, variants) ->
         resolveVariantTypes env qvars typeDef variants
 
-addThisModuleDataDeclsToEnvironment ::
-       Env
+addThisModuleDataDeclsToEnvironment
+    :: Env
     -> Module idtype edata
     -> [DeclarationType t1 t2]
     -> (Name -> ResolvedReference)
@@ -406,6 +406,14 @@ addVariants
     -> (Name -> ResolvedReference)
     -> IO ()
 addVariants env typeDef qvars userTypeVar variants mkName = do
+    {-
+    userTypeName <- renderTypeVarIO userTypeVar
+    putStrLn $ "addVariants for " ++ userTypeName ++ ": qvars:"
+    for_ qvars $ \(name, (rr, tv)) -> do
+        typeName <- renderTypeVarIO tv
+        putStrLn $ "  " ++ show name ++ " " ++ show rr ++ " " ++ typeName
+    -}
+
     e <- childEnv env
     for_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
         HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)

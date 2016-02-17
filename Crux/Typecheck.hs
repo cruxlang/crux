@@ -46,15 +46,6 @@ buildPatternEnv exprType env = \case
                     buildPatternEnv vp env arg
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
-walkMutableTypeVar :: TypeVar -> IO TypeVar
-walkMutableTypeVar tyvar = do
-    tyvar' <- readTypeVar tyvar
-    case tyvar' of
-        TBound tv -> do
-            walkMutableTypeVar tv
-        _ ->
-            return tyvar
-
 lookupBinding :: Name -> Env -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 lookupBinding name Env{..} = do
     HashTable.lookup name eValueBindings >>= \case
@@ -69,10 +60,9 @@ isLValue env expr = case expr of
             Just (_, LMutable, _) -> True
             _ -> False
     ELookup _ lhs propName -> do
-        lty <- walkMutableTypeVar (edata lhs)
-        lty' <- readTypeVar lty
-        case lty' of
-            TRecord (RecordType recordEData rows) -> do
+        lty' <- followTypeVar (edata lhs)
+        readTypeVar lty' >>= \case
+            TRecord ref' -> followRecordTypeVar' ref' >>= \(ref, RecordType recordEData rows) -> do
                 case lookupTypeRow propName rows of
                     Just (RMutable, _) ->
                         return True
@@ -85,13 +75,14 @@ isLValue env expr = case expr of
                         let newRow = TypeRow{trName=propName, trMut=RMutable, trTyVar=rowTy}
                         let newFields = newRow:[tr | tr <- rows, trName tr /= propName]
 
-                        writeTypeVar lty (TRecord $ RecordType recordEData newFields)
+                        -- TODO: just unify this thing with a record with a mutable field
+                        writeIORef ref $ RRecord $ RecordType recordEData newFields
 
                         return True
                     Nothing -> do
                         -- This should  be impossible because type inference should have either failed, or
                         -- caused this record type to include the field by now.
-                        ltys <- showTypeVarIO lty
+                        ltys <- showTypeVarIO lty'
                         error $ printf "Internal compiler error: calling isLValue on a nonexistent property %s of record %s" (show propName) ltys
             _ ->
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
@@ -242,7 +233,8 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 lhs' <- check env lhs
                 ty <- freshType env
                 row <- freshRowVariable env
-                recTy <- newTypeVar $ TRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+                rec <- newIORef $ RRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+                recTy <- newTypeVar $ TRecord rec
                 unify (edata lhs') recTy
                 return $ ELookup ty lhs' propName
         case lhs of
@@ -327,7 +319,8 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
 
-        recordTy <- newTypeVar $ TRecord $ RecordType RecordClose fieldTypes
+        rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
+        recordTy <- newTypeVar $ TRecord rec
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     EIdentifier _ (UnqualifiedReference "_unsafe_js") ->
@@ -356,7 +349,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         -- lhs must be typechecked so that, if it has a concrete type, we know
         -- the location of that type.
         lhs' <- check env lhs
-        lhsType <- walkMutableTypeVar (edata lhs')
+        lhsType <- followTypeVar (edata lhs')
         -- TODO: use followTypeVar instead of readIORef
         moduleName <- readTypeVar lhsType >>= \case
             TUserType TUserTypeDef{..} _ -> do
@@ -477,7 +470,8 @@ freezeTypeVar tv = do
             tvars' <- for tvars freezeTypeVar
             def' <- freezeTypeDef def
             return $ IUserType def' tvars'
-        TRecord rt -> do
+        TRecord ref -> do
+            rt <- followRecordTypeVar ref
             rt' <- traverse freezeTypeVar rt
             return $ IRecord rt'
         TPrimitive t ->

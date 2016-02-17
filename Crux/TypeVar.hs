@@ -4,6 +4,7 @@ module Crux.TypeVar
     ( PrimitiveType(..)
     , RecordOpen(..)
     , RecordType(..)
+    , RecordTypeVar(..)
     , TypeRow(..)
     , RowMutability(..)
     , RowVariable(..)
@@ -15,6 +16,9 @@ module Crux.TypeVar
     , newTypeVar
     , readTypeVar
     , writeTypeVar
+    , followTypeVar
+    , followRecordTypeVar'
+    , followRecordTypeVar
     , showTypeVarIO
     , renderTypeVarIO
     , userTypeIdentity
@@ -89,6 +93,19 @@ instance Show RowVariable where
 data RecordOpen = RecordFree RowVariable | RecordQuantified RowVariable | RecordClose
     deriving (Show, Eq)
 
+data RecordTypeVar
+    = RBound (IORef RecordTypeVar)
+    | RRecord (RecordType TypeVar)
+    deriving (Eq)
+
+followRecordTypeVar' :: IORef RecordTypeVar -> IO (IORef RecordTypeVar, RecordType TypeVar)
+followRecordTypeVar' ref = readIORef ref >>= \case
+    RBound ref' -> followRecordTypeVar' ref'
+    RRecord rt -> return (ref, rt)
+
+followRecordTypeVar :: IORef RecordTypeVar -> IO (RecordType TypeVar)
+followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
+
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -101,7 +118,7 @@ data MutableTypeVar
     | TQuant Int
     | TFun [TypeVar] TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
-    | TRecord (RecordType TypeVar)
+    | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
     deriving (Eq)
 
@@ -110,7 +127,7 @@ data ImmutableTypeVar
     | IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
-    | IRecord (RecordType ImmutableTypeVar)
+    | IRecord (RecordType ImmutableTypeVar) -- TODO: RecordFree makes no sense here, remove that
     | IPrimitive PrimitiveType
     deriving (Show, Eq)
 
@@ -121,11 +138,33 @@ newTypeVar tv = TypeVar <$> newIORef tv
 readTypeVar :: TypeVar -> IO MutableTypeVar
 readTypeVar (TypeVar r) = readIORef r
 
+followTypeVar :: TypeVar -> IO TypeVar
+followTypeVar tv@(TypeVar ref) = readIORef ref >>= \case
+    TBound target -> followTypeVar target
+    _ -> return tv
+
 -- TODO: move this into Crux.TypeVar.Internal.  Only Unify should use it.
 writeTypeVar :: TypeVar -> MutableTypeVar -> IO ()
 writeTypeVar (TypeVar r) = writeIORef r
 
-showTypeVarIO' :: Bool -> TypeVar -> IO [Char]
+showRecordTypeVarIO' :: Bool -> IORef RecordTypeVar -> IO String
+showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
+    RRecord (RecordType open' rows') -> do
+        let rowNames = map trName rows'
+        rowTypes <- for rows' $ showTypeVarIO' showBound . trTyVar
+        let showRow (name, ty) = Text.unpack name <> ": " <> ty
+        let dotdotdot = case open' of
+                RecordFree i -> ["..._" ++ show i]
+                RecordQuantified i -> ["...t" ++ show i]
+                RecordClose -> []
+        return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
+    RBound ref' -> do
+        inner <- showRecordTypeVarIO' showBound ref'
+        return $ if showBound
+            then "(RBound " ++ inner ++ ")"
+            else inner
+
+showTypeVarIO' :: Bool -> TypeVar -> IO String
 showTypeVarIO' showBound (TypeVar tvar) = do
     readIORef tvar >>= \case
         TUnbound i -> do
@@ -144,15 +183,8 @@ showTypeVarIO' showBound (TypeVar tvar) = do
         TUserType def tvars -> do
             tvs <- for tvars $ showTypeVarIO' showBound
             return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
-        TRecord (RecordType open' rows') -> do
-            let rowNames = map trName rows'
-            rowTypes <- for rows' $ showTypeVarIO' showBound . trTyVar
-            let showRow (name, ty) = Text.unpack name <> ": " <> ty
-            let dotdotdot = case open' of
-                    RecordFree i -> ["..._" ++ show i]
-                    RecordQuantified i -> ["...t" ++ show i]
-                    RecordClose -> []
-            return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
+        TRecord rtv ->
+            showRecordTypeVarIO' showBound rtv
         TPrimitive ty ->
             return $ show ty
 

@@ -24,7 +24,6 @@ import Crux.AST
     )
 import           Crux.Prelude
 import           Crux.Tokens  (Pos (..))
-import           Data.List    (intercalate)
 import qualified Data.Text    as Text
 import           Text.Printf  (printf)
 

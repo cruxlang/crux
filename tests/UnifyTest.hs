@@ -10,6 +10,7 @@ import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict  as HashMap
 import           Test.Framework
+import Crux.IORef
 import Crux.TypeVar
 
 test_quantified_with_number = do
@@ -24,7 +25,8 @@ test_function_taking_record = do
     env <- newEnv "main" HashMap.empty Nothing
 
     numTy <- newTypeVar $ TPrimitive $ Number
-    argType <- newTypeVar $ TRecord (RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy])
+    rect <- newIORef $ RRecord $ RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy]
+    argType <- newTypeVar $ TRecord $ rect
     retType <- newTypeVar $ TBound argType
     funType <- newTypeVar $ TFun [argType] retType
 
@@ -32,7 +34,8 @@ test_function_taking_record = do
     argTypei <- readTypeVar funTypei >>= \(TFun [a] _) ->
         return a
 
-    recordLiteralType <- newTypeVar $ TRecord (RecordType (RecordClose) [TypeRow "x" RImmutable numTy])
+    rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
+    recordLiteralType <- newTypeVar $ TRecord rect2
     unify argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei

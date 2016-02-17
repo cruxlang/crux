@@ -32,7 +32,7 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import Crux.Util
-import Crux.TypeVar hiding (Name)
+import Crux.TypeVar
 import Crux.Module.Types
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
@@ -85,7 +85,8 @@ unfreezeTypeVar imt = newTypeVar =<< case imt of
         return $ TUserType td' params'
     IRecord rt -> do
         rt' <- traverse unfreezeTypeVar rt
-        return $ TRecord rt'
+        ref <- newIORef $ RRecord rt'
+        return $ TRecord ref
     IPrimitive pt -> do
         return $ TPrimitive pt
 
@@ -141,7 +142,8 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                     Just LImmutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
-        newTypeVar $ TRecord $ RecordType RecordClose rows'
+        ref <- newIORef $ RRecord $ RecordType RecordClose rows'
+        newTypeVar $ TRecord $ ref
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- for argTypes go

@@ -14,7 +14,7 @@ import qualified Crux.Gen             as Gen
 import qualified Crux.Module
 import           Crux.Tokens          (Pos (..))
 import           Crux.Typecheck.Types (TypeError (..))
-import Crux.TypeVar (showTypeVarIO)
+import Crux.TypeVar (renderTypeVarIO)
 import qualified Data.HashMap.Strict  as HashMap
 import           Data.Text            (Text)
 import qualified Data.Text            as T
@@ -74,8 +74,8 @@ assertUnificationError :: Pos -> String -> String -> Either Error.Error a -> IO 
 assertUnificationError pos a b (Left (Error.TypeError (UnificationError actualPos _ at bt))) = do
     assertEqual pos actualPos
 
-    as <- showTypeVarIO at
-    bs <- showTypeVarIO bt
+    as <- renderTypeVarIO at
+    bs <- renderTypeVarIO bt
     assertEqual a as
     assertEqual b bs
 

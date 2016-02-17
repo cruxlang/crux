@@ -452,7 +452,11 @@ freezeTypeVar = \case
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound i -> do
-                return $ IUnbound i
+                -- This happens when we're traversing the body of a function
+                -- with a let binding that was never unified with anything.
+                -- It wasn't quantified because it's local.  IQuant should be
+                -- okay.  It will never be instantiated.
+                return $ IQuant i
             TBound tv -> do
                 freezeTypeVar tv
     TQuant i ->

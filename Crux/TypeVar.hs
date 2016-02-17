@@ -123,8 +123,7 @@ data TypeState
     deriving (Eq)
 
 data ImmutableTypeVar
-    = IUnbound Int -- Neither Andy nor I are sure why we need this
-    | IQuant Int
+    = IQuant Int
     | IFun [ImmutableTypeVar] ImmutableTypeVar
     | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
     | IRecord (RecordType ImmutableTypeVar) -- TODO: RecordFree makes no sense here, remove that

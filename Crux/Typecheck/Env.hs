@@ -71,8 +71,6 @@ unfreezeTypeDef TUserTypeDef{..} = do
 
 unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
 unfreezeTypeVar = \case
-    IUnbound name ->
-        newTypeVar $ TUnbound name
     IQuant varname -> do
         return $ TQuant varname
     IFun params body -> do

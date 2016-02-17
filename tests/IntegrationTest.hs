@@ -220,7 +220,7 @@ test_polymorphic_type_annotations_are_universally_quantified2 = do
         , "let g: (a) -> a = fun (i) { i }"
         , "let _ = f(g(\"hello\"))"
         ]
-    assertUnificationError (Pos 1 3 9) "Number" "String" rv
+    assertUnificationError (Pos 1 3 9) "String" "Number" rv
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines

@@ -45,13 +45,13 @@ buildPatternEnv exprType env = \case
     RPIrrefutable (PBinding pname) -> do
         HashTable.insert pname (ValueReference (Local pname) LImmutable exprType) (eValueBindings env)
 
-    RPConstructor cname cargs -> do
+    RPConstructor Nothing cname cargs -> do
         HashTable.lookup cname (ePatternBindings env) >>= \case
             Just (PatternBinding def tyVars) -> do
                 handlePatternBinding env exprType def tyVars cname cargs
             _ -> fail $ printf "Unbound constructor %s" (show cname)
 
-    RPQualifiedConstructor importName cname cargs -> do
+    RPConstructor (Just importName) cname cargs -> do
         HashTable.lookup importName (eValueBindings env) >>= \case
             Just (ModuleReference moduleName) -> do
                 findExportedPatternByName env moduleName cname >>= \case

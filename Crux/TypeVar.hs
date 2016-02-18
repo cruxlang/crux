@@ -12,7 +12,6 @@ module Crux.TypeVar
     , TUserTypeDef(..)
     , TypeVar(..)
     , TypeState(..)
-    , ImmutableTypeVar(..)
     , newTypeVar
     , followRecordTypeVar'
     , followRecordTypeVar
@@ -121,14 +120,6 @@ data TypeState
     = TUnbound Int
     | TBound TypeVar
     deriving (Eq)
-
-data ImmutableTypeVar
-    = IQuant Int
-    | IFun [ImmutableTypeVar] ImmutableTypeVar
-    | IUserType (TUserTypeDef ImmutableTypeVar) [ImmutableTypeVar]
-    | IRecord (RecordType ImmutableTypeVar) -- TODO: RecordFree makes no sense here, remove that
-    | IPrimitive PrimitiveType
-    deriving (Show, Eq)
 
 newTypeVar :: TypeState -> IO TypeVar
 newTypeVar tv = TypeVar <$> newIORef tv

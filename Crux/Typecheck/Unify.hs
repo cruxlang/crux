@@ -71,6 +71,9 @@ instantiate' subst recordSubst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound _ -> do
+                -- We instantiate unbound type variables when recursively
+                -- referencing a function whose parameter and return types are
+                -- not yet quantified.
                 return ty
             TBound tv' -> do
                 instantiate' subst recordSubst env tv'

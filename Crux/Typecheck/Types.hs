@@ -11,9 +11,9 @@ module Crux.Typecheck.Types
     ) where
 
 import Crux.TypeVar
-    ( TypeVar(..), RecordOpen(..), RecordType(..)
-    , TUserTypeDef(..), TypeRow(..)
-    , showTypeVarIO, renderTypeVarIO
+    ( TypeVar(..)
+    , TUserTypeDef(..)
+    , showTypeVarIO
     )
 import Crux.Module.Types (LoadedModule)
 import Crux.AST

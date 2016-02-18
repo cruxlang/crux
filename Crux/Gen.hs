@@ -134,7 +134,7 @@ both :: Maybe a -> Maybe b -> Maybe (a, b)
 both (Just x) (Just y) = Just (x, y)
 both _ _ = Nothing
 
-generate :: Show t => Env -> AST.Expression AST.ResolvedReference t -> InstructionWriter (Maybe Value)
+generate :: Env -> AST.Expression AST.ResolvedReference t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
     AST.ELet _ _mut pat _ v -> do
         v' <- generate env v
@@ -285,26 +285,26 @@ generate env expr = case expr of
         writeInstruction $ Break
         return Nothing
 
-subBlock :: (MonadIO m, Show t) => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
+subBlock :: MonadIO m => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlock env expr = do
     (_output, instructions) <- liftIO $ runWriterT $ generate env expr
     return instructions
 
-subBlockWithReturn :: (MonadIO m, Show t) => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
+subBlockWithReturn :: MonadIO m => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
         Just output' -> instrs ++ [Return output']
         Nothing -> instrs
 
-subBlockWithOutput :: (MonadIO m, Show t) => Env -> Output -> AST.Expression AST.ResolvedReference t -> m [Instruction]
+subBlockWithOutput :: MonadIO m => Env -> Output -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlockWithOutput env output expr = do
     (output', instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output' of
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Show t => Env -> AST.Declaration AST.ResolvedReference t -> DeclarationWriter ()
+generateDecl :: Env -> AST.Declaration AST.ResolvedReference t -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = do
     case decl of
         AST.DDeclare _ _ _ -> do
@@ -326,7 +326,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
             -- type aliases are not reflected into the IR
             return ()
 
-generateModule :: Show t => AST.Module AST.ResolvedReference t -> IO Module
+generateModule :: AST.Module AST.ResolvedReference t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
     decls <- fmap snd $ runWriterT $ do

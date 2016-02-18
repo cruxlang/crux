@@ -5,7 +5,6 @@ module Crux.Typecheck.Env
     , childEnv
     , buildTypeEnvironment
     , addThisModuleDataDeclsToEnvironment
-    , unfreezeTypeVar
     , resolveTypeIdent
     , exportedDecls
     , getAllExportedValues
@@ -60,34 +59,6 @@ childEnv env@Env{..} = do
 
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
-
-unfreezeTypeDef :: TUserTypeDef ImmutableTypeVar -> IO (TUserTypeDef TypeVar)
-unfreezeTypeDef TUserTypeDef{..} = do
-    parameters' <- for tuParameters unfreezeTypeVar
-    -- Huge hack: don't try to freeze variants because they can be recursive
-    let variants' = []
-    let td = TUserTypeDef {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
-    return td
-
-unfreezeTypeVar :: ImmutableTypeVar -> IO TypeVar
-unfreezeTypeVar = \case
-    IQuant varname -> do
-        return $ TQuant varname
-    IFun params body -> do
-        params' <- for params unfreezeTypeVar
-        body' <- unfreezeTypeVar body
-        return $ TFun params' body'
-    IUserType td params -> do
-        td' <- unfreezeTypeDef td
-        params' <- for params unfreezeTypeVar
-        return $ TUserType td' params'
-    IRecord (RecordType open rows) -> do
-        rows' <- for rows $ \row -> do
-            traverse unfreezeTypeVar row
-        recordType <- newIORef $ RRecord $ RecordType open rows'
-        return $ TRecord recordType
-    IPrimitive pt -> do
-        return $ TPrimitive pt
 
 resolveTypeIdent :: Env -> ResolvePolicy -> TypeIdent -> IO TypeVar
 resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
@@ -244,8 +215,7 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
             liftIO $ addLoadedDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 
             for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
-                tr' <- lift $ unfreezeTypeVar tr
-                HashTable.insert name (ValueReference (OtherModule importName name) mutability tr') (eValueBindings env)
+                HashTable.insert name (ValueReference (OtherModule importName name) mutability tr) (eValueBindings env)
 
             patBindings <- lift $ getAllExportedPatterns importedModule
             for_ patBindings $ \(name, pb) -> do
@@ -256,7 +226,7 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
 
     return env
 
-getAllExportedValues :: LoadedModule -> [(Name, LetMutability, ImmutableTypeVar)]
+getAllExportedValues :: LoadedModule -> [(Name, LetMutability, TypeVar)]
 getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare typeVar name _typeIdent -> [(name, LImmutable, typeVar)]
     -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
@@ -276,10 +246,9 @@ findExportedValueByName env moduleName valueName = runMaybeT $ do
             Just (typeVar, mutability)
         else
             Nothing
-    tv <- lift $ unfreezeTypeVar typeVar
-    return (OtherModule moduleName valueName, mutability, tv)
+    return (OtherModule moduleName valueName, mutability, typeVar)
 
-getAllExportedTypes :: LoadedModule -> [(Name, ImmutableTypeVar)]
+getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
@@ -296,49 +265,43 @@ findExportedTypeByName env moduleName typeName = runMaybeT $ do
             Just typeVar
         else
             Nothing
-    tv <- lift $ unfreezeTypeVar typeVar
-    return (OtherModule moduleName typeName, tv)
+    return (OtherModule moduleName typeName, typeVar)
 
 -- we can just use PatternBinding for now
 getAllExportedPatterns :: LoadedModule -> IO [(Name, PatternBinding)]
 getAllExportedPatterns loadedModule = mconcat <$> for (exportedDecls $ mDecls loadedModule) fromDecl
-  where fromDecl :: DeclarationType idtype ImmutableTypeVar -> IO [(Name, PatternBinding)]
+  where fromDecl :: DeclarationType idtype TypeVar -> IO [(Name, PatternBinding)]
         fromDecl = \case
             DDeclare {} -> return []
             DLet {} -> return []
             DFun {} -> return []
             DData typeVar _name _ _ variants -> do
                 for variants $ \(Variant vtype name _typeIdent) -> do
-                    let (IUserType def typeVars) = typeVar
-                    let args :: [ImmutableTypeVar]
+                    let (TUserType def typeVars) = typeVar
+                    let args :: [TypeVar]
                         args = case vtype of
-                            IFun args_ _rv -> args_
+                            TFun args_ _rv -> args_
                             _ -> []
-                    def' <- traverse unfreezeTypeVar def
-                    typeVars' <- traverse unfreezeTypeVar typeVars
-                    args' <- traverse unfreezeTypeVar args
-                    return (name, PatternBinding def' typeVars' args')
+                    return (name, PatternBinding def typeVars args)
 
             DJSData typeVar _name _ jsVariants -> do
                 for jsVariants $ \(JSVariant name _literal) -> do
-                    let (IUserType def _) = typeVar
-                    newDef <- traverse unfreezeTypeVar def
-                    return (name, PatternBinding newDef [] [])
+                    let (TUserType def _) = typeVar
+                    return (name, PatternBinding def [] [])
 
             DTypeAlias _ _ _ -> return []
 
 addLoadedDataDeclsToEnvironment ::
        Env
-    -> Module idtype ImmutableTypeVar
-    -> [DeclarationType idtype ImmutableTypeVar]
+    -> Module idtype TypeVar
+    -> [DeclarationType idtype TypeVar]
     -> (Name -> ResolvedReference)
     -> IO ()
 addLoadedDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
     for_ decls $ \case
         DJSData typeVar name _moduleName _variants -> do
-            userType <- unfreezeTypeVar typeVar
-            HashTable.insert name (TypeBinding (mkName name) userType) (eTypeBindings env)
+            HashTable.insert name (TypeBinding (mkName name) typeVar) (eTypeBindings env)
 
         DTypeAlias name params ident ->
             HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)

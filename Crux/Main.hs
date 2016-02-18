@@ -51,7 +51,8 @@ main = do
                     exitWith $ ExitFailure 1
                 Right program -> do
                     if ast options then
-                        putStrLn $ ppShow program
+                        fail "bitroooottttt"
+                        --putStrLn $ ppShow program
                     else do
                         program'' <- Gen.generateProgram program
                         putStr $ Text.unpack $ JS.generateJS program''

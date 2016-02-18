@@ -291,8 +291,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
-            lhs'' <- freeze lhs'
-            throwIO $ NotAnLVar () (show lhs'')
+            throwIO $ NotAnLVar () $ show lhs
 
         let unitType = TPrimitive Unit
 
@@ -444,58 +443,6 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         t <- freshType env
         return $ EBreak t
 
-freezeTypeDef :: TUserTypeDef TypeVar -> IO (TUserTypeDef ImmutableTypeVar)
-freezeTypeDef TUserTypeDef{..} = do
-    parameters' <- for tuParameters $ freezeTypeVar
-    -- Huge hack: don't try to freeze variants because they can be recursive
-    let variants' = []
-    let td = TUserTypeDef
-            {tuName, tuModuleName, tuParameters=parameters', tuVariants=variants'}
-    return td
-
-freezeTypeVar :: TypeVar -> IO ImmutableTypeVar
-freezeTypeVar = \case
-    TypeVar ref -> do
-        readIORef ref >>= \case
-            TUnbound i -> do
-                -- This happens when we're traversing the body of a function
-                -- with a let binding that was never unified with anything.
-                -- It wasn't quantified because it's local.  IQuant should be
-                -- okay.  It will never be instantiated.
-                return $ IQuant i
-            TBound tv -> do
-                freezeTypeVar tv
-    TQuant i ->
-        return $ IQuant i
-    TFun arg body -> do
-        arg' <- for arg freezeTypeVar
-        body' <- freezeTypeVar body
-        return $ IFun arg' body'
-    TUserType def tvars -> do
-        tvars' <- for tvars freezeTypeVar
-        def' <- freezeTypeDef def
-        return $ IUserType def' tvars'
-    TRecord ref -> do
-        rt <- followRecordTypeVar ref
-        rt' <- traverse freezeTypeVar rt
-        return $ IRecord rt'
-    TPrimitive t ->
-        return $ IPrimitive t
-
-freeze :: Expression i TypeVar -> IO (Expression i ImmutableTypeVar)
-freeze = traverse freezeTypeVar
-
-freezeDecl :: Declaration i TypeVar -> IO (Declaration i ImmutableTypeVar)
-freezeDecl (Declaration export pos decl) = fmap (Declaration export pos) $ traverse freezeTypeVar decl
-
-freezeModule :: Module a TypeVar -> IO (Module a ImmutableTypeVar)
-freezeModule Module{..} = do
-    decls <- for mDecls freezeDecl
-    return $ Module
-        { mImports=mImports
-        , mDecls=decls
-        }
-
 -- Phase 2a
 registerJSFFIDecl :: Env -> Declaration UnresolvedReference Pos -> IO ()
 registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
@@ -629,6 +576,4 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
         (lift $ try $ checkDecl env decl) >>= \case
             Left err -> left $ Error.TypeError err
             Right d -> return d
-    lift $ freezeModule thisModule
-        { mDecls=decls
-        }
+    return $ thisModule{ mDecls = decls }

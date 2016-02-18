@@ -179,7 +179,7 @@ test_cannot_assign_to_immutable_binding = do
         ]
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
-    assertEqual (Left $ Error.TypeError $ NotAnLVar (Pos 5 3 5) "EIdentifier (IPrimitive Number) (Local \"x\")") result
+    assertEqual (Left $ Error.TypeError $ NotAnLVar (Pos 5 3 5) "EIdentifier Pos 5 3 5 (UnqualifiedReference \"x\")") result
 
 test_cannot_assign_to_immutable_record_field = do
     result <- run $ T.unlines
@@ -193,7 +193,7 @@ test_cannot_assign_to_immutable_record_field = do
 
     assertEqual
         -- (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
-        (Left $ Error.TypeError $ NotAnLVar (Pos 5 3 5) "ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
+        (Left $ Error.TypeError $ NotAnLVar (Pos 5 3 5) "ELookup Pos 5 3 5 (EIdentifier Pos 5 3 5 (UnqualifiedReference \"a\")) \"x\"")
         result
 
 test_mutable_record_field_requirement_is_inferred = do

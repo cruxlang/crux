@@ -33,14 +33,11 @@ instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVa
 instantiateUserType subst env def tyVars = do
     recordSubst <- HashTable.new
     typeVars' <- for tyVars $ instantiate' subst recordSubst env
-    let typeVars'' = if and (map fst typeVars')
-            then map snd typeVars'
-            else tyVars
-    let userType = TUserType def typeVars''
+    let userType = TUserType def typeVars'
     variants <- for (tuVariants def) $ \variant -> do
         paramTypes <- for (tvParameters variant) $ \param -> do
             instantiate' subst recordSubst env param
-        return variant{tvParameters=map snd paramTypes}
+        return variant{tvParameters=paramTypes}
     return (userType, variants)
 
 instantiateRecord
@@ -49,52 +46,49 @@ instantiateRecord
     -> Env
     -> [TypeRow TypeVar]
     -> RecordOpen
-    -> IO (Bool, TypeVar)
+    -> IO TypeVar
 instantiateRecord subst recordSubst env rows open = do
     rows' <- for rows $ \TypeRow{..} -> do
-        (b, rowTy') <- instantiate' subst recordSubst env trTyVar
+        rowTy' <- instantiate' subst recordSubst env trTyVar
         let mut' = case trMut of
                 RQuantified -> RFree
                 _ -> trMut
-        return (b, TypeRow{trName, trMut=mut', trTyVar=rowTy'})
+        return TypeRow{trName, trMut=mut', trTyVar=rowTy'}
 
-    (changedOpen, open') <- case open of
+    open' <- case open of
         RecordQuantified i -> do
-            -- ???
-            return (True, RecordFree i)
-        _ -> do
-            return (False, open)
+            return $ RecordFree i
+        RecordFree _ -> do
+            fail $ "Instantiation of a free row variable -- this should never happen"
+        RecordClose -> do
+            return $ RecordClose
 
-    recordType <- newIORef $ RRecord $ RecordType open' (map snd rows')
-    let tr = TRecord recordType
-    return (changedOpen || or (map fst rows'), tr)
+    recordType <- newIORef $ RRecord $ RecordType open' rows'
+    return $ TRecord recordType
 
-instantiate' :: IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> IO (Bool, TypeVar)
+instantiate' :: IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> IO TypeVar
 instantiate' subst recordSubst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound _ -> do
-                return (False, ty)
+                return ty
             TBound tv' -> do
                 instantiate' subst recordSubst env tv'
     TQuant name -> do
         HashTable.lookup name subst >>= \case
             Just v ->
-                return (True, v)
+                return v
             Nothing -> do
                 tv <- freshType env
                 HashTable.insert name tv subst
-                return (True, tv)
+                return tv
     TFun param ret -> do
         ty1 <- for param $ instantiate' subst recordSubst env
-        (b2, ty2) <- instantiate' subst recordSubst env ret
-        let b = b2 || any fst ty1
-        let tfun = TFun (map snd ty1) ty2
-        return (b, tfun)
+        ty2 <- instantiate' subst recordSubst env ret
+        return $ TFun ty1 ty2
     TUserType def tyVars -> do
         typeVars' <- for tyVars $ instantiate' subst recordSubst env
-        let tut = TUserType def (map snd typeVars')
-        return (and (map fst typeVars'), tut)
+        return $ TUserType def typeVars'
     TRecord ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
         let rv = case open of
                 RecordFree r -> Just r
@@ -103,15 +97,15 @@ instantiate' subst recordSubst env ty = case ty of
         case rv of
             Just rv' -> do
                 HashTable.lookup rv' recordSubst >>= \case
-                    Just rec -> return (True, rec)
+                    Just rec -> return rec
                     Nothing -> do
-                        (co, tr) <- instantiateRecord subst recordSubst env rows open
+                        tr <- instantiateRecord subst recordSubst env rows open
                         HashTable.insert rv' tr recordSubst
-                        return (co, tr)
+                        return tr
             Nothing ->
                 instantiateRecord subst recordSubst env rows open
 
-    TPrimitive {} -> return (False, ty)
+    TPrimitive {} -> return ty
 
 quantify :: TypeVar -> IO ()
 quantify ty = case ty of
@@ -142,11 +136,7 @@ instantiate :: Env -> TypeVar -> IO TypeVar
 instantiate env t = do
     subst <- HashTable.new
     recordSubst <- HashTable.new
-    (didAnything, t') <- instantiate' subst recordSubst env t
-
-    return $ if didAnything
-        then t'
-        else t
+    instantiate' subst recordSubst env t
 
 occurs :: Int -> TypeVar -> IO ()
 occurs tvn = \case

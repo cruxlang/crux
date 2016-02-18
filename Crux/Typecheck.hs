@@ -34,15 +34,16 @@ buildPatternEnv exprType env = \case
 
     RPConstructor cname cargs -> do
         HashTable.lookup cname (ePatternBindings env) >>= \case
-            Just (PatternBinding def tyVars tvParameters) -> do
+            Just (PatternBinding def tyVars) -> do
                 subst <- HashTable.new
-                (ty', _variants) <- instantiateUserType subst env def tyVars
+                (ty', variants) <- instantiateUserType subst env def tyVars
+                let [thisVariantParameters] = [tvParameters | TVariant{..} <- variants, tvName == cname]
                 unify exprType ty'
 
-                when (length tvParameters /= length cargs) $
-                    error $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length tvParameters) (length cargs)
+                when (length thisVariantParameters /= length cargs) $
+                    error $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
 
-                for_ (zip cargs tvParameters) $ \(arg, vp) -> do
+                for_ (zip cargs thisVariantParameters) $ \(arg, vp) -> do
                     buildPatternEnv vp env arg
             _ -> error $ printf "Unbound constructor %s" (show cname)
 
@@ -469,7 +470,7 @@ registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
 
         for_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
-            HashTable.insert variantName (PatternBinding typeDef [] []) (ePatternBindings env)
+            HashTable.insert variantName (PatternBinding typeDef []) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
 

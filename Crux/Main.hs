@@ -8,7 +8,7 @@ import           Crux.Prelude
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
 import           System.Exit         (ExitCode (..), exitWith)
-import           Text.Show.Pretty    (ppShow)
+--import           Text.Show.Pretty    (ppShow)
 import System.IO
 
 data Options = Options
@@ -50,7 +50,7 @@ main = do
                     Error.renderError err >>= hPutStrLn stderr
                     exitWith $ ExitFailure 1
                 Right program -> do
-                    if ast options then
+                    if ast options then do
                         fail "bitroooottttt"
                         --putStrLn $ ppShow program
                     else do

@@ -1,0 +1,36 @@
+fun main() {
+  let b = 1
+  _debug_type(b)
+  let s = Some
+  _debug_type(s)
+  let a = Some(b)
+  _debug_type(a)
+  let x = Some(a)
+  _debug_type(x)
+
+  let s = match x {
+    Some(q) => q;
+  }
+  _debug_type(s)
+
+  match x {
+  Some(Some(y)) => print(y);
+  }
+
+/*
+  match Some(Some(1)) {
+    Some(None) => print("some(none)");
+    Some(Some(x)) => print(x);
+    None => print("none");
+  }
+*/
+  
+/*
+  match Some(True) {
+    Some(False) => print("some(false)");
+    Some(True) => print("some(true)");
+    None => print("none");
+  }
+*/
+}
+let _ = main()

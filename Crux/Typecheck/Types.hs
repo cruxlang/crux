@@ -48,7 +48,6 @@ instance Show TypeReference where
 data PatternBinding = PatternBinding
     (TUserTypeDef TypeVar) -- type of value being pattern matched
     [TypeVar] -- type parameters to type
-    [TypeVar] -- types of data constructor arguments
 
 data Env = Env
     { eThisModule :: ModuleName

@@ -276,18 +276,14 @@ getAllExportedPatterns loadedModule = mconcat <$> for (exportedDecls $ mDecls lo
             DLet {} -> return []
             DFun {} -> return []
             DData typeVar _name _ _ variants -> do
-                for variants $ \(Variant vtype name _typeIdent) -> do
+                for variants $ \(Variant _vtype name _typeIdent) -> do
                     let (TUserType def typeVars) = typeVar
-                    let args :: [TypeVar]
-                        args = case vtype of
-                            TFun args_ _rv -> args_
-                            _ -> []
-                    return (name, PatternBinding def typeVars args)
+                    return (name, PatternBinding def typeVars)
 
             DJSData typeVar _name _ jsVariants -> do
                 for jsVariants $ \(JSVariant name _literal) -> do
                     let (TUserType def _) = typeVar
-                    return (name, PatternBinding def [] [])
+                    return (name, PatternBinding def [])
 
             DTypeAlias _ _ _ -> return []
 
@@ -388,4 +384,4 @@ addVariants env typeDef qvars userTypeVar variants mkName = do
         parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
         let ctorType = computeVariantType parameterTypeVars
         HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
-        HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars) parameterTypeVars) (ePatternBindings env)
+        HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars)) (ePatternBindings env)

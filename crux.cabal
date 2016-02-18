@@ -27,6 +27,7 @@ library
                    , Crux.Text
                    , Crux.Tokens
                    , Crux.Typecheck
+                   , Crux.Typecheck.Monad
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
                    , Crux.Typecheck.Env

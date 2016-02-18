@@ -1,8 +1,17 @@
-module Crux.Typecheck.Monad where
+module Crux.Typecheck.Monad
+    ( TC
+    , recordError
+    , failError
+    , failICE
+    , recordWarning
+    , runTC
+    , bridgeTC
+    ) where
 
 import Crux.Prelude
-import Crux.Error (Error)
 import Control.Monad.Trans.Reader
+import Control.Exception (try)
+import Crux.Error
 
 data Warning -- TODO: move this into Crux.Warning
 
@@ -13,10 +22,26 @@ data TCState = TCState
 
 type TC = ReaderT TCState IO
 
+data StopExecution = StopExecution
+    deriving (Show)
+instance Exception StopExecution
+
+stopChecking :: TC a
+stopChecking = liftIO $ throwIO StopExecution
+
 recordError :: Error -> TC ()
 recordError e = do
     state <- ask
     modifyIORef' (tcErrors state) (e:)
+
+failError :: Error -> TC a
+failError e = do
+    recordError e
+    stopChecking
+
+failICE :: InternalCompilerError -> TC a
+failICE e = do
+    failError $ InternalCompilerError e
 
 recordWarning :: Warning -> TC ()
 recordWarning w = do
@@ -31,11 +56,15 @@ runTC :: TC a -> IO (TCResult a)
 runTC m = do
     tcWarnings <- newIORef []
     tcErrors <- newIORef []
-    result <- runReaderT m TCState{..}
+    result <- try $ runReaderT m TCState{..}
     warnings <- reverse <$> readIORef tcWarnings
     errors <- reverse <$> readIORef tcErrors
     if errors == [] then
-        return $ TCSuccess result warnings
+        case result of
+            Left StopExecution ->
+                return $ TCFail [InternalCompilerError StoppedCheckingWithNoError] warnings
+            Right r ->
+                return $ TCSuccess r warnings
     else
         return $ TCFail errors warnings
 

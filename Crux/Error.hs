@@ -12,6 +12,7 @@ import qualified Crux.Tokens as Tokens
 
 data InternalCompilerError
     = DependentModuleNotLoaded AST.ModuleName
+    | StoppedCheckingWithNoError
     deriving (Eq, Show)
 
 data Error
@@ -28,5 +29,7 @@ renderError (LexError e) = return $ "Lex error: " ++ show e
 renderError (ParseError e) = return $ "Parse error: " ++ show e
 renderError (UnknownModule mn) = return $ "Unknown module: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError (InternalCompilerError (DependentModuleNotLoaded mn)) = return $ "ICE: Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
+    DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
+    StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
 renderError (TypeError ue) = Typecheck.errorToString ue

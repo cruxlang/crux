@@ -35,6 +35,7 @@ import           Text.Printf           (printf)
 import Crux.Util
 import Crux.TypeVar
 import Crux.Module.Types
+import Crux.Typecheck.Monad
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
@@ -194,12 +195,12 @@ resolveVariantTypes env qvars typeDef variants = do
 
 -- TODO(chad): return an Either instead of throwing exceptions
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
-buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
+buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
     -- built-in types. would be nice to move into the prelude somehow.
     let numTy = TPrimitive Number
     let strTy = TPrimitive String
-
     env <- liftIO $ newEnv thisModuleName loadedModules Nothing
+
     HashTable.insert "Number" (TypeBinding (Builtin "Number") numTy) (eTypeBindings env)
     HashTable.insert "String" (TypeBinding (Builtin "String") strTy) (eTypeBindings env)
 
@@ -212,7 +213,7 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
         UnqualifiedImport importName -> do
             importedModule <- case HashMap.lookup importName loadedModules of
                 Just im -> return im
-                Nothing -> left $ Error.InternalCompilerError $ Error.DependentModuleNotLoaded importName
+                Nothing -> failICE $ Error.DependentModuleNotLoaded importName
 
             liftIO $ addLoadedDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
 

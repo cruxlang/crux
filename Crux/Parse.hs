@@ -262,13 +262,21 @@ functionExpression = do
 pattern :: Parser RefutablePattern
 pattern = parenthesized pattern <|> noParenPattern
 
+qualifiedConstructorPattern :: Parser RefutablePattern
+qualifiedConstructorPattern = do
+    ident <- P.try $ anyIdentifier <* token TDot
+    RPConstructor name args <- constructorPattern
+    return $ RPQualifiedConstructor ident name args
+
+constructorPattern :: Parser RefutablePattern
+constructorPattern = do
+    (_, txt) <- upperIdentifier
+    let withArgs = RPConstructor txt <$> (parenthesized $ commaDelimited pattern)
+    withArgs <|> (return $ RPConstructor txt [])
+
 noParenPattern :: Parser RefutablePattern
 noParenPattern = do
-    let constructorPattern = do
-            (_, txt) <- upperIdentifier
-            let withArgs = RPConstructor txt <$> (parenthesized $ commaDelimited pattern)
-            withArgs <|> (return $ RPConstructor txt [])
-    constructorPattern <|> (RPIrrefutable <$> irrefutablePattern)
+    qualifiedConstructorPattern <|> constructorPattern <|> (RPIrrefutable <$> irrefutablePattern)
 
 irrefutablePattern :: Parser Pattern
 irrefutablePattern = do

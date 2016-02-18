@@ -11,6 +11,8 @@ module Crux.Typecheck.Env
     , findExportedValueByName
     , getAllExportedTypes
     , findExportedTypeByName
+    , getAllExportedPatterns
+    , findExportedPatternByName
     , addDataType
     , resolveVariantTypes
     , addVariants
@@ -217,8 +219,7 @@ buildTypeEnvironment thisModuleName loadedModules imports = runEitherT $ do
             for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
                 HashTable.insert name (ValueReference (OtherModule importName name) mutability tr) (eValueBindings env)
 
-            patBindings <- lift $ getAllExportedPatterns importedModule
-            for_ patBindings $ \(name, pb) -> do
+            for_ (getAllExportedPatterns $ importedModule) $ \(name, pb) -> do
                 HashTable.insert name pb (ePatternBindings env)
 
         QualifiedImport moduleName importName -> do
@@ -268,24 +269,31 @@ findExportedTypeByName env moduleName typeName = runMaybeT $ do
     return (OtherModule moduleName typeName, typeVar)
 
 -- we can just use PatternBinding for now
-getAllExportedPatterns :: LoadedModule -> IO [(Name, PatternBinding)]
-getAllExportedPatterns loadedModule = mconcat <$> for (exportedDecls $ mDecls loadedModule) fromDecl
-  where fromDecl :: DeclarationType idtype TypeVar -> IO [(Name, PatternBinding)]
-        fromDecl = \case
-            DDeclare {} -> return []
-            DLet {} -> return []
-            DFun {} -> return []
-            DData typeVar _name _ _ variants -> do
-                for variants $ \(Variant _vtype name _typeIdent) -> do
-                    let (TUserType def typeVars) = typeVar
-                    return (name, PatternBinding def typeVars)
+getAllExportedPatterns :: LoadedModule -> [(Name, PatternBinding)]
+getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+    DDeclare {} -> []
+    DLet {} -> []
+    DFun {} -> []
+    DData typeVar _name _ _ variants ->
+        let TUserType def typeVars = typeVar in
+        (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
+            (name, PatternBinding def typeVars)
 
-            DJSData typeVar _name _ jsVariants -> do
-                for jsVariants $ \(JSVariant name _literal) -> do
-                    let (TUserType def _) = typeVar
-                    return (name, PatternBinding def [])
+    DJSData typeVar _name _ jsVariants ->
+        let (TUserType def _) = typeVar in
+        (flip fmap) jsVariants $ \(JSVariant name _literal) ->
+            (name, PatternBinding def [])
 
-            DTypeAlias _ _ _ -> return []
+    DTypeAlias _ _ _ -> []
+
+findExportedPatternByName :: Env -> ModuleName -> Name -> IO (Maybe PatternBinding)
+findExportedPatternByName env moduleName patternName = runMaybeT $ do
+    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
+    MaybeT $ return $ findFirstOf (getAllExportedPatterns modul) $ \(name, binding) ->
+        if name == patternName then
+            Just binding
+        else
+            Nothing
 
 addLoadedDataDeclsToEnvironment ::
        Env

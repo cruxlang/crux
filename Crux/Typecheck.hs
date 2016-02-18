@@ -21,6 +21,19 @@ import qualified Crux.Error as Error
 import Crux.Module.Types
 import Crux.TypeVar
 
+handlePatternBinding :: Env -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> Text -> [RefutablePattern] -> IO ()
+handlePatternBinding env exprType def tyVars cname cargs = do
+    subst <- HashTable.new
+    (ty', variants) <- instantiateUserType subst env def tyVars
+    let [thisVariantParameters] = [tvParameters | TVariant{..} <- variants, tvName == cname]
+    unify exprType ty'
+
+    when (length thisVariantParameters /= length cargs) $
+        fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
+
+    for_ (zip cargs thisVariantParameters) $ \(arg, vp) -> do
+        buildPatternEnv vp env arg
+
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 -- TODO: wipe this out and replace it with ePatternBindings in Env
@@ -35,17 +48,19 @@ buildPatternEnv exprType env = \case
     RPConstructor cname cargs -> do
         HashTable.lookup cname (ePatternBindings env) >>= \case
             Just (PatternBinding def tyVars) -> do
-                subst <- HashTable.new
-                (ty', variants) <- instantiateUserType subst env def tyVars
-                let [thisVariantParameters] = [tvParameters | TVariant{..} <- variants, tvName == cname]
-                unify exprType ty'
+                handlePatternBinding env exprType def tyVars cname cargs
+            _ -> fail $ printf "Unbound constructor %s" (show cname)
 
-                when (length thisVariantParameters /= length cargs) $
-                    error $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
-
-                for_ (zip cargs thisVariantParameters) $ \(arg, vp) -> do
-                    buildPatternEnv vp env arg
-            _ -> error $ printf "Unbound constructor %s" (show cname)
+    RPQualifiedConstructor importName cname cargs -> do
+        HashTable.lookup importName (eValueBindings env) >>= \case
+            Just (ModuleReference moduleName) -> do
+                findExportedPatternByName env moduleName cname >>= \case
+                    Just (PatternBinding def tyVars) -> do
+                        handlePatternBinding env exprType def tyVars cname cargs
+                    _ -> do
+                        fail $ printf "Unknown pattern %s" (Text.unpack cname)
+            _ -> do
+                fail $ printf "Qualified pattern uses unknown import %s" (Text.unpack importName)
 
 lookupBinding :: Name -> Env -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
 lookupBinding name Env{..} = do

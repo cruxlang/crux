@@ -38,7 +38,8 @@ data Pattern
     deriving (Show, Eq)
 
 data RefutablePattern
-    = RPConstructor Name [RefutablePattern]
+    = RPQualifiedConstructor Name Name [RefutablePattern]
+    | RPConstructor Name [RefutablePattern]
     | RPIrrefutable Pattern
     deriving (Show, Eq)
 

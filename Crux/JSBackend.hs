@@ -179,6 +179,20 @@ generateMatchCond matchVar patt = case patt of
             [] -> testIt
             _ -> JSTree.EBinOp "&&" testIt
                 (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
+    RPQualifiedConstructor _moduleName name subpatterns ->
+        -- TODO: kill this duplication with the above
+        let testIt = JSTree.EBinOp "=="
+                (JSTree.ELiteral $ JSTree.LString name)
+                (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
+            buildTestCascade acc (index, subpattern) = case subpattern of
+                RPIrrefutable _ -> acc
+                _ -> JSTree.EBinOp "&&"
+                    acc
+                    (generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
+        in case subpatterns of
+            [] -> testIt
+            _ -> JSTree.EBinOp "&&" testIt
+                (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
 
 generateMatchVars :: JSTree.Expression -> RefutablePattern -> [JSTree.Statement]
 generateMatchVars matchVar patt = case patt of
@@ -186,6 +200,12 @@ generateMatchVars matchVar patt = case patt of
     RPIrrefutable (PBinding name) ->
         [ JSTree.SVar name $ Just matchVar ]
     RPConstructor _ subpatterns ->
+        concat
+            [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
+            | (index, subPattern) <- zip [1..] subpatterns
+            ]
+    RPQualifiedConstructor _ _ subpatterns ->
+        -- TODO: kill the duplication with above
         concat
             [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns

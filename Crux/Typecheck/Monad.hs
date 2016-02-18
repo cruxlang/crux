@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Crux.Typecheck.Monad
     ( TC
     , recordError
@@ -20,7 +22,8 @@ data TCState = TCState
     , tcErrors :: IORef [Error]
     }
 
-type TC = ReaderT TCState IO
+newtype TC a = TC (ReaderT TCState IO a)
+    deriving (Functor, Applicative, Monad, MonadIO)
 
 data StopExecution = StopExecution
     deriving (Show)
@@ -31,7 +34,7 @@ stopChecking = liftIO $ throwIO StopExecution
 
 recordError :: Error -> TC ()
 recordError e = do
-    state <- ask
+    state <- TC ask
     modifyIORef' (tcErrors state) (e:)
 
 failError :: Error -> TC a
@@ -45,7 +48,7 @@ failICE e = do
 
 recordWarning :: Warning -> TC ()
 recordWarning w = do
-    state <- ask
+    state <- TC ask
     modifyIORef' (tcWarnings state) (w:)
 
 data TCResult a
@@ -53,7 +56,7 @@ data TCResult a
     | TCFail [Error] [Warning]
 
 runTC :: TC a -> IO (TCResult a)
-runTC m = do
+runTC (TC m) = do
     tcWarnings <- newIORef []
     tcErrors <- newIORef []
     result <- try $ runReaderT m TCState{..}
@@ -70,7 +73,7 @@ runTC m = do
 
 -- temporary -- used to convert existing code
 bridgeTC :: TC a -> IO (Either Error a)
-bridgeTC m = do
+bridgeTC (TC m) = do
     tcWarnings <- newIORef []
     tcErrors <- newIORef []
     result <- runReaderT m TCState{..}

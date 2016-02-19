@@ -26,11 +26,11 @@ genPlus JSGen.GenVTable{..} env (AST.EApp _ (AST.EIdentifier _ "+") [lhs, rhs]) 
     return $ JS.EBinOp "+" lhs' rhs'
 genPlus _ _ _ = error "Unexpected: Only pass EApp to genPlus"
 
-intrinsics :: IO (HashMap AST.Name Intrinsic)
-intrinsics = do
-    let numTy = TPrimitive Number
-    let plusTy = TFun [numTy, numTy] numTy
-    return $ HashMap.fromList
+intrinsics :: HashMap AST.Name Intrinsic
+intrinsics =
+    let numTy = TPrimitive Number in
+    let plusTy = TFun [numTy, numTy] numTy in
+    HashMap.fromList
         [ ("+", Intrinsic
             { iType = plusTy
             , iGen = genPlus

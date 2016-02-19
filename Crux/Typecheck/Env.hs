@@ -40,7 +40,7 @@ import Crux.Typecheck.Monad
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
 
-newEnv :: ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> IO Env
+newEnv :: MonadIO m => ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> m Env
 newEnv eThisModule eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
     eValueBindings <- newIORef HashMap.empty
@@ -199,13 +199,12 @@ buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
     -- built-in types. would be nice to move into the prelude somehow.
     let numTy = TPrimitive Number
     let strTy = TPrimitive String
-    env <- liftIO $ newEnv thisModuleName loadedModules Nothing
+    env <- newEnv thisModuleName loadedModules Nothing
 
     HashTable.insert "Number" (TypeBinding (Builtin "Number") numTy) (eTypeBindings env)
     HashTable.insert "String" (TypeBinding (Builtin "String") strTy) (eTypeBindings env)
 
-    intrinsics <- liftIO $ Intrinsic.intrinsics
-    for_ (HashMap.toList intrinsics) $ \(name, intrin) -> do
+    for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
         HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
 
@@ -254,10 +253,10 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
     DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
     DTypeAlias _ _ _ -> []
 
-findExportedValueByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
-findExportedValueByName env moduleName valueName = runMaybeT $ do
-    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    (typeVar, mutability) <- MaybeT $ return $ findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
+findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, LetMutability, TypeVar)
+findExportedValueByName env moduleName valueName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    (typeVar, mutability) <- findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
         if name == valueName then
             Just (typeVar, mutability)
         else
@@ -273,10 +272,10 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DJSData typeVar name _ _ -> [(name, typeVar)]
     DTypeAlias _ _ _ -> [] -- TODO refer to exported type aliases
 
-findExportedTypeByName :: Env -> ModuleName -> Name -> IO (Maybe (ResolvedReference, TypeVar))
-findExportedTypeByName env moduleName typeName = runMaybeT $ do
-    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    typeVar <- MaybeT $ return $ findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
+findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
+findExportedTypeByName env moduleName typeName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    typeVar <- findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
         if name == typeName then
             Just typeVar
         else
@@ -301,10 +300,10 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
 
     DTypeAlias _ _ _ -> []
 
-findExportedPatternByName :: Env -> ModuleName -> Name -> IO (Maybe PatternBinding)
-findExportedPatternByName env moduleName patternName = runMaybeT $ do
-    modul <- MaybeT $ return $ HashMap.lookup moduleName (eLoadedModules env)
-    MaybeT $ return $ findFirstOf (getAllExportedPatterns modul) $ \(name, binding) ->
+findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternBinding
+findExportedPatternByName env moduleName patternName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    findFirstOf (getAllExportedPatterns modul) $ \(name, binding) ->
         if name == patternName then
             Just binding
         else

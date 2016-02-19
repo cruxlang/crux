@@ -54,7 +54,7 @@ buildPatternEnv exprType env = \case
     RPConstructor (Just importName) cname cargs -> do
         HashTable.lookup importName (eValueBindings env) >>= \case
             Just (ModuleReference moduleName) -> do
-                findExportedPatternByName env moduleName cname >>= \case
+                case findExportedPatternByName env moduleName cname of
                     Just (PatternBinding def tyVars) -> do
                         handlePatternBinding env exprType def tyVars cname cargs
                     _ -> do
@@ -116,7 +116,7 @@ resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do
         resolveTypeReference pos env (UnqualifiedReference name)
     else do
-        findExportedTypeByName env moduleName name >>= \case
+        case findExportedTypeByName env moduleName name of
             Just (_, tv) -> return tv
             Nothing -> fail "No exported type in module. TODO: this error message"
 
@@ -128,7 +128,7 @@ resolveValueReference env ref = case ref of
             Just (ValueReference rr mut t) -> Just (rr, mut, t)
             _ -> Nothing
     KnownReference moduleName name -> do
-        findExportedValueByName env moduleName name >>= \case
+        case findExportedValueByName env moduleName name of
             Just (rr, mutability, typevar) ->
                 return $ Just (rr, mutability, typevar)
             Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
@@ -260,7 +260,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
             EIdentifier _ (UnqualifiedReference name) -> do
                 HashTable.lookup name (eValueBindings env) >>= \case
                     Just (ModuleReference mn) -> do
-                        findExportedValueByName env mn propName >>= \case
+                        case findExportedValueByName env mn propName of
                             -- TODO: where does mutability go?
                             Just (resolvedRef, _mutability, typeVar) -> do
                                 return $ EIdentifier typeVar resolvedRef

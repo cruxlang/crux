@@ -215,11 +215,25 @@ buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
                 Just im -> return im
                 Nothing -> failICE $ Error.DependentModuleNotLoaded importName
 
-            liftIO $ addLoadedDataDeclsToEnvironment env importedModule (exportedDecls $ mDecls importedModule) (OtherModule importName)
+            -- populate aliases
+            for_ (exportedDecls $ mDecls importedModule) $ \case
+                DTypeAlias name params ident ->
+                    HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)
+                DDeclare {} -> return ()
+                DJSData {}  -> return ()
+                DData {}    -> return ()
+                DFun {}     -> return ()
+                DLet {}     -> return ()
 
+            -- populate types
+            for_ (getAllExportedTypes $ importedModule) $ \(name, typeVar) -> do
+                HashTable.insert name (TypeBinding (OtherModule importName name) typeVar) (eTypeBindings env)
+
+            -- populate values
             for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
                 HashTable.insert name (ValueReference (OtherModule importName name) mutability tr) (eValueBindings env)
 
+            -- populate patterns
             for_ (getAllExportedPatterns $ importedModule) $ \(name, pb) -> do
                 HashTable.insert name pb (ePatternBindings env)
 
@@ -295,40 +309,6 @@ findExportedPatternByName env moduleName patternName = runMaybeT $ do
             Just binding
         else
             Nothing
-
-addLoadedDataDeclsToEnvironment ::
-       Env
-    -> Module idtype TypeVar
-    -> [DeclarationType idtype TypeVar]
-    -> (Name -> ResolvedReference)
-    -> IO ()
-addLoadedDataDeclsToEnvironment env modul decls mkName = do
-    -- First, populate the type environment.  Variant parameter types are all initially free.
-    for_ decls $ \case
-        DJSData typeVar name _moduleName _variants -> do
-            HashTable.insert name (TypeBinding (mkName name) typeVar) (eTypeBindings env)
-
-        DTypeAlias name params ident ->
-            HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)
-
-        DDeclare {} -> return ()
-        DData {}    -> return ()
-        DFun {}     -> return ()
-        DLet {}     -> return ()
-
-    dataDecls <- fmap catMaybes $ for (mDecls modul) $ \(Declaration exportFlag pos decl) -> case decl of
-        -- TODO: we should use typeVar here
-        DData _typeVar name moduleName typeVarNames variants ->
-            return $ Just (name, exportFlag, pos, moduleName, typeVarNames, variants)
-        _ ->
-            return Nothing
-
-    dataDecls' <- for dataDecls $ \(name, _exportFlag, _pos, moduleName, typeVarNames, variants) -> do
-        (typeDef, _tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
-        return (typeDef, qvars, variants)
-
-    for_ dataDecls' $ \(typeDef, qvars, variants) ->
-        resolveVariantTypes env qvars typeDef variants
 
 addThisModuleDataDeclsToEnvironment
     :: Env

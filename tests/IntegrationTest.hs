@@ -165,7 +165,7 @@ test_record_annotation_is_checked2 = do
         , "let _ = main()"
         ]
 
-    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 13),..._14}" result
+    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 10),..._11}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_cannot_assign_to_immutable_binding = do
@@ -226,13 +226,13 @@ test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
         [ "let f: (a) -> Number = fun (i) { i }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant 5" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant 2" rv
 
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int(x: a): Number { x }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant 8" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant 5" rv
 
 test_escaped_strings = do
     result1 <- run $ T.unlines
@@ -252,7 +252,7 @@ test_cannot_omit_arguments = do
         [ "fun f(x) {}"
         , "let _ = f()"
         ]
-    assertUnificationError (Pos 1 2 9) "((TUnbound 12)) -> Unit" "() -> Unit" result
+    assertUnificationError (Pos 1 2 9) "((TUnbound 9)) -> Unit" "() -> Unit" result
 
 test_row_variables_are_checked = do
     result <- run $ T.unlines
@@ -264,4 +264,4 @@ test_row_variables_are_checked = do
         , "let a = double_x({ x : 22, y : 11 })"
         , "let _ = print(a.z)"
         ]
-    assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound 37),..._38}" result
+    assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound 34),..._35}" result

@@ -18,6 +18,7 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import qualified Crux.Error as Error
+import Crux.Error
 import Crux.Module.Types
 import Crux.TypeVar
 

@@ -6,12 +6,12 @@ module UnifyTest (htf_thisModulesTests) where
 
 import           Control.Exception    (try)
 import           Crux.Typecheck.Env   (newEnv)
-import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict  as HashMap
 import           Test.Framework
 import Crux.IORef
 import Crux.TypeVar
+import Crux.Error
 
 test_quantified_with_number = do
     let lhs = TPrimitive $ Number

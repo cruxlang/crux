@@ -9,6 +9,7 @@ import           Crux.Typecheck.Types
 import           Data.List             (sort)
 import           Text.Printf           (printf)
 import Crux.TypeVar
+import Crux.Error
 
 freshTypeIndex :: Env -> IO Int
 freshTypeIndex Env{eNextTypeIndex} = do

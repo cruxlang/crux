@@ -575,9 +575,7 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
     -}
 
     -- Phase 1
-    env <- EitherT $ (try $ buildTypeEnvironment thisModuleName loadedModules (mImports thisModule)) >>= \case
-        Left err -> return $ Left $ Error.TypeError err
-        Right result -> return result
+    env <- EitherT $ buildTypeEnvironment thisModuleName loadedModules (mImports thisModule)
 
     -- Phase 2a
     lift $ for_ (mDecls thisModule) $ \decl -> do

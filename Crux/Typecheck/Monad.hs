@@ -8,6 +8,7 @@ module Crux.Typecheck.Monad
     , recordWarning
     , runTC
     , bridgeTC
+    , bridgeEitherTC
     ) where
 
 import Crux.Prelude
@@ -81,3 +82,7 @@ bridgeTC (TC m) = do
     return $ case errors of
         [] -> Right result
         (x:_) -> Left x
+
+-- temporary -- used to convert existing code
+bridgeEitherTC :: TC a -> EitherT Error IO a
+bridgeEitherTC m = EitherT $ bridgeTC m

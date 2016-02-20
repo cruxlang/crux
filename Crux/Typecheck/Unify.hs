@@ -11,12 +11,12 @@ import           Text.Printf           (printf)
 import Crux.TypeVar
 import Crux.Error
 
-freshTypeIndex :: Env -> IO Int
+freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do
     modifyIORef' eNextTypeIndex (+1)
     readIORef eNextTypeIndex
 
-freshType :: Env -> IO TypeVar
+freshType :: MonadIO m => Env -> m TypeVar
 freshType env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound index
@@ -111,7 +111,7 @@ instantiate' subst recordSubst env ty = case ty of
 
     TPrimitive {} -> return ty
 
-quantify :: TypeVar -> IO ()
+quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case

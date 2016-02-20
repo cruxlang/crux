@@ -20,6 +20,7 @@ import qualified Crux.Error as Error
 import Crux.Error
 import Crux.Module.Types
 import Crux.TypeVar
+import Crux.Typecheck.Monad
 
 handlePatternBinding :: Env -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> Text -> [RefutablePattern] -> IO ()
 handlePatternBinding env exprType def tyVars cname cargs = do
@@ -575,13 +576,13 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
     -}
 
     -- Phase 1
-    env <- EitherT $ buildTypeEnvironment thisModuleName loadedModules (mImports thisModule)
+    env <- bridgeEitherTC $ buildTypeEnvironment thisModuleName loadedModules (mImports thisModule)
 
     -- Phase 2a
     lift $ for_ (mDecls thisModule) $ \decl -> do
         registerJSFFIDecl env decl
 
-    liftIO $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
+    bridgeEitherTC $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
 
     decls <- for (mDecls thisModule) $ \decl -> do
         (lift $ try $ checkDecl env decl) >>= \case

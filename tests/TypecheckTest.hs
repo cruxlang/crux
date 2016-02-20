@@ -8,6 +8,7 @@ import Data.List (sort)
 import Crux.AST
 import Crux.Typecheck.Types
 import qualified Crux.Typecheck.Env as Env
+import Crux.Typecheck.Monad
 import qualified Data.HashMap.Strict as HashMap
 import Crux.Prelude
 
@@ -25,7 +26,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             }
     let loadedModules = HashMap.fromList
             [ ("A", aModule) ]
-    (Right env) <- Env.buildTypeEnvironment "main" loadedModules (mImports thisModule)
+    (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules (mImports thisModule)
 
     types <- readIORef (eTypeBindings env)
     assertEqual ["Number", "String"] $ sort $ HashMap.keys types

@@ -95,12 +95,12 @@ data RecordTypeVar
     | RRecord (RecordType TypeVar)
     deriving (Eq)
 
-followRecordTypeVar' :: IORef RecordTypeVar -> IO (IORef RecordTypeVar, RecordType TypeVar)
+followRecordTypeVar' :: MonadIO m => IORef RecordTypeVar -> m (IORef RecordTypeVar, RecordType TypeVar)
 followRecordTypeVar' ref = readIORef ref >>= \case
     RBound ref' -> followRecordTypeVar' ref'
     RRecord rt -> return (ref, rt)
 
-followRecordTypeVar :: IORef RecordTypeVar -> IO (RecordType TypeVar)
+followRecordTypeVar :: MonadIO m => IORef RecordTypeVar -> m (RecordType TypeVar)
 followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
 
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
@@ -121,10 +121,10 @@ data TypeState
     | TBound TypeVar
     deriving (Eq)
 
-newTypeVar :: TypeState -> IO TypeVar
+newTypeVar :: MonadIO m => TypeState -> m TypeVar
 newTypeVar tv = TypeVar <$> newIORef tv
 
-followTypeVar :: TypeVar -> IO TypeVar
+followTypeVar :: MonadIO m => TypeVar -> m TypeVar
 followTypeVar (TypeVar ref) = do
     readIORef ref >>= \case
         TBound tv -> followTypeVar tv

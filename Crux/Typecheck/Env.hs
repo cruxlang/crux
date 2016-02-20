@@ -50,7 +50,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
         , ..
         }
 
-childEnv :: Env -> IO Env
+childEnv :: MonadIO m => Env -> m Env
 childEnv env@Env{..} = do
     valueBindings' <- HashTable.clone eValueBindings
     typeBindings <- HashTable.clone eTypeBindings
@@ -62,10 +62,12 @@ childEnv env@Env{..} = do
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
-resolveTypeIdent :: Env -> ResolvePolicy -> TypeIdent -> IO TypeVar
+-- TODO: move into TC so errors are recorded properly
+resolveTypeIdent :: MonadIO m => Env -> ResolvePolicy -> TypeIdent -> m TypeVar
 resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
     go typeIdent
   where
+    go :: MonadIO m => TypeIdent -> m TypeVar
     go UnitTypeIdent = do
         return $ TPrimitive Unit
 
@@ -121,7 +123,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
         retPrimitive' <- go retPrimitive
         return $ TFun argTypes' retPrimitive'
 
-addQvarTable :: Env -> [(Name, TypeVar)] -> IO Env
+addQvarTable :: MonadIO m => Env -> [(Name, TypeVar)] -> m Env
 addQvarTable env@Env{..} qvarTable = do
     newBindings <- HashTable.mergeImmutable eTypeBindings
         (HashMap.fromList [(name, TypeBinding (ThisModule name) ty) | (name, ty) <- qvarTable])
@@ -133,7 +135,7 @@ createUserTypeDef :: Env
                   -> ModuleName
                   -> [TypeVar]
                   -> [Variant _edata]
-                  -> IO (TUserTypeDef TypeVar, TypeVar)
+                  -> TC (TUserTypeDef TypeVar, TypeVar)
 createUserTypeDef env name moduleName typeVars variants = do
     variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
         tvParameters <- for vparameters $ const $ freshType env
@@ -158,7 +160,7 @@ addDataType :: Env
             -> Name
             -> [TypeName]
             -> [Variant _edata]
-            -> IO (TUserTypeDef TypeVar, TypeVar, QVars)
+            -> TC (TUserTypeDef TypeVar, TypeVar, QVars)
 addDataType env importName typeName typeVariables variants = do
     e <- childEnv env
     tyVars <- for typeVariables $ \tv ->
@@ -175,8 +177,8 @@ addDataType env importName typeName typeVariables variants = do
     let t = [(tn, (OtherModule importName tn, tv)) | (tn, tv) <- zip typeVariables tyVars]
     return (typeDef, tyVar, t)
 
-buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [(Pos, Import)] -> IO (Either Error.Error Env)
-buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
+buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [(Pos, Import)] -> TC Env
+buildTypeEnvironment thisModuleName loadedModules imports = do
     -- built-in types. would be nice to move into the prelude somehow.
     let numTy = TPrimitive Number
     let strTy = TPrimitive String
@@ -292,10 +294,10 @@ findExportedPatternByName env moduleName patternName = do
 
 addThisModuleDataDeclsToEnvironment
     :: Env
-    -> Module idtype edata
+    -> Module idtype Pos
     -> [DeclarationType t1 t2]
     -> (Name -> ResolvedReference)
-    -> IO ()
+    -> TC ()
 addThisModuleDataDeclsToEnvironment env modul decls mkName = do
     -- First, populate the type environment.  Variant parameter types are all initially free.
     for_ decls $ \case
@@ -329,7 +331,7 @@ addVariants
     -> TypeVar
     -> [Variant edata]
     -> (Name -> ResolvedReference)
-    -> IO ()
+    -> TC ()
 addVariants env typeDef qvars userTypeVar variants mkName = do
     {-
     userTypeName <- renderTypeVarIO userTypeVar

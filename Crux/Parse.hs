@@ -13,7 +13,7 @@ import Control.Monad.Reader.Class (MonadReader, ask, local)
 import qualified Crux.JSTree         as JSTree
 import           Crux.Prelude
 import           Crux.Text           (isCapitalized)
-import           Crux.Tokens         as Tokens
+import Crux.Tokens         as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec         as P
 
@@ -623,19 +623,21 @@ declaration = do
             <|> letDeclaration
     return $ Declaration exportFlag pos declType
 
-importDecl :: Parser Import
+importDecl :: Parser (Pos, Import)
 importDecl = do
-    segments <- P.sepBy1 anyIdentifier (token TDot)
+    segments' <- P.sepBy1 anyIdentifierWithPos (token TDot)
+    let ((pos, _):_) = segments'
+    let segments = fmap snd segments'
     let prefix = fmap ModuleSegment $ init segments
     let base = ModuleSegment $ last segments
     let moduleName = ModuleName prefix base
     (P.optionMaybe $ parenthesized $ token TEllipsis) >>= \case
         Nothing -> do
-            return $ QualifiedImport moduleName $ unModuleSegment base
+            return (pos, QualifiedImport moduleName $ unModuleSegment base)
         Just _ -> do
-            return $ UnqualifiedImport moduleName
+            return (pos, UnqualifiedImport moduleName)
 
-imports :: Parser [Import]
+imports :: Parser [(Pos, Import)]
 imports = do
     importToken <- token TImport
     withIndentation (IRDeeper importToken) $ do

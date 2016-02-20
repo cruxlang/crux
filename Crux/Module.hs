@@ -10,6 +10,7 @@ import qualified Crux.Lex              as Lex
 import qualified Crux.MutableHashTable as HashTable
 import qualified Crux.Parse            as Parse
 import           Crux.Prelude
+import qualified Crux.Tokens as Tokens
 import qualified Crux.Typecheck        as Typecheck
 import qualified Data.Aeson            as JSON
 import qualified Data.ByteString       as BS
@@ -122,11 +123,11 @@ getModuleName :: AST.Import -> AST.ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn
 getModuleName (AST.QualifiedImport mn _) = mn
 
-importsOf :: AST.Module a b -> [AST.ModuleName]
-importsOf m = map getModuleName $ AST.mImports m
+importsOf :: AST.Module a b -> [(Tokens.Pos, AST.ModuleName)]
+importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 
 addPrelude :: AST.Module a b -> AST.Module a b
-addPrelude m = m { AST.mImports = AST.UnqualifiedImport "prelude" : AST.mImports m }
+addPrelude m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "prelude") : AST.mImports m }
 
 type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
 
@@ -148,7 +149,7 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
                     | shouldAddPrelude -> return $ addPrelude m
                     | otherwise -> return m
 
-            for_ (importsOf parsedModule) $ \referencedModule -> do
+            for_ (importsOf parsedModule) $ \(_, referencedModule) -> do
                 EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
 
             lm <- lift $ readIORef loadedModules

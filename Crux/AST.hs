@@ -5,11 +5,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Crux.AST where
+module Crux.AST
+    ( module Crux.AST
+    , Pos(..)
+    ) where
 
 import qualified Crux.JSTree   as JSTree
 import           Crux.Prelude
-import           Crux.Tokens   (Pos)
+import Crux.Tokens (Pos)
 import qualified Crux.Tokens   as Tokens
 import qualified Data.Text     as Text
 
@@ -114,7 +117,7 @@ data Import
     deriving (Show, Eq)
 
 data Module idtype edata = Module
-    { mImports :: [Import]
+    { mImports :: [(Pos, Import)]
     , mDecls   :: [Declaration idtype edata]
     }
     deriving (Show, Eq)

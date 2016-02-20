@@ -194,7 +194,7 @@ resolveVariantTypes env qvars typeDef variants = do
             unify typeVar t
 
 -- TODO(chad): return an Either instead of throwing exceptions
-buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [Import] -> IO (Either Error.Error Env)
+buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [(Pos, Import)] -> IO (Either Error.Error Env)
 buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
     -- built-in types. would be nice to move into the prelude somehow.
     let numTy = TPrimitive Number
@@ -209,10 +209,10 @@ buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
         HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
 
     for_ imports $ \case
-        UnqualifiedImport importName -> do
+        (pos, UnqualifiedImport importName) -> do
             importedModule <- case HashMap.lookup importName loadedModules of
                 Just im -> return im
-                Nothing -> failICE $ Error.DependentModuleNotLoaded importName
+                Nothing -> failICE $ Error.DependentModuleNotLoaded pos importName
 
             -- populate aliases
             for_ (exportedDecls $ mDecls importedModule) $ \case
@@ -236,7 +236,7 @@ buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
             for_ (getAllExportedPatterns $ importedModule) $ \(name, pb) -> do
                 HashTable.insert name pb (ePatternBindings env)
 
-        QualifiedImport moduleName importName -> do
+        (_pos, QualifiedImport moduleName importName) -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
 
     return env

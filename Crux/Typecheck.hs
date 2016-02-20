@@ -9,7 +9,6 @@ import Control.Exception (try, ErrorCall (..))
 import Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import Crux.Prelude
-import Crux.Tokens (Pos (..))
 import Crux.Typecheck.Env
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify

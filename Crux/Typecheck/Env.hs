@@ -14,7 +14,6 @@ module Crux.Typecheck.Env
     , getAllExportedPatterns
     , findExportedPatternByName
     , addDataType
-    , resolveVariantTypes
     , addVariants
     ) where
 
@@ -176,24 +175,6 @@ addDataType env importName typeName typeVariables variants = do
     let t = [(tn, (OtherModule importName tn, tv)) | (tn, tv) <- zip typeVariables tyVars]
     return (typeDef, tyVar, t)
 
--- TODO: what do we do with this when types are resolved at type-checking time
-resolveVariantTypes :: Env
-                    -> QVars
-                    -> TUserTypeDef TypeVar
-                    -> [Variant zzz]
-                    -> IO ()
-resolveVariantTypes env qvars typeDef variants = do
-    e <- childEnv env
-    for_ qvars $ \(name, (qName, qTyVar)) ->
-        HashTable.insert name (TypeBinding qName qTyVar) (eTypeBindings e)
-
-    let TUserTypeDef { tuVariants } = typeDef
-    for_ (zip variants tuVariants) $ \(Variant _typeVar _name vparameters, tv) -> do
-        for_ (zip vparameters (tvParameters tv)) $ \(typeIdent, typeVar) -> do
-            t <- resolveTypeIdent e NewTypesAreErrors typeIdent
-            unify typeVar t
-
--- TODO(chad): return an Either instead of throwing exceptions
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [(Pos, Import)] -> IO (Either Error.Error Env)
 buildTypeEnvironment thisModuleName loadedModules imports = bridgeTC $ do
     -- built-in types. would be nice to move into the prelude somehow.
@@ -337,9 +318,6 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
     dataDecls' <- for dataDecls $ \(name, moduleName, typeVarNames, variants) -> do
         (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
         return (typeDef, tyVar, qvars, variants)
-
-    for_ dataDecls' $ \(typeDef, _tyVar, qvars, variants) ->
-        resolveVariantTypes env qvars typeDef variants
 
     for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->
         addVariants env typeDef qvars tyVar variants mkName

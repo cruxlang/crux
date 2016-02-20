@@ -581,10 +581,7 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
     lift $ for_ (mDecls thisModule) $ \decl -> do
         registerJSFFIDecl env decl
 
-    result <- liftIO $ try $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
-    case result of
-        Left err -> left $ Error.TypeError err
-        Right d -> return d
+    liftIO $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
 
     decls <- for (mDecls thisModule) $ \decl -> do
         (lift $ try $ checkDecl env decl) >>= \case

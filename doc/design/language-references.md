@@ -31,4 +31,7 @@ An unordered set of interesting language design resources.
 ## Other Interesting Languages
 
 * [Myrrdin](https://github.com/oridb/mc/blob/master/doc/lang.txt)
-* 
+
+## Software Engineering
+
+* http://research.microsoft.com/en-us/news/features/nagappan-100609.aspx

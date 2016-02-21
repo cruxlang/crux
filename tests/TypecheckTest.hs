@@ -26,7 +26,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             }
     let loadedModules = HashMap.fromList
             [ ("A", aModule) ]
-    (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules (mImports thisModule)
+    (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- readIORef (eTypeBindings env)
     assertEqual ["Number", "String"] $ sort $ HashMap.keys types

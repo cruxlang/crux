@@ -460,36 +460,6 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         t <- freshType env
         return $ EBreak t
 
--- Phase 2a
-registerJSFFIDecl :: Env -> Declaration UnresolvedReference Pos -> IO ()
-registerJSFFIDecl env (Declaration _export _pos decl) = case decl of
-    DDeclare {} -> return ()
-    DLet {} -> return ()
-    DFun {} -> return()
-
-    DData {} -> return ()
-    DJSData _pos name moduleName variants -> do
-        -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
-        variants' <- for variants $ \(JSVariant variantName _value) -> do
-            let tvParameters = []
-            let tvName = variantName
-            return TVariant{..}
-
-        let typeDef = TUserTypeDef
-                { tuName = name
-                , tuModuleName = moduleName
-                , tuParameters = []
-                , tuVariants = variants'
-                }
-        let userType = TUserType typeDef []
-        HashTable.insert name (TypeBinding (Local name) userType) (eTypeBindings env)
-
-        for_ variants $ \(JSVariant variantName _value) -> do
-            HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
-            HashTable.insert variantName (PatternBinding typeDef []) (ePatternBindings env)
-        return ()
-    DTypeAlias {} -> return ()
-
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of
 
@@ -575,15 +545,10 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
         type check all values in order
     -}
 
-    -- Phase 1
-    env <- bridgeEitherTC $ buildTypeEnvironment thisModuleName loadedModules (mImports thisModule)
+    -- Phases 1 and 2
+    env <- bridgeEitherTC $ buildTypeEnvironment thisModuleName loadedModules thisModule
 
-    -- Phase 2a
-    lift $ for_ (mDecls thisModule) $ \decl -> do
-        registerJSFFIDecl env decl
-
-    bridgeEitherTC $ addThisModuleDataDeclsToEnvironment env thisModule [decl | Declaration _ _ decl <- mDecls thisModule] ThisModule
-
+    -- Phase 3
     decls <- for (mDecls thisModule) $ \decl -> do
         (lift $ try $ checkDecl env decl) >>= \case
             Left err -> left $ Error.TypeError err

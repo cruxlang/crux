@@ -177,8 +177,10 @@ addDataType env importName typeName typeVariables variants = do
     let t = [(tn, (OtherModule importName tn, tv)) | (tn, tv) <- zip typeVariables tyVars]
     return (typeDef, tyVar, t)
 
-buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> [(Pos, Import)] -> TC Env
-buildTypeEnvironment thisModuleName loadedModules imports = do
+buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> TC Env
+buildTypeEnvironment thisModuleName loadedModules thisModule = do
+    let imports = mImports thisModule
+
     -- built-in types. would be nice to move into the prelude somehow.
     let numTy = TPrimitive Number
     let strTy = TPrimitive String
@@ -221,6 +223,8 @@ buildTypeEnvironment thisModuleName loadedModules imports = do
 
         (_pos, QualifiedImport moduleName importName) -> do
             HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
+
+    addThisModuleDataDeclsToEnvironment env thisModule
 
     return env
 
@@ -292,13 +296,47 @@ findExportedPatternByName env moduleName patternName = do
         else
             Nothing
 
+-- Phase 2a
+registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference Pos -> TC ()
+registerJSFFIDecl env = \case
+    DDeclare {} -> return ()
+    DLet {} -> return ()
+    DFun {} -> return()
+
+    DData {} -> return ()
+    DJSData _pos name moduleName variants -> do
+        -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
+        variants' <- for variants $ \(JSVariant variantName _value) -> do
+            let tvParameters = []
+            let tvName = variantName
+            return TVariant{..}
+
+        let typeDef = TUserTypeDef
+                { tuName = name
+                , tuModuleName = moduleName
+                , tuParameters = []
+                , tuVariants = variants'
+                }
+        let userType = TUserType typeDef []
+        HashTable.insert name (TypeBinding (Local name) userType) (eTypeBindings env)
+
+        for_ variants $ \(JSVariant variantName _value) -> do
+            HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
+            HashTable.insert variantName (PatternBinding typeDef []) (ePatternBindings env)
+        return ()
+    DTypeAlias {} -> return ()
+
 addThisModuleDataDeclsToEnvironment
     :: Env
-    -> Module idtype Pos
-    -> [DeclarationType t1 t2]
-    -> (Name -> ResolvedReference)
+    -> Module UnresolvedReference Pos
     -> TC ()
-addThisModuleDataDeclsToEnvironment env modul decls mkName = do
+addThisModuleDataDeclsToEnvironment env thisModule = do
+    let decls = [decl | Declaration _ _ decl <- mDecls thisModule]
+
+    -- Phase 2a
+    for_ decls $ \decl -> do
+        registerJSFFIDecl env decl
+
     -- First, populate the type environment.  Variant parameter types are all initially free.
     for_ decls $ \case
         DJSData {} -> return ()
@@ -311,7 +349,7 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
         DFun {}     -> return ()
         DLet {}     -> return ()
 
-    dataDecls <- fmap catMaybes $ for (mDecls modul) $ \(Declaration _exportFlag _pos decl) -> case decl of
+    dataDecls <- fmap catMaybes $ for decls $ \case
         DData _pos name moduleName typeVarNames variants ->
             return $ Just (name, moduleName, typeVarNames, variants)
         _ ->
@@ -322,7 +360,7 @@ addThisModuleDataDeclsToEnvironment env modul decls mkName = do
         return (typeDef, tyVar, qvars, variants)
 
     for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->
-        addVariants env typeDef qvars tyVar variants mkName
+        addVariants env typeDef qvars tyVar variants ThisModule
 
 addVariants
     :: Env

@@ -5,7 +5,7 @@ module Crux.Typecheck
     ( run
     ) where
 
-import Control.Exception (try, ErrorCall (..))
+import Control.Exception (ErrorCall (..), try)
 import Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import Crux.Prelude
@@ -16,13 +16,12 @@ import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
-import qualified Crux.Error as Error
 import Crux.Error
 import Crux.Module.Types
 import Crux.TypeVar
 import Crux.Typecheck.Monad
 
-handlePatternBinding :: Env -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> Text -> [RefutablePattern] -> IO ()
+handlePatternBinding :: Env -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> Text -> [RefutablePattern] -> TC ()
 handlePatternBinding env exprType def tyVars cname cargs = do
     subst <- HashTable.new
     (ty', variants) <- instantiateUserType subst env def tyVars
@@ -38,7 +37,7 @@ handlePatternBinding env exprType def tyVars cname cargs = do
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 -- TODO: wipe this out and replace it with ePatternBindings in Env
-buildPatternEnv :: TypeVar -> Env -> RefutablePattern -> IO ()
+buildPatternEnv :: TypeVar -> Env -> RefutablePattern -> TC ()
 buildPatternEnv exprType env = \case
     RPIrrefutable PWildcard -> do
         return ()
@@ -63,13 +62,13 @@ buildPatternEnv exprType env = \case
             _ -> do
                 fail $ printf "Qualified pattern uses unknown import %s" (Text.unpack importName)
 
-lookupBinding :: Name -> Env -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
+lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, LetMutability, TypeVar))
 lookupBinding name Env{..} = do
     HashTable.lookup name eValueBindings >>= \case
         Just (ValueReference a b c) -> return $ Just (a, b, c)
         _ -> return $ Nothing
 
-isLValue :: Env -> Expression ResolvedReference TypeVar -> IO Bool
+isLValue :: MonadIO m => Env -> Expression ResolvedReference TypeVar -> m Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- lookupBinding (resolvedReferenceName name) env
@@ -105,14 +104,14 @@ isLValue env expr = case expr of
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
     _ -> return False
 
-resolveTypeReference :: Pos -> Env -> UnresolvedReference -> IO TypeVar
+resolveTypeReference :: MonadIO m => Pos -> Env -> UnresolvedReference -> m TypeVar
 resolveTypeReference pos env (UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
         Just (TypeBinding _ t) -> return t
         Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
         Nothing -> do
             tb <- readIORef $ eTypeBindings env
-            throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
+            liftIO $ throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
 resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do
         resolveTypeReference pos env (UnqualifiedReference name)
@@ -121,7 +120,7 @@ resolveTypeReference pos env (KnownReference moduleName name) = do
             Just (_, tv) -> return tv
             Nothing -> fail "No exported type in module. TODO: this error message"
 
-resolveValueReference :: Env -> UnresolvedReference -> IO (Maybe (ResolvedReference, LetMutability, TypeVar))
+resolveValueReference :: MonadIO m => Env -> UnresolvedReference -> m (Maybe (ResolvedReference, LetMutability, TypeVar))
 resolveValueReference env ref = case ref of
     UnqualifiedReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
@@ -134,13 +133,15 @@ resolveValueReference env ref = case ref of
                 return $ Just (rr, mutability, typevar)
             Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
-withPositionInformation :: forall a. Expression UnresolvedReference Pos -> IO a -> IO a
-withPositionInformation expr a = catch a handle
-  where
-    handle :: TypeError () -> IO a
-    handle e = throwIO $ fmap (\() -> edata expr) e
+withPositionInformation :: forall a. Expression UnresolvedReference Pos -> TC a -> TC a
+withPositionInformation expr a = do
+    (liftIO $ try $ bridgeTC a) >>= \case
+        Left te -> do
+            failError $ TypeError $ fmap (\() -> edata expr) te
+        Right (Left err) -> failError err
+        Right (Right success) -> return success
 
-resolveArrayType :: Pos -> Env -> IO (TypeVar, TypeVar)
+resolveArrayType :: MonadIO m => Pos -> Env -> m (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
     arrayType <- resolveTypeReference pos env (UnqualifiedReference "Array")
@@ -150,24 +151,24 @@ resolveArrayType pos env = do
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
-resolveBooleanType :: Pos -> Env -> IO TypeVar
+resolveBooleanType :: MonadIO m => Pos -> Env -> m TypeVar
 resolveBooleanType pos env = do
     resolveTypeReference pos env (KnownReference "prelude" "Boolean")
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
-check :: Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
+check :: Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
 check env expr = do
     newType <- freshType env
     checkExpecting newType env expr
 
-checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
+checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
 checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
-    unify (edata e) expectedType
+    liftIO $ unify (edata e) expectedType
     return e
 
-check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> IO (Expression ResolvedReference TypeVar)
+check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
 check' expectedType env expr = withPositionInformation expr $ case expr of
     EFun _ params retAnn body -> do
         valueBindings' <- HashTable.clone (eValueBindings env)
@@ -209,7 +210,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
     EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
         arg' <- check env arg
         argType <- renderTypeVarIO $ edata arg'
-        putStrLn $ "Debug Type: " ++ argType
+        liftIO $ putStrLn $ "Debug Type: " ++ argType
         return arg'
     EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
         t <- freshType env
@@ -266,7 +267,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                             Just (resolvedRef, _mutability, typeVar) -> do
                                 return $ EIdentifier typeVar resolvedRef
                             Nothing -> do
-                                throwIO $ ModuleReferenceError () mn propName
+                                liftIO $ throwIO $ ModuleReferenceError () mn propName
                     _ -> valueLookup
             _ -> valueLookup
 
@@ -308,7 +309,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
-            throwIO $ NotAnLVar () $ show lhs
+            liftIO $ throwIO $ NotAnLVar () $ show lhs
 
         let unitType = TPrimitive Unit
 
@@ -343,7 +344,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     EIdentifier _ (UnqualifiedReference "_unsafe_js") ->
-        throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
+        liftIO $ throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
     EIdentifier _ (UnqualifiedReference "_unsafe_coerce") ->
         error "Intrinsic _unsafe_coerce is not a value"
     EIdentifier _pos txt -> do
@@ -356,7 +357,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                     b' <- instantiate env b
                     return (a, b')
                 Nothing ->
-                    throwIO $ UnboundSymbol () txt
+                    liftIO $ throwIO $ UnboundSymbol () txt
 
         return $ EIdentifier tyref rr
     ESemi _ lhs rhs -> do
@@ -375,7 +376,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 return "prelude"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
-                throwIO $ TdnrLhsTypeUnknown () ts
+                liftIO $ throwIO $ TdnrLhsTypeUnknown () ts
 
         check env $ EApp
             pos
@@ -460,8 +461,11 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         t <- freshType env
         return $ EBreak t
 
-checkDecl :: Env -> Declaration UnresolvedReference Pos -> IO (Declaration ResolvedReference TypeVar)
-checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ case decl of
+checkDecl :: Env -> Declaration UnresolvedReference Pos -> TC (Declaration ResolvedReference TypeVar)
+checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
+ where
+  g :: DeclarationType UnresolvedReference Pos -> TC (DeclarationType ResolvedReference TypeVar)
+  g = \case
 
     {- VALUE DEFINITIONS -}
 
@@ -469,9 +473,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
         ty <- resolveTypeIdent env NewTypesAreQuantified typeIdent
         HashTable.insert name (ValueReference (Ambient name) LImmutable ty) (eValueBindings env)
         return $ DDeclare ty name typeIdent
-    DLet pos' mut pat maybeAnnot expr ->
+    DLet pos' mut pat maybeAnnot expr -> do
         let fakeExpr = ELet pos' mut pat maybeAnnot expr
-        in withPositionInformation fakeExpr $ do
+        withPositionInformation fakeExpr $ do
             env' <- childEnv env
             ty <- freshType env'
             for_ maybeAnnot $ \annotation -> do
@@ -488,9 +492,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
                     HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
             quantify ty
             return $ DLet (edata expr') mut pat maybeAnnot expr'
-    DFun pos' name args returnAnn body ->
+    DFun pos' name args returnAnn body -> do
         let expr = EFun pos' args returnAnn body
-        in withPositionInformation expr $ do
+        withPositionInformation expr $ do
             ty <- freshType env
             HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
             expr'@(EFun _ _ _ body') <- check env expr
@@ -523,8 +527,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ ca
     DTypeAlias name typeVars ident -> do
         return $ DTypeAlias name typeVars ident
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> IO (Either Error.Error LoadedModule)
-run loadedModules thisModule thisModuleName = runEitherT $ do
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> TC LoadedModule
+run loadedModules thisModule thisModuleName = do
     {-
     populate environment:
         eTypeBindings
@@ -546,11 +550,10 @@ run loadedModules thisModule thisModuleName = runEitherT $ do
     -}
 
     -- Phases 1 and 2
-    env <- bridgeEitherTC $ buildTypeEnvironment thisModuleName loadedModules thisModule
+    env <- buildTypeEnvironment thisModuleName loadedModules thisModule
 
     -- Phase 3
     decls <- for (mDecls thisModule) $ \decl -> do
-        (lift $ try $ checkDecl env decl) >>= \case
-            Left err -> left $ Error.TypeError err
-            Right d -> return d
+        checkDecl env decl
+
     return $ thisModule{ mDecls = decls }

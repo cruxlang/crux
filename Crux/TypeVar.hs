@@ -146,7 +146,7 @@ writeTypeVar :: TypeVar -> MutableTypeVar -> IO ()
 writeTypeVar (TypeVar r) = writeIORef r
 -}
 
-showRecordTypeVarIO' :: Bool -> IORef RecordTypeVar -> IO String
+showRecordTypeVarIO' :: MonadIO m => Bool -> IORef RecordTypeVar -> m String
 showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
     RRecord (RecordType open' rows') -> do
         let rowNames = map trName rows'
@@ -163,7 +163,7 @@ showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
             then "(RBound " ++ inner ++ ")"
             else inner
 
-showTypeVarIO' :: Bool -> TypeVar -> IO String
+showTypeVarIO' :: MonadIO m => Bool -> TypeVar -> m String
 showTypeVarIO' showBound = \case
     TypeVar ref -> readIORef ref >>= \case
         TUnbound i -> do
@@ -187,8 +187,8 @@ showTypeVarIO' showBound = \case
     TPrimitive ty ->
         return $ show ty
 
-showTypeVarIO :: TypeVar -> IO String
+showTypeVarIO :: MonadIO m => TypeVar -> m String
 showTypeVarIO = showTypeVarIO' True
 
-renderTypeVarIO :: TypeVar -> IO String
+renderTypeVarIO :: MonadIO m => TypeVar -> m String
 renderTypeVarIO = showTypeVarIO' False

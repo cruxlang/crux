@@ -21,7 +21,7 @@ freshType env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound index
 
-freshRowVariable :: Env -> IO RowVariable
+freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
     RowVariable <$> freshTypeIndex env
 
@@ -30,7 +30,7 @@ data RecordSubst
     | SQuant RowVariable
     | SRows [TypeRow TypeVar]
 
-instantiateUserType :: IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> IO (TypeVar, [TVariant TypeVar])
+instantiateUserType :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> m (TypeVar, [TVariant TypeVar])
 instantiateUserType subst env def tyVars = do
     recordSubst <- HashTable.new
     typeVars' <- for tyVars $ instantiate' subst recordSubst env
@@ -42,12 +42,13 @@ instantiateUserType subst env def tyVars = do
     return (userType, variants)
 
 instantiateRecord
-    :: IORef (HashMap Int TypeVar)
+    :: MonadIO m
+    => IORef (HashMap Int TypeVar)
     -> IORef (HashMap RowVariable TypeVar)
     -> Env
     -> [TypeRow TypeVar]
     -> RecordOpen
-    -> IO TypeVar
+    -> m TypeVar
 instantiateRecord subst recordSubst env rows open = do
     rows' <- for rows $ \TypeRow{..} -> do
         rowTy' <- instantiate' subst recordSubst env trTyVar
@@ -67,7 +68,7 @@ instantiateRecord subst recordSubst env rows open = do
     recordType <- newIORef $ RRecord $ RecordType open' rows'
     return $ TRecord recordType
 
-instantiate' :: IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> IO TypeVar
+instantiate' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> m TypeVar
 instantiate' subst recordSubst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
@@ -136,17 +137,20 @@ quantify ty = case ty of
     TPrimitive {} ->
         return ()
 
-instantiate :: Env -> TypeVar -> IO TypeVar
+instantiate :: MonadIO m => Env -> TypeVar -> m TypeVar
 instantiate env t = do
     subst <- HashTable.new
     recordSubst <- HashTable.new
     instantiate' subst recordSubst env t
 
-occurs :: Int -> TypeVar -> IO ()
+typeError :: MonadIO m => TypeError () -> m a
+typeError = liftIO . throwIO
+
+occurs :: MonadIO m => Int -> TypeVar -> m ()
 occurs tvn = \case
     TypeVar ref -> readIORef ref >>= \case
         TUnbound q | tvn == q -> do
-            throwIO $ OccursCheckFailed ()
+            typeError $ OccursCheckFailed ()
         TUnbound _ -> do
             return ()
         TBound next -> do
@@ -164,9 +168,9 @@ occurs tvn = \case
     TQuant {} ->
         return ()
 
-unificationError :: [Char] -> TypeVar -> TypeVar -> IO a
+unificationError :: MonadIO m => String -> TypeVar -> TypeVar -> m a
 unificationError message a b = do
-    throwIO $ UnificationError () message a b
+    typeError $ UnificationError () message a b
 
 lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
 lookupTypeRow name = \case
@@ -175,7 +179,7 @@ lookupTypeRow name = \case
         | trName == name -> Just (trMut, trTyVar)
         | otherwise -> lookupTypeRow name rest
 
-unifyRecord :: TypeVar -> TypeVar -> IO ()
+unifyRecord :: MonadIO m => TypeVar -> TypeVar -> m ()
 unifyRecord av bv = do
     -- do
     --     putStrLn " -- unifyRecord --"
@@ -196,7 +200,7 @@ unifyRecord av bv = do
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         case unifyRecordMutability (trMut lhs) (trMut rhs) of
-            Left err -> throwIO $ RecordMutabilityUnificationError () (trName lhs) err
+            Left err -> typeError $ RecordMutabilityUnificationError () (trName lhs) err
             Right mut -> do
                 unify (trTyVar lhs) (trTyVar rhs)
                 return TypeRow
@@ -279,7 +283,7 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-unify :: TypeVar -> TypeVar -> IO ()
+unify :: MonadIO m => TypeVar -> TypeVar -> m ()
 unify av' bv' = do
     av <- followTypeVar av'
     bv <- followTypeVar bv'

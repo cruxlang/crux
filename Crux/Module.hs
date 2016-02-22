@@ -12,6 +12,7 @@ import qualified Crux.Parse            as Parse
 import           Crux.Prelude
 import qualified Crux.Tokens as Tokens
 import qualified Crux.Typecheck        as Typecheck
+import Crux.Typecheck.Monad
 import qualified Data.Aeson            as JSON
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Lazy  as BSL
@@ -111,7 +112,7 @@ loadModuleFromSource'
     -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource' adjust loadedModules moduleName filename source = runEitherT $ do
     mod' <- EitherT $ parseModuleFromSource moduleName filename source
-    EitherT $ Typecheck.run loadedModules (adjust mod') moduleName
+    bridgeEitherTC $ Typecheck.run loadedModules (adjust mod') moduleName
 
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
@@ -153,7 +154,7 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
                 EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
 
             lm <- lift $ readIORef loadedModules
-            (lift $ Typecheck.run lm parsedModule moduleName) >>= \case
+            (lift $ bridgeTC $ Typecheck.run lm parsedModule moduleName) >>= \case
                 Left typeError -> do
                     left (moduleName, typeError)
                 Right loadedModule -> do

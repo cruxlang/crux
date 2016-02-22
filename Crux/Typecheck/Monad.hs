@@ -31,7 +31,8 @@ data StopExecution = StopExecution
 instance Exception StopExecution
 
 stopChecking :: TC a
-stopChecking = liftIO $ throwIO StopExecution
+stopChecking = liftIO $ do
+    throwIO StopExecution
 
 recordError :: Error -> TC ()
 recordError e = do
@@ -77,11 +78,16 @@ bridgeTC :: TC a -> IO (Either Error a)
 bridgeTC (TC m) = do
     tcWarnings <- newIORef []
     tcErrors <- newIORef []
-    result <- runReaderT m TCState{..}
+    result <- try $ runReaderT m TCState{..}
     errors <- reverse <$> readIORef tcErrors
-    return $ case errors of
-        [] -> Right result
-        (x:_) -> Left x
+    case errors of
+        [] -> case result of
+            Left StopExecution ->
+                return $ Left $ InternalCompilerError StoppedCheckingWithNoError
+            Right r ->
+                return $ Right r
+        (firstError:_) -> do
+            return $ Left firstError
 
 -- temporary -- used to convert existing code
 bridgeEitherTC :: TC a -> EitherT Error IO a

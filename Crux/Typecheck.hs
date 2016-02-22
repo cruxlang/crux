@@ -5,7 +5,7 @@ module Crux.Typecheck
     ( run
     ) where
 
-import Control.Exception (ErrorCall (..), try)
+import Control.Exception (try)
 import Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import Crux.Prelude
@@ -104,14 +104,12 @@ isLValue env expr = case expr of
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
     _ -> return False
 
-resolveTypeReference :: MonadIO m => Pos -> Env -> UnresolvedReference -> m TypeVar
-resolveTypeReference pos env (UnqualifiedReference name) = do
+resolveTypeReference :: Pos -> Env -> UnresolvedReference -> TC TypeVar
+resolveTypeReference pos env ref@(UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
         Just (TypeBinding _ t) -> return t
         Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
-        Nothing -> do
-            tb <- readIORef $ eTypeBindings env
-            liftIO $ throwIO $ ErrorCall $ "FATAL: Environment does not contain a " ++ show name ++ " type at: " ++ show pos ++ " " ++ (show $ HashMap.keys tb)
+        Nothing -> resumableTypeError $ UnboundSymbol pos ref
 resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do
         resolveTypeReference pos env (UnqualifiedReference name)
@@ -141,7 +139,7 @@ withPositionInformation expr a = do
         Right (Left err) -> failError err
         Right (Right success) -> return success
 
-resolveArrayType :: MonadIO m => Pos -> Env -> m (TypeVar, TypeVar)
+resolveArrayType :: Pos -> Env -> TC (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
     arrayType <- resolveTypeReference pos env (UnqualifiedReference "Array")
@@ -151,7 +149,7 @@ resolveArrayType pos env = do
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
-resolveBooleanType :: MonadIO m => Pos -> Env -> m TypeVar
+resolveBooleanType :: Pos -> Env -> TC TypeVar
 resolveBooleanType pos env = do
     resolveTypeReference pos env (KnownReference "prelude" "Boolean")
 
@@ -167,6 +165,10 @@ checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
     liftIO $ unify (edata e) expectedType
     return e
+
+-- We could have this return a poison type.
+resumableTypeError :: TypeError Pos -> TC a
+resumableTypeError te = failError $ TypeError te
 
 check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
 check' expectedType env expr = withPositionInformation expr $ case expr of
@@ -259,7 +261,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 unify (edata lhs') $ TRecord rec
                 return $ ELookup ty lhs' propName
         case lhs of
-            EIdentifier _ (UnqualifiedReference name) -> do
+            EIdentifier pos (UnqualifiedReference name) -> do
                 HashTable.lookup name (eValueBindings env) >>= \case
                     Just (ModuleReference mn) -> do
                         case findExportedValueByName env mn propName of
@@ -267,7 +269,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                             Just (resolvedRef, _mutability, typeVar) -> do
                                 return $ EIdentifier typeVar resolvedRef
                             Nothing -> do
-                                liftIO $ throwIO $ ModuleReferenceError () mn propName
+                                resumableTypeError $ ModuleReferenceError pos mn propName
                     _ -> valueLookup
             _ -> valueLookup
 
@@ -301,7 +303,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         let unitTy = TPrimitive Unit
         return $ ELet unitTy mut pat maybeAnnot expr''
 
-    EAssign _ lhs rhs -> do
+    EAssign pos lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
 
@@ -309,7 +311,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
-            liftIO $ throwIO $ NotAnLVar () $ show lhs
+            resumableTypeError $ NotAnLVar pos $ show lhs
 
         let unitType = TPrimitive Unit
 
@@ -343,11 +345,12 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         let recordTy = TRecord rec
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
-    EIdentifier _ (UnqualifiedReference "_unsafe_js") ->
-        liftIO $ throwIO $ IntrinsicError () "Intrinsic _unsafe_js is not a value"
-    EIdentifier _ (UnqualifiedReference "_unsafe_coerce") ->
-        error "Intrinsic _unsafe_coerce is not a value"
-    EIdentifier _pos txt -> do
+    -- TODO: put all the intrinsics in one list so we can do a simple membership test here and not duplicate in the EApp handler
+    EIdentifier pos (UnqualifiedReference "_unsafe_js") ->
+        resumableTypeError $ IntrinsicError pos "Intrinsic _unsafe_js is not a value"
+    EIdentifier pos (UnqualifiedReference "_unsafe_coerce") ->
+        resumableTypeError $ IntrinsicError pos "Intrinsic _unsafe_coerce is not a value"
+    EIdentifier pos txt -> do
         (rr, tyref) <- do
             resolveValueReference env txt >>= \case
                 Just (a@(Local _), _mutability, b) -> do
@@ -357,7 +360,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                     b' <- instantiate env b
                     return (a, b')
                 Nothing ->
-                    liftIO $ throwIO $ UnboundSymbol () txt
+                    resumableTypeError $ UnboundSymbol pos txt
 
         return $ EIdentifier tyref rr
     ESemi _ lhs rhs -> do
@@ -376,7 +379,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 return "prelude"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
-                liftIO $ throwIO $ TdnrLhsTypeUnknown () ts
+                resumableTypeError $ TdnrLhsTypeUnknown pos ts
 
         check env $ EApp
             pos

@@ -25,6 +25,7 @@ data InternalCompilerError
 data TypeError a
     = UnificationError a String TypeVar TypeVar
     | RecordMutabilityUnificationError a Name String
+    -- TODO: split into UnboundValue and UnboundType
     | UnboundSymbol a AST.UnresolvedReference
     | OccursCheckFailed a
     | IntrinsicError a String

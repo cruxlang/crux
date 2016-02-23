@@ -5,6 +5,7 @@ import qualified Crux.JSBackend     as JS
 import qualified Crux.Gen            as Gen
 import           Crux.Module         (loadProgramFromFile)
 import           Crux.Prelude
+import Crux.Project (buildProject)
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
 import           System.Exit         (ExitCode (..), exitWith)
@@ -38,12 +39,16 @@ failed message = do
     exitWith $ ExitFailure 1
 -}
 
+
+
 main :: IO ()
 main = do
     options <- parseOptions
     case files options of
         [] -> help
         (_:_:_) -> help
+        ["build"] -> do
+            buildProject
         [fn] -> do
             loadProgramFromFile fn >>= \case
                 Left (_, err) -> do

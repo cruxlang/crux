@@ -24,6 +24,7 @@ library
                    , Crux.MutableHashTable
                    , Crux.Parse
                    , Crux.Prelude
+                   , Crux.Project
                    , Crux.Text
                    , Crux.Tokens
                    , Crux.Typecheck
@@ -51,6 +52,7 @@ library
                  , filepath
                  , raw-strings-qq
                  , optparse-applicative
+                 , yaml
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

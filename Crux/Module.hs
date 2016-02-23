@@ -200,6 +200,10 @@ newMemoryLoader sources moduleName = do
         Nothing ->
             return $ Left $ Error.UnknownModule moduleName
 
+loadProgramFromDirectoryAndModule :: FilePath -> Text -> IO (ProgramLoadResult AST.Program)
+loadProgramFromDirectoryAndModule sourceDir mainModule = do
+    loadProgramFromFile $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
+
 loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig

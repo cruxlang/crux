@@ -25,9 +25,15 @@ An unordered set of interesting language design resources.
 * [Philip Wadler - Propositions as Types](http://homepages.inf.ed.ac.uk/wadler/papers/propositions-as-types/propositions-as-types.pdf)
 * [A theory of qualified types](http://www.sciencedirect.com/science/article/pii/0167642394000050)
 * [Unification](https://en.wikipedia.org/wiki/Unification_%28computer_science%29)
-* [Objects and Aspects - Row Polymorphism](https://www.cs.cmu.edu/~neelk/rows.pdf)
 * [Implementations of various type systems](https://github.com/tomprimozic/type-systems)
 
+## Row Types
+
+* [Objects and Aspects - Row Polymorphism](https://www.cs.cmu.edu/~neelk/rows.pdf)
+* https://cs.stackexchange.com/questions/11613/encoding-row-types
+* http://brianmckenna.org/blog/row_polymorphism_isnt_subtyping
+* [Objects in OCaml](https://realworldocaml.org/v1/en/html/objects.html)
+* 
 ## Other Interesting Languages
 
 * [Myrrdin](https://github.com/oridb/mc/blob/master/doc/lang.txt)

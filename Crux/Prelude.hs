@@ -1,6 +1,5 @@
 module Crux.Prelude
     ( module Control.Applicative
-    , module Control.Exception
     , module Control.Monad
     , module Control.Monad.IO.Class
     , module Control.Monad.Trans.Class
@@ -29,7 +28,6 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import Control.Monad.Trans.Either (EitherT(..), left)
-import Control.Exception (throwIO, catch, Exception)
 import Data.Typeable (Typeable)
 import Control.Applicative ((<$>), (<*>), (<*), (*>), pure)
 import Data.HashMap.Strict (HashMap)

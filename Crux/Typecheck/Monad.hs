@@ -13,7 +13,7 @@ module Crux.Typecheck.Monad
 
 import Crux.Prelude
 import Control.Monad.Trans.Reader
-import Control.Exception (try)
+import Control.Exception (try, throwIO, Exception)
 import Crux.Error
 
 data Warning -- TODO: move this into Crux.Warning

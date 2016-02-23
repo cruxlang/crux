@@ -128,7 +128,7 @@ test_occurs_on_sum = do
         , "fun bad(a) { Cons(a, a) }"
         ]
 
-    assertEqual (Left $ Error.TypeError $ OccursCheckFailed (Pos 1 2 14)) result
+    assertEqual (Left $ Error.TypeError $ OccursCheckFailed (Pos 1 2 22)) result
 
 test_occurs_on_record = do
     result <- run $ T.unlines
@@ -211,7 +211,7 @@ test_mutable_record_field_requirement_is_inferred = do
         ]
 
     assertEqual
-        (Left $ Error.TypeError $ RecordMutabilityUnificationError (Pos 5 8 5) "x" "Record field mutability does not match")
+        (Left $ Error.TypeError $ RecordMutabilityUnificationError (Pos 5 8 10) "x" "Record field mutability does not match")
         result
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do
@@ -220,7 +220,7 @@ test_polymorphic_type_annotations_are_universally_quantified2 = do
         , "let g: (a) -> a = fun (i) { i }"
         , "let _ = f(g(\"hello\"))"
         ]
-    assertUnificationError (Pos 1 3 9) "String" "Number" rv
+    assertUnificationError (Pos 1 3 11) "String" "Number" rv
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines

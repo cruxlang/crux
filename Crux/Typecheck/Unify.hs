@@ -10,6 +10,7 @@ import           Data.List             (sort)
 import           Text.Printf           (printf)
 import Crux.TypeVar
 import Crux.Error
+import Crux.Typecheck.Monad
 
 freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do
@@ -143,34 +144,34 @@ instantiate env t = do
     recordSubst <- HashTable.new
     instantiate' subst recordSubst env t
 
-typeError :: MonadIO m => TypeError () -> m a
-typeError = liftIO . throwIO
+typeError :: TypeError Pos -> TC a
+typeError = failError . TypeError
 
-occurs :: MonadIO m => Int -> TypeVar -> m ()
-occurs tvn = \case
+occurs :: Pos -> Int -> TypeVar -> TC ()
+occurs pos tvn = \case
     TypeVar ref -> readIORef ref >>= \case
         TUnbound q | tvn == q -> do
-            typeError $ OccursCheckFailed ()
+            typeError $ OccursCheckFailed pos
         TUnbound _ -> do
             return ()
         TBound next -> do
-            occurs tvn next
+            occurs pos tvn next
     TFun arg ret -> do
-        for_ arg $ occurs tvn
-        occurs tvn ret
+        for_ arg $ occurs pos tvn
+        occurs pos tvn ret
     TUserType _ tvars -> do
-        for_ tvars $ occurs tvn
+        for_ tvars $ occurs pos tvn
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
         for_ rows $ \TypeRow{..} ->
-            occurs tvn trTyVar
+            occurs pos tvn trTyVar
     TPrimitive {} ->
         return ()
     TQuant {} ->
         return ()
 
-unificationError :: MonadIO m => String -> TypeVar -> TypeVar -> m a
-unificationError message a b = do
-    typeError $ UnificationError () message a b
+unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
+unificationError pos message a b = do
+    typeError $ UnificationError pos message a b
 
 lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
 lookupTypeRow name = \case
@@ -179,8 +180,8 @@ lookupTypeRow name = \case
         | trName == name -> Just (trMut, trTyVar)
         | otherwise -> lookupTypeRow name rest
 
-unifyRecord :: MonadIO m => TypeVar -> TypeVar -> m ()
-unifyRecord av bv = do
+unifyRecord :: Pos -> TypeVar -> TypeVar -> TC ()
+unifyRecord pos av bv = do
     -- do
     --     putStrLn " -- unifyRecord --"
     --     putStr "\t" >> showTypeVarIO av >>= putStrLn
@@ -200,9 +201,9 @@ unifyRecord av bv = do
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         case unifyRecordMutability (trMut lhs) (trMut rhs) of
-            Left err -> typeError $ RecordMutabilityUnificationError () (trName lhs) err
+            Left err -> typeError $ RecordMutabilityUnificationError pos (trName lhs) err
             Right mut -> do
-                unify (trTyVar lhs) (trTyVar rhs)
+                unify pos (trTyVar lhs) (trTyVar rhs)
                 return TypeRow
                     { trName = trName lhs
                     , trMut = mut
@@ -215,19 +216,19 @@ unifyRecord av bv = do
                 writeIORef bRef $ RRecord $ RecordType RecordClose coincidentRows'
                 writeIORef aRef $ RBound $ bRef
             | otherwise ->
-                unificationError "Closed row types must match exactly" av bv
+                unificationError pos "Closed row types must match exactly" av bv
         (RecordClose, RecordFree {})
             | null bOnlyRows -> do
                 writeIORef aRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows)
                 writeIORef bRef $ RBound $ aRef
             | otherwise ->
-                unificationError (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
+                unificationError pos (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
         (RecordFree {}, RecordClose)
             | null aOnlyRows -> do
                 writeIORef bRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ bOnlyRows)
                 writeIORef aRef $ RBound bRef
             | otherwise ->
-                unificationError (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
+                unificationError pos (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
         (RecordClose, RecordQuantified {}) ->
             error "Cannot unify closed record with quantified record"
         (RecordQuantified {}, RecordClose) ->
@@ -283,8 +284,8 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-unify :: MonadIO m => TypeVar -> TypeVar -> m ()
-unify av' bv' = do
+unify :: Pos -> TypeVar -> TypeVar -> TC ()
+unify pos av' bv' = do
     av <- followTypeVar av'
     bv <- followTypeVar bv'
     if av == bv then
@@ -297,42 +298,42 @@ unify av' bv' = do
             if a' == b' then
                 return ()
             else do
-                occurs a' bv
+                occurs pos a' bv
                 writeIORef aref $ TBound bv
         (TypeVar aref, _) -> do
             (TUnbound a') <- readIORef aref
-            occurs a' bv
+            occurs pos a' bv
             writeIORef aref $ TBound bv
         (_, TypeVar bref) -> do
             (TUnbound b') <- readIORef bref
-            occurs b' av
+            occurs pos b' av
             writeIORef bref $ TBound av
 
         (TPrimitive aType, TPrimitive bType)
             | aType == bType ->
                 return ()
             | otherwise -> do
-                unificationError "" av bv
+                unificationError pos "" av bv
 
         (TUserType ad atv, TUserType bd btv)
             | userTypeIdentity ad == userTypeIdentity bd -> do
                 -- TODO: assert the two lists have the same length
-                for_ (zip atv btv) $ uncurry unify
+                for_ (zip atv btv) $ uncurry $ unify pos
             | otherwise -> do
-                unificationError "" av bv
+                unificationError pos "" av bv
 
         (TRecord {}, TRecord {}) ->
-            unifyRecord av bv
+            unifyRecord pos av bv
 
         (TFun aa ar, TFun ba br) -> do
             when (length aa /= length ba) $
-                unificationError "" av bv
+                unificationError pos "" av bv
 
-            for_ (zip aa ba) $ uncurry unify
-            unify ar br
+            for_ (zip aa ba) $ uncurry $ unify pos
+            unify pos ar br
 
         (TQuant i, TQuant j) | i == j ->
             return ()
 
         _ ->
-            unificationError "" av bv
+            unificationError pos "" av bv

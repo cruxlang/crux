@@ -17,7 +17,7 @@ test_quantified_with_number = do
     let lhs = TPrimitive $ Number
     let rhs = TQuant 10
     bridgeTC (unify (Pos 0 0 0) lhs rhs) >>= \a -> case a of
-        Left (TypeError UnificationError{}) -> return ()
+        Left (TypeError _ UnificationError{}) -> return ()
         _ -> assertFailure ("BLAH " ++ show a)
 
 test_function_taking_record = do

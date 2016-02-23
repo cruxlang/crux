@@ -71,7 +71,7 @@ assertOutput src outp = do
         Left err -> assertFailure $ "Compile failure: " ++ show err
 
 assertUnificationError :: Pos -> String -> String -> Either Error.Error a -> IO ()
-assertUnificationError pos a b (Left (Error.TypeError (UnificationError actualPos _ at bt))) = do
+assertUnificationError pos a b (Left (Error.TypeError actualPos (UnificationError _ at bt))) = do
     assertEqual pos actualPos
 
     as <- renderTypeVarIO at
@@ -113,14 +113,14 @@ test_integration_tests = do
 
 test_let_is_not_recursive_by_default = do
     result <- run $ T.unlines [ "let foo = fun (x) { foo(x) }" ]
-    assertEqual result $ Left $ Error.TypeError $ UnboundSymbol (Pos 1 1 21) "foo"
+    assertEqual result $ Left $ Error.TypeError (Pos 1 1 21) $ UnboundSymbol "foo"
 
 test_occurs_on_fun = do
     result <- run $ T.unlines
         [ "fun bad() { bad }"
         ]
 
-    assertEqual (Left $ Error.TypeError $ OccursCheckFailed (Pos 1 1 1)) result
+    assertEqual (Left $ Error.TypeError (Pos 1 1 1) $ OccursCheckFailed) result
 
 test_occurs_on_sum = do
     result <- run $ T.unlines
@@ -128,20 +128,20 @@ test_occurs_on_sum = do
         , "fun bad(a) { Cons(a, a) }"
         ]
 
-    assertEqual (Left $ Error.TypeError $ OccursCheckFailed (Pos 1 2 22)) result
+    assertEqual (Left $ Error.TypeError (Pos 1 2 22) $ OccursCheckFailed) result
 
 test_occurs_on_record = do
     result <- run $ T.unlines
         [ "fun bad(p) { { field: bad(p) } }"
         ]
 
-    assertEqual (Left $ Error.TypeError $ OccursCheckFailed (Pos 1 1 1)) result
+    assertEqual (Left $ Error.TypeError (Pos 1 1 1) $ OccursCheckFailed) result
 
 test_incorrect_unsafe_js = do
     result <- run $ T.unlines
         [ "let bad = _unsafe_js"
         ]
-    assertEqual (Left $ Error.TypeError $ IntrinsicError (Pos 1 1 11) "Intrinsic _unsafe_js is not a value") result
+    assertEqual (Left $ Error.TypeError (Pos 1 1 11) $ IntrinsicError "Intrinsic _unsafe_js is not a value") result
 
 test_annotation_is_checked = do
     result <- run $ T.unlines
@@ -179,7 +179,7 @@ test_cannot_assign_to_immutable_binding = do
         ]
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
-    assertEqual (Left $ Error.TypeError $ NotAnLVar (Pos 5 3 5) "EIdentifier Pos 5 3 5 (UnqualifiedReference \"x\")") result
+    assertEqual (Left $ Error.TypeError (Pos 5 3 5) $ NotAnLVar "EIdentifier Pos 5 3 5 (UnqualifiedReference \"x\")") result
 
 test_cannot_assign_to_immutable_record_field = do
     result <- run $ T.unlines
@@ -193,7 +193,7 @@ test_cannot_assign_to_immutable_record_field = do
 
     assertEqual
         -- (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
-        (Left $ Error.TypeError $ NotAnLVar (Pos 5 3 5) "ELookup Pos 5 3 5 (EIdentifier Pos 5 3 5 (UnqualifiedReference \"a\")) \"x\"")
+        (Left $ Error.TypeError (Pos 5 3 5) $ NotAnLVar "ELookup Pos 5 3 5 (EIdentifier Pos 5 3 5 (UnqualifiedReference \"a\")) \"x\"")
         result
 
 test_mutable_record_field_requirement_is_inferred = do
@@ -211,7 +211,7 @@ test_mutable_record_field_requirement_is_inferred = do
         ]
 
     assertEqual
-        (Left $ Error.TypeError $ RecordMutabilityUnificationError (Pos 5 8 10) "x" "Record field mutability does not match")
+        (Left $ Error.TypeError (Pos 5 8 10) $ RecordMutabilityUnificationError "x" "Record field mutability does not match")
         result
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do

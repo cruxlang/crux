@@ -22,30 +22,29 @@ data InternalCompilerError
     | StoppedCheckingWithNoError
     deriving (Eq, Show)
 
-data TypeError a
-    = UnificationError a String TypeVar TypeVar
-    | RecordMutabilityUnificationError a Name String
+data TypeError
+    = UnificationError String TypeVar TypeVar
+    | RecordMutabilityUnificationError Name String
     -- TODO: split into UnboundValue and UnboundType
-    | UnboundSymbol a AST.UnresolvedReference
-    | OccursCheckFailed a
-    | IntrinsicError a String
-    | NotAnLVar a String
-    | TdnrLhsTypeUnknown a String
-    | ExportError a String
-    | ModuleReferenceError a AST.ModuleName Name
-    deriving (Eq, Typeable, Functor)
+    | UnboundSymbol AST.UnresolvedReference
+    | OccursCheckFailed
+    | IntrinsicError String
+    | NotAnLVar String
+    | TdnrLhsTypeUnknown String
+    | ExportError String
+    | ModuleReferenceError AST.ModuleName Name
+    deriving (Eq)
 
--- TODO: kill this
-instance Show a => Show (TypeError a) where
-    show (UnificationError a s _ _) = "UnificationError " ++ show a ++ " " ++ s ++ " _ _"
-    show (RecordMutabilityUnificationError a s m) = "RecordMutabilityUnificationError " ++ show a ++ " " ++ show s ++ " " ++ show m
-    show (UnboundSymbol a s) = "UnboundSymbol " ++ show a ++ " " ++ show s
-    show (OccursCheckFailed a) = "OccursCheckFailed " ++ show a
-    show (IntrinsicError a s) = "IntrinsicError " ++ show a ++ " " ++ show s
-    show (NotAnLVar a t) = "NotAnLVar " ++ show a ++ " " ++ show t
-    show (TdnrLhsTypeUnknown a s) = "TdnrLhsTypeUnknown " ++ show a ++ " " ++ s
-    show (ExportError a s) = "ExportError " ++ show a ++ " " ++ s
-    show (ModuleReferenceError a mn n) = "ModuleReferenceError " ++ show a ++ " " ++ show mn ++ " " ++ show n
+instance Show TypeError where
+    show (UnificationError s _ _) = "UnificationError " ++ s ++ " _ _"
+    show (RecordMutabilityUnificationError s m) = "RecordMutabilityUnificationError " ++ show s ++ " " ++ show m
+    show (UnboundSymbol s) = "UnboundSymbol " ++ show s
+    show (OccursCheckFailed) = "OccursCheckFailed "
+    show (IntrinsicError s) = "IntrinsicError " ++ show s
+    show (NotAnLVar t) = "NotAnLVar " ++ show t
+    show (TdnrLhsTypeUnknown s) = "TdnrLhsTypeUnknown " ++ s
+    show (ExportError s) = "ExportError " ++ s
+    show (ModuleReferenceError mn n) = "ModuleReferenceError " ++ show mn ++ " " ++ show n
 
 data Error
     = LexError P.ParseError
@@ -53,7 +52,7 @@ data Error
     | UnknownModule AST.ModuleName
     | ModuleNotFound AST.ModuleName
     | InternalCompilerError InternalCompilerError
-    | TypeError (TypeError Tokens.Pos)
+    | TypeError Tokens.Pos TypeError
     deriving (Eq, Show)
 
 renderError :: Error -> IO String
@@ -64,32 +63,34 @@ renderError (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack 
 renderError (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
     DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
     StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
-renderError (TypeError ue) = typeErrorToString ue
+renderError (TypeError pos ue) = do
+    te <- typeErrorToString ue
+    return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
 
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
 
-typeErrorToString :: TypeError Tokens.Pos -> IO String
-typeErrorToString (UnificationError pos message at bt) = do
+typeErrorToString :: TypeError -> IO String
+typeErrorToString (UnificationError message at bt) = do
     as <- showTypeVarIO at
     bs <- showTypeVarIO bt
     let m
             | null message = ""
             | otherwise = "\n" ++ message
-    return $ printf "Unification error at %s\n\t%s\n\t%s%s" (formatPos pos) as bs m
-typeErrorToString (RecordMutabilityUnificationError pos key message) =
-    return $ printf "Unification error at %s: Could not unify mutability of record field %s: %s" (formatPos pos) (show key) message
-typeErrorToString (UnboundSymbol pos message) =
-    return $ printf "Unbound symbol at %s\n\t%s" (formatPos pos) (show message)
-typeErrorToString (OccursCheckFailed pos) =
-    return $ printf "Occurs check failed at %s" (formatPos pos)
-typeErrorToString (IntrinsicError pos message) =
-    return $ printf "%s at %s" message (formatPos pos)
-typeErrorToString (NotAnLVar pos s) = do
-    return $ printf "Not an LVar at %s\n\t%s" (formatPos pos) s
-typeErrorToString (TdnrLhsTypeUnknown pos s) = do
-    return $ printf "Methods only work on values with known concrete types at %s\n\t%s" (formatPos pos) s
-typeErrorToString (ExportError pos s) = do
-    return $ printf "Export error at %s: %s" (formatPos pos) s
-typeErrorToString (ModuleReferenceError pos moduleName name) = do
-    return $ printf "Module %s does not export %s at %s" (Text.unpack $ AST.printModuleName moduleName) (Text.unpack name) (formatPos pos)
+    return $ printf "Unification error: %s\n\t%s%s" as bs m
+typeErrorToString (RecordMutabilityUnificationError key message) =
+    return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
+typeErrorToString (UnboundSymbol message) =
+    return $ printf "Unbound symbol %s" (show message)
+typeErrorToString (OccursCheckFailed) =
+    return $ printf "Occurs check failed"
+typeErrorToString (IntrinsicError message) =
+    return $ printf "%s" message
+typeErrorToString (NotAnLVar s) = do
+    return $ printf "Not an LVar\n\t%s" s
+typeErrorToString (TdnrLhsTypeUnknown s) = do
+    return $ printf "Methods only work on values with known concrete types\n\t%s" s
+typeErrorToString (ExportError s) = do
+    return $ printf "Export error at %s" s
+typeErrorToString (ModuleReferenceError moduleName name) = do
+    return $ printf "Module %s does not export %s" (Text.unpack $ AST.printModuleName moduleName) (Text.unpack name)

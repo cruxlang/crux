@@ -108,7 +108,7 @@ resolveTypeReference pos env ref@(UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
         Just (TypeBinding _ t) -> return t
         Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
-        Nothing -> resumableTypeError $ UnboundSymbol pos ref
+        Nothing -> resumableTypeError pos $ UnboundSymbol ref
 resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do
         resolveTypeReference pos env (UnqualifiedReference name)
@@ -158,8 +158,8 @@ checkExpecting expectedType env expr = do
     return e
 
 -- We could have this return a poison type.
-resumableTypeError :: TypeError Pos -> TC a
-resumableTypeError te = failError $ TypeError te
+resumableTypeError :: Pos -> TypeError -> TC a
+resumableTypeError pos = failError . TypeError pos
 
 check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
 check' expectedType env = \case
@@ -260,7 +260,7 @@ check' expectedType env = \case
                             Just (resolvedRef, _mutability, typeVar) -> do
                                 return $ EIdentifier typeVar resolvedRef
                             Nothing -> do
-                                resumableTypeError $ ModuleReferenceError pos' mn propName
+                                resumableTypeError pos' $ ModuleReferenceError mn propName
                     _ -> valueLookup
             _ -> valueLookup
 
@@ -301,7 +301,7 @@ check' expectedType env = \case
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
-            resumableTypeError $ NotAnLVar pos $ show lhs
+            resumableTypeError pos $ NotAnLVar $ show lhs
 
         let unitType = TPrimitive Unit
 
@@ -337,9 +337,9 @@ check' expectedType env = \case
 
     -- TODO: put all the intrinsics in one list so we can do a simple membership test here and not duplicate in the EApp handler
     EIdentifier pos (UnqualifiedReference "_unsafe_js") ->
-        resumableTypeError $ IntrinsicError pos "Intrinsic _unsafe_js is not a value"
+        resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_js is not a value"
     EIdentifier pos (UnqualifiedReference "_unsafe_coerce") ->
-        resumableTypeError $ IntrinsicError pos "Intrinsic _unsafe_coerce is not a value"
+        resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
         (rr, tyref) <- do
             resolveValueReference env txt >>= \case
@@ -350,7 +350,7 @@ check' expectedType env = \case
                     b' <- instantiate env b
                     return (a, b')
                 Nothing ->
-                    resumableTypeError $ UnboundSymbol pos txt
+                    resumableTypeError pos $ UnboundSymbol txt
 
         return $ EIdentifier tyref rr
     ESemi _ lhs rhs -> do
@@ -369,7 +369,7 @@ check' expectedType env = \case
                 return "prelude"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
-                resumableTypeError $ TdnrLhsTypeUnknown pos ts
+                resumableTypeError pos $ TdnrLhsTypeUnknown ts
 
         check env $ EApp
             pos

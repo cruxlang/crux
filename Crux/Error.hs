@@ -47,9 +47,6 @@ instance Show a => Show (TypeError a) where
     show (ExportError a s) = "ExportError " ++ show a ++ " " ++ s
     show (ModuleReferenceError a mn n) = "ModuleReferenceError " ++ show a ++ " " ++ show mn ++ " " ++ show n
 
--- TODO: kill this
-instance (Show a, Typeable a) => Exception (TypeError a)
-
 data Error
     = LexError P.ParseError
     | ParseError P.ParseError

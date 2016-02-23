@@ -5,7 +5,6 @@ module Crux.Typecheck
     ( run
     ) where
 
-import Control.Exception (try)
 import Crux.AST
 import qualified Crux.MutableHashTable as HashTable
 import Crux.Prelude
@@ -131,14 +130,6 @@ resolveValueReference env ref = case ref of
                 return $ Just (rr, mutability, typevar)
             Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
 
-withPositionInformation :: forall a. Expression UnresolvedReference Pos -> TC a -> TC a
-withPositionInformation expr a = do
-    (liftIO $ try $ bridgeTC a) >>= \case
-        Left te -> do
-            failError $ TypeError $ fmap (\() -> edata expr) te
-        Right (Left err) -> failError err
-        Right (Right success) -> return success
-
 resolveArrayType :: Pos -> Env -> TC (TypeVar, TypeVar)
 resolveArrayType pos env = do
     elementType <- freshType env
@@ -171,7 +162,7 @@ resumableTypeError :: TypeError Pos -> TC a
 resumableTypeError te = failError $ TypeError te
 
 check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
-check' expectedType env expr = withPositionInformation expr $ case expr of
+check' expectedType env = \case
     EFun pos params retAnn body -> do
         valueBindings' <- HashTable.clone (eValueBindings env)
 
@@ -324,7 +315,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         return $ ELiteral litType lit
 
     EArrayLiteral pos elements -> do
-        (arrayType, elementType) <- resolveArrayType (edata expr) env
+        (arrayType, elementType) <- resolveArrayType pos env
         elements' <- for elements $ \element -> do
             elementExpr <- check env element
             unify pos elementType (edata elementExpr)
@@ -397,7 +388,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
            | isRelationalOp bi -> do
                 unify pos (edata lhs') (edata rhs')
-                booleanType <- resolveBooleanType (edata expr) env
+                booleanType <- resolveBooleanType pos env
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | isBooleanOp bi -> do
                 booleanType <- resolveBooleanType (edata lhs) env
@@ -408,7 +399,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
                 error "This should be impossible: Check EBinIntrinsic"
 
     EIfThenElse pos condition ifTrue ifFalse -> do
-        booleanType <- resolveBooleanType (edata expr) env
+        booleanType <- resolveBooleanType pos env
 
         condition' <- check env condition
         unify pos booleanType (edata condition')
@@ -420,7 +411,7 @@ check' expectedType env expr = withPositionInformation expr $ case expr of
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
     EWhile pos cond body -> do
-        booleanType <- resolveBooleanType (edata expr) env
+        booleanType <- resolveBooleanType pos env
         let unitType = TPrimitive Unit
 
         condition' <- check env cond
@@ -476,33 +467,30 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         HashTable.insert name (ValueReference (Ambient name) LImmutable ty) (eValueBindings env)
         return $ DDeclare ty name typeIdent
     DLet pos' mut pat maybeAnnot expr -> do
-        let fakeExpr = ELet pos' mut pat maybeAnnot expr
-        withPositionInformation fakeExpr $ do
-            env' <- childEnv env
-            ty <- freshType env'
-            for_ maybeAnnot $ \annotation -> do
-                annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
-                unify pos' ty annotTy
+        env' <- childEnv env
+        ty <- freshType env'
+        for_ maybeAnnot $ \annotation -> do
+            annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
+            unify pos' ty annotTy
 
-            expr' <- check env' expr
-            unify pos' ty (edata expr')
+        expr' <- check env' expr
+        unify pos' ty (edata expr')
 
-            case pat of
-                PWildcard -> do
-                    return ()
-                PBinding name -> do
-                    HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
-            quantify ty
-            return $ DLet (edata expr') mut pat maybeAnnot expr'
+        case pat of
+            PWildcard -> do
+                return ()
+            PBinding name -> do
+                HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
+        quantify ty
+        return $ DLet (edata expr') mut pat maybeAnnot expr'
     DFun pos' name args returnAnn body -> do
         let expr = EFun pos' args returnAnn body
-        withPositionInformation expr $ do
-            ty <- freshType env
-            HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
-            expr'@(EFun _ _ _ body') <- check env expr
-            unify pos' (edata expr') ty
-            quantify ty
-            return $ DFun (edata expr') name args returnAnn body'
+        ty <- freshType env
+        HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
+        expr'@(EFun _ _ _ body') <- check env expr
+        unify pos' (edata expr') ty
+        quantify ty
+        return $ DFun (edata expr') name args returnAnn body'
 
     {- TYPE DEFINITIONS -}
 

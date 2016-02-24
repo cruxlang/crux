@@ -10,6 +10,8 @@ import qualified Data.Text as Text
 import Crux.Module
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JSBackend
+import qualified Crux.Error as Error
+import qualified System.Exit as Exit
 
 data TargetConfig = TargetConfig
     { tcSourceDir :: String
@@ -40,7 +42,9 @@ buildTarget targetName TargetConfig{..} = do
     let targetPath = combine "build" $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-        Left _ -> fail "project build failed. TODO: this error message"
+        Left (_, err) -> do
+            message <- Error.renderError err
+            Exit.die $ "project build failed\n" ++ message
         Right program -> do
             program' <- Gen.generateProgram program
             TextIO.writeFile targetPath $ JSBackend.generateJS program'

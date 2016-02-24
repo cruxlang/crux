@@ -1,0 +1,12 @@
+project:
+  name: crux
+  description: Crux Programming Language
+  license: MIT
+  author:
+    - Chad Austin
+    - Andy Friesen
+
+targets:
+  crux-test:
+    src-dir: tests/crux
+    main-module: main

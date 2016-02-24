@@ -1,0 +1,10 @@
+let tests = []
+
+export fun test(name: string, fn) {
+  tests->append({
+    name: name,
+    fn: fn,
+  })
+  tests->append(1)
+  print(tests)
+}

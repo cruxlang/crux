@@ -1,5 +1,6 @@
 /.cabal-sandbox/
 /cabal.sandbox.config
+/build/
 /dist/
 /.HTF/
 *~

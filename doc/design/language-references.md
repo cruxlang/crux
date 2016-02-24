@@ -41,3 +41,7 @@ An unordered set of interesting language design resources.
 ## Software Engineering
 
 * http://research.microsoft.com/en-us/news/features/nagappan-100609.aspx
+
+## Mutability
+
+* [Relaxing the Value Restriction](http://caml.inria.fr/pub/papers/garrigue-value_restriction-fiwflp04.pdf)

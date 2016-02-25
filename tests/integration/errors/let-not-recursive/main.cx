@@ -1,0 +1,3 @@
+let foo = fun (x) {
+    foo(x)
+}

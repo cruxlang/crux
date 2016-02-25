@@ -25,6 +25,8 @@ import           System.IO.Temp       (withSystemTempFile)
 import           System.Process       (readProcessWithExitCode)
 import           Test.Framework
 import           Text.RawString.QQ    (r)
+import System.Directory (doesFileExist)
+import qualified Data.Yaml as Yaml
 import qualified System.Directory.PathWalk as PathWalk
 import qualified System.FilePath as FilePath
 import Crux.Module.Types as AST
@@ -88,19 +90,55 @@ failWithError root moduleName err = do
     err' <- Error.renderError err
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 
+data ErrorConfig = ErrorConfig
+    { typeErrorName :: Text
+    }
+
+instance Yaml.FromJSON ErrorConfig where
+    parseJSON (Yaml.Object o) = do
+        ErrorConfig <$> o Yaml..: "type-error-name"
+    parseJSON _ = fail "error config must be an object"
+
+assertErrorMatches :: ErrorConfig -> Error.Error -> IO ()
+assertErrorMatches errorConfig err = do
+    case err of
+        Error.TypeError _pos te -> do
+            let teName = Error.getTypeErrorName te
+            assertEqual (typeErrorName errorConfig) teName
+        _ -> do
+            assertFailure "Incorrect error type"
+
 runIntegrationTest :: FilePath -> IO ()
 runIntegrationTest root = do
     let mainPath = FilePath.combine root "main.cx"
     let stdoutPath = FilePath.combine root "stdout.txt"
-    expected <- fmap T.pack $ readFile stdoutPath
+    let errorPath = FilePath.combine root "error.yaml"
 
     putStrLn $ "testing program " ++ mainPath
-    Crux.Module.loadProgramFromFile mainPath >>= \case
-        Left (moduleName, err) -> do
-            failWithError root moduleName err
-        Right program -> do
-            stdoutBody <- runProgram' program
-            assertEqual expected stdoutBody
+
+    stdoutExists <- doesFileExist stdoutPath
+    errorExists <- doesFileExist errorPath
+
+    if stdoutExists then do
+        expected <- fmap T.pack $ readFile stdoutPath
+
+        Crux.Module.loadProgramFromFile mainPath >>= \case
+            Left (moduleName, err) -> do
+                failWithError root moduleName err
+            Right program -> do
+                stdoutBody <- runProgram' program
+                assertEqual expected stdoutBody
+    else if errorExists then do
+        errorConfig <- Yaml.decodeFileEither errorPath >>= \case
+            Left err -> assertFailure $ show err
+            Right config -> return config
+        Crux.Module.loadProgramFromFile mainPath >>= \case
+            Left (_moduleName, err) -> do
+                assertErrorMatches errorConfig err
+            Right _ -> do
+                assertFailure $ "Program should have produced a compile error"
+    else do
+        assertFailure $ "Program needs either a stdout.txt or error.yaml"
 
 test_integration_tests = do
     let integrationRoot = "tests/integration"
@@ -110,32 +148,6 @@ test_integration_tests = do
     PathWalk.pathWalk integrationRoot $ \d _dirnames filenames -> do
         when ("main.cx" `elem` filenames) $ do
             runIntegrationTest d
-
-test_let_is_not_recursive_by_default = do
-    result <- run $ T.unlines [ "let foo = fun (x) { foo(x) }" ]
-    assertEqual result $ Left $ Error.TypeError (Pos 1 1 21) $ UnboundSymbol "foo"
-
-test_occurs_on_fun = do
-    result <- run $ T.unlines
-        [ "fun bad() { bad }"
-        ]
-
-    assertEqual (Left $ Error.TypeError (Pos 1 1 1) $ OccursCheckFailed) result
-
-test_occurs_on_sum = do
-    result <- run $ T.unlines
-        [ "data List a { Cons(a, List a), Nil }"
-        , "fun bad(a) { Cons(a, a) }"
-        ]
-
-    assertEqual (Left $ Error.TypeError (Pos 1 2 22) $ OccursCheckFailed) result
-
-test_occurs_on_record = do
-    result <- run $ T.unlines
-        [ "fun bad(p) { { field: bad(p) } }"
-        ]
-
-    assertEqual (Left $ Error.TypeError (Pos 1 1 1) $ OccursCheckFailed) result
 
 test_incorrect_unsafe_js = do
     result <- run $ T.unlines

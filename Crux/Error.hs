@@ -4,6 +4,7 @@ module Crux.Error
     ( InternalCompilerError(..)
     , TypeError(..)
     , Error(..)
+    , getTypeErrorName
     , renderError
     ) where
 
@@ -69,6 +70,18 @@ renderError (TypeError pos ue) = do
 
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
+
+getTypeErrorName :: TypeError -> Text
+getTypeErrorName = \case
+    UnificationError{} -> "unification"
+    RecordMutabilityUnificationError{} -> "record-mutability-unification"
+    UnboundSymbol{} -> "unbound-symbol"
+    OccursCheckFailed{} -> "occurs-check"
+    IntrinsicError{} -> "intrinsic"
+    NotAnLVar{} -> "not-an-lvar"
+    TdnrLhsTypeUnknown{} -> "tdnr-lhs-type-unknown"
+    ExportError{} -> "export"
+    ModuleReferenceError{} -> "module-reference"
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do

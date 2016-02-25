@@ -109,4 +109,5 @@ test-suite integration
                  , temporary
                  , unordered-containers
                  , raw-strings-qq
+                 , yaml
     default-language: Haskell2010

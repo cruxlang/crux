@@ -5,7 +5,14 @@
 
 module IntegrationTest where
 
-import Control.Monad (when)
+import Control.Concurrent (getNumCapabilities)
+import Control.Concurrent.MVar
+import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM.TMQueue
+import Control.Monad (when, replicateM)
+import Control.Exception (SomeException, try, throwIO)
+import Control.Concurrent.Async (async, wait)
+import Data.Foldable (for_)
 import Data.Monoid ((<>))
 import qualified Crux.AST             as AST
 import qualified Crux.JSBackend      as JS
@@ -108,46 +115,86 @@ assertErrorMatches errorConfig err = do
         _ -> do
             assertFailure "Incorrect error type"
 
-runIntegrationTest :: FilePath -> IO ()
+runIntegrationTest :: FilePath -> IO (IO ())
 runIntegrationTest root = do
     let mainPath = FilePath.combine root "main.cx"
     let stdoutPath = FilePath.combine root "stdout.txt"
     let errorPath = FilePath.combine root "error.yaml"
 
-    putStrLn $ "testing program " ++ mainPath
+    let intro = "testing program " ++ mainPath
 
     stdoutExists <- doesFileExist stdoutPath
     errorExists <- doesFileExist errorPath
 
-    if stdoutExists then do
+    program' <- Crux.Module.loadProgramFromFile mainPath
+
+    (putStrLn intro >>) <$> if stdoutExists then do
         expected <- fmap T.pack $ readFile stdoutPath
 
-        Crux.Module.loadProgramFromFile mainPath >>= \case
+        case program' of
             Left (moduleName, err) -> do
-                failWithError root moduleName err
+                return $ do
+                    failWithError root moduleName err
             Right program -> do
                 stdoutBody <- runProgram' program
-                assertEqual expected stdoutBody
+                return $ do
+                    assertEqual expected stdoutBody
     else if errorExists then do
-        errorConfig <- Yaml.decodeFileEither errorPath >>= \case
-            Left err -> assertFailure $ show err
-            Right config -> return config
-        Crux.Module.loadProgramFromFile mainPath >>= \case
-            Left (_moduleName, err) -> do
-                assertErrorMatches errorConfig err
-            Right _ -> do
-                assertFailure $ "Program should have produced a compile error"
+        errorConfig' <- Yaml.decodeFileEither errorPath
+        case (errorConfig', program') of
+            (Left err, _) -> return $ assertFailure $ show err
+            (_, Right _) -> return $ assertFailure "Program should have produced a compile error"
+            (Right errorConfig, Left (_moduleName, err)) -> return $ assertErrorMatches errorConfig err
     else do
-        assertFailure $ "Program needs either a stdout.txt or error.yaml"
+        return $ do
+            assertFailure "Program needs either a stdout.txt or error.yaml"
 
 test_integration_tests = do
     let integrationRoot = "tests/integration"
     exists <- doesDirectoryExist integrationRoot
     when (not exists) $ do
         fail $ "Integration test directory " ++ integrationRoot ++ " does not exist!"
-    PathWalk.pathWalk integrationRoot $ \d _dirnames filenames -> do
-        when ("main.cx" `elem` filenames) $ do
-            runIntegrationTest d
+
+    -- assume each test is cpu-bound
+    capCount <- getNumCapabilities
+
+    putStrLn $ "Running tests with " ++ show capCount ++ " threads"
+
+    testQueue <- newTMQueueIO
+    resultQueue <- newTMQueueIO
+
+    testProducer <- async $ do
+        PathWalk.pathWalk integrationRoot $ \d _dirnames filenames -> do
+            when ("main.cx" `elem` filenames) $ do
+                result <- newEmptyMVar
+                putStrLn $ "queuing " ++ show d
+                atomically $ do
+                    writeTMQueue testQueue $ do
+                        try (runIntegrationTest d) >>= putMVar result
+                    writeTMQueue resultQueue $ result
+        atomically $ do
+            closeTMQueue testQueue
+            closeTMQueue resultQueue
+
+    let runTests = do
+            atomically (readTMQueue testQueue) >>= \case
+                Just t -> t >> runTests
+                Nothing -> return ()
+    runners <- replicateM capCount $ async $ runTests
+
+    let consumeResults = do
+            atomically (readTMQueue resultQueue) >>= \case
+                Just mvar -> do
+                    readMVar mvar >>= \case
+                        Left exc -> throwIO (exc :: SomeException)
+                        Right action -> action
+                    consumeResults
+                Nothing -> do
+                    return ()
+    consumeResults
+
+    wait testProducer
+    for_ runners wait
 
 test_incorrect_unsafe_js = do
     result <- run $ T.unlines

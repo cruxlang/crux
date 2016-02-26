@@ -27,8 +27,6 @@ import           Data.Text            (Text)
 import qualified Data.Text            as T
 import qualified Data.Text.IO         as T
 import           System.Exit          (ExitCode (..))
-import           System.IO            (hFlush)
-import           System.IO.Temp       (withSystemTempFile)
 import           System.Process       (readProcessWithExitCode)
 import           Test.Framework
 import           Text.RawString.QQ    (r)
@@ -43,17 +41,14 @@ runProgram' :: AST.Program -> IO Text
 runProgram' p = do
     m' <- Gen.generateProgram p
     let js = JS.generateJS m'
-    withSystemTempFile "Crux.js" $ \path' handle -> do
-        T.hPutStr handle js
-        hFlush handle
-        fmap T.pack $ do
-            readProcessWithExitCode "node" [path'] "" >>= \case
-                (ExitSuccess, stdoutBody, _) -> return stdoutBody
-                (ExitFailure code, _, stderr) -> do
-                    putStrLn $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
-                    putStrLn "Code:"
-                    T.putStrLn js
-                    fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
+    fmap T.pack $ do
+        readProcessWithExitCode "node" [] (T.unpack js) >>= \case
+            (ExitSuccess, stdoutBody, _) -> return stdoutBody
+            (ExitFailure code, _, stderr) -> do
+                putStrLn $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
+                putStrLn "Code:"
+                T.putStrLn js
+                fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
 
 run :: Text -> IO (Either Error.Error Text)
 run src = do

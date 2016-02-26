@@ -167,7 +167,6 @@ test_integration_tests = do
         PathWalk.pathWalk integrationRoot $ \d _dirnames filenames -> do
             when ("main.cx" `elem` filenames) $ do
                 result <- newEmptyMVar
-                putStrLn $ "queuing " ++ show d
                 atomically $ do
                     writeTMQueue testQueue $ do
                         try (runIntegrationTest d) >>= putMVar result
@@ -195,12 +194,6 @@ test_integration_tests = do
 
     wait testProducer
     for_ runners wait
-
-test_incorrect_unsafe_js = do
-    result <- run $ T.unlines
-        [ "let bad = _unsafe_js"
-        ]
-    assertEqual (Left $ Error.TypeError (Pos 1 1 11) $ IntrinsicError "Intrinsic _unsafe_js is not a value") result
 
 test_annotation_is_checked = do
     result <- run $ T.unlines

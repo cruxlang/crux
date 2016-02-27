@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Crux.Module where
 
@@ -27,6 +27,40 @@ import Data.Yaml
 import qualified Data.HashSet as HashSet
 
 type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
+
+newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
+newChainedModuleLoader [] moduleName = return $ Left $ Error.ModuleNotFound moduleName
+newChainedModuleLoader (loader:rest) moduleName = do
+    loader moduleName >>= \case
+        Left (Error.ModuleNotFound _) -> newChainedModuleLoader rest moduleName
+        Left e -> return $ Left e
+        Right m -> return $ Right m
+
+moduleNameToPath :: AST.ModuleName -> FilePath
+moduleNameToPath (AST.ModuleName prefix m) =
+    let toPathSegment (AST.ModuleSegment t) = Text.unpack t in
+    FP.combine
+        (FP.joinPath $ map toPathSegment prefix)
+        (toPathSegment m <> ".cx")
+
+newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
+newFSModuleLoader config root mainModulePath moduleName = do
+    e1 <- doesFileExist $ (baseLibraryPath config) FP.</> moduleNameToPath moduleName
+    let path = if e1 then baseLibraryPath config else root
+    if moduleName == "main" then do
+        parseModuleFromFile moduleName mainModulePath
+    else do
+        parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
+
+newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
+newMemoryLoader sources moduleName = do
+    case HashMap.lookup moduleName sources of
+        Just source -> parseModuleFromSource
+            moduleName
+            ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
+            source
+        Nothing ->
+            return $ Left $ Error.UnknownModule moduleName
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
@@ -84,7 +118,7 @@ loadBuiltin :: IO (Either Error.Error AST.LoadedModule)
 loadBuiltin = loadBuiltinSource >>= loadBuiltinFromSource
 
 loadBuiltinFromSource :: Text -> IO (Either Error.Error AST.LoadedModule)
-loadBuiltinFromSource = loadModuleFromSource' id [] "builtin" "builtin"
+loadBuiltinFromSource = loadModuleFromSource' id mempty "builtin" "builtin"
 
 parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource moduleName filename source = do
@@ -117,7 +151,7 @@ loadModuleFromSource' adjust loadedModules moduleName filename source = runEithe
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
     builtin <- EitherT $ loadBuiltin
-    let lm = [("builtin", builtin)]
+    let lm = HashMap.fromList [("builtin", builtin)]
     EitherT $ loadModuleFromSource' addBuiltin lm moduleName filename source
 
 getModuleName :: AST.Import -> AST.ModuleName
@@ -173,8 +207,8 @@ loadModule loader loadedModules loadingModules moduleName = runEitherT $ do
 
 loadProgram :: ModuleLoader -> AST.ModuleName -> IO (ProgramLoadResult AST.Program)
 loadProgram loader main = runEitherT $ do
-    loadingModules <- newIORef []
-    loadedModules <- newIORef []
+    loadingModules <- newIORef mempty
+    loadedModules <- newIORef mempty
 
     mainModule <- EitherT $ loadModule loader loadedModules loadingModules main
 
@@ -183,32 +217,6 @@ loadProgram loader main = runEitherT $ do
         { AST.pMainModule = mainModule
         , AST.pOtherModules = otherModules
         }
-
-moduleNameToPath :: AST.ModuleName -> FilePath
-moduleNameToPath (AST.ModuleName prefix m) =
-    let toPathSegment (AST.ModuleSegment t) = Text.unpack t in
-    FP.combine
-        (FP.joinPath $ map toPathSegment prefix)
-        (toPathSegment m <> ".cx")
-
-newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
-newFSModuleLoader config root mainModulePath moduleName = do
-    e1 <- doesFileExist $ (baseLibraryPath config) FP.</> moduleNameToPath moduleName
-    let path = if e1 then baseLibraryPath config else root
-    if moduleName == "main" then do
-        parseModuleFromFile moduleName mainModulePath
-    else do
-        parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
-
-newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
-newMemoryLoader sources moduleName = do
-    case HashMap.lookup moduleName sources of
-        Just source -> parseModuleFromSource
-            moduleName
-            ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
-            source
-        Nothing ->
-            return $ Left $ Error.UnknownModule moduleName
 
 loadProgramFromDirectoryAndModule :: FilePath -> Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromDirectoryAndModule sourceDir mainModule = do

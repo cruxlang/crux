@@ -37,26 +37,26 @@ import qualified System.FilePath as FilePath
 import Crux.Module.Types as AST
 import System.Directory (doesDirectoryExist)
 
-runProgram' :: AST.Program -> IO Text
+runProgram' :: AST.Program -> IO String
 runProgram' p = do
     m' <- Gen.generateProgram p
     let js = JS.generateJS m'
-    fmap T.pack $ do
-        readProcessWithExitCode "node" [] (T.unpack js) >>= \case
-            (ExitSuccess, stdoutBody, _) -> return stdoutBody
-            (ExitFailure code, _, stderr) -> do
-                putStrLn $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
-                putStrLn "Code:"
-                T.putStrLn js
-                fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
+    readProcessWithExitCode "node" [] (T.unpack js) >>= \case
+        (ExitSuccess, stdoutBody, _) -> do
+            return stdoutBody
+        (ExitFailure code, _, stderr) -> do
+            putStrLn $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
+            putStrLn "Code:"
+            T.putStrLn js
+            fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
 
-run :: Text -> IO (Either Error.Error Text)
+run :: Text -> IO (Either Error.Error String)
 run src = do
     Crux.Module.loadProgramFromSource src >>= \case
         Left (_, e) -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
-runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either Error.Error Text)
+runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either Error.Error String)
 runMultiModule sources = do
     Crux.Module.loadProgramFromSources sources >>= \case
         Left (_, e) -> return $ Left e
@@ -121,17 +121,21 @@ runIntegrationTest root = do
     stdoutExists <- doesFileExist stdoutPath
     errorExists <- doesFileExist errorPath
 
+    --traceMarkerIO "loading program"
     program' <- Crux.Module.loadProgramFromFile mainPath
+    --traceMarkerIO "loaded program"
 
     (putStrLn intro >>) <$> if stdoutExists then do
-        expected <- fmap T.pack $ readFile stdoutPath
+        expected <- readFile stdoutPath
 
         case program' of
             Left (moduleName, err) -> do
                 return $ do
                     failWithError root moduleName err
             Right program -> do
+                --traceMarkerIO "running program"
                 stdoutBody <- runProgram' program
+                --traceMarkerIO "ran program"
                 return $ do
                     assertEqual expected stdoutBody
     else if errorExists then do

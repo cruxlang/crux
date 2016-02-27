@@ -98,6 +98,7 @@ test-suite integration
     main-is: IntegrationTestMain.hs
     hs-source-dirs: tests
     ghc-options: -Wall -Werror -O2 -fno-warn-missing-signatures -threaded -with-rtsopts=-N
+    -- -eventlog "-with-rtsopts=-N -H32m"
     build-depends: base
                  , HTF
                  , text

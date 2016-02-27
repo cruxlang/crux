@@ -15,7 +15,6 @@ import qualified Crux.Typecheck        as Typecheck
 import Crux.Typecheck.Monad
 import qualified Data.Aeson            as JSON
 import qualified Data.ByteString       as BS
-import qualified Data.ByteString.Lazy  as BSL
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import qualified Data.Text.Encoding    as TE
@@ -24,6 +23,7 @@ import           System.Directory      (doesFileExist, getCurrentDirectory)
 import           System.Environment    (getExecutablePath)
 import qualified System.FilePath       as FP
 import Crux.Module.Types as AST
+import Data.Yaml
 
 type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
@@ -37,7 +37,7 @@ findCompilerConfig = do
 
   where
     loop c = do
-        let configPath = FP.combine c "cxconfig.json"
+        let configPath = FP.combine c "cxconfig.yaml"
         exists <- doesFileExist configPath
         if | exists ->
                 return $ Just configPath
@@ -47,44 +47,43 @@ findCompilerConfig = do
                 loop $ FP.takeDirectory c
 
 data CompilerConfig = CompilerConfig
-    { preludePath :: FilePath
+    { baseLibraryPath :: FilePath
     }
 
 instance JSON.FromJSON CompilerConfig where
-    parseJSON (JSON.Object o) = CompilerConfig <$> o JSON..: "preludePath"
+    parseJSON (JSON.Object o) = CompilerConfig <$> o JSON..: "baseLibraryPath"
     parseJSON _ = fail "must be object"
 
 loadCompilerConfig :: IO CompilerConfig
 loadCompilerConfig = do
     configPath <- findCompilerConfig >>= \case
-        Nothing -> fail "Failed to find compiler's cxconfig.json"
+        Nothing -> fail "Failed to find compiler's cxconfig.yaml"
         Just c -> return c
 
-    configContents <- BSL.readFile configPath
-    config <- case JSON.decode configContents of
-        Nothing -> fail "Failed to parse cxconfig.json"
-        Just c -> return c
+    config <- decodeFileEither configPath >>= \case
+        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ prettyPrintParseException err
+        Right c -> return c
 
-    return config { preludePath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ preludePath config) }
+    return config { baseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ baseLibraryPath config) }
 
-loadPreludeSource :: IO Text
-loadPreludeSource = do
+loadBuiltinSource :: IO Text
+loadBuiltinSource = do
     config <- loadCompilerConfig
-    TextIO.readFile $ preludePath config FP.</> "prelude.cx"
+    TextIO.readFile $ baseLibraryPath config FP.</> "builtin.cx"
 
 defaultModuleLoader :: ModuleLoader
 defaultModuleLoader name = do
-    if name == "prelude" then do
-        preludeSource <- loadPreludeSource
-        parseModuleFromSource "prelude" "<Prelude>" preludeSource
+    if name == "builtin" then do
+        builtinSource <- loadBuiltinSource
+        parseModuleFromSource "builtin" "<Builtin>" builtinSource
     else
         return $ Left $ Error.UnknownModule name
 
-loadPrelude :: IO (Either Error.Error AST.LoadedModule)
-loadPrelude = loadPreludeSource >>= loadPreludeFromSource
+loadBuiltin :: IO (Either Error.Error AST.LoadedModule)
+loadBuiltin = loadBuiltinSource >>= loadBuiltinFromSource
 
-loadPreludeFromSource :: Text -> IO (Either Error.Error AST.LoadedModule)
-loadPreludeFromSource = loadModuleFromSource' id [] "prelude" "prelude"
+loadBuiltinFromSource :: Text -> IO (Either Error.Error AST.LoadedModule)
+loadBuiltinFromSource = loadModuleFromSource' id [] "builtin" "builtin"
 
 parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource moduleName filename source = do
@@ -116,9 +115,9 @@ loadModuleFromSource' adjust loadedModules moduleName filename source = runEithe
 
 loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
 loadModuleFromSource moduleName filename source = runEitherT $ do
-    prelude <- EitherT $ loadPrelude
-    let lm = [("prelude", prelude)]
-    EitherT $ loadModuleFromSource' addPrelude lm moduleName filename source
+    builtin <- EitherT $ loadBuiltin
+    let lm = [("builtin", builtin)]
+    EitherT $ loadModuleFromSource' addBuiltin lm moduleName filename source
 
 getModuleName :: AST.Import -> AST.ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn
@@ -127,8 +126,8 @@ getModuleName (AST.QualifiedImport mn _) = mn
 importsOf :: AST.Module a b -> [(Tokens.Pos, AST.ModuleName)]
 importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 
-addPrelude :: AST.Module a b -> AST.Module a b
-addPrelude m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "prelude") : AST.mImports m }
+addBuiltin :: AST.Module a b -> AST.Module a b
+addBuiltin m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "builtin") : AST.mImports m }
 
 type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
 
@@ -138,7 +137,7 @@ loadModule ::
     -> AST.ModuleName
     -> Bool
     -> IO (ProgramLoadResult AST.LoadedModule)
-loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
+loadModule loader loadedModules moduleName shouldAddBuiltin = runEitherT $ do
     lift (HashTable.lookup moduleName loadedModules) >>= \case
         Just m ->
             return m
@@ -147,11 +146,11 @@ loadModule loader loadedModules moduleName shouldAddPrelude = runEitherT $ do
             parsedModule <- case parsedModuleResult of
                 Left err -> left (moduleName, err)
                 Right m
-                    | shouldAddPrelude -> return $ addPrelude m
+                    | shouldAddBuiltin -> return $ addBuiltin m
                     | otherwise -> return m
 
             for_ (importsOf parsedModule) $ \(_, referencedModule) -> do
-                EitherT $ loadModule loader loadedModules referencedModule shouldAddPrelude
+                EitherT $ loadModule loader loadedModules referencedModule shouldAddBuiltin
 
             lm <- lift $ readIORef loadedModules
             (lift $ bridgeTC $ Typecheck.run lm parsedModule moduleName) >>= \case
@@ -165,7 +164,7 @@ loadProgram :: ModuleLoader -> AST.ModuleName -> IO (ProgramLoadResult AST.Progr
 loadProgram loader main = runEitherT $ do
     loadedModules <- lift $ newIORef []
 
-    _ <- EitherT $ loadModule loader loadedModules "prelude" False
+    _ <- EitherT $ loadModule loader loadedModules "builtin" False
     mainModule <- EitherT $ loadModule loader loadedModules main True
 
     otherModules <- lift $ readIORef loadedModules
@@ -183,8 +182,8 @@ moduleNameToPath (AST.ModuleName prefix m) =
 
 newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newFSModuleLoader config root mainModulePath moduleName = do
-    e1 <- doesFileExist $ (preludePath config) FP.</> moduleNameToPath moduleName
-    let path = if e1 then preludePath config else root
+    e1 <- doesFileExist $ (baseLibraryPath config) FP.</> moduleNameToPath moduleName
+    let path = if e1 then baseLibraryPath config else root
     if moduleName == "main" then do
         parseModuleFromFile moduleName mainModulePath
     else do
@@ -217,15 +216,15 @@ loadProgramFromFile path = do
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
-    preludeSource <- loadPreludeSource
+    builtinSource <- loadBuiltinSource
     let loader = newMemoryLoader $ HashMap.fromList
-            [ ("prelude", preludeSource)
+            [ ("builtin", builtinSource)
             , ("main", mainModuleSource)
             ]
     loadProgram loader "main"
 
 loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
-    prelude <- loadPreludeSource
-    let loader = newMemoryLoader (HashMap.insert "prelude" prelude sources)
+    builtin <- loadBuiltinSource
+    let loader = newMemoryLoader (HashMap.insert "builtin" builtin sources)
     loadProgram loader "main"

@@ -1,2 +1,2 @@
-import { prelude }
-let _ = prelude.True
+import { builtin }
+let _ = builtin.True

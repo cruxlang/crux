@@ -142,7 +142,7 @@ resolveArrayType pos env = do
 
 resolveBooleanType :: Pos -> Env -> TC TypeVar
 resolveBooleanType pos env = do
-    resolveTypeReference pos env (KnownReference "prelude" "Boolean")
+    resolveTypeReference pos env (KnownReference "builtin" "Boolean")
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
@@ -366,7 +366,7 @@ check' expectedType env = \case
             TUserType TUserTypeDef{..} _ -> do
                 return tuModuleName
             TPrimitive _ -> do
-                return "prelude"
+                return "builtin"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
                 resumableTypeError pos $ TdnrLhsTypeUnknown ts

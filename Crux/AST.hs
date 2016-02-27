@@ -116,8 +116,13 @@ data Import
     | QualifiedImport ModuleName Name
     deriving (Show, Eq)
 
+data Pragma
+    = PNoBuiltin
+    deriving (Show, Eq)
+
 data Module idtype edata = Module
-    { mImports :: [(Pos, Import)]
+    { mPragmas :: [Pragma]
+    , mImports :: [(Pos, Import)]
     , mDecls   :: [Declaration idtype edata]
     }
     deriving (Show, Eq)

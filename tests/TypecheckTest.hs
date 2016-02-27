@@ -15,13 +15,15 @@ import Crux.Prelude
 test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
     let aModuleName = ModuleName [] (ModuleSegment "A")
     let aModule = Module
-            { mImports = []
+            { mPragmas = []
+            , mImports = []
             , mDecls =
                 [ Declaration Export undefined (DData undefined "DT" aModuleName [] [])
                 ]
             }
     let thisModule = Module
-            { mImports = [(Pos 0 0 0, QualifiedImport aModuleName "A")]
+            { mPragmas = []
+            , mImports = [(Pos 0 0 0, QualifiedImport aModuleName "A")]
             , mDecls = []
             }
     let loadedModules = HashMap.fromList

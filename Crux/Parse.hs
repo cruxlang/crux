@@ -637,6 +637,17 @@ importDecl = do
         Just _ -> do
             return (pos, UnqualifiedImport moduleName)
 
+pragma :: Parser Pragma
+pragma = do
+    _ <- identifier "NoBuiltin"
+    return PNoBuiltin
+
+pragmas :: Parser [Pragma]
+pragmas = do
+    pragmaToken <- token TPragma
+    withIndentation (IRDeeper pragmaToken) $ do
+        braced $ commaDelimited pragma
+
 imports :: Parser [(Pos, Import)]
 imports = do
     importToken <- token TImport
@@ -645,11 +656,13 @@ imports = do
 
 parseModule :: Parser ParsedModule
 parseModule = do
+    prags <- P.option [] pragmas
     imp <- P.option [] imports
     doc <- P.many $ declaration
     P.eof
     return Module
-        { mImports = imp
+        { mPragmas = prags
+        , mImports = imp
         , mDecls = doc
         }
 

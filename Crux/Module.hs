@@ -132,14 +132,16 @@ addBuiltin m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "buil
 
 type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
 
+hasNoBuiltinPragma :: AST.ParsedModule -> Bool
+hasNoBuiltinPragma AST.Module{..} = AST.PNoBuiltin `elem` mPragmas
+
 loadModule ::
        ModuleLoader
     -> IORef (HashMap AST.ModuleName AST.LoadedModule)
     -> IORef (HashSet AST.ModuleName)
     -> AST.ModuleName
-    -> Bool
     -> IO (ProgramLoadResult AST.LoadedModule)
-loadModule loader loadedModules loadingModules moduleName shouldAddBuiltin = runEitherT $ do
+loadModule loader loadedModules loadingModules moduleName = runEitherT $ do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
@@ -152,12 +154,14 @@ loadModule loader loadedModules loadingModules moduleName shouldAddBuiltin = run
             parsedModuleResult <- lift $ loader moduleName
             parsedModule <- case parsedModuleResult of
                 Left err -> left (moduleName, err)
-                Right m
-                    | shouldAddBuiltin -> return $ addBuiltin m
-                    | otherwise -> return m
+                Right m -> do
+                    if hasNoBuiltinPragma m then
+                        return m
+                    else
+                        return $ addBuiltin m
 
             for_ (importsOf parsedModule) $ \(_, referencedModule) -> do
-                EitherT $ loadModule loader loadedModules loadingModules referencedModule shouldAddBuiltin
+                EitherT $ loadModule loader loadedModules loadingModules referencedModule
 
             lm <- readIORef loadedModules
             (lift $ bridgeTC $ Typecheck.run lm parsedModule moduleName) >>= \case
@@ -172,8 +176,7 @@ loadProgram loader main = runEitherT $ do
     loadingModules <- newIORef []
     loadedModules <- newIORef []
 
-    _ <- EitherT $ loadModule loader loadedModules loadingModules "builtin" False
-    mainModule <- EitherT $ loadModule loader loadedModules loadingModules main True
+    mainModule <- EitherT $ loadModule loader loadedModules loadingModules main
 
     otherModules <- readIORef loadedModules
     return AST.Program

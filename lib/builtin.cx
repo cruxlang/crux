@@ -1,3 +1,5 @@
+pragma { NoBuiltin }
+
 export fun print(a): () {
     _unsafe_js("console").log(a)
 }

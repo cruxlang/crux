@@ -1,6 +1,4 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 
 module IntegrationTest where
@@ -93,22 +91,31 @@ failWithError root moduleName err = do
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 
 data ErrorConfig = ErrorConfig
-    { typeErrorName :: Text
+    { errorName :: Maybe Text
+    , typeErrorName :: Maybe Text
     }
 
 instance Yaml.FromJSON ErrorConfig where
     parseJSON (Yaml.Object o) = do
-        ErrorConfig <$> o Yaml..: "type-error-name"
+        ErrorConfig <$> o Yaml..:? "error-name" <*> o Yaml..:? "type-error-name"
     parseJSON _ = fail "error config must be an object"
 
 assertErrorMatches :: ErrorConfig -> Error.Error -> IO ()
-assertErrorMatches errorConfig err = do
-    case err of
-        Error.TypeError _pos te -> do
-            let teName = Error.getTypeErrorName te
-            assertEqual (typeErrorName errorConfig) teName
-        _ -> do
-            assertFailure "Incorrect error type"
+assertErrorMatches ErrorConfig{..} err = do
+    case errorName of
+        Just errorName' -> do
+            assertEqual errorName' $ Error.getErrorName err
+        Nothing -> do
+            return ()
+
+    case (typeErrorName, err) of
+        (Just typeErrorName', Error.TypeError _pos te) -> do
+            assertEqual typeErrorName' $ Error.getTypeErrorName te
+        (Just _, _) -> do
+            msg <- Error.renderError err
+            assertFailure $ "type-error-name specified, but not a type error!\n" ++ msg
+        (Nothing, _) -> do
+            return ()
 
 runIntegrationTest :: FilePath -> IO (IO ())
 runIntegrationTest root = do

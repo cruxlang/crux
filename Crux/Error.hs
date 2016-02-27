@@ -4,6 +4,7 @@ module Crux.Error
     ( InternalCompilerError(..)
     , TypeError(..)
     , Error(..)
+    , getErrorName
     , getTypeErrorName
     , renderError
     ) where
@@ -72,6 +73,16 @@ renderError (TypeError pos ue) = do
 
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
+
+getErrorName :: Error -> Text
+getErrorName = \case
+    LexError _ -> "text"
+    ParseError _ -> "parse"
+    UnknownModule _ -> "unknown-module"
+    ModuleNotFound _ -> "module-not-found"
+    CircularImport _ -> "circular-import"
+    InternalCompilerError _ -> "internal"
+    TypeError _ _ -> "type"
 
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case

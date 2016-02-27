@@ -97,6 +97,13 @@ test-suite integration
     type: exitcode-stdio-1.0
     main-is: IntegrationTestMain.hs
     hs-source-dirs: tests
+
+    default-extensions: OverloadedStrings
+                      , MultiWayIf
+                      , LambdaCase
+                      , RecordWildCards
+                      , NamedFieldPuns
+
     ghc-options: -Wall -Werror -O2 -fno-warn-missing-signatures -threaded -with-rtsopts=-N
     -- -eventlog "-with-rtsopts=-N -H32m"
     build-depends: base

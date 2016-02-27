@@ -52,6 +52,7 @@ data Error
     | ParseError P.ParseError
     | UnknownModule AST.ModuleName
     | ModuleNotFound AST.ModuleName
+    | CircularImport AST.ModuleName
     | InternalCompilerError InternalCompilerError
     | TypeError Tokens.Pos TypeError
     deriving (Eq, Show)
@@ -61,6 +62,7 @@ renderError (LexError e) = return $ "Lex error: " ++ show e
 renderError (ParseError e) = return $ "Parse error: " ++ show e
 renderError (UnknownModule mn) = return $ "Unknown module: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError (CircularImport mn) = return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
     DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
     StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"

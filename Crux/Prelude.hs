@@ -8,6 +8,7 @@ module Crux.Prelude
     , module Data.Foldable
     , module Data.Hashable
     , module Data.HashMap.Strict
+    , module Data.HashSet
     , module Crux.IORef
     , module Data.Monoid
     , module Data.String
@@ -31,6 +32,7 @@ import Control.Monad.Trans.Either (EitherT(..), left)
 import Data.Typeable (Typeable)
 import Control.Applicative ((<$>), (<*>), (<*), (*>), pure)
 import Data.HashMap.Strict (HashMap)
+import Data.HashSet (HashSet)
 import Data.Hashable (Hashable(..))
 import GHC.Generics (Generic)
 import Data.String (IsString(..))

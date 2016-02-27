@@ -24,6 +24,7 @@ import           System.Environment    (getExecutablePath)
 import qualified System.FilePath       as FP
 import Crux.Module.Types as AST
 import Data.Yaml
+import qualified Data.HashSet as HashSet
 
 type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
@@ -134,14 +135,20 @@ type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
 loadModule ::
        ModuleLoader
     -> IORef (HashMap AST.ModuleName AST.LoadedModule)
+    -> IORef (HashSet AST.ModuleName)
     -> AST.ModuleName
     -> Bool
     -> IO (ProgramLoadResult AST.LoadedModule)
-loadModule loader loadedModules moduleName shouldAddBuiltin = runEitherT $ do
-    lift (HashTable.lookup moduleName loadedModules) >>= \case
+loadModule loader loadedModules loadingModules moduleName shouldAddBuiltin = runEitherT $ do
+    HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
         Nothing -> do
+            loadingModuleSet <- readIORef loadingModules
+            when (HashSet.member moduleName loadingModuleSet) $ do
+                left (moduleName, Error.CircularImport moduleName)
+            writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
+
             parsedModuleResult <- lift $ loader moduleName
             parsedModule <- case parsedModuleResult of
                 Left err -> left (moduleName, err)
@@ -150,24 +157,25 @@ loadModule loader loadedModules moduleName shouldAddBuiltin = runEitherT $ do
                     | otherwise -> return m
 
             for_ (importsOf parsedModule) $ \(_, referencedModule) -> do
-                EitherT $ loadModule loader loadedModules referencedModule shouldAddBuiltin
+                EitherT $ loadModule loader loadedModules loadingModules referencedModule shouldAddBuiltin
 
-            lm <- lift $ readIORef loadedModules
+            lm <- readIORef loadedModules
             (lift $ bridgeTC $ Typecheck.run lm parsedModule moduleName) >>= \case
                 Left typeError -> do
                     left (moduleName, typeError)
                 Right loadedModule -> do
-                    lift $ HashTable.insert moduleName loadedModule loadedModules
+                    HashTable.insert moduleName loadedModule loadedModules
                     return loadedModule
 
 loadProgram :: ModuleLoader -> AST.ModuleName -> IO (ProgramLoadResult AST.Program)
 loadProgram loader main = runEitherT $ do
-    loadedModules <- lift $ newIORef []
+    loadingModules <- newIORef []
+    loadedModules <- newIORef []
 
-    _ <- EitherT $ loadModule loader loadedModules "builtin" False
-    mainModule <- EitherT $ loadModule loader loadedModules main True
+    _ <- EitherT $ loadModule loader loadedModules loadingModules "builtin" False
+    mainModule <- EitherT $ loadModule loader loadedModules loadingModules main True
 
-    otherModules <- lift $ readIORef loadedModules
+    otherModules <- readIORef loadedModules
     return AST.Program
         { AST.pMainModule = mainModule
         , AST.pOtherModules = otherModules

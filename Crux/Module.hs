@@ -1,6 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Crux.Module where
+module Crux.Module
+    ( importsOf
+    , loadModuleFromSource
+    , loadProgramFromSource
+    , loadProgramFromSources
+    , loadProgramFromFile
+    , loadProgramFromDirectoryAndModule
+    ) where
 
 import Control.Exception (tryJust)
 import System.IO.Error (isDoesNotExistError)
@@ -48,6 +55,11 @@ newFSModuleLoader includePath moduleName = do
     let path = includePath FP.</> moduleNameToPath moduleName
     parseModuleFromFile moduleName path
 
+newBaseLoader :: IO ModuleLoader
+newBaseLoader = do
+    config <- loadCompilerConfig
+    return $ newFSModuleLoader $ baseLibraryPath config
+
 newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newProjectModuleLoader config root mainModulePath =
     let baseLoader = newFSModuleLoader $ baseLibraryPath config
@@ -66,7 +78,7 @@ newMemoryLoader sources moduleName = do
             ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
             source
         Nothing ->
-            return $ Left $ Error.UnknownModule moduleName
+            return $ Left $ Error.ModuleNotFound moduleName
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
@@ -111,14 +123,6 @@ loadBuiltinSource :: IO Text
 loadBuiltinSource = do
     config <- loadCompilerConfig
     TextIO.readFile $ baseLibraryPath config FP.</> "builtin.cx"
-
-defaultModuleLoader :: ModuleLoader
-defaultModuleLoader name = do
-    if name == "builtin" then do
-        builtinSource <- loadBuiltinSource
-        parseModuleFromSource "builtin" "<Builtin>" builtinSource
-    else
-        return $ Left $ Error.UnknownModule name
 
 loadBuiltin :: IO (Either Error.Error AST.LoadedModule)
 loadBuiltin = loadBuiltinSource >>= loadBuiltinFromSource
@@ -245,6 +249,7 @@ loadProgramFromSource mainModuleSource = do
 
 loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
-    builtin <- loadBuiltinSource
-    let loader = newMemoryLoader (HashMap.insert "builtin" builtin sources)
+    base <- newBaseLoader
+    let mem = newMemoryLoader sources
+    let loader = newChainedModuleLoader [mem, base]
     loadProgram loader "main"

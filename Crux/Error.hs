@@ -51,7 +51,6 @@ instance Show TypeError where
 data Error
     = LexError P.ParseError
     | ParseError P.ParseError
-    | UnknownModule AST.ModuleName
     | ModuleNotFound AST.ModuleName
     | CircularImport AST.ModuleName
     | InternalCompilerError InternalCompilerError
@@ -61,7 +60,6 @@ data Error
 renderError :: Error -> IO String
 renderError (LexError e) = return $ "Lex error: " ++ show e
 renderError (ParseError e) = return $ "Parse error: " ++ show e
-renderError (UnknownModule mn) = return $ "Unknown module: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (CircularImport mn) = return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
 renderError (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
@@ -78,7 +76,6 @@ getErrorName :: Error -> Text
 getErrorName = \case
     LexError _ -> "text"
     ParseError _ -> "parse"
-    UnknownModule _ -> "unknown-module"
     ModuleNotFound _ -> "module-not-found"
     CircularImport _ -> "circular-import"
     InternalCompilerError _ -> "internal"

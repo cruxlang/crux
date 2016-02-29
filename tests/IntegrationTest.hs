@@ -80,7 +80,8 @@ assertUnificationError pos a b (Left (Error.TypeError actualPos (UnificationErro
     bs <- renderTypeVarIO bt
     assertEqual a as
     assertEqual b bs
-
+assertUnificationError _ _ _ (Left err) =
+    assertFailure $ "Expected a unification error, got: " ++ show err
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
 

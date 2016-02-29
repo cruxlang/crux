@@ -241,12 +241,7 @@ loadProgramFromFile path = do
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
-    builtinSource <- loadBuiltinSource
-    let loader = newMemoryLoader $ HashMap.fromList
-            [ ("builtin", builtinSource)
-            , ("main", mainModuleSource)
-            ]
-    loadProgram loader "main"
+    loadProgramFromSources $ HashMap.fromList [ ("main", mainModuleSource) ]
 
 loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do

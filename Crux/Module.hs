@@ -43,14 +43,20 @@ moduleNameToPath (AST.ModuleName prefix m) =
         (FP.joinPath $ map toPathSegment prefix)
         (toPathSegment m <> ".cx")
 
-newFSModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
-newFSModuleLoader config root mainModulePath moduleName = do
-    e1 <- doesFileExist $ (baseLibraryPath config) FP.</> moduleNameToPath moduleName
-    let path = if e1 then baseLibraryPath config else root
-    if moduleName == "main" then do
-        parseModuleFromFile moduleName mainModulePath
-    else do
-        parseModuleFromFile moduleName $ FP.combine path $ moduleNameToPath moduleName
+newFSModuleLoader :: FilePath -> ModuleLoader
+newFSModuleLoader includePath moduleName = do
+    let path = includePath FP.</> moduleNameToPath moduleName
+    parseModuleFromFile moduleName path
+
+newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
+newProjectModuleLoader config root mainModulePath =
+    let baseLoader = newFSModuleLoader $ baseLibraryPath config
+        projectLoader = newFSModuleLoader root
+        mainLoader moduleName =
+            if moduleName == "main"
+            then parseModuleFromFile moduleName mainModulePath
+            else return $ Left $ Error.ModuleNotFound moduleName
+    in newChainedModuleLoader [mainLoader, projectLoader, baseLoader]
 
 newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
 newMemoryLoader sources moduleName = do
@@ -226,7 +232,7 @@ loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, basename) = FP.splitFileName path
-    let loader = newFSModuleLoader config dirname path
+    let loader = newProjectModuleLoader config dirname path
     case FP.splitExtension basename of
         (_, ".cx") -> return ()
         _ -> fail "Please load .cx file"

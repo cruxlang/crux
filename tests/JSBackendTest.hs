@@ -13,9 +13,9 @@ import           Test.Framework
 
 genDoc' :: Text -> IO (Either Error.Error Text)
 genDoc' src = do
-    mod' <- Crux.Module.loadModuleFromSource "main" "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource src
     case mod' of
-        Left err ->
+        Left (_, err) ->
             return $ Left err
         Right m -> do
             modul <- Gen.generateModule m

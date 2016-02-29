@@ -25,7 +25,6 @@ import qualified Data.ByteString       as BS
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import qualified Data.Text.Encoding    as TE
-import qualified Data.Text.IO          as TextIO
 import           System.Directory      (doesFileExist, getCurrentDirectory)
 import           System.Environment    (getExecutablePath)
 import qualified System.FilePath       as FP
@@ -119,17 +118,6 @@ loadCompilerConfig = do
 
     return config { baseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ baseLibraryPath config) }
 
-loadBuiltinSource :: IO Text
-loadBuiltinSource = do
-    config <- loadCompilerConfig
-    TextIO.readFile $ baseLibraryPath config FP.</> "builtin.cx"
-
-loadBuiltin :: IO (Either Error.Error AST.LoadedModule)
-loadBuiltin = loadBuiltinSource >>= loadBuiltinFromSource
-
-loadBuiltinFromSource :: Text -> IO (Either Error.Error AST.LoadedModule)
-loadBuiltinFromSource = loadModuleFromSource' id mempty "builtin" "builtin"
-
 parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource moduleName filename source = do
     case Lex.lexSource filename source of
@@ -147,22 +135,10 @@ parseModuleFromFile moduleName filename = runEitherT $ do
     source <- EitherT $ tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName else Nothing) $ BS.readFile filename
     EitherT $ parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
 
-loadModuleFromSource'
-    :: (AST.ParsedModule -> AST.ParsedModule)
-    -> HashMap AST.ModuleName AST.LoadedModule
-    -> AST.ModuleName
-    -> FilePath
-    -> Text
-    -> IO (Either Error.Error AST.LoadedModule)
-loadModuleFromSource' adjust loadedModules moduleName filename source = runEitherT $ do
-    mod' <- EitherT $ parseModuleFromSource moduleName filename source
-    bridgeEitherTC $ Typecheck.run loadedModules (adjust mod') moduleName
-
-loadModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.LoadedModule)
-loadModuleFromSource moduleName filename source = runEitherT $ do
-    builtin <- EitherT $ loadBuiltin
-    let lm = HashMap.fromList [("builtin", builtin)]
-    EitherT $ loadModuleFromSource' addBuiltin lm moduleName filename source
+loadModuleFromSource :: Text -> IO (Either (AST.ModuleName, Error.Error) AST.LoadedModule)
+loadModuleFromSource source = runEitherT $ do
+    program <- EitherT $ loadProgramFromSource source
+    return $ pMainModule program
 
 getModuleName :: AST.Import -> AST.ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn

@@ -14,9 +14,9 @@ import qualified Crux.Error as Error
 
 genDoc' :: Text -> IO (Either Error.Error Gen.Module)
 genDoc' src = do
-    mod' <- Crux.Module.loadModuleFromSource "main" "<string>" src
+    mod' <- Crux.Module.loadModuleFromSource src
     case mod' of
-        Left err ->
+        Left (_, err) ->
             return $ Left err
         Right m -> do
             fmap Right $ Gen.generateModule m

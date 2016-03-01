@@ -151,29 +151,6 @@ createUserTypeDef env name moduleName typeVars variants = do
 
 type QVars = [(Name, (ResolvedReference, TypeVar))]
 
--- TODO: what do we do with this when types are resolved at type-checking time
-addDataType :: Env
-            -> ModuleName
-            -> Name
-            -> [TypeName]
-            -> [Variant _edata]
-            -> TC (TUserTypeDef TypeVar, TypeVar, QVars)
-addDataType env importName typeName typeVariables variants = do
-    e <- childEnv env
-    tyVars <- for typeVariables $ \tv ->
-        resolveTypeIdent e NewTypesAreQuantified (TypeIdent tv [])
-
-    {-
-    typeVarNames <- for tyVars $ renderTypeVarIO
-    putStrLn $ "addDataType: " ++ show typeName ++ " " ++ show typeVarNames
-    -}
-
-    (typeDef, tyVar) <- createUserTypeDef e typeName importName tyVars variants
-    HashTable.insert typeName (TypeBinding (OtherModule importName typeName) tyVar) (eTypeBindings env)
-
-    let t = [(tn, (OtherModule importName tn, tv)) | (tn, tv) <- zip typeVariables tyVars]
-    return (typeDef, tyVar, t)
-
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> TC Env
 buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let imports = mImports thisModule
@@ -352,8 +329,15 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         _ ->
             return Nothing
 
-    dataDecls' <- for dataDecls $ \(name, moduleName, typeVarNames, variants) -> do
-        (typeDef, tyVar, qvars) <- addDataType env moduleName name typeVarNames variants
+    dataDecls' <- for dataDecls $ \(typeName, moduleName, typeVarNames, variants) -> do
+        e <- childEnv env
+        tyVars <- for typeVarNames $ \tvName ->
+            resolveTypeIdent e NewTypesAreQuantified (TypeIdent tvName [])
+
+        (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
+        HashTable.insert typeName (TypeBinding (OtherModule moduleName typeName) tyVar) (eTypeBindings env)
+
+        let qvars = [(tn, (OtherModule moduleName tn, tv)) | (tn, tv) <- zip typeVarNames tyVars]
         return (typeDef, tyVar, qvars, variants)
 
     for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->

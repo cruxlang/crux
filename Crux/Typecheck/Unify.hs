@@ -112,6 +112,7 @@ instantiate' subst recordSubst env ty = case ty of
                 instantiateRecord subst recordSubst env rows open
 
     TPrimitive {} -> return ty
+    TTypeFun {} -> fail "TODO: instantiate on typefun"
 
 quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of
@@ -137,6 +138,7 @@ quantify ty = case ty of
             _ -> return ()
     TPrimitive {} ->
         return ()
+    TTypeFun {} -> fail "TODO: quantify on TypeFun"
 
 instantiate :: MonadIO m => Env -> TypeVar -> m TypeVar
 instantiate env t = do
@@ -168,6 +170,7 @@ occurs pos tvn = \case
         return ()
     TQuant {} ->
         return ()
+    TTypeFun {} -> fail "TODO: occurs on TypeFun"
 
 unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
 unificationError pos message a b = do

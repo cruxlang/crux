@@ -106,18 +106,22 @@ followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
+type TypeNumber = Int
+
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant Int
+    | TQuant TypeNumber
     | TFun [TypeVar] TypeVar
+    -- TODO: remove type parameters from TUserType, and use TTypeFun to instantiate/apply
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
+    | TTypeFun [TypeNumber] TypeVar
     deriving (Eq)
 
 data TypeState
-    = TUnbound Int
+    = TUnbound TypeNumber
     | TBound TypeVar
     deriving (Eq)
 
@@ -175,8 +179,8 @@ showTypeVarIO' showBound = \case
                 else return inner
     TQuant i -> do
         return $ "TQuant " ++ show i
-    TFun arg ret -> do
-        as <- for arg $ showTypeVarIO' showBound
+    TFun args ret -> do
+        as <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret
         return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
     TUserType def tvars -> do
@@ -186,6 +190,9 @@ showTypeVarIO' showBound = \case
         showRecordTypeVarIO' showBound rtv
     TPrimitive ty ->
         return $ show ty
+    TTypeFun args ret -> do
+        rs <- showTypeVarIO' showBound ret
+        return $ "TTypeFun " ++ show args ++ " " ++ rs
 
 showTypeVarIO :: MonadIO m => TypeVar -> m String
 showTypeVarIO = showTypeVarIO' True

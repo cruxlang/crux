@@ -549,7 +549,7 @@ typeDeclaration = do
         vars <- P.many typeVariableName
         _ <- token TEqual
         ty <- typeIdent
-        return $ DTypeAlias name vars ty
+        return $ DTypeAlias (tokenData typeToken) name vars ty
 
 funArgument :: Parser (Pattern, Maybe TypeIdent)
 funArgument = do

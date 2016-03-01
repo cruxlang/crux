@@ -172,7 +172,8 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
             -- populate aliases
             for_ (exportedDecls $ mDecls importedModule) $ \case
-                DTypeAlias name params ident ->
+                DTypeAlias _ name params ident ->
+                    -- TODO: remove this
                     HashTable.insert name (TypeAlias params ident) (eTypeBindings env)
                 DDeclare {} -> return ()
                 DJSData {}  -> return ()
@@ -209,7 +210,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
     DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
     DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
     DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
-    DTypeAlias _ _ _ -> []
+    DTypeAlias _ _ _ _ -> []
 
 findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, LetMutability, TypeVar)
 findExportedValueByName env moduleName valueName = do
@@ -228,7 +229,7 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DFun {} -> []
     DData typeVar name _ _ _ -> [(name, typeVar)]
     DJSData typeVar name _ _ -> [(name, typeVar)]
-    DTypeAlias _ _ _ -> [] -- TODO refer to exported type aliases
+    DTypeAlias _typeVar _ _ _ -> [] -- TODO refer to exported type aliases
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
 findExportedTypeByName env moduleName typeName = do
@@ -256,7 +257,7 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
         (flip fmap) jsVariants $ \(JSVariant name _literal) ->
             (name, PatternBinding def [])
 
-    DTypeAlias _ _ _ -> []
+    DTypeAlias _ _ _ _ -> []
 
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternBinding
 findExportedPatternByName env moduleName patternName = do
@@ -312,7 +313,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ decls $ \case
         DJSData {} -> return ()
 
-        DTypeAlias name params ident ->
+        DTypeAlias _pos name params ident ->
             HashTable.insert name (TypeAlias params ident) (eTypeBindings env)
 
         DDeclare {} -> return ()

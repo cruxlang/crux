@@ -516,8 +516,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- setup through type checking of decls?
         (Just (TypeBinding typeVar)) <- HashTable.lookup name (eTypeBindings env)
         return $ DJSData typeVar name moduleName variants
-    DTypeAlias name typeVars ident -> do
-        return $ DTypeAlias name typeVars ident
+    DTypeAlias _pos name typeVars ident -> do
+        -- TODO: I am sure this is mega-buggy.
+        env' <- childEnv env
+        for_ typeVars $ \tvName -> do
+            tv <- freshType env'
+            quantify tv
+            HashTable.insert tvName (TypeBinding tv) $ eTypeBindings env'
+        abc <- resolveTypeIdent env' NewTypesAreErrors ident
+        return $ DTypeAlias abc name typeVars ident
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> TC LoadedModule
 run loadedModules thisModule thisModuleName = do

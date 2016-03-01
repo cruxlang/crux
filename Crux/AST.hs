@@ -58,7 +58,7 @@ data DeclarationType idtype edata
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]
-    | DTypeAlias Name [Name] TypeIdent
+    | DTypeAlias edata Name [Name] TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data ExportFlag = Export | NoExport

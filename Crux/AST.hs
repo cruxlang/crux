@@ -97,7 +97,7 @@ data UnresolvedReference
 
 -- hack for convenience
 instance IsString UnresolvedReference where
-    fromString = UnqualifiedReference . Text.pack
+    fromString = UnqualifiedReference . fromString
 
 data ResolvedReference
     = Ambient Name

@@ -149,8 +149,6 @@ createUserTypeDef env name moduleName typeVars variants = do
     let tyVar = TUserType typeDef typeVars
     return (typeDef, tyVar)
 
-type QVars = [(Name, (ResolvedReference, TypeVar))]
-
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> TC Env
 buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let imports = mImports thisModule
@@ -340,35 +338,16 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         let qvars = [(tn, (OtherModule moduleName tn, tv)) | (tn, tv) <- zip typeVarNames tyVars]
         return (typeDef, tyVar, qvars, variants)
 
-    for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) ->
-        addVariants env typeDef qvars tyVar variants ThisModule
+    for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) -> do
+        e <- childEnv env
+        for_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
+            HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
 
-addVariants
-    :: Env
-    -> TUserTypeDef TypeVar
-    -> QVars
-    -> TypeVar
-    -> [Variant edata]
-    -> (Name -> ResolvedReference)
-    -> TC ()
-addVariants env typeDef qvars userTypeVar variants mkName = do
-    {-
-    userTypeName <- renderTypeVarIO userTypeVar
-    putStrLn $ "addVariants for " ++ userTypeName ++ ": qvars:"
-    for_ qvars $ \(name, (rr, tv)) -> do
-        typeName <- renderTypeVarIO tv
-        putStrLn $ "  " ++ show name ++ " " ++ show rr ++ " " ++ typeName
-    -}
+        let computeVariantType [] = tyVar
+            computeVariantType argTypeIdents = TFun argTypeIdents tyVar
 
-    e <- childEnv env
-    for_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
-        HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
-
-    let computeVariantType [] = userTypeVar
-        computeVariantType argTypeIdents = TFun argTypeIdents userTypeVar
-
-    for_ variants $ \(Variant _typeVar vname vparameters) -> do
-        parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
-        let ctorType = computeVariantType parameterTypeVars
-        HashTable.insert vname (ValueReference (mkName vname) LImmutable ctorType) (eValueBindings env)
-        HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars)) (ePatternBindings env)
+        for_ variants $ \(Variant _typeVar vname vparameters) -> do
+            parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
+            let ctorType = computeVariantType parameterTypeVars
+            HashTable.insert vname (ValueReference (ThisModule vname) LImmutable ctorType) (eValueBindings env)
+            HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars)) (ePatternBindings env)

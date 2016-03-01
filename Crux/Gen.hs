@@ -56,7 +56,7 @@ data Value
     | ResolvedBinding AST.ResolvedReference
     | Property Value Name
     | Literal AST.Literal
-    | FunctionLiteral [Name] [Instruction]
+    | FunctionLiteral [AST.Pattern] [Instruction]
     | ArrayLiteral [Value]
     | RecordLiteral (HashMap Name Value)
     deriving (Show, Eq)
@@ -98,7 +98,7 @@ type Env = IORef Int
 data DeclarationType
     = DData Name [AST.Variant ()]
     | DJSData Name [AST.JSVariant]
-    | DFun Name [Name] [Instruction]
+    | DFun Name [AST.Pattern] [Instruction]
     | DLet AST.Pattern [Instruction]
     deriving (Show, Eq)
 

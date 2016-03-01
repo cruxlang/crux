@@ -551,9 +551,9 @@ typeDeclaration = do
         ty <- typeIdent
         return $ DTypeAlias name vars ty
 
-funArgument :: Parser (Name, Maybe TypeIdent)
+funArgument :: Parser (Pattern, Maybe TypeIdent)
 funArgument = do
-    n <- anyIdentifier
+    n <- irrefutablePattern
     ann <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent

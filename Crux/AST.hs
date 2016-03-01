@@ -40,6 +40,9 @@ data Pattern
     | PBinding Name
     deriving (Show, Eq)
 
+instance IsString Pattern where
+    fromString = PBinding . fromString
+
 data RefutablePattern
     = RPConstructor (Maybe Name) Name [RefutablePattern]
     | RPIrrefutable Pattern
@@ -51,7 +54,7 @@ data DeclarationType idtype edata
     -- Values
     = DDeclare edata Name TypeIdent
     | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
-    | DFun edata Name [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
+    | DFun edata Name [(Pattern, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]
@@ -201,7 +204,7 @@ data Expression idtype edata
     | EMethodApp edata (Expression idtype edata) Name [Expression idtype edata]
 
     -- literals
-    | EFun edata [(Name, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
+    | EFun edata [(Pattern, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype edata))
     | EArrayLiteral edata [Expression idtype edata]
     | ELiteral edata Literal

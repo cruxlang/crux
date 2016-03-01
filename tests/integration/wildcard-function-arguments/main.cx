@@ -1,0 +1,4 @@
+fun f(_: number, _: string) {
+    print("inner")
+}
+let _ = f(10, "arg")

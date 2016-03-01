@@ -181,7 +181,9 @@ check' expectedType env = \case
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env NewTypesAreQuantified ann
                 unify pos pt annTy
-            HashTable.insert p (ValueReference (Local p) LImmutable pt) valueBindings'
+            case p of
+                PWildcard -> return ()
+                PBinding name -> HashTable.insert name (ValueReference (Local name) LImmutable pt) valueBindings'
 
         let env' = env
                 { eValueBindings=valueBindings'

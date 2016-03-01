@@ -14,6 +14,11 @@ renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSe
 renderTemporary :: Int -> Text
 renderTemporary = Text.pack . ("$" <>). show
 
+renderArgument :: Pattern -> Name
+renderArgument = \case
+    PWildcard -> "$_"
+    PBinding n -> n
+
 -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
 jsKeywords :: [Text]
 jsKeywords =
@@ -94,8 +99,9 @@ renderValue value = case value of
         LInteger i -> JSTree.ELiteral $ JSTree.LInteger i
         LString s -> JSTree.ELiteral $ JSTree.LString s
         LUnit -> JSTree.ELiteral $ JSTree.LUndefined
-    Gen.FunctionLiteral args body -> JSTree.EFunction args $
-        map renderInstruction body
+    Gen.FunctionLiteral args body -> JSTree.EFunction
+        (map renderArgument args)
+        (map renderInstruction body)
     Gen.ArrayLiteral elements -> JSTree.EArray $ fmap renderValue elements
     Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
 
@@ -221,8 +227,8 @@ renderDeclaration (Gen.Declaration export decl) = case decl of
         let renderedVariants = map renderJSVariant variants in
         let exports = renderExports export $ map (\(JSVariant n _) -> n) variants in
         renderedVariants ++ exports
-    Gen.DFun name params body ->
-        let func = JSTree.SFunction (renderJSName name) params $ map renderInstruction body in
+    Gen.DFun name args body ->
+        let func = JSTree.SFunction (renderJSName name) (map renderArgument args) $ map renderInstruction body in
         func : renderExports export [name]
     Gen.DLet pat defn ->
         case pat of

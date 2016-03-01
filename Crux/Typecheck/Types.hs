@@ -30,11 +30,11 @@ data ValueReference
     | ModuleReference ModuleName
 
 data TypeReference
-    = TypeBinding ResolvedReference TypeVar
+    = TypeBinding TypeVar
     | TypeAlias Name [Name] TypeIdent
     deriving (Eq)
 instance Show TypeReference where
-    show (TypeBinding rr _tv) = "TypeBinding " ++ show rr ++ " <typevar>"
+    show (TypeBinding _tv) = "TypeBinding <typevar>"
     show (TypeAlias name params typeIdent) = "TypeAlias " ++ show name ++ " " ++ show params ++ " " ++ show typeIdent
 
 -- same structure as TUserType constructor

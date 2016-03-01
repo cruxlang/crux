@@ -106,7 +106,7 @@ isLValue env expr = case expr of
 resolveTypeReference :: Pos -> Env -> UnresolvedReference -> TC TypeVar
 resolveTypeReference pos env ref@(UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
-        Just (TypeBinding _ t) -> return t
+        Just (TypeBinding t) -> return t
         Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
         Nothing -> resumableTypeError pos $ UnboundSymbol ref
 resolveTypeReference pos env (KnownReference moduleName name) = do
@@ -501,7 +501,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeBinding typeVar)) <- HashTable.lookup name (eTypeBindings env)
 
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference _rr _mut ctorType)) <- HashTable.lookup vname (eValueBindings env)
@@ -514,7 +514,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeBinding _ typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeBinding typeVar)) <- HashTable.lookup name (eTypeBindings env)
         return $ DJSData typeVar name moduleName variants
     DTypeAlias name typeVars ident -> do
         return $ DTypeAlias name typeVars ident

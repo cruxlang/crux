@@ -70,7 +70,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
 
     go (TypeIdent typeName typeParameters) = do
         HashTable.lookup typeName eTypeBindings >>= \case
-            Just (TypeBinding _ ty) -> do
+            Just (TypeBinding ty) -> do
                 followTypeVar ty >>= \case
                     TPrimitive {}
                         | [] == typeParameters ->
@@ -99,7 +99,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                 tyVar <- freshType env
                 quantify tyVar
 
-                HashTable.insert typeName (TypeBinding (ThisModule typeName) tyVar) eTypeBindings
+                HashTable.insert typeName (TypeBinding tyVar) eTypeBindings
                 return tyVar
             Nothing ->
                 fail $ printf "Constructor refers to nonexistent type %s" (show typeName)
@@ -123,7 +123,7 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
 addQvarTable :: MonadIO m => Env -> [(Name, TypeVar)] -> m Env
 addQvarTable env@Env{..} qvarTable = do
     newBindings <- HashTable.mergeImmutable eTypeBindings
-        (HashMap.fromList [(name, TypeBinding (ThisModule name) ty) | (name, ty) <- qvarTable])
+        (HashMap.fromList [(name, TypeBinding ty) | (name, ty) <- qvarTable])
     return env { eTypeBindings = newBindings }
 
 -- TODO: what do we do with this when Variants know their own types
@@ -158,8 +158,8 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let strTy = TPrimitive String
     env <- newEnv thisModuleName loadedModules Nothing
 
-    HashTable.insert "Number" (TypeBinding (Builtin "Number") numTy) (eTypeBindings env)
-    HashTable.insert "String" (TypeBinding (Builtin "String") strTy) (eTypeBindings env)
+    HashTable.insert "Number" (TypeBinding numTy) (eTypeBindings env)
+    HashTable.insert "String" (TypeBinding strTy) (eTypeBindings env)
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
@@ -183,7 +183,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
             -- populate types
             for_ (getAllExportedTypes $ importedModule) $ \(name, typeVar) -> do
-                HashTable.insert name (TypeBinding (OtherModule importName name) typeVar) (eTypeBindings env)
+                HashTable.insert name (TypeBinding typeVar) (eTypeBindings env)
 
             -- populate values
             for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
@@ -290,7 +290,7 @@ registerJSFFIDecl env = \case
                 , tuVariants = variants'
                 }
         let userType = TUserType typeDef []
-        HashTable.insert name (TypeBinding (Local name) userType) (eTypeBindings env)
+        HashTable.insert name (TypeBinding userType) (eTypeBindings env)
 
         for_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
@@ -333,15 +333,15 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             resolveTypeIdent e NewTypesAreQuantified (TypeIdent tvName [])
 
         (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
-        HashTable.insert typeName (TypeBinding (OtherModule moduleName typeName) tyVar) (eTypeBindings env)
+        HashTable.insert typeName (TypeBinding tyVar) (eTypeBindings env)
 
-        let qvars = [(tn, (OtherModule moduleName tn, tv)) | (tn, tv) <- zip typeVarNames tyVars]
+        let qvars = zip typeVarNames tyVars
         return (typeDef, tyVar, qvars, variants)
 
     for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
-        for_ qvars $ \(qvName, (qvTypeName, qvTypeVar)) ->
-            HashTable.insert qvName (TypeBinding qvTypeName qvTypeVar) (eTypeBindings e)
+        for_ qvars $ \(qvName, qvTypeVar) ->
+            HashTable.insert qvName (TypeBinding qvTypeVar) (eTypeBindings e)
 
         let computeVariantType [] = tyVar
             computeVariantType argTypeIdents = TFun argTypeIdents tyVar
@@ -350,4 +350,4 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
             HashTable.insert vname (ValueReference (ThisModule vname) LImmutable ctorType) (eValueBindings env)
-            HashTable.insert vname (PatternBinding typeDef (fmap (snd . snd) qvars)) (ePatternBindings env)
+            HashTable.insert vname (PatternBinding typeDef (fmap snd qvars)) (ePatternBindings env)

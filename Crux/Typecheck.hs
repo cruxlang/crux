@@ -107,7 +107,7 @@ resolveTypeReference :: Pos -> Env -> UnresolvedReference -> TC TypeVar
 resolveTypeReference pos env ref@(UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
         Just (TypeBinding t) -> return t
-        Just (TypeAlias _ _ _) -> fail "TODO: resolveType implementation for TypeAlias"
+        Just (TypeAlias _ _) -> fail "TODO: resolveType implementation for TypeAlias"
         Nothing -> resumableTypeError pos $ UnboundSymbol ref
 resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do

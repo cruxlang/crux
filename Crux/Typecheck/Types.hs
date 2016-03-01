@@ -31,11 +31,11 @@ data ValueReference
 
 data TypeReference
     = TypeBinding TypeVar
-    | TypeAlias Name [Name] TypeIdent
+    | TypeAlias [Name] TypeIdent
     deriving (Eq)
 instance Show TypeReference where
     show (TypeBinding _tv) = "TypeBinding <typevar>"
-    show (TypeAlias name params typeIdent) = "TypeAlias " ++ show name ++ " " ++ show params ++ " " ++ show typeIdent
+    show (TypeAlias params typeIdent) = "TypeAlias " ++ show params ++ " " ++ show typeIdent
 
 -- same structure as TUserType constructor
 data PatternBinding = PatternBinding

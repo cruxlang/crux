@@ -25,7 +25,6 @@ import           Crux.Typecheck.Types
 import Data.Maybe (catMaybes)
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict   as HashMap
-import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 import Crux.Util
@@ -86,9 +85,9 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                     _ ->
                         return ty
 
-            Just (TypeAlias aliasName aliasParams aliasedIdent) -> do
+            Just (TypeAlias aliasParams aliasedIdent) -> do
                 when (length aliasParams /= length typeParameters) $
-                    fail $ printf "Type alias %s takes %i parameters.  %i given" (Text.unpack aliasName) (length aliasParams) (length typeParameters)
+                    fail $ printf "Type alias takes %i parameters.  %i given" (length aliasParams) (length typeParameters)
 
                 argTypes <- for typeParameters $ resolveTypeIdent env resolvePolicy
 
@@ -174,7 +173,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
             -- populate aliases
             for_ (exportedDecls $ mDecls importedModule) $ \case
                 DTypeAlias name params ident ->
-                    HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)
+                    HashTable.insert name (TypeAlias params ident) (eTypeBindings env)
                 DDeclare {} -> return ()
                 DJSData {}  -> return ()
                 DData {}    -> return ()
@@ -314,7 +313,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         DJSData {} -> return ()
 
         DTypeAlias name params ident ->
-            HashTable.insert name (TypeAlias name params ident) (eTypeBindings env)
+            HashTable.insert name (TypeAlias params ident) (eTypeBindings env)
 
         DDeclare {} -> return ()
         DData {}    -> return ()

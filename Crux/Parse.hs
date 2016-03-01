@@ -483,17 +483,6 @@ letDeclaration = do
     ELet ed mut name typeAnn expr <- letExpression
     return $ DLet ed mut name typeAnn expr
 
--- typeident = list of types
--- paren (list of things)
-
-singleTypeIdent :: Parser TypeIdent
-singleTypeIdent = do
-    name <- anyIdentifier
-    return $ TypeIdent name []
-
-typeIdent' :: Parser TypeIdent
-typeIdent' = parenthesized dataDeclTypeIdent <|> singleTypeIdent
-
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
     declareToken <- token TDeclare
@@ -503,18 +492,11 @@ declareDeclaration = do
         ti <- typeIdent
         return $ DDeclare (tokenData declareToken) name ti
 
--- TODO: there is wrongness here -- ((Maybe) (Int)) should parse as Maybe Int
-dataDeclTypeIdent :: Parser TypeIdent
-dataDeclTypeIdent = do
-    name <- anyIdentifier
-    params <- P.many typeIdent'
-    return $ TypeIdent name params
-
 variantDefinition :: Parser (Variant Pos)
 variantDefinition = do
     (pos, ctorname) <- anyIdentifierWithPos
 
-    let withArgs = parenthesized $ commaDelimited dataDeclTypeIdent
+    let withArgs = parenthesized $ commaDelimited typeIdent
     ctordata <- withArgs <|> return []
 
     return $ Variant pos ctorname ctordata

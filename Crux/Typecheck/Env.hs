@@ -4,7 +4,6 @@ module Crux.Typecheck.Env
     , newEnv
     , childEnv
     , buildTypeEnvironment
-    , addThisModuleDataDeclsToEnvironment
     , resolveTypeIdent
     , exportedDecls
     , getAllExportedValues
@@ -13,8 +12,6 @@ module Crux.Typecheck.Env
     , findExportedTypeByName
     , getAllExportedPatterns
     , findExportedPatternByName
-    , addDataType
-    , addVariants
     ) where
 
 import           Crux.AST

@@ -170,17 +170,6 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 Just im -> return im
                 Nothing -> failICE $ Error.DependentModuleNotLoaded pos importName
 
-            -- populate aliases
-            for_ (exportedDecls $ mDecls importedModule) $ \case
-                DTypeAlias _ name params ident ->
-                    -- TODO: remove this
-                    HashTable.insert name (TypeAlias params ident) (eTypeBindings env)
-                DDeclare {} -> return ()
-                DJSData {}  -> return ()
-                DData {}    -> return ()
-                DFun {}     -> return ()
-                DLet {}     -> return ()
-
             -- populate types
             for_ (getAllExportedTypes $ importedModule) $ \(name, typeVar) -> do
                 HashTable.insert name (TypeBinding typeVar) (eTypeBindings env)
@@ -229,7 +218,7 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DFun {} -> []
     DData typeVar name _ _ _ -> [(name, typeVar)]
     DJSData typeVar name _ _ -> [(name, typeVar)]
-    DTypeAlias _typeVar _ _ _ -> [] -- TODO refer to exported type aliases
+    DTypeAlias typeVar name _ _ -> [(name, typeVar)]
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
 findExportedTypeByName env moduleName typeName = do

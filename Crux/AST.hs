@@ -17,7 +17,6 @@ import qualified Crux.Tokens   as Tokens
 import qualified Data.Text     as Text
 
 type Name = Text -- Temporary
-type TypeName = Text
 
 data Literal
     = LInteger Integer
@@ -243,9 +242,17 @@ edata expr = case expr of
     EReturn ed _ -> ed
     EBreak ed -> ed
 
+data TypeIdentifier
+    = QualifiedType Name Name
+    | UnqualifiedType Name
+    deriving (Show, Eq)
+
+instance IsString TypeIdentifier where
+    fromString s = UnqualifiedType $ fromString s
+
 data TypeIdent
     = UnitTypeIdent
-    | TypeIdent TypeName [TypeIdent]
+    | TypeIdent TypeIdentifier [TypeIdent]
     | RecordIdent [(Name, Maybe LetMutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     deriving (Show, Eq)

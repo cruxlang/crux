@@ -1,0 +1,7 @@
+export data DT {
+    V
+}
+
+export fun run(_: DT) {
+    print("runDT")
+}

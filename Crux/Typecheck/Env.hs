@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 
 module Crux.Typecheck.Env
     ( ResolvePolicy (..)
@@ -58,6 +59,19 @@ childEnv env@Env{..} = do
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
+resolveTypeIdentifier :: Env -> TypeIdentifier -> TC (Name, Maybe TypeReference)
+resolveTypeIdentifier env = \case
+    UnqualifiedType name -> do
+        (name,) <$> HashTable.lookup name (eTypeBindings env)
+    QualifiedType importName name -> do
+        maybeTypeVar <- HashTable.lookup importName (eValueBindings env) >>= \case
+            Nothing -> fail "TODO: qualified type references unknown import"
+            Just (ModuleReference moduleName) -> do
+                return $ fmap snd $ findExportedTypeByName env moduleName name
+            Just _ -> do
+                fail "TODO: qualified type is not a module"
+        return (name, fmap TypeReference maybeTypeVar)
+
 -- TODO: move into TC so errors are recorded properly
 resolveTypeIdent :: Env -> Pos -> ResolvePolicy -> TypeIdent -> TC TypeVar
 resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
@@ -68,8 +82,8 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         return $ TPrimitive Unit
 
     go (TypeIdent typeName typeParameters) = do
-        HashTable.lookup typeName eTypeBindings >>= \case
-            Just (TypeReference ty) -> do
+        resolveTypeIdentifier env typeName >>= \case
+            (_, Just (TypeReference ty)) -> do
                 followTypeVar ty >>= \case
                     TPrimitive {}
                         | [] == typeParameters ->
@@ -94,14 +108,14 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     _ ->
                         return ty
 
-            Nothing | NewTypesAreQuantified == resolvePolicy && not (isCapitalized typeName) -> do
+            (typeName', Nothing) | NewTypesAreQuantified == resolvePolicy && not (isCapitalized typeName') -> do
                 tyVar <- freshType env
                 quantify tyVar
 
-                HashTable.insert typeName (TypeReference tyVar) eTypeBindings
+                HashTable.insert typeName' (TypeReference tyVar) eTypeBindings
                 return tyVar
-            Nothing ->
-                failTypeError pos $ Error.UnboundType typeName
+            (typeName', Nothing) ->
+                failTypeError pos $ Error.UnboundType typeName'
 
     go (RecordIdent rows) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
@@ -322,7 +336,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     dataDecls' <- for dataDecls $ \(pos, typeName, moduleName, typeVarNames, variants) -> do
         e <- childEnv env
         tyVars <- for typeVarNames $ \tvName ->
-            resolveTypeIdent e pos NewTypesAreQuantified (TypeIdent tvName [])
+            resolveTypeIdent e pos NewTypesAreQuantified (TypeIdent (UnqualifiedType tvName) [])
 
         (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
         HashTable.insert typeName (TypeReference tyVar) (eTypeBindings env)

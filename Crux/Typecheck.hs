@@ -114,10 +114,10 @@ resolveTypeReference pos env (KnownReference moduleName name) = do
     else do
         case findExportedTypeByName env moduleName name of
             Just (_, tv) -> return tv
-            Nothing -> fail "No exported type in module. TODO: this error message"
+            Nothing -> failTypeError pos $ ModuleReferenceError moduleName name
 
-resolveValueReference :: MonadIO m => Env -> UnresolvedReference -> m (Maybe (ResolvedReference, LetMutability, TypeVar))
-resolveValueReference env ref = case ref of
+resolveValueReference :: Pos -> Env -> UnresolvedReference -> TC (Maybe (ResolvedReference, LetMutability, TypeVar))
+resolveValueReference pos env ref = case ref of
     UnqualifiedReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
         return $ case result of
@@ -127,7 +127,7 @@ resolveValueReference env ref = case ref of
         case findExportedValueByName env moduleName name of
             Just (rr, mutability, typevar) ->
                 return $ Just (rr, mutability, typevar)
-            Nothing -> fail $ printf "No exported %s in module %s" (show name) (Text.unpack $ printModuleName moduleName)
+            Nothing -> failTypeError pos $ ModuleReferenceError moduleName name
 
 resolveArrayType :: Pos -> Env -> TC (TypeVar, TypeVar)
 resolveArrayType pos env = do
@@ -343,7 +343,7 @@ check' expectedType env = \case
         resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
         (rr, tyref) <- do
-            resolveValueReference env txt >>= \case
+            resolveValueReference pos env txt >>= \case
                 Just (a@(Local _), _mutability, b) -> do
                     -- Don't instantiate locals.  Let generalization is tricky.
                     return (a, b)

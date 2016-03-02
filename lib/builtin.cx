@@ -1,23 +1,21 @@
 pragma { NoBuiltin }
 
+import {
+    boolean,
+}
+
+// TODO: implement support for export { ... } syntax
+export type Boolean = boolean.Boolean
+export let True = boolean.True
+export let False = boolean.False
+export let not = boolean.not
+
 export fun print(a): () {
     _unsafe_js("console").log(a)
 }
 
 export let toString: (a) -> String =
     _unsafe_js("function toString(v) { return '' + v; }")
-
-export data jsffi Boolean {
-    True = true,
-    False = false,
-}
-
-export fun not(b: Boolean): Boolean {
-    match b {
-        True => False;
-        False => True;
-    }
-}
 
 // HACK: TODO: Create a submodule for strings so we can just call this length()
 // BIGGER TODO: add a length trait

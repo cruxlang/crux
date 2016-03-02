@@ -1,0 +1,13 @@
+pragma { NoBuiltin }
+
+export data jsffi Boolean {
+    True = true,
+    False = false,
+}
+
+export fun not(b: Boolean): Boolean {
+    match b {
+        True => False;
+        False => True;
+    }
+}

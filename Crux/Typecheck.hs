@@ -141,7 +141,7 @@ resolveArrayType pos env = do
 
 resolveBooleanType :: Pos -> Env -> TC TypeVar
 resolveBooleanType pos env = do
-    resolveTypeReference pos env (KnownReference "builtin" "Boolean")
+    resolveTypeReference pos env (KnownReference "boolean" "Boolean")
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.

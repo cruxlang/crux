@@ -1,7 +1,11 @@
 pragma { NoBuiltin }
 
+// because the typechecker relies on certain modules being loaded, the
+// sequence of imports matters here.
 import {
     boolean,
+    array,
+    string,
 }
 
 // TODO: implement support for export { ... } syntax
@@ -17,12 +21,6 @@ export fun print(a): () {
 export let toString: (a) -> String =
     _unsafe_js("function toString(v) { return '' + v; }")
 
-// HACK: TODO: Create a submodule for strings so we can just call this length()
-// BIGGER TODO: add a length trait
-export fun strlen(s: String): Number {
-    _unsafe_coerce(s).length
-}
-
 // Option
 
 export data Option a {
@@ -31,92 +29,27 @@ export data Option a {
 }
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
-export data Array a {}
-
-let _unsafe_new: (Number) -> Array a =
-    _unsafe_js("function (len) { return new Array(len); }")
-
-let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
-let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
+export type Array a = array.Array a
 
 export fun emptyArray(): Array a {
     _unsafe_js("[]")
 }
 
-// I'd specify a return type of unit but there is a parse error:
-// https://github.com/andyfriesen/crux/issues/14
-export fun append(a: Array a, v: a) {
-    _unsafe_coerce(a).push(v)
-    return ()
-}
-
-export fun get(a: Array a, idx: number) {
-    _unsafe_get(a, idx)
-}
-
-export fun len(a: Array a): Number {
-    _unsafe_coerce(a).length
-}
-
-export fun replicate(element: a, len: Number): Array a {
-    let arr = _unsafe_new(len);
-
-    let mutable i = 0;
-    while i < len {
-        _unsafe_set(arr, i, element)
-        i = i + 1
-    };
-
-    arr
-}
-
-export fun each(arr: Array a, f: (a) -> b): () {
-    let mutable i = 0
-    let length = len(arr)
-    while i < length {
-        f(_unsafe_get(arr, i))
-        i = i + 1
-    }
-}
+export let append = array.append
+export let get = array.get
+export let len = array.len
+export let replicate = array.replicate
+export let each = array.each
 
 export fun map(f: (a) -> b, a: Array a): Array b {
     _unsafe_js("[].map").call(a, f)
 }
 
-export fun sliceFrom(arr: Array a, start: Number): Array a {
-    _unsafe_coerce(arr).slice(start)
-}
-
-export fun sliceTo(arr: Array a, end: Number): Array a {
-    _unsafe_coerce(arr).slice(0, end)
-}
-
-export fun slice(arr: Array a, start: Number, end: Number): Array a {
-    _unsafe_coerce(arr).slice(start, end)
-}
-
-export fun endsWith(haystack: String, needle: String) {
-    // Oops, how do I use a record with a keyword property name :D
-    // return _unsafe_coerce(haystack).match(needle + "$") == needle;
-
-    let h = _unsafe_coerce(haystack)
-    let n = _unsafe_coerce(needle)
-    if n.length > h.length {
-        return False
-    }
-    // TODO: crux does not support negative literals yet
-    return h.indexOf(n, h.length - n.length) != 0 - 1
-}
-
-export fun join(sep: String, elements: Array String): String {
-    _unsafe_coerce(elements).join(sep)
-}
+export let sliceFrom = array.sliceFrom
+export let sliceTo = array.sliceTo
+export let slice = array.slice
 
 // TODO: add comparator support
 export fun sort(arr: Array String) {
     _unsafe_coerce(arr).sort()
-}
-
-export fun sliceStringFrom(s: String, start: Number) {
-    return _unsafe_coerce(s).slice(start)
 }

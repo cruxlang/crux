@@ -1,0 +1,54 @@
+pragma { NoBuiltin }
+
+export data Array a {}
+
+let _unsafe_new: (Number) -> Array a =
+    _unsafe_js("function (len) { return new Array(len); }")
+
+let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
+let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
+
+export fun append(a: Array a, v: a): () {
+    _unsafe_coerce(a).push(v)
+}
+
+export fun get(a: Array a, idx: number) {
+    _unsafe_get(a, idx)
+}
+
+export fun len(a: Array a): Number {
+    _unsafe_coerce(a).length
+}
+
+export fun replicate(element: a, len: Number): Array a {
+    let arr = _unsafe_new(len);
+
+    let mutable i = 0;
+    while i < len {
+        _unsafe_set(arr, i, element)
+        i = i + 1
+    };
+
+    arr
+}
+
+export fun each(arr: Array a, f: (a) -> b): () {
+    let mutable i = 0
+    let length = len(arr)
+    while i < length {
+        f(_unsafe_get(arr, i))
+        i = i + 1
+    }
+}
+
+export fun sliceFrom(arr: Array a, start: Number): Array a {
+    _unsafe_coerce(arr).slice(start)
+}
+
+export fun sliceTo(arr: Array a, end: Number): Array a {
+    _unsafe_coerce(arr).slice(0, end)
+}
+
+export fun slice(arr: Array a, start: Number, end: Number): Array a {
+    _unsafe_coerce(arr).slice(start, end)
+}

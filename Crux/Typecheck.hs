@@ -124,6 +124,7 @@ resolveValueReference pos env ref = case ref of
             Just (ValueReference rr mut t) -> Just (rr, mut, t)
             _ -> Nothing
     KnownReference moduleName name -> do
+        -- TODO: better error messages
         case findExportedValueByName env moduleName name of
             Just (rr, mutability, typevar) ->
                 return $ Just (rr, mutability, typevar)
@@ -366,8 +367,10 @@ check' expectedType env = \case
         moduleName <- followTypeVar (edata lhs') >>= \case
             TUserType TUserTypeDef{..} _ -> do
                 return tuModuleName
-            TPrimitive _ -> do
-                return "builtin"
+            TPrimitive ptype -> return $ case ptype of
+                Unit -> "builtin"
+                Number -> "builtin"
+                String -> "string"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
                 resumableTypeError pos $ TdnrLhsTypeUnknown ts

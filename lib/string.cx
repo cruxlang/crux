@@ -1,0 +1,32 @@
+pragma { NoBuiltin }
+
+import {
+    boolean(...),
+    array,
+}
+
+// TODO: add a length trait
+export fun length(s: String): Number {
+    _unsafe_coerce(s).length
+}
+
+export fun endsWith(haystack: String, needle: String) {
+    // Oops, how do I use a record with a keyword property name :D
+    // return _unsafe_coerce(haystack).match(needle + "$") == needle;
+
+    let h = _unsafe_coerce(haystack)
+    let n = _unsafe_coerce(needle)
+    if n.length > h.length {
+        return False
+    }
+    // TODO: crux does not support negative literals yet
+    return h.indexOf(n, h.length - n.length) != 0 - 1
+}
+
+export fun join(sep: String, elements: array.Array String): String {
+    _unsafe_coerce(elements).join(sep)
+}
+
+export fun sliceFrom(s: String, start: Number) {
+    return _unsafe_coerce(s).slice(start)
+}

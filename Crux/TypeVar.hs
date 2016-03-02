@@ -117,7 +117,7 @@ data TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
-    | TTypeFun [TypeNumber] TypeVar
+    | TTypeFun [TypeVar] TypeVar
     deriving (Eq)
 
 data TypeState
@@ -191,8 +191,9 @@ showTypeVarIO' showBound = \case
     TPrimitive ty ->
         return $ show ty
     TTypeFun args ret -> do
+        args' <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret
-        return $ "TTypeFun " ++ show args ++ " " ++ rs
+        return $ "TTypeFun " ++ show args' ++ " " ++ rs
 
 showTypeVarIO :: MonadIO m => TypeVar -> m String
 showTypeVarIO = showTypeVarIO' True

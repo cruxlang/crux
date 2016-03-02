@@ -5,6 +5,7 @@ module Crux.Typecheck.Monad
     , recordError
     , failError
     , failICE
+    , failTypeError
     , recordWarning
     , runTC
     , bridgeTC
@@ -15,6 +16,7 @@ import Crux.Prelude
 import Control.Monad.Trans.Reader
 import Control.Exception (try, throwIO, Exception)
 import Crux.Error
+import Crux.Tokens (Pos)
 
 data Warning -- TODO: move this into Crux.Warning
 
@@ -42,6 +44,11 @@ recordError e = do
 failError :: Error -> TC a
 failError e = do
     recordError e
+    stopChecking
+
+failTypeError :: Pos -> TypeError -> TC a
+failTypeError pos te = do
+    recordError $ TypeError pos te
     stopChecking
 
 failICE :: InternalCompilerError -> TC a

@@ -29,6 +29,7 @@ data TypeError
     | RecordMutabilityUnificationError Name String
     -- TODO: split into UnboundValue and UnboundType
     | UnboundSymbol AST.UnresolvedReference
+    | UnboundType Name
     | OccursCheckFailed
     | IntrinsicError String
     | NotAnLVar String
@@ -41,6 +42,7 @@ instance Show TypeError where
     show (UnificationError s _ _) = "UnificationError " ++ s ++ " _ _"
     show (RecordMutabilityUnificationError s m) = "RecordMutabilityUnificationError " ++ show s ++ " " ++ show m
     show (UnboundSymbol s) = "UnboundSymbol " ++ show s
+    show (UnboundType n) = "UnboundType " ++ show n
     show (OccursCheckFailed) = "OccursCheckFailed "
     show (IntrinsicError s) = "IntrinsicError " ++ show s
     show (NotAnLVar t) = "NotAnLVar " ++ show t
@@ -86,6 +88,7 @@ getTypeErrorName = \case
     UnificationError{} -> "unification"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
     UnboundSymbol{} -> "unbound-symbol"
+    UnboundType{} -> "unbound-type"
     OccursCheckFailed{} -> "occurs-check"
     IntrinsicError{} -> "intrinsic"
     NotAnLVar{} -> "not-an-lvar"
@@ -105,6 +108,8 @@ typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
 typeErrorToString (UnboundSymbol message) =
     return $ printf "Unbound symbol %s" (show message)
+typeErrorToString (UnboundType name) =
+    return $ printf "Unbound type %s" (show name)
 typeErrorToString (OccursCheckFailed) =
     return $ printf "Occurs check failed"
 typeErrorToString (IntrinsicError message) =

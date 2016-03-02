@@ -106,8 +106,7 @@ isLValue env expr = case expr of
 resolveTypeReference :: Pos -> Env -> UnresolvedReference -> TC TypeVar
 resolveTypeReference pos env ref@(UnqualifiedReference name) = do
     HashTable.lookup name (eTypeBindings env) >>= \case
-        Just (TypeBinding t) -> return t
-        Just (TypeAlias _ _) -> fail "TODO: resolveType implementation for TypeAlias"
+        Just (TypeReference t) -> return t
         Nothing -> resumableTypeError pos $ UnboundSymbol ref
 resolveTypeReference pos env (KnownReference moduleName name) = do
     if moduleName == eThisModule env then do
@@ -179,7 +178,7 @@ check' expectedType env = \case
 
         for_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+                annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
                 unify pos pt annTy
             case p of
                 PWildcard -> return ()
@@ -192,7 +191,7 @@ check' expectedType env = \case
                 }
 
         for_ retAnn $ \ann -> do
-            annTy <- resolveTypeIdent env NewTypesAreQuantified ann
+            annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
             unify pos returnType annTy
 
         body' <- check env' body
@@ -290,7 +289,7 @@ check' expectedType env = \case
                 HashTable.insert name (ValueReference (Local name) mut ty) (eValueBindings env)
         unify pos ty (edata expr'')
         for_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env NewTypesAreQuantified annotation
+            annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
             unify pos ty annotTy
 
         return $ ELet (TPrimitive Unit) mut pat maybeAnnot expr''
@@ -465,14 +464,14 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     {- VALUE DEFINITIONS -}
 
     DDeclare _pos name typeIdent -> do
-        ty <- resolveTypeIdent env NewTypesAreQuantified typeIdent
+        ty <- resolveTypeIdent env pos NewTypesAreQuantified typeIdent
         HashTable.insert name (ValueReference (Ambient name) LImmutable ty) (eValueBindings env)
         return $ DDeclare ty name typeIdent
     DLet pos' mut pat maybeAnnot expr -> do
         env' <- childEnv env
         ty <- freshType env'
         for_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env' NewTypesAreQuantified annotation
+            annotTy <- resolveTypeIdent env' pos NewTypesAreQuantified annotation
             unify pos' ty annotTy
 
         expr' <- check env' expr
@@ -501,7 +500,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeBinding typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
 
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference _rr _mut ctorType)) <- HashTable.lookup vname (eValueBindings env)
@@ -514,17 +513,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeBinding typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
         return $ DJSData typeVar name moduleName variants
     DTypeAlias _pos name typeVars ident -> do
-        -- TODO: I am sure this is mega-buggy.
-        env' <- childEnv env
-        for_ typeVars $ \tvName -> do
-            tv <- freshType env'
-            quantify tv
-            HashTable.insert tvName (TypeBinding tv) $ eTypeBindings env'
-        abc <- resolveTypeIdent env' NewTypesAreErrors ident
-        return $ DTypeAlias abc name typeVars ident
+        -- TODO: add an internal compiler error if the name is not in bindings
+        -- TODO: error when a name is inserted into type bindings twice at top level
+        -- TODO: is there a better way to carry this information from environment
+        -- setup through type checking of decls?
+        (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        return $ DTypeAlias typeVar name typeVars ident
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> TC LoadedModule
 run loadedModules thisModule thisModuleName = do

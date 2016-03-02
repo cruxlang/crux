@@ -1,3 +1,6 @@
-data List a { Nil, Cons(a, List a) }
+data List a {
+    Nil,
+    Cons(a, List a),
+}
 type Bogo a = List a
 let hoop: Bogo Number = Cons(5, Nil)

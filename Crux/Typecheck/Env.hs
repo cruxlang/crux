@@ -59,17 +59,17 @@ exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
 -- TODO: move into TC so errors are recorded properly
-resolveTypeIdent :: MonadIO m => Env -> ResolvePolicy -> TypeIdent -> m TypeVar
-resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
+resolveTypeIdent :: Env -> Pos -> ResolvePolicy -> TypeIdent -> TC TypeVar
+resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
     go typeIdent
   where
-    go :: MonadIO m => TypeIdent -> m TypeVar
+    go :: TypeIdent -> TC TypeVar
     go UnitTypeIdent = do
         return $ TPrimitive Unit
 
     go (TypeIdent typeName typeParameters) = do
         HashTable.lookup typeName eTypeBindings >>= \case
-            Just (TypeBinding ty) -> do
+            Just (TypeReference ty) -> do
                 followTypeVar ty >>= \case
                     TPrimitive {}
                         | [] == typeParameters ->
@@ -82,26 +82,26 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
                             return $ TUserType def params
                         | otherwise ->
                             fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
+                    TTypeFun tuParameters _rt
+                        | length tuParameters == length typeParameters -> do
+                            (TTypeFun tuParameters' rt') <- instantiate env ty
+                            for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
+                                b' <- resolveTypeIdent env pos NewTypesAreErrors b
+                                unify pos a b'
+                            return rt'
+                        | otherwise -> do
+                            fail $ printf "Type %s takes %i type parameters.  %i given" (show $ typeName) (length tuParameters) (length typeParameters)
                     _ ->
                         return ty
 
-            Just (TypeAlias aliasParams aliasedIdent) -> do
-                when (length aliasParams /= length typeParameters) $
-                    fail $ printf "Type alias takes %i parameters.  %i given" (length aliasParams) (length typeParameters)
-
-                argTypes <- for typeParameters $ resolveTypeIdent env resolvePolicy
-
-                env' <- addQvarTable env (zip aliasParams argTypes)
-
-                resolveTypeIdent env' resolvePolicy aliasedIdent
             Nothing | NewTypesAreQuantified == resolvePolicy && not (isCapitalized typeName) -> do
                 tyVar <- freshType env
                 quantify tyVar
 
-                HashTable.insert typeName (TypeBinding tyVar) eTypeBindings
+                HashTable.insert typeName (TypeReference tyVar) eTypeBindings
                 return tyVar
             Nothing ->
-                fail $ printf "Constructor refers to nonexistent type %s" (show typeName)
+                failTypeError pos $ Error.UnboundType typeName
 
     go (RecordIdent rows) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
@@ -118,12 +118,6 @@ resolveTypeIdent env@Env{..} resolvePolicy typeIdent =
         argTypes' <- for argTypes go
         retPrimitive' <- go retPrimitive
         return $ TFun argTypes' retPrimitive'
-
-addQvarTable :: MonadIO m => Env -> [(Name, TypeVar)] -> m Env
-addQvarTable env@Env{..} qvarTable = do
-    newBindings <- HashTable.mergeImmutable eTypeBindings
-        (HashMap.fromList [(name, TypeBinding ty) | (name, ty) <- qvarTable])
-    return env { eTypeBindings = newBindings }
 
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env
@@ -157,8 +151,8 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let strTy = TPrimitive String
     env <- newEnv thisModuleName loadedModules Nothing
 
-    HashTable.insert "Number" (TypeBinding numTy) (eTypeBindings env)
-    HashTable.insert "String" (TypeBinding strTy) (eTypeBindings env)
+    HashTable.insert "Number" (TypeReference numTy) (eTypeBindings env)
+    HashTable.insert "String" (TypeReference strTy) (eTypeBindings env)
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
@@ -172,7 +166,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
             -- populate types
             for_ (getAllExportedTypes $ importedModule) $ \(name, typeVar) -> do
-                HashTable.insert name (TypeBinding typeVar) (eTypeBindings env)
+                HashTable.insert name (TypeReference typeVar) (eTypeBindings env)
 
             -- populate values
             for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
@@ -279,7 +273,7 @@ registerJSFFIDecl env = \case
                 , tuVariants = variants'
                 }
         let userType = TUserType typeDef []
-        HashTable.insert name (TypeBinding userType) (eTypeBindings env)
+        HashTable.insert name (TypeReference userType) (eTypeBindings env)
 
         for_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
@@ -292,51 +286,95 @@ addThisModuleDataDeclsToEnvironment
     -> Module UnresolvedReference Pos
     -> TC ()
 addThisModuleDataDeclsToEnvironment env thisModule = do
+    {-
+    populate environment:
+        eTypeBindings
+        eValueBindings
+        ePatternBindings
+
+    phase 1:
+        register all qualified imports
+        register all unqualified imports
+
+    phase 2:
+        a. register all jsffi types (both data constructors and patterns)
+        b. register all data types (and only the types)
+        c. register all type aliases
+        d. register all data type constructors and patterns (using same qvars from before)
+
+    phase 3:
+        type check all values in order
+    -}
+
     let decls = [decl | Declaration _ _ decl <- mDecls thisModule]
 
     -- Phase 2a
     for_ decls $ \decl -> do
         registerJSFFIDecl env decl
 
-    -- First, populate the type environment.  Variant parameter types are all initially free.
+    -- Phase 2b.
+    dataDecls <- fmap catMaybes $ for decls $ \case
+        DData pos name moduleName typeVarNames variants ->
+            return $ Just (pos, name, moduleName, typeVarNames, variants)
+        _ ->
+            return Nothing
+
+    dataDecls' <- for dataDecls $ \(pos, typeName, moduleName, typeVarNames, variants) -> do
+        e <- childEnv env
+        tyVars <- for typeVarNames $ \tvName ->
+            resolveTypeIdent e pos NewTypesAreQuantified (TypeIdent tvName [])
+
+        (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
+        HashTable.insert typeName (TypeReference tyVar) (eTypeBindings env)
+
+        let qvars = zip typeVarNames tyVars
+        return (pos, typeDef, tyVar, qvars, variants)
+
+    -- Phase 3b.
+    aliasDecls <- fmap catMaybes $ for decls $ \case
+        DTypeAlias pos name params ident -> do
+            typeVar <- freshType env
+            HashTable.insert name (TypeReference typeVar) $ eTypeBindings env
+            return $ Just (pos, params, ident, typeVar)
+        _ -> do
+            return Nothing
+
+    for_ aliasDecls $ \(pos, params, ident, typeVar) -> do
+        env' <- childEnv env
+        for_ params $ \tvName -> do
+            tv <- freshType env'
+            quantify tv
+            HashTable.insert tvName (TypeReference tv) $ eTypeBindings env'
+        resolvedType <- resolveTypeIdent env' pos NewTypesAreErrors ident
+        unify pos typeVar resolvedType
+
     for_ decls $ \case
         DJSData {} -> return ()
-
-        DTypeAlias _pos name params ident ->
-            HashTable.insert name (TypeAlias params ident) (eTypeBindings env)
-
+        DTypeAlias pos name params ident -> do
+            -- TODO: This feels buggy to me somehow.  -chad
+            env' <- childEnv env
+            for_ params $ \tvName -> do
+                tv <- freshType env'
+                quantify tv
+                HashTable.insert tvName (TypeReference tv) $ eTypeBindings env'
+            abc <- resolveTypeIdent env' pos NewTypesAreErrors ident
+            HashTable.insert name (TypeReference abc) (eTypeBindings env)
         DDeclare {} -> return ()
         DData {}    -> return ()
         DFun {}     -> return ()
         DLet {}     -> return ()
 
-    dataDecls <- fmap catMaybes $ for decls $ \case
-        DData _pos name moduleName typeVarNames variants ->
-            return $ Just (name, moduleName, typeVarNames, variants)
-        _ ->
-            return Nothing
-
-    dataDecls' <- for dataDecls $ \(typeName, moduleName, typeVarNames, variants) -> do
-        e <- childEnv env
-        tyVars <- for typeVarNames $ \tvName ->
-            resolveTypeIdent e NewTypesAreQuantified (TypeIdent tvName [])
-
-        (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
-        HashTable.insert typeName (TypeBinding tyVar) (eTypeBindings env)
-
-        let qvars = zip typeVarNames tyVars
-        return (typeDef, tyVar, qvars, variants)
-
-    for_ dataDecls' $ \(typeDef, tyVar, qvars, variants) -> do
+    -- Phase 4b.
+    for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
         for_ qvars $ \(qvName, qvTypeVar) ->
-            HashTable.insert qvName (TypeBinding qvTypeVar) (eTypeBindings e)
+            HashTable.insert qvName (TypeReference qvTypeVar) (eTypeBindings e)
 
         let computeVariantType [] = tyVar
             computeVariantType argTypeIdents = TFun argTypeIdents tyVar
 
         for_ variants $ \(Variant _typeVar vname vparameters) -> do
-            parameterTypeVars <- traverse (resolveTypeIdent e NewTypesAreErrors) vparameters
+            parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
             HashTable.insert vname (ValueReference (ThisModule vname) LImmutable ctorType) (eValueBindings env)
             HashTable.insert vname (PatternBinding typeDef (fmap snd qvars)) (ePatternBindings env)

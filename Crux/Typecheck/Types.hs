@@ -16,7 +16,6 @@ import Crux.AST
     ( LetMutability
     , ModuleName
     , ResolvedReference
-    , TypeIdent
     )
 import           Crux.Prelude
 
@@ -29,13 +28,10 @@ data ValueReference
     = ValueReference ResolvedReference LetMutability TypeVar
     | ModuleReference ModuleName
 
-data TypeReference
-    = TypeBinding TypeVar
-    | TypeAlias [Name] TypeIdent
+data TypeReference = TypeReference TypeVar
     deriving (Eq)
 instance Show TypeReference where
-    show (TypeBinding _tv) = "TypeBinding <typevar>"
-    show (TypeAlias params typeIdent) = "TypeAlias " ++ show params ++ " " ++ show typeIdent
+    show (TypeReference _tv) = "TypeBinding <typevar>"
 
 -- same structure as TUserType constructor
 data PatternBinding = PatternBinding

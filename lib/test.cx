@@ -1,10 +1,23 @@
-let tests = mutable []
+type Test = {
+  name: String,
+  fn: () -> ()
+}
 
-export fun test(name: string, fn) {
+// TODO: we are not sound under mutability yet, so add an
+// explicit annotation
+let tests: mutable [Test] = mutable []
+
+export fun test(name: String, fn) {
   tests->append({
     name: name,
     fn: fn,
   })
-  tests->append(1)
-  print(tests)
+}
+
+export fun run() {
+  for t in tests->freeze() {
+    print("test: " + t.name)
+    t.fn()
+  }
+  print("done")
 }

@@ -2,21 +2,21 @@ pragma { NoBuiltin }
 
 export data Array a {}
 
-let _unsafe_new: (Number) -> Array a =
+let _unsafe_new: (Number) -> [a] =
     _unsafe_js("function (len) { return new Array(len); }")
 
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun get(a: Array a, idx: number) {
+export fun get(a: [a], idx: number) {
     _unsafe_get(a, idx)
 }
 
-export fun len(a: Array a): Number {
+export fun len(a: [a]): Number {
     _unsafe_coerce(a).length
 }
 
-export fun replicate(element: a, len: Number): Array a {
+export fun replicate(element: a, len: Number): [a] {
     let arr = _unsafe_new(len);
 
     let mutable i = 0;
@@ -28,7 +28,7 @@ export fun replicate(element: a, len: Number): Array a {
     arr
 }
 
-export fun each(arr: Array a, f: (a) -> b): () {
+export fun each(arr: [a], f: (a) -> b): () {
     let mutable i = 0
     let length = len(arr)
     while i < length {
@@ -37,14 +37,14 @@ export fun each(arr: Array a, f: (a) -> b): () {
     }
 }
 
-export fun sliceFrom(arr: Array a, start: Number): Array a {
+export fun sliceFrom(arr: [a], start: Number): [a] {
     _unsafe_coerce(arr).slice(start)
 }
 
-export fun sliceTo(arr: Array a, end: Number): Array a {
+export fun sliceTo(arr: [a], end: Number): [a] {
     _unsafe_coerce(arr).slice(0, end)
 }
 
-export fun slice(arr: Array a, start: Number, end: Number): Array a {
+export fun slice(arr: [a], start: Number, end: Number): [a] {
     _unsafe_coerce(arr).slice(start, end)
 }

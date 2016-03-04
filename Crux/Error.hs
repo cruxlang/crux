@@ -103,7 +103,7 @@ typeErrorToString (UnificationError message at bt) = do
     let m
             | null message = ""
             | otherwise = "\n" ++ message
-    return $ printf "Unification error: %s\n\t%s%s" as bs m
+    return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
 typeErrorToString (UnboundSymbol message) =

@@ -58,3 +58,8 @@ export fun slice(arr: MutableArray a, start: Number, end: Number): MutableArray 
 export fun freeze(arr: MutableArray a): array.Array a {
     _unsafe_coerce(arr).slice()
 }
+
+// TODO: add comparator support
+export fun sort(arr: MutableArray String) {
+    _unsafe_coerce(arr).sort()
+}

@@ -59,11 +59,11 @@ export fun decodeArray(
     fun (arr) {
         assert(_isArray(arr), "Expected array but got " + _stringify(arr))
 
-        let mutable result = [];
+        let result = mutable [];
         for element in _unsafe_coerce(arr) {
             result->append(elementDecoder(element))
         }
-        return result
+        result->freeze()
     }
 }
 

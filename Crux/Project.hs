@@ -8,6 +8,7 @@ import System.FilePath (combine)
 import qualified Data.Text.IO as TextIO
 import qualified Data.Text as Text
 import Crux.Module
+import qualified Crux.AST as AST
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JSBackend
 import qualified Crux.Error as Error
@@ -42,9 +43,9 @@ buildTarget targetName TargetConfig{..} = do
     let targetPath = combine "build" $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-        Left (_, err) -> do
+        Left (moduleName, err) -> do
             message <- Error.renderError err
-            Exit.die $ "project build failed\n" ++ message
+            Exit.die $ "project build failed\nin module: " ++ Text.unpack (AST.printModuleName moduleName) ++ "\n" ++ message
         Right program -> do
             program' <- Gen.generateProgram program
             TextIO.writeFile targetPath $ JSBackend.generateJS program'

@@ -175,7 +175,7 @@ showTypeVarIO' showBound = \case
         TBound tv -> do
             inner <- showTypeVarIO' showBound tv
             if showBound
-                then return $ "(TBound " ++ inner ++ ")" ++ show showBound
+                then return $ "(TBound " ++ inner ++ ")"
                 else return inner
     TQuant i -> do
         return $ "TQuant " ++ show i

@@ -48,8 +48,3 @@ export fun map(f: (a) -> b, a: Array a): Array b {
 export let sliceFrom = array.sliceFrom
 export let sliceTo = array.sliceTo
 export let slice = array.slice
-
-// TODO: add comparator support
-export fun sort(arr: Array String) {
-    _unsafe_coerce(arr).sort()
-}

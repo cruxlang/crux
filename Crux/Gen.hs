@@ -192,7 +192,7 @@ generate env expr = case expr of
     AST.ELiteral _ lit -> do
         return $ Just $ Literal lit
 
-    AST.EArrayLiteral _ elements -> do
+    AST.EArrayLiteral _ _ elements -> do
         elements' <- runMaybeT $ for elements $ MaybeT . generate env
         return $ fmap ArrayLiteral elements'
 

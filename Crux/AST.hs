@@ -52,7 +52,7 @@ data RefutablePattern
 data DeclarationType idtype edata
     -- Values
     = DDeclare edata Name TypeIdent
-    | DLet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
+    | DLet edata Mutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | DFun edata Name [(Pattern, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
@@ -184,15 +184,15 @@ data Intrinsic input
 
 type IntrinsicId idtype edata = Intrinsic (Expression idtype edata)
 
-data LetMutability
-    = LMutable
-    | LImmutable
+data Mutability
+    = Mutable
+    | Immutable
     deriving (Show, Eq)
 
 data Expression idtype edata
     -- Mutable Wildcard makes no sense -- disallow that?
     -- TODO: should mutability status be part of the pattern?
-    = ELet edata LetMutability Pattern (Maybe TypeIdent) (Expression idtype edata)
+    = ELet edata Mutability Pattern (Maybe TypeIdent) (Expression idtype edata)
     | ELookup edata (Expression idtype edata) Name
     | EApp edata (Expression idtype edata) [Expression idtype edata]
     | EMatch edata (Expression idtype edata) [Case idtype edata]
@@ -205,7 +205,7 @@ data Expression idtype edata
     -- literals
     | EFun edata [(Pattern, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype edata))
-    | EArrayLiteral edata [Expression idtype edata]
+    | EArrayLiteral edata Mutability [Expression idtype edata]
     | ELiteral edata Literal
 
     -- intrinsics
@@ -229,7 +229,7 @@ edata expr = case expr of
     EMatch ed _ _ -> ed
     EAssign ed _ _ -> ed
     ELiteral ed _ -> ed
-    EArrayLiteral ed _ -> ed
+    EArrayLiteral ed _ _ -> ed
     ERecordLiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
@@ -253,6 +253,6 @@ instance IsString TypeIdentifier where
 data TypeIdent
     = UnitTypeIdent
     | TypeIdent TypeIdentifier [TypeIdent]
-    | RecordIdent [(Name, Maybe LetMutability, TypeIdent)]
+    | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     deriving (Show, Eq)

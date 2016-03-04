@@ -1,0 +1,9 @@
+fun main() {
+    let a = mutable []
+    a->append("foo")
+    a->append("bar")
+    for x in a->freeze() {
+        print(x)
+    }
+}
+let _ = main()

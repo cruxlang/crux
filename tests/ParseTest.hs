@@ -33,9 +33,9 @@ test_literals = do
     assertExprParses literalExpression "()"
         (ELiteral () (LUnit))
     assertExprParses literalExpression "[]"
-        (EArrayLiteral () [])
+        (EArrayLiteral () Immutable [])
     assertExprParses literalExpression "[(), 1, \"hi\"]"
-        (EArrayLiteral () [ELiteral () LUnit, ELiteral () $ LInteger 1, ELiteral () $ LString "hi"])
+        (EArrayLiteral () Immutable [ELiteral () LUnit, ELiteral () $ LInteger 1, ELiteral () $ LString "hi"])
 
 test_parens = do
     assertExprParses noSemiExpression "(5)"
@@ -55,33 +55,33 @@ test_application_association = do
 
 test_let = do
     assertExprParses letExpression "let a = \"Hello\""
-        (ELet () LImmutable (PBinding "a") Nothing (ELiteral () (LString "Hello")))
+        (ELet () Immutable (PBinding "a") Nothing (ELiteral () (LString "Hello")))
 
 test_let2 = do
     assertExprParses letExpression "let a = (5)"
-        (ELet () LImmutable (PBinding "a") Nothing (ELiteral () (LInteger 5)))
+        (ELet () Immutable (PBinding "a") Nothing (ELiteral () (LInteger 5)))
 
 test_let_with_type_annotation = do
     assertExprParses letExpression "let a : Number = 5"
-        (ELet () LImmutable (PBinding "a") (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
+        (ELet () Immutable (PBinding "a") (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
     assertParseOk typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])]) id
 
 test_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
-        (ELet () LImmutable (PBinding "a") (Just (RecordIdent
+        (ELet () Immutable (PBinding "a") (Just (RecordIdent
             [ ("x", Nothing, TypeIdent "Number" [])
             , ("y", Nothing, TypeIdent "Number" [])
             ])) (ELiteral () LUnit))
 
 test_let_with_function_annotation = do
     assertExprParses letExpression "let a : (Number) -> Unit = _unsafe_js(\"console.log\")"
-        (ELet () LImmutable (PBinding "a") (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
+        (ELet () Immutable (PBinding "a") (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
 
 test_mutable_let = do
     assertExprParses letExpression "let mutable x = 22"
-        (ELet () LMutable (PBinding "x") Nothing (ELiteral () (LInteger 22)))
+        (ELet () Mutable (PBinding "x") Nothing (ELiteral () (LInteger 22)))
 
 test_pattern = do
     assertParseOk pattern "Cons(a, Cons(b, Nil))"
@@ -132,11 +132,11 @@ test_prop_and_functions_chain = do
 
 test_let_if_indentation = do
     assertExprParses letDeclaration "let x = if\n True\nthen\n 1\nelse\n 2"
-        (DLet () LImmutable (PBinding "x") Nothing $ EIfThenElse () (EIdentifier () "True") (ELiteral () $ LInteger 1) (ELiteral () $ LInteger 2))
+        (DLet () Immutable (PBinding "x") Nothing $ EIfThenElse () (EIdentifier () "True") (ELiteral () $ LInteger 1) (ELiteral () $ LInteger 2))
 
 test_multiline_function_argument_indentation = do
     assertExprParses letDeclaration "let x = foo(fun() {\n}, 1)"
-        (DLet () LImmutable (PBinding "x") Nothing $ EApp () (EIdentifier () "foo") [EFun () [] Nothing $ ELiteral () LUnit, ELiteral () $ LInteger 1])
+        (DLet () Immutable (PBinding "x") Nothing $ EApp () (EIdentifier () "foo") [EFun () [] Nothing $ ELiteral () LUnit, ELiteral () $ LInteger 1])
 
 test_parameter_list_indentation = do
     let source = T.unlines
@@ -146,7 +146,7 @@ test_parameter_list_indentation = do
             , ")"
             ]
     assertExprParses letDeclaration source
-        (DLet () LImmutable PWildcard Nothing $ EApp () (EIdentifier () "foo") [ELiteral () $ LInteger 1, ELiteral () $ LInteger 2])
+        (DLet () Immutable PWildcard Nothing $ EApp () (EIdentifier () "foo") [ELiteral () $ LInteger 1, ELiteral () $ LInteger 2])
 
 test_record_literal_trailing_comma = do
     let source = T.unlines
@@ -156,4 +156,4 @@ test_record_literal_trailing_comma = do
             , "}"
             ]
     assertExprParses letDeclaration source
-        (DLet () LImmutable PWildcard Nothing $ ERecordLiteral () $ fromList [("a", ELiteral () $ LInteger 1), ("b", ELiteral () $ LInteger 2)])
+        (DLet () Immutable PWildcard Nothing $ ERecordLiteral () $ fromList [("a", ELiteral () $ LInteger 1), ("b", ELiteral () $ LInteger 2)])

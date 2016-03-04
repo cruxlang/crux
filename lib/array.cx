@@ -8,10 +8,6 @@ let _unsafe_new: (Number) -> Array a =
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun append(a: Array a, v: a): () {
-    _unsafe_coerce(a).push(v)
-}
-
 export fun get(a: Array a, idx: number) {
     _unsafe_get(a, idx)
 }

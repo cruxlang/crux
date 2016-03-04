@@ -13,7 +13,7 @@ import Crux.TypeVar
     )
 import Crux.Module.Types (LoadedModule)
 import Crux.AST
-    ( LetMutability
+    ( Mutability
     , ModuleName
     , ResolvedReference
     )
@@ -25,7 +25,7 @@ type Name = Text
 type HashTable k v = IORef (HashMap k v)
 
 data ValueReference
-    = ValueReference ResolvedReference LetMutability TypeVar
+    = ValueReference ResolvedReference Mutability TypeVar
     | ModuleReference ModuleName
 
 data TypeReference = TypeReference TypeVar

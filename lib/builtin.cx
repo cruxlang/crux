@@ -5,6 +5,7 @@ pragma { NoBuiltin }
 import {
     boolean,
     array,
+    mutarray,
     string,
 }
 
@@ -35,7 +36,6 @@ export fun emptyArray(): Array a {
     _unsafe_js("[]")
 }
 
-export let append = array.append
 export let get = array.get
 export let len = array.len
 export let replicate = array.replicate

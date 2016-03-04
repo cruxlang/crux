@@ -121,8 +121,8 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
             let trMut = case mut of
                     Nothing -> RFree
-                    Just LMutable -> RMutable
-                    Just LImmutable -> RImmutable
+                    Just Mutable -> RMutable
+                    Just Immutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
         ref <- newIORef $ RRecord $ RecordType RecordClose rows'
@@ -170,7 +170,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        HashTable.insert name (ValueReference (Builtin name) LImmutable iType) (eValueBindings env)
+        HashTable.insert name (ValueReference (Builtin name) Immutable iType) (eValueBindings env)
 
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do
@@ -197,19 +197,19 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     return env
 
-getAllExportedValues :: LoadedModule -> [(Name, LetMutability, TypeVar)]
+getAllExportedValues :: LoadedModule -> [(Name, Mutability, TypeVar)]
 getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
-    DDeclare typeVar name _typeIdent -> [(name, LImmutable, typeVar)]
+    DDeclare typeVar name _typeIdent -> [(name, Immutable, typeVar)]
     -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
     DLet typeVar mutability binding _ _ -> case binding of
         PBinding name -> [(name, mutability, typeVar)]
         PWildcard -> []
-    DFun typeVar name _ _ _ -> [(name, LImmutable, typeVar)]
-    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, LImmutable, typeVar)) variants
-    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, LImmutable, typeVar)) variants
+    DFun typeVar name _ _ _ -> [(name, Immutable, typeVar)]
+    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, Immutable, typeVar)) variants
+    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, Immutable, typeVar)) variants
     DTypeAlias _ _ _ _ -> []
 
-findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, LetMutability, TypeVar)
+findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
 findExportedValueByName env moduleName valueName = do
     modul <- HashMap.lookup moduleName (eLoadedModules env)
     (typeVar, mutability) <- findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
@@ -290,7 +290,7 @@ registerJSFFIDecl env = \case
         HashTable.insert name (TypeReference userType) (eTypeBindings env)
 
         for_ variants $ \(JSVariant variantName _value) -> do
-            HashTable.insert variantName (ValueReference (Local variantName) LImmutable userType) (eValueBindings env)
+            HashTable.insert variantName (ValueReference (Local variantName) Immutable userType) (eValueBindings env)
             HashTable.insert variantName (PatternBinding typeDef []) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
@@ -390,5 +390,5 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ variants $ \(Variant _typeVar vname vparameters) -> do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
-            HashTable.insert vname (ValueReference (ThisModule vname) LImmutable ctorType) (eValueBindings env)
+            HashTable.insert vname (ValueReference (ThisModule vname) Immutable ctorType) (eValueBindings env)
             HashTable.insert vname (PatternBinding typeDef (fmap snd qvars)) (ePatternBindings env)

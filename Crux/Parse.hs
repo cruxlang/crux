@@ -197,8 +197,16 @@ unitLiteralExpression = do
 
 arrayLiteralExpression :: Parser ParseExpression
 arrayLiteralExpression = do
-    (pos, exprs) <- bracketed' $ commaDelimited noSemiExpression
-    return $ EArrayLiteral pos exprs
+    let arrParser = do
+            bracketed' $ commaDelimited noSemiExpression
+        mutableArray = do
+            mutableToken <- token TMutable
+            (_, elts) <- arrParser
+            return $ EArrayLiteral (tokenData mutableToken) Mutable elts
+        immutableArray = do
+            (pos, exprs) <- arrParser
+            return $ EArrayLiteral pos Immutable exprs
+    mutableArray <|> immutableArray
 
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
@@ -378,7 +386,7 @@ letExpression :: Parser ParseExpression
 letExpression = do
     tlet <- token TLet
     withIndentation (IRDeeper tlet) $ do
-        mut <- P.option LImmutable (token TMutable >> return LMutable)
+        mut <- P.option Immutable (token TMutable >> return Mutable)
         pat <- irrefutablePattern <|> fmap (PBinding . snd) lowerIdentifier
         typeAnn <- P.optionMaybe $ do
             _ <- token TColon
@@ -432,8 +440,8 @@ recordTypeIdent :: Parser TypeIdent
 recordTypeIdent = do
     props <- braced $ commaDelimited $ do
         mut <- P.optionMaybe (
-            (token TMutable *> pure LMutable) <|>
-            (token TConst *> pure LImmutable))
+            (token TMutable *> pure Mutable) <|>
+            (token TConst *> pure Immutable))
         name <- anyIdentifier
         _ <- token TColon
         ty <- typeIdent

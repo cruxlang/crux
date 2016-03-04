@@ -42,7 +42,7 @@ buildPatternEnv env pos exprType = \case
         return ()
 
     RPIrrefutable (PBinding pname) -> do
-        HashTable.insert pname (ValueReference (Local pname) LImmutable exprType) (eValueBindings env)
+        HashTable.insert pname (ValueReference (Local pname) Immutable exprType) (eValueBindings env)
 
     RPConstructor Nothing cname cargs -> do
         HashTable.lookup cname (ePatternBindings env) >>= \case
@@ -61,7 +61,7 @@ buildPatternEnv env pos exprType = \case
             _ -> do
                 fail $ printf "Qualified pattern uses unknown import %s" (Text.unpack importName)
 
-lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, LetMutability, TypeVar))
+lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do
     HashTable.lookup name eValueBindings >>= \case
         Just (ValueReference a b c) -> return $ Just (a, b, c)
@@ -72,7 +72,7 @@ isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- lookupBinding (resolvedReferenceName name) env
         return $ case l of
-            Just (_, LMutable, _) -> True
+            Just (_, Mutable, _) -> True
             _ -> False
     ELookup _ lhs propName -> do
         lty' <- followTypeVar (edata lhs)
@@ -116,7 +116,7 @@ resolveTypeReference pos env (KnownReference moduleName name) = do
             Just (_, tv) -> return tv
             Nothing -> failTypeError pos $ ModuleReferenceError moduleName name
 
-resolveValueReference :: Pos -> Env -> UnresolvedReference -> TC (Maybe (ResolvedReference, LetMutability, TypeVar))
+resolveValueReference :: Pos -> Env -> UnresolvedReference -> TC (Maybe (ResolvedReference, Mutability, TypeVar))
 resolveValueReference pos env ref = case ref of
     UnqualifiedReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
@@ -130,10 +130,13 @@ resolveValueReference pos env ref = case ref of
                 return $ Just (rr, mutability, typevar)
             Nothing -> failTypeError pos $ ModuleReferenceError moduleName name
 
-resolveArrayType :: Pos -> Env -> TC (TypeVar, TypeVar)
-resolveArrayType pos env = do
+resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
+resolveArrayType env pos mutability = do
     elementType <- freshType env
-    arrayType <- resolveTypeReference pos env (UnqualifiedReference "Array")
+    let typeReference = case mutability of
+            Immutable -> KnownReference "array" "Array"
+            Mutable -> KnownReference "mutarray" "MutableArray"
+    arrayType <- resolveTypeReference pos env typeReference
     followTypeVar arrayType >>= \case
         TUserType td [_elementType] -> do
             let newArrayType = TUserType td [elementType]
@@ -183,7 +186,7 @@ check' expectedType env = \case
                 unify pos pt annTy
             case p of
                 PWildcard -> return ()
-                PBinding name -> HashTable.insert name (ValueReference (Local name) LImmutable pt) valueBindings'
+                PBinding name -> HashTable.insert name (ValueReference (Local name) Immutable pt) valueBindings'
 
         let env' = env
                 { eValueBindings=valueBindings'
@@ -316,13 +319,13 @@ check' expectedType env = \case
                 LUnit -> TPrimitive Unit
         return $ ELiteral litType lit
 
-    EArrayLiteral pos elements -> do
-        (arrayType, elementType) <- resolveArrayType pos env
+    EArrayLiteral pos mutability elements -> do
+        (arrayType, elementType) <- resolveArrayType env pos mutability
         elements' <- for elements $ \element -> do
             elementExpr <- check env element
             unify pos elementType (edata elementExpr)
             return elementExpr
-        return $ EArrayLiteral arrayType elements'
+        return $ EArrayLiteral arrayType mutability elements'
 
     ERecordLiteral pos fields -> do
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
@@ -430,11 +433,11 @@ check' expectedType env = \case
     EFor pos name over body -> do
         let unitType = TPrimitive Unit
 
-        (arrayType, iteratorType) <- resolveArrayType pos env
+        (arrayType, iteratorType) <- resolveArrayType env pos Immutable
         over' <- checkExpecting arrayType env over
 
         bindings' <- HashTable.clone (eValueBindings env)
-        HashTable.insert name (ValueReference (Local name) LImmutable iteratorType) bindings'
+        HashTable.insert name (ValueReference (Local name) Immutable iteratorType) bindings'
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
@@ -468,7 +471,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DDeclare _pos name typeIdent -> do
         ty <- resolveTypeIdent env pos NewTypesAreQuantified typeIdent
-        HashTable.insert name (ValueReference (Ambient name) LImmutable ty) (eValueBindings env)
+        HashTable.insert name (ValueReference (Ambient name) Immutable ty) (eValueBindings env)
         return $ DDeclare ty name typeIdent
     DLet pos' mut pat maybeAnnot expr -> do
         env' <- childEnv env
@@ -490,7 +493,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     DFun pos' name args returnAnn body -> do
         let expr = EFun pos' args returnAnn body
         ty <- freshType env
-        HashTable.insert name (ValueReference (ThisModule name) LImmutable ty) (eValueBindings env)
+        HashTable.insert name (ValueReference (ThisModule name) Immutable ty) (eValueBindings env)
         expr'@(EFun _ _ _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty

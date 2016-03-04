@@ -255,4 +255,5 @@ data TypeIdent
     | TypeIdent TypeIdentifier [TypeIdent]
     | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
+    | ArrayIdent Mutability TypeIdent
     deriving (Show, Eq)

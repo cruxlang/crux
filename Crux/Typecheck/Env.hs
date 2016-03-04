@@ -13,6 +13,11 @@ module Crux.Typecheck.Env
     , findExportedTypeByName
     , getAllExportedPatterns
     , findExportedPatternByName
+
+    , resolveValueReference
+    , resolveTypeReference
+    , resolveBooleanType
+    , resolveArrayType
     ) where
 
 import           Crux.AST
@@ -132,6 +137,56 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         argTypes' <- for argTypes go
         retPrimitive' <- go retPrimitive
         return $ TFun argTypes' retPrimitive'
+
+    go (ArrayIdent mutability elementType) = do
+        elementType' <- go elementType
+        (arrayType, elementType'') <- resolveArrayType env pos mutability
+        unify pos elementType' elementType''
+        return arrayType
+
+resolveTypeReference :: Pos -> Env -> UnresolvedReference -> TC TypeVar
+resolveTypeReference pos env ref@(UnqualifiedReference name) = do
+    HashTable.lookup name (eTypeBindings env) >>= \case
+        Just (TypeReference t) -> return t
+        Nothing -> failTypeError pos $ Error.UnboundSymbol ref
+resolveTypeReference pos env (KnownReference moduleName name) = do
+    if moduleName == eThisModule env then do
+        resolveTypeReference pos env (UnqualifiedReference name)
+    else do
+        case findExportedTypeByName env moduleName name of
+            Just (_, tv) -> return tv
+            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveValueReference :: Pos -> Env -> UnresolvedReference -> TC (Maybe (ResolvedReference, Mutability, TypeVar))
+resolveValueReference pos env ref = case ref of
+    UnqualifiedReference name -> do
+        result <- HashTable.lookup name (eValueBindings env)
+        return $ case result of
+            Just (ValueReference rr mut t) -> Just (rr, mut, t)
+            _ -> Nothing
+    KnownReference moduleName name -> do
+        -- TODO: better error messages
+        case findExportedValueByName env moduleName name of
+            Just (rr, mutability, typevar) ->
+                return $ Just (rr, mutability, typevar)
+            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
+resolveArrayType env pos mutability = do
+    elementType <- freshType env
+    let typeReference = case mutability of
+            Immutable -> KnownReference "array" "Array"
+            Mutable -> KnownReference "mutarray" "MutableArray"
+    arrayType <- resolveTypeReference pos env typeReference
+    followTypeVar arrayType >>= \case
+        TUserType td [_elementType] -> do
+            let newArrayType = TUserType td [elementType]
+            return (newArrayType, elementType)
+        _ -> fail "Unexpected Array type"
+
+resolveBooleanType :: Pos -> Env -> TC TypeVar
+resolveBooleanType pos env = do
+    resolveTypeReference pos env (KnownReference "boolean" "Boolean")
 
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env

@@ -481,8 +481,14 @@ unitTypeIdent = do
     _ <- P.try $ token TOpenParen <* token TCloseParen
     return UnitTypeIdent
 
+arrayTypeIdent :: Parser TypeIdent
+arrayTypeIdent = do
+    mutability <- P.option Immutable (token TMutable *> return Mutable)
+    ti <- bracketed typeIdent
+    return $ ArrayIdent mutability ti
+
 typeIdent :: Parser TypeIdent
-typeIdent = functionTypeIdent <|> unitTypeIdent <|> sumIdent <|> recordTypeIdent
+typeIdent = functionTypeIdent <|> unitTypeIdent <|> sumIdent <|> recordTypeIdent <|> arrayTypeIdent
 
 typeName :: Parser Text
 typeName = do

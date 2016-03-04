@@ -1,4 +1,4 @@
-let tests = []
+let tests = mutable []
 
 export fun test(name: string, fn) {
   tests->append({

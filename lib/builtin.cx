@@ -32,16 +32,17 @@ export data Option a {
 // Arrays have unspecified representation here. They are represented as JS arrays.
 export type Array a = array.Array a
 
-export fun emptyArray(): Array a {
+export fun emptyArray(): [a] {
     _unsafe_js("[]")
 }
 
+// TODO: implement support for export { ... } syntax
 export let get = array.get
 export let len = array.len
 export let replicate = array.replicate
 export let each = array.each
 
-export fun map(f: (a) -> b, a: Array a): Array b {
+export fun map(f: (a) -> b, a: [a]): [b] {
     _unsafe_js("[].map").call(a, f)
 }
 

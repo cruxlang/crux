@@ -306,13 +306,6 @@ test_escaped_strings = do
 
     -- TODO: tests for \u and \U
 
-test_cannot_omit_arguments = do
-    result <- run $ T.unlines
-        [ "fun f(x) {}"
-        , "let _ = f()"
-        ]
-    assertUnificationError (Pos 1 2 9) "((TUnbound 9)) -> Unit" "() -> Unit" result
-
 test_row_variables_are_checked = do
     result <- run $ T.unlines
         [ "fun double_x(r) {"

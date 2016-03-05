@@ -184,7 +184,7 @@ check' expectedType env = \case
         followTypeVar (edata fn') >>= \case
             -- in the case that the type of the function is known, we propagate
             -- the known argument types into the environment so tdnr works
-            TFun argTypes resultType -> do
+            TFun argTypes resultType | length argTypes == length args -> do
                 args' <- for (zip argTypes args) $ \(argType, arg) -> do
                     checkExpecting argType env arg
 

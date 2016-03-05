@@ -1,14 +1,14 @@
 import {
-  test(...),
-  assert,
+    test(...),
+    assert,
 }
 
 let _ = test("numbers add", fun() {
-  assert.equal(3, 1 + 2)
+    assert.equal(3, 1 + 2)
 })
 
 let _ = test("numbers subtract", fun() {
-  assert.equal(3, 7 - 4)
+    assert.equal(3, 7 - 4)
 })
 
 let _ = run()

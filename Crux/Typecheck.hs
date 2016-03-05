@@ -219,7 +219,8 @@ check' expectedType env = \case
                         case findExportedValueByName env mn propName of
                             -- TODO: where does mutability go?
                             Just (resolvedRef, _mutability, typeVar) -> do
-                                return $ EIdentifier typeVar resolvedRef
+                                ntv <- instantiate env typeVar
+                                return $ EIdentifier ntv resolvedRef
                             Nothing -> do
                                 resumableTypeError pos' $ ModuleReferenceError mn propName
                     _ -> valueLookup

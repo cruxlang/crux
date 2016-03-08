@@ -25,7 +25,7 @@ genDoc :: Text -> IO Gen.Module
 genDoc src = do
     rv <- genDoc' src
     case rv of
-        Left err -> error =<< Error.renderError err
+        Left err -> error =<< Error.renderError' err
         Right stmts -> return stmts
 
 test_return_at_top_level_is_error = do

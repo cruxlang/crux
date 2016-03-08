@@ -10,6 +10,7 @@ module Crux.TypeVar
     , RowVariable(..)
     , TVariant(..)
     , TUserTypeDef(..)
+    , Strength (..)
     , TypeVar(..)
     , TypeState(..)
     , newTypeVar
@@ -108,6 +109,9 @@ data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
 
 type TypeNumber = Int
 
+data Strength = Strong | Weak
+    deriving (Eq)
+
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
@@ -121,7 +125,7 @@ data TypeVar
     deriving (Eq)
 
 data TypeState
-    = TUnbound TypeNumber
+    = TUnbound Strength TypeNumber
     | TBound TypeVar
     deriving (Eq)
 
@@ -129,11 +133,13 @@ newTypeVar :: MonadIO m => TypeState -> m TypeVar
 newTypeVar tv = TypeVar <$> newIORef tv
 
 followTypeVar :: MonadIO m => TypeVar -> m TypeVar
-followTypeVar (TypeVar ref) = do
-    readIORef ref >>= \case
-        TBound tv -> followTypeVar tv
-        TUnbound _ -> return $ TypeVar ref
-followTypeVar tv = return tv
+followTypeVar tvar = case tvar of
+    TypeVar ref ->
+        readIORef ref >>= \case
+            TBound tv -> followTypeVar tv
+            TUnbound {} -> return tvar
+    _ ->
+        return tvar
 
 {-
 -- TODO: move this into Crux.TypeVar.Internal.  Only Unify should use it.
@@ -170,8 +176,10 @@ showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
 showTypeVarIO' :: MonadIO m => Bool -> TypeVar -> m String
 showTypeVarIO' showBound = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound i -> do
-            return $ "(TUnbound " ++ show i ++ ")"
+        TUnbound str i -> do
+            let strstr | str == Strong = ""
+                       | otherwise = "Weak "
+            return $ "(TUnbound " ++ strstr ++ show i ++ ")"
         TBound tv -> do
             inner <- showTypeVarIO' showBound tv
             if showBound

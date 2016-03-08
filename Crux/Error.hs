@@ -7,6 +7,7 @@ module Crux.Error
     , getErrorName
     , getTypeErrorName
     , renderError
+    , renderError'
     ) where
 
 import qualified Crux.AST as AST
@@ -59,17 +60,24 @@ data Error
     | TypeError Tokens.Pos TypeError
     deriving (Eq, Show)
 
-renderError :: Error -> IO String
-renderError (LexError e) = return $ "Lex error: " ++ show e
-renderError (ParseError e) = return $ "Parse error: " ++ show e
-renderError (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError (CircularImport mn) = return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
+renderError :: AST.ModuleName -> Error -> IO String
+renderError moduleName err = do
+    e <- renderError' err
+    return $ "At " ++ Text.unpack (AST.printModuleName moduleName) ++ ": " ++ e
+
+renderError' :: Error -> IO String
+renderError' (LexError e) = return $ "Lex error: " ++ show e
+renderError' (ParseError e) = return $ "Parse error: " ++ show e
+renderError' (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError' (CircularImport mn) = return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
+renderError' (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
     DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
     StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
-renderError (TypeError pos ue) = do
+renderError' (TypeError pos ue) = do
     te <- typeErrorToString ue
     return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
+
+
 
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol

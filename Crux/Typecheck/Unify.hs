@@ -20,7 +20,12 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: MonadIO m => Env -> m TypeVar
 freshType env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound index
+    newTypeVar $ TUnbound Strong index
+
+freshWeakQVar :: MonadIO m => Env -> m TypeVar
+freshWeakQVar env = do
+    index <- freshTypeIndex env
+    newTypeVar $ TUnbound Weak index
 
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
@@ -73,7 +78,7 @@ instantiate' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVa
 instantiate' subst recordSubst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
-            TUnbound _ -> do
+            TUnbound {} -> do
                 -- We instantiate unbound type variables when recursively
                 -- referencing a function whose parameter and return types are
                 -- not yet quantified.
@@ -118,11 +123,13 @@ quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
-            TUnbound i -> do
+            TUnbound Strong i -> do
                 writeIORef ref $ TBound $ TQuant i
+            TUnbound Weak _ ->
+                return ()
             TBound t -> do
                 quantify t
-    TQuant _ -> do
+    TQuant {} -> do
         return ()
     TFun param ret -> do
         for_ param quantify
@@ -152,9 +159,9 @@ typeError pos = failError . TypeError pos
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound q | tvn == q -> do
+        TUnbound _ q | tvn == q -> do
             typeError pos OccursCheckFailed
-        TUnbound _ -> do
+        TUnbound {} -> do
             return ()
         TBound next -> do
             occurs pos tvn next
@@ -296,19 +303,17 @@ unify pos av' bv' = do
     else case (av, bv) of
         -- thanks to followTypeVar, the only TypeVar case here is TUnbound
         (TypeVar aref, TypeVar bref) -> do
-            (TUnbound a') <- readIORef aref
-            (TUnbound b') <- readIORef bref
-            if a' == b' then
-                return ()
-            else do
+            (TUnbound _ a') <- readIORef aref
+            (TUnbound _ b') <- readIORef bref
+            when (a' /= b') $ do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
         (TypeVar aref, _) -> do
-            (TUnbound a') <- readIORef aref
+            (TUnbound _ a') <- readIORef aref
             occurs pos a' bv
             writeIORef aref $ TBound bv
         (_, TypeVar bref) -> do
-            (TUnbound b') <- readIORef bref
+            (TUnbound _ b') <- readIORef bref
             occurs pos b' av
             writeIORef bref $ TBound av
 

@@ -51,8 +51,8 @@ main = do
             buildProject
         [fn] -> do
             loadProgramFromFile fn >>= \case
-                Left (_, err) -> do
-                    Error.renderError err >>= hPutStrLn stderr
+                Left (moduleName, err) -> do
+                    Error.renderError moduleName err >>= hPutStrLn stderr
                     exitWith $ ExitFailure 1
                 Right program -> do
                     if ast options then do

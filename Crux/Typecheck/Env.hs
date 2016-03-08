@@ -173,7 +173,10 @@ resolveValueReference pos env ref = case ref of
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
 resolveArrayType env pos mutability = do
-    elementType <- freshType env
+    elementType <- case mutability of
+            Immutable -> freshType env
+            Mutable -> freshWeakQVar env
+
     let typeReference = case mutability of
             Immutable -> KnownReference "array" "Array"
             Mutable -> KnownReference "mutarray" "MutableArray"

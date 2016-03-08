@@ -44,7 +44,7 @@ buildTarget targetName TargetConfig{..} = do
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left (moduleName, err) -> do
-            message <- Error.renderError err
+            message <- Error.renderError' err
             Exit.die $ "project build failed\nin module: " ++ Text.unpack (AST.printModuleName moduleName) ++ "\n" ++ message
         Right program -> do
             program' <- Gen.generateProgram program

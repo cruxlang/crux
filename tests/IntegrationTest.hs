@@ -88,7 +88,7 @@ assertUnificationError _ _ _ _ =
 failWithError :: String -> AST.ModuleName -> Error.Error -> IO ()
 failWithError root moduleName err = do
     let moduleName' = AST.printModuleName moduleName
-    err' <- Error.renderError err
+    err' <- Error.renderError' err
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 
 data ErrorConfig = ErrorConfig
@@ -113,7 +113,7 @@ assertErrorMatches ErrorConfig{..} err = do
         (Just typeErrorName', Error.TypeError _pos te) -> do
             assertEqual typeErrorName' $ Error.getTypeErrorName te
         (Just _, _) -> do
-            msg <- Error.renderError err
+            msg <- Error.renderError' err
             assertFailure $ "type-error-name specified, but not a type error!\n" ++ msg
         (Nothing, _) -> do
             return ()
@@ -317,3 +317,15 @@ test_row_variables_are_checked = do
         , "let _ = print(a.z)"
         ]
     assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound 34),..._35}" result
+
+test_mutable_array_value_restriction = do
+    rv <- run $ T.unlines
+        [ "let a = mutable []"
+        , ""
+        , "fun main() {"
+        , "    a->append(1)"
+        , "    a->append(\"Hoop\")"
+        , "}"
+        ]
+
+    assertUnificationError (Pos 5 5 15) "String" "Number" rv

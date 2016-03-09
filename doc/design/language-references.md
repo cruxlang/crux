@@ -33,7 +33,11 @@ An unordered set of interesting language design resources.
 * https://cs.stackexchange.com/questions/11613/encoding-row-types
 * http://brianmckenna.org/blog/row_polymorphism_isnt_subtyping
 * [Objects in OCaml](https://realworldocaml.org/v1/en/html/objects.html)
-* 
+
+## Exceptions
+
+* [An Extensible Dynamically-Typed Hierarchy of Exceptions](http://community.haskell.org/~simonmar/papers/ext-exceptions.pdf)
+
 ## Other Interesting Languages
 
 * [Myrrdin](https://github.com/oridb/mc/blob/master/doc/lang.txt)

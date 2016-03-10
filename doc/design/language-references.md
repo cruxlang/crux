@@ -26,6 +26,7 @@ An unordered set of interesting language design resources.
 * [A theory of qualified types](http://www.sciencedirect.com/science/article/pii/0167642394000050)
 * [Unification](https://en.wikipedia.org/wiki/Unification_%28computer_science%29)
 * [Implementations of various type systems](https://github.com/tomprimozic/type-systems)
+* [How OCaml type checker works -- or what polymorphism and garbage collection have in common](http://okmij.org/ftp/ML/generalization.html)
 
 ## Row Types
 

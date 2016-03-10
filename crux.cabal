@@ -59,6 +59,7 @@ library
                       , LambdaCase
                       , RecordWildCards
                       , NamedFieldPuns
+                      , GeneralizedNewtypeDeriving
 
     ghc-options: -Wall
     -- ghc-options: -Werror

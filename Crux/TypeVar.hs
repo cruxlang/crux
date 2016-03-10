@@ -13,6 +13,7 @@ module Crux.TypeVar
     , Strength (..)
     , TypeVar(..)
     , TypeState(..)
+    , TypeLevel(..)
     , newTypeVar
     , followRecordTypeVar'
     , followRecordTypeVar
@@ -28,6 +29,13 @@ import Crux.AST (ModuleName)
 import Crux.Prelude
 
 type Name = Text
+
+-- Per http://okmij.org/ftp/ML/generalization.html
+newtype TypeLevel = TypeLevel { unTypeLevel :: Int }
+    deriving (Eq, Num, Ord)
+
+instance Show TypeLevel where
+    show (TypeLevel i) = show i
 
 data PrimitiveType
     = Number
@@ -125,7 +133,7 @@ data TypeVar
     deriving (Eq)
 
 data TypeState
-    = TUnbound Strength TypeNumber
+    = TUnbound Strength TypeLevel TypeNumber
     | TBound TypeVar
     deriving (Eq)
 
@@ -176,7 +184,7 @@ showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
 showTypeVarIO' :: MonadIO m => Bool -> TypeVar -> m String
 showTypeVarIO' showBound = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound str i -> do
+        TUnbound str _level i -> do
             let strstr | str == Strong = ""
                        | otherwise = "Weak "
             return $ "(TUnbound " ++ strstr ++ show i ++ ")"

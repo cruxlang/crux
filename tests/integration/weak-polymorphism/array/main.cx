@@ -1,0 +1,6 @@
+let a = mutable []
+
+fun main() {
+    a->append(1)
+    a->append("Hoop")
+}

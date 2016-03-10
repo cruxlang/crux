@@ -5,11 +5,13 @@ module Crux.Typecheck.Types
     , TypeReference(..)
     , PatternBinding(..)
     , Env(..)
+    , TypeLevel(..)
     ) where
 
 import Crux.TypeVar
     ( TypeVar(..)
     , TUserTypeDef(..)
+    , TypeLevel(..)
     )
 import Crux.Module.Types (LoadedModule)
 import Crux.AST
@@ -47,4 +49,5 @@ data Env = Env
     , ePatternBindings :: HashTable Name PatternBinding
     , eReturnType :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop :: !Bool
+    , eLevel :: !TypeLevel
     }

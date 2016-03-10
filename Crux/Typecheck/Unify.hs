@@ -20,12 +20,12 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: MonadIO m => Env -> m TypeVar
 freshType env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound Strong index
+    newTypeVar $ TUnbound Strong (eLevel env) index
 
 freshWeakQVar :: MonadIO m => Env -> m TypeVar
 freshWeakQVar env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound Weak index
+    newTypeVar $ TUnbound Weak (eLevel env) index
 
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
@@ -123,9 +123,9 @@ quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
-            TUnbound Strong i -> do
+            TUnbound Strong _ i -> do
                 writeIORef ref $ TBound $ TQuant i
-            TUnbound Weak _ ->
+            TUnbound Weak _ _ -> do
                 return ()
             TBound t -> do
                 quantify t
@@ -159,7 +159,7 @@ typeError pos = failError . TypeError pos
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound _ q | tvn == q -> do
+        TUnbound _ _ q | tvn == q -> do
             typeError pos OccursCheckFailed
         TUnbound {} -> do
             return ()
@@ -303,17 +303,17 @@ unify pos av' bv' = do
     else case (av, bv) of
         -- thanks to followTypeVar, the only TypeVar case here is TUnbound
         (TypeVar aref, TypeVar bref) -> do
-            (TUnbound _ a') <- readIORef aref
-            (TUnbound _ b') <- readIORef bref
+            (TUnbound _ _ a') <- readIORef aref
+            (TUnbound _ _ b') <- readIORef bref
             when (a' /= b') $ do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
         (TypeVar aref, _) -> do
-            (TUnbound _ a') <- readIORef aref
+            (TUnbound _ _ a') <- readIORef aref
             occurs pos a' bv
             writeIORef aref $ TBound bv
         (_, TypeVar bref) -> do
-            (TUnbound _ b') <- readIORef bref
+            (TUnbound _ _ b') <- readIORef bref
             occurs pos b' av
             writeIORef bref $ TBound av
 

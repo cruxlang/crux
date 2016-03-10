@@ -317,15 +317,3 @@ test_row_variables_are_checked = do
         , "let _ = print(a.z)"
         ]
     assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound 34),..._35}" result
-
-test_mutable_array_value_restriction = do
-    rv <- run $ T.unlines
-        [ "let a = mutable []"
-        , ""
-        , "fun main() {"
-        , "    a->append(1)"
-        , "    a->append(\"Hoop\")"
-        , "}"
-        ]
-
-    assertUnificationError (Pos 5 5 15) "String" "Number" rv

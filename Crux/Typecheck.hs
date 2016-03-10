@@ -120,6 +120,54 @@ checkExpecting expectedType env expr = do
 resumableTypeError :: Pos -> TypeError -> TC a
 resumableTypeError pos = failError . TypeError pos
 
+weaken :: MonadIO m => TypeLevel -> Expression idtype TypeVar -> m (Expression idtype TypeVar)
+weaken level e = do
+    t' <- weaken' (edata e)
+    return $ setEdata e t'
+  where
+    weaken' t = case t of
+        TypeVar ref ->
+            readIORef ref >>= \case
+                TUnbound Strong lvl tn
+                    | level <= lvl -> do
+                        writeIORef ref $ TUnbound Weak lvl tn
+                        return t
+                TUnbound {} ->
+                    return t
+
+                TBound tv -> do
+                    tv' <- weaken' tv
+                    writeIORef ref $ TBound tv'
+                    return t
+        TQuant {} ->
+            return t
+        TFun args ret -> do
+            args' <- mapM weaken' args
+            ret' <- weaken' ret
+            return $ TFun args' ret'
+        TUserType typeDef tyvars -> do
+            tyvars' <- mapM weaken' tyvars
+            return $ TUserType typeDef tyvars'
+        TRecord rtv -> do
+            weakenRecord rtv
+            return t
+        TPrimitive {} ->
+            return t
+        TTypeFun a b -> do
+            a' <- mapM weaken' a
+            b' <- weaken' b
+            return $ TTypeFun a' b'
+
+    weakenRecord rtv = readIORef rtv >>= \case
+        RRecord (RecordType open rows) -> do
+            rows' <- for rows $ \tr@(TypeRow{..}) -> do
+                ty' <- weaken' trTyVar
+                return tr { trTyVar = ty' }
+            writeIORef rtv $ RRecord $ RecordType open rows'
+
+        RBound rtv' ->
+            weakenRecord rtv'
+
 check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
 check' expectedType env = \case
     EFun pos params retAnn body -> do
@@ -242,18 +290,23 @@ check' expectedType env = \case
 
     ELet pos mut pat maybeAnnot expr' -> do
         ty <- freshType env
-        expr'' <- check env expr'
+        env' <- childEnv env
+        expr'' <- check env' expr'
+        expr''' <- case mut of
+            Mutable -> weaken (eLevel env') expr''
+            Immutable -> return expr''
+
         case pat of
             PWildcard -> do
                 return ()
             PBinding name -> do
                 HashTable.insert name (ValueReference (Local name) mut ty) (eValueBindings env)
-        unify pos ty (edata expr'')
+        unify pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
             unify pos ty annotTy
 
-        return $ ELet (TPrimitive Unit) mut pat maybeAnnot expr''
+        return $ ELet (TPrimitive Unit) mut pat maybeAnnot expr'''
 
     EAssign pos lhs rhs -> do
         lhs' <- check env lhs
@@ -440,13 +493,17 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         expr' <- check env' expr
         unify pos' ty (edata expr')
 
+        expr'' <- case mut of
+            Mutable -> weaken (eLevel env') expr'
+            Immutable -> return expr'
+
         case pat of
             PWildcard -> do
                 return ()
             PBinding name -> do
                 HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
         quantify ty
-        return $ DLet (edata expr') mut pat maybeAnnot expr'
+        return $ DLet (edata expr'') mut pat maybeAnnot expr''
     DFun pos' name args returnAnn body -> do
         let expr = EFun pos' args returnAnn body
         ty <- freshType env

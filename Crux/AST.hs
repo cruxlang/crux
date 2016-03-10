@@ -242,6 +242,28 @@ edata expr = case expr of
     EReturn ed _ -> ed
     EBreak ed -> ed
 
+setEdata :: Expression idtype edata -> edata -> Expression idtype edata
+setEdata expr e = case expr of
+    ELet _ a b c d        -> ELet e a b c d
+    EFun _ a b c          -> EFun e a b c
+    ELookup _ a b         -> ELookup e a b
+    EApp _ a b            -> EApp e a b
+    EMatch _ a b          -> EMatch e a b
+    EAssign _ a b         -> EAssign e a b
+    ELiteral _ a          -> ELiteral e a
+    EArrayLiteral _ a b   -> EArrayLiteral e a b
+    ERecordLiteral _ a    -> ERecordLiteral e a
+    EIdentifier _ a       -> EIdentifier e a
+    ESemi _ a b           -> ESemi e a b
+    EMethodApp _ a b c    -> EMethodApp e a b c
+    EBinIntrinsic _ a b c -> EBinIntrinsic e a b c
+    EIntrinsic _ a        -> EIntrinsic e a
+    EIfThenElse _ a b c   -> EIfThenElse e a b c
+    EWhile _ a b          -> EWhile e a b
+    EFor _ a b c          -> EFor e a b c
+    EReturn _ a           -> EReturn e a
+    EBreak _              -> EBreak e
+
 data TypeIdentifier
     = QualifiedType Name Name
     | UnqualifiedType Name

@@ -49,6 +49,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     ePatternBindings <- newIORef HashMap.empty
     return Env
         { eInLoop = False
+        , eLevel = 1
         , ..
         }
 
@@ -59,6 +60,7 @@ childEnv env@Env{..} = do
     return env
         { eValueBindings = valueBindings'
         , eTypeBindings = typeBindings
+        , eLevel = eLevel + 1
         }
 
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]

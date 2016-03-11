@@ -1,12 +1,7 @@
-let _throw: (a) -> b = _unsafe_js("function (e) { throw e; }")
-
-
-fun throwAssertionFailure(message: String) {
-    _throw("Assertion Failure: " + message)
-}
+exception AssertionError String
 
 export fun equal(expected, actual) {
     if expected != actual {
-        throwAssertionFailure("expected " + toString(expected) + " but got " + toString(actual))
+       throw AssertionError "expected " + toString(expected) + " but got " + toString(actual)
     }
 }

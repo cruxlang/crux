@@ -54,6 +54,7 @@ data TokenType
     | TOrOr
     | TWildcard -- _
     -- Keywords
+    | TAs
     | TPragma
     | TImport
     | TExport

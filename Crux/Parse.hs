@@ -668,9 +668,11 @@ importDecl = do
     let prefix = fmap ModuleSegment $ init segments
     let base = ModuleSegment $ last segments
     let moduleName = ModuleName prefix base
+    let defaultAlias = unModuleSegment base
+    alias <- P.option defaultAlias (token TAs *> anyIdentifier)
     (P.optionMaybe $ parenthesized $ token TEllipsis) >>= \case
         Nothing -> do
-            return (pos, QualifiedImport moduleName $ unModuleSegment base)
+            return (pos, QualifiedImport moduleName alias)
         Just _ -> do
             return (pos, UnqualifiedImport moduleName)
 

@@ -134,6 +134,7 @@ keyword = P.try $ do
     Token p (TLowerIdentifier i) <- parseLowerIdentifier
     fmap (Token p) $ case i of
         "_" -> return TWildcard
+        "as" -> return TAs
         "pragma" -> return TPragma
         "import" -> return TImport
         "export" -> return TExport

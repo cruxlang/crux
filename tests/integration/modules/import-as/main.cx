@@ -1,0 +1,4 @@
+import {
+  mymod as m
+}
+let _ = m.main()

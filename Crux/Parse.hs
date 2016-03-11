@@ -175,6 +175,26 @@ whileExpression = do
     body <- blockExpression
     return $ EWhile (tokenData pr) c body
 
+throwExpression :: Parser ParseExpression
+throwExpression = do
+    throwToken <- token TThrow
+    withIndentation (IRDeeper throwToken) $ do
+        exceptionName <- anyIdentifier
+        expr <- noSemiExpression
+        return $ EThrow (tokenData throwToken) exceptionName expr
+
+tryCatchExpression :: Parser ParseExpression
+tryCatchExpression = do
+    tryToken <- token TTry
+    tryBody <- withIndentation (IRDeeper tryToken) $ blockExpression
+    catchToken <- withIndentation (IRAtOrDeeper tryToken) $ token TCatch
+    (exceptionName, bindingName, catchBody) <- withIndentation (IRDeeper catchToken) $ do
+        exceptionName <- anyIdentifier
+        bindingName <- irrefutablePattern
+        catchBody <- blockExpression
+        return (exceptionName, bindingName, catchBody)
+    return $ ETryCatch (tokenData tryToken) tryBody exceptionName bindingName catchBody
+
 forExpression :: Parser ParseExpression
 forExpression = do
     pr <- token TFor
@@ -411,6 +431,8 @@ noSemiExpression =
     <|> ifThenElseExpression
     <|> whileExpression
     <|> forExpression
+    <|> throwExpression
+    <|> tryCatchExpression
     <|> returnExpression
     <|> assignExpression
     <|> booleanExpression
@@ -565,8 +587,8 @@ dataDeclaration = do
     withIndentation (IRDeeper dataToken) $
         jsDataDeclaration pos <|> cruxDataDeclaration pos
 
-typeDeclaration :: Parser ParseDeclaration
-typeDeclaration = do
+aliasDeclaration :: Parser ParseDeclaration
+aliasDeclaration = do
     typeToken <- token TType
     withIndentation (IRDeeper typeToken) $ do
         name <- typeName
@@ -613,6 +635,14 @@ funDeclaration = do
         body <- blockExpression
         return $ DFun (tokenData tfun) name params returnAnn body
 
+exceptionDeclaration :: Parser ParseDeclaration
+exceptionDeclaration = do
+    texc <- token Tokens.TException
+    withIndentation (IRDeeper texc) $ do
+        name <- anyIdentifier
+        ti <- typeIdent
+        return $ DException (tokenData texc) name ti
+
 declaration :: Parser (Declaration UnresolvedReference ParseData)
 declaration = do
     pos <- tokenData <$> P.lookAhead P.anyToken
@@ -624,9 +654,10 @@ declaration = do
 
     declType <- declareDeclaration
             <|> dataDeclaration
-            <|> typeDeclaration
+            <|> aliasDeclaration
             <|> funDeclaration
             <|> letDeclaration
+            <|> exceptionDeclaration
     return $ Declaration exportFlag pos declType
 
 importDecl :: Parser (Pos, Import)

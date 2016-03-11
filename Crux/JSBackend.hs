@@ -166,6 +166,22 @@ renderInstruction instr = case instr of
             (JSTree.ELiteral JSTree.LTrue)
             (JSTree.SBlock $ map renderInstruction body)
 
+    Gen.Throw exceptionName body ->
+        JSTree.SThrow $ JSTree.EArray [ JSTree.ELiteral $ JSTree.LString exceptionName, renderValue body ]
+
+    Gen.TryCatch tryInstrs exceptionName exceptionBinding catchInstrs ->
+        let jsarg = renderArgument exceptionBinding in
+        let jsident = JSTree.EIdentifier jsarg in
+        let notnull = JSTree.EBinOp "!=" jsident $ JSTree.ELiteral JSTree.LNull in
+        let tagmatches = JSTree.EBinOp "===" (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 0)) (JSTree.ELiteral $ JSTree.LString exceptionName) in
+        let check = JSTree.EBinOp "&&" notnull tagmatches in
+        let assign = JSTree.SAssign jsident (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 1)) in
+        let guard = JSTree.SIf check assign (Just $ JSTree.SThrow jsident) in
+        JSTree.STryCatch
+            (map renderInstruction tryInstrs)
+            jsarg
+            (guard : map renderInstruction catchInstrs)
+
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
 generateMatchCond :: JSTree.Expression -> RefutablePattern -> JSTree.Expression

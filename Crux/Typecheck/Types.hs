@@ -47,6 +47,7 @@ data Env = Env
     , eValueBindings :: HashTable Name ValueReference
     , eTypeBindings :: HashTable Name TypeReference
     , ePatternBindings :: HashTable Name PatternBinding
+    , eExceptionBindings :: HashTable Name TypeVar
     , eReturnType :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop :: !Bool
     , eLevel :: !TypeLevel

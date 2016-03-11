@@ -141,7 +141,11 @@ keyword = P.try $ do
         "fun" -> return TFun
         "data" -> return TData
         "declare" -> return TDeclare
+        "exception" -> return TException
         "jsffi" -> return TJSFFI
+        "throw" -> return TThrow
+        "try" -> return TTry
+        "catch" -> return TCatch
         "type" -> return TType
         "match" -> return TMatch
         "if" -> return TIf

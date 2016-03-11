@@ -61,6 +61,10 @@ data TokenType
     | TLet
     | TData
     | TDeclare
+    | TException
+    | TThrow
+    | TTry
+    | TCatch
     | TJSFFI
     | TType
     | TMatch

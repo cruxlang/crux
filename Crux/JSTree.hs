@@ -21,6 +21,10 @@ data Statement
     | SIf Expression Statement (Maybe Statement) -- if (e1) { s1 } else { s2 }
     | SWhile Expression Statement
     | SAssign Expression Expression
+    | SThrow Expression
+    | STryCatch [Statement] Name [Statement]
+    -- | STryFinally [Statement] [Statement]
+    -- | STryCatchFinally ...
     deriving (Show, Eq)
 
 data Literal
@@ -97,7 +101,7 @@ render stmt = case stmt of
         renderFunction (Just name) maybeArg body
     SExpression expr ->
         renderExpr expr
-            <> B.fromText  ";\n"
+            <> B.fromText ";\n"
     SReturn expr ->
         "return "
             <> maybe mempty renderExpr expr
@@ -117,6 +121,15 @@ render stmt = case stmt of
         <> renderExpr expr
         <> ")"
         <> render body
+    SThrow expr ->
+        "throw " <> renderExpr expr <> ";"
+    STryCatch tryBody exceptionName catchBody ->
+        "try{\n"
+        <> mconcat (map render tryBody)
+        <> "}\n"
+        <> "catch(" <> B.fromText exceptionName <> "){\n"
+        <> mconcat (map render catchBody)
+        <> "}\n"
 
 -- TODO: render nonprintable characters in a human-readable way
 renderChar :: Char -> Builder

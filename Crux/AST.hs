@@ -58,6 +58,8 @@ data DeclarationType idtype edata
     | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]
     | DTypeAlias edata Name [Name] TypeIdent
+    -- Exceptions
+    | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data ExportFlag = Export | NoExport
@@ -218,6 +220,8 @@ data Expression idtype edata
     | EFor edata Name (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
     | EBreak edata
+    | EThrow edata Name (Expression idtype edata)
+    | ETryCatch edata (Expression idtype edata) Name Pattern (Expression idtype edata)
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 edata :: Expression idtype edata -> edata
@@ -241,6 +245,8 @@ edata expr = case expr of
     EFor ed _ _ _ -> ed
     EReturn ed _ -> ed
     EBreak ed -> ed
+    EThrow ed _ _ -> ed
+    ETryCatch ed _ _ _ _ -> ed
 
 setEdata :: Expression idtype edata -> edata -> Expression idtype edata
 setEdata expr e = case expr of
@@ -263,6 +269,8 @@ setEdata expr e = case expr of
     EFor _ a b c          -> EFor e a b c
     EReturn _ a           -> EReturn e a
     EBreak _              -> EBreak e
+    EThrow _ a b          -> EThrow e a b
+    ETryCatch _ a b c d   -> ETryCatch e a b c d
 
 data TypeIdentifier
     = QualifiedType Name Name

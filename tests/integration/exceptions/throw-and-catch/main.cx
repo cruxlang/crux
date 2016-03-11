@@ -1,0 +1,12 @@
+exception MyError Number
+
+fun main() {
+  try {
+    throw MyError 10
+  }
+  catch MyError e {
+    print(e)
+  }
+}
+
+let _ = main()

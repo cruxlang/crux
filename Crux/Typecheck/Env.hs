@@ -47,6 +47,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eValueBindings <- newIORef HashMap.empty
     eTypeBindings <- newIORef HashMap.empty
     ePatternBindings <- newIORef HashMap.empty
+    eExceptionBindings <- newIORef HashMap.empty
     return Env
         { eInLoop = False
         , eLevel = 1
@@ -268,6 +269,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
     DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, Immutable, typeVar)) variants
     DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, Immutable, typeVar)) variants
     DTypeAlias _ _ _ _ -> []
+    DException _ _ _ -> []
 
 findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
 findExportedValueByName env moduleName valueName = do
@@ -287,6 +289,7 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DData typeVar name _ _ _ -> [(name, typeVar)]
     DJSData typeVar name _ _ -> [(name, typeVar)]
     DTypeAlias typeVar name _ _ -> [(name, typeVar)]
+    DException _ _ _ -> []
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
 findExportedTypeByName env moduleName typeName = do
@@ -315,6 +318,7 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
             (name, PatternBinding def [])
 
     DTypeAlias _ _ _ _ -> []
+    DException _ _ _ -> []
 
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternBinding
 findExportedPatternByName env moduleName patternName = do
@@ -330,7 +334,7 @@ registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference Pos -> TC ()
 registerJSFFIDecl env = \case
     DDeclare {} -> return ()
     DLet {} -> return ()
-    DFun {} -> return()
+    DFun {} -> return ()
 
     DData {} -> return ()
     DJSData _pos name moduleName variants -> do
@@ -354,6 +358,21 @@ registerJSFFIDecl env = \case
             HashTable.insert variantName (PatternBinding typeDef []) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
+    DException {} -> return ()
+
+registerExceptionDecl :: Env -> DeclarationType UnresolvedReference Pos -> TC ()
+registerExceptionDecl env = \case
+    DDeclare {} -> return ()
+    DLet {} -> return ()
+    DFun {} -> return ()
+
+    DData {} -> return ()
+    DJSData {} -> return ()
+    DTypeAlias {} -> return ()
+    DException pos exceptionName typeIdent -> do
+        tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
+        HashTable.insert exceptionName tyVar (eExceptionBindings env)
+        return ()
 
 addThisModuleDataDeclsToEnvironment
     :: Env
@@ -377,6 +396,9 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         d. register all data type constructors and patterns (using same qvars from before)
 
     phase 3:
+        register all exceptions
+
+    phase 4:
         type check all values in order
     -}
 
@@ -404,7 +426,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         let qvars = zip typeVarNames tyVars
         return (pos, typeDef, tyVar, qvars, variants)
 
-    -- Phase 3b.
+    -- Phase 2c.
     aliasDecls <- fmap catMaybes $ for decls $ \case
         DTypeAlias pos name params ident -> do
             typeVar <- freshType env
@@ -437,8 +459,9 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         DData {}    -> return ()
         DFun {}     -> return ()
         DLet {}     -> return ()
+        DException {} -> return ()
 
-    -- Phase 4b.
+    -- Phase 2d.
     for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
         for_ qvars $ \(qvName, qvTypeVar) ->
@@ -452,3 +475,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             let ctorType = computeVariantType parameterTypeVars
             HashTable.insert vname (ValueReference (ThisModule vname) Immutable ctorType) (eValueBindings env)
             HashTable.insert vname (PatternBinding typeDef (fmap snd qvars)) (ePatternBindings env)
+
+    -- Phase 3.
+    for_ decls $ \decl -> do
+        registerExceptionDecl env decl

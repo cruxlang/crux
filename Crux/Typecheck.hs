@@ -295,7 +295,8 @@ check' expectedType env = \case
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
             Immutable -> return expr''
-
+        -- TODO: this logic is duplicated all over the place.  generalize it
+        -- somewhere
         case pat of
             PWildcard -> do
                 return ()
@@ -471,6 +472,33 @@ check' expectedType env = \case
         t <- freshType env
         return $ EBreak t
 
+    EThrow pos exceptionName throwExpr -> do
+        free <- freshType env
+        ty <- HashTable.lookup exceptionName (eExceptionBindings env) >>= \case
+            Just tyVar -> return tyVar
+            Nothing -> do
+                failTypeError pos $ UnboundException exceptionName
+        throwExpr' <- checkExpecting ty env throwExpr
+        return $ EThrow free exceptionName throwExpr'
+
+    ETryCatch pos tryBody exceptionName binding catchBody -> do
+        tryBody' <- check env tryBody
+        catchEnv <- childEnv env
+
+        -- TODO: generalize this logic.  it's duplicated everywhere.
+        case binding of
+            PWildcard -> do
+                return ()
+            PBinding name -> do
+                -- TODO: refactor this into a function
+                ty <- HashTable.lookup exceptionName (eExceptionBindings env) >>= \case
+                    Just tyVar -> return tyVar
+                    Nothing -> do
+                        failTypeError pos $ UnboundException exceptionName
+                HashTable.insert name (ValueReference (Local name) Immutable ty) (eValueBindings catchEnv)
+        catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
+        return $ ETryCatch (edata tryBody') tryBody' exceptionName binding catchBody'
+
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> TC (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
@@ -542,6 +570,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
         return $ DTypeAlias typeVar name typeVars ident
+    DException _pos name typeIdent -> do
+        typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
+        return $ DException typeVar name typeIdent
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> TC LoadedModule
 run loadedModules thisModule thisModuleName = do

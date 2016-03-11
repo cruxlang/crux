@@ -43,6 +43,7 @@ We'll call these Values.
 -}
 
 type Name = Text
+type ExceptionName = Text
 data Output
     = NewLocalBinding Name
     | ExistingLocalBinding Name
@@ -91,6 +92,8 @@ data Instruction
     | If Input [Instruction] [Instruction]
     | Loop [Instruction]
     | Break
+    | Throw ExceptionName Input
+    | TryCatch [Instruction] ExceptionName AST.Pattern [Instruction]
     deriving (Show, Eq)
 
 type Env = IORef Int
@@ -285,6 +288,20 @@ generate env expr = case expr of
         writeInstruction $ Break
         return Nothing
 
+    AST.EThrow _ exceptionName value -> do
+        value' <- generate env value
+        for_ value' $ \value'' -> do
+            writeInstruction $ Throw exceptionName value''
+        return Nothing
+
+    AST.ETryCatch _ tryBody exceptionName binding catchBody -> do
+        output <- lift $ newTempOutput env
+        writeInstruction $ EmptyTemporary output
+        tryBody' <- subBlockWithOutput env (ExistingTemporary output) tryBody
+        catchBody' <- subBlockWithOutput env (ExistingTemporary output) catchBody
+        writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
+        return $ Just $ Temporary output
+
 subBlock :: MonadIO m => Env -> AST.Expression AST.ResolvedReference t -> m [Instruction]
 subBlock env expr = do
     (_output, instructions) <- liftIO $ runWriterT $ generate env expr
@@ -322,8 +339,10 @@ generateDecl env (AST.Declaration export _pos decl) = do
                 AST.PWildcard -> subBlock env defn
                 AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
             writeDeclaration $ Declaration export $ DLet pat defn'
-        AST.DTypeAlias {} ->
+        AST.DTypeAlias {} -> do
             -- type aliases are not reflected into the IR
+            return ()
+        AST.DException {} -> do
             return ()
 
 generateModule :: AST.Module AST.ResolvedReference t -> IO Module

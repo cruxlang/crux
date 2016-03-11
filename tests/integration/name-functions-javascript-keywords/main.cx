@@ -1,6 +1,6 @@
-export fun catch() {
+export fun delete() {
   let enum = ()
 }
-let _ = catch()
-export let finally = catch
-let _ = finally()
+let _ = delete()
+export let class = delete
+let _ = class()

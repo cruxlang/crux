@@ -252,7 +252,8 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 HashTable.insert name pb (ePatternBindings env)
 
         (_pos, QualifiedImport moduleName importName) -> do
-            HashTable.insert importName (ModuleReference moduleName) (eValueBindings env)
+            for_ importName $ \importName' -> do
+                HashTable.insert importName' (ModuleReference moduleName) (eValueBindings env)
 
     addThisModuleDataDeclsToEnvironment env thisModule
 

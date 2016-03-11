@@ -1,0 +1,4 @@
+import {
+  mymod as _
+}
+let _ = print("in main")

@@ -669,7 +669,7 @@ importDecl = do
     let base = ModuleSegment $ last segments
     let moduleName = ModuleName prefix base
     let defaultAlias = unModuleSegment base
-    alias <- P.option defaultAlias (token TAs *> anyIdentifier)
+    alias <- P.option (Just defaultAlias) (token TAs *> ((Just <$> anyIdentifier) <|> (token TWildcard *> return Nothing)))
     (P.optionMaybe $ parenthesized $ token TEllipsis) >>= \case
         Nothing -> do
             return (pos, QualifiedImport moduleName alias)

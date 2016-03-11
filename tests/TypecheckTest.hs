@@ -23,7 +23,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             }
     let thisModule = Module
             { mPragmas = []
-            , mImports = [(Pos 0 0 0, QualifiedImport aModuleName "A")]
+            , mImports = [(Pos 0 0 0, QualifiedImport aModuleName (Just "A"))]
             , mDecls = []
             }
     let loadedModules = HashMap.fromList

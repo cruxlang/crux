@@ -117,7 +117,7 @@ resolvedReferenceName (Builtin t) = t
 
 data Import
     = UnqualifiedImport ModuleName
-    | QualifiedImport ModuleName Name
+    | QualifiedImport ModuleName (Maybe Name)
     deriving (Show, Eq)
 
 data Pragma

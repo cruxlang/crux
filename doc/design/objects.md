@@ -2,7 +2,7 @@ Calling Crux an "Object Oriented" programming language is going a bit too far.  
 
 Objects in Crux map to bare JS objects.
 
-Object types are _row polymorphic_, which means that the type is comprised of a set of name/type pairs that the object provides.
+Object types are _row polymorphic_, which means that the type is comprised of a set of name/type pairs that the object provides.  Another term for this is "structural typing."
 
 Object types are enclosed in curly braces.
 

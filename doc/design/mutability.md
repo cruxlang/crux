@@ -121,3 +121,38 @@ let p = {x : 22};
 p.x = 999; // ok
 p = {x : 111}; // forbidden: p is not mutable
 ```
+
+## The Value Restriction
+
+Consider this program:
+
+```js
+let mutable a = None
+
+fun main() {
+    a = Some(4)
+    a = Some("Eight")
+}
+```
+
+The type system can deduce that `a` is an `Option` of some kind, but it can't deduce which exactly, but we know that it shouldn't be allowed to be both `Option Number` and `Option String` at the same time!
+
+Crux has what we call the "Value Restriction", which basically means that a mutable memory cell cannot be polymorphic.  We instead assume that `a` is an `Option` of some specific, precise type, based on how it is next used.  The following program is thus OK:
+
+```js
+let mutable a = None
+
+fun main() {
+    a = Some(4)
+    a = None
+    a = Some(0)
+}
+```
+
+This program uses `a` consistently as an `Option Number`, so the program typechecks correctly.
+
+The Value Restriction is applied in 3 situations:
+
+* A `let mutable` declaration
+* An empty mutable array eg `let a = mutable []`
+* Record fields

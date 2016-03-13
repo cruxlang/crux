@@ -339,9 +339,10 @@ check' expectedType env = \case
         return $ EArrayLiteral arrayType mutability elements'
 
     ERecordLiteral pos fields -> do
+        env' <- childEnv env
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
-            ty <- freshType env
-            fieldExpr' <- check env fieldExpr
+            ty <- freshType env'
+            fieldExpr' <- check env' fieldExpr >>= weaken (eLevel env')
             unify pos ty (edata fieldExpr')
             return (name, fieldExpr')
 

@@ -7,6 +7,11 @@ module Crux.Module
     , loadProgramFromSources
     , loadProgramFromFile
     , loadProgramFromDirectoryAndModule
+
+      -- largely for cruxjs
+    , pathToModuleName
+    , newMemoryLoader
+    , loadProgram
     ) where
 
 import Control.Exception (tryJust)
@@ -208,16 +213,19 @@ loadProgramFromDirectoryAndModule :: FilePath -> Text -> IO (ProgramLoadResult A
 loadProgramFromDirectoryAndModule sourceDir mainModule = do
     loadProgramFromFile $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
 
+pathToModuleName :: FilePath -> AST.ModuleName
+pathToModuleName path =
+    case FP.splitExtension path of
+        (p, ".cx") -> fromString p
+        _ -> error "Please load .cx file"
+
 loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, basename) = FP.splitFileName path
+    let moduleName = pathToModuleName basename
     let loader = newProjectModuleLoader config dirname path
-    case FP.splitExtension basename of
-        (_, ".cx") -> return ()
-        _ -> fail "Please load .cx file"
-
-    loadProgram loader "main"
+    loadProgram loader moduleName
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do

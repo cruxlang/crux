@@ -11,15 +11,16 @@ copyright:           (c) 2016 Andy Friesen
 category:            Web
 build-type:          Simple
 cabal-version:       >=1.10
-extra-source-files:  ../lib/Prelude.cx
+extra-source-files:  ../lib/*.cx
 
 executable crux-js-exe
   hs-source-dirs:      src
   main-is:             Main.hs
-  ghcjs-options: -Wall -Werror
+  ghcjs-options: -Wall
   build-depends:       base
                      , ghcjs-base
                      , crux
+                     , bytestring
                      , text
                      , file-embed
                      , unordered-containers

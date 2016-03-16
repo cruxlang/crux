@@ -4,8 +4,9 @@ module Main
     ( main
     ) where
 
-import Crux.Module (newMemoryLoader, loadProgram)
-import Data.FileEmbed (embedFile)
+import Crux.Module (newMemoryLoader, loadProgram, pathToModuleName)
+import Data.FileEmbed (embedDir)
+import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
 import GHCJS.Foreign.Callback (Callback, syncCallback1')
@@ -18,16 +19,27 @@ import qualified Crux.JSBackend as JS
 import qualified Data.HashMap.Strict as HashMap
 import GHCJS.Marshal.Pure (pFromJSVal, pToJSVal)
 
+baseModuleFiles :: [(FilePath, ByteString)]
+baseModuleFiles = $(embedDir "../crux/lib")
+
 compile :: Text -> IO (Either (AST.ModuleName, Error.Error) Text)
 compile source = do
-    let preludeSource = decodeUtf8 $(embedFile "../crux/lib/Prelude.cx")
-
+    let decodeBaseModule (path, contents) =
+            (pathToModuleName path, decodeUtf8 contents)
+    let baseModules = fmap decodeBaseModule baseModuleFiles
+        
+    let mapping = mconcat
+            [ HashMap.fromList baseModules
+            , HashMap.singleton "main" source
+            ]
+    let loader = newMemoryLoader mapping
+    {-
         loader = newMemoryLoader $ HashMap.fromList
             [ ("Prelude", preludeSource)
             , ("Main", source)
             ]
-
-    loadProgram loader "Main" >>= \case
+    -}
+    loadProgram loader "main" >>= \case
         Left err -> return $ Left err
         Right program -> do
             program' <- Gen.generateProgram program
@@ -51,7 +63,7 @@ main = do
         case r of
             Right code ->
                 Object.setProp "result" (pToJSVal code) resultObject
-            Left (_, err) -> do
-                let s = Error.renderError err
+            Left (moduleName, err) -> do
+                s <- Error.renderError moduleName err
                 Object.setProp "error" (pToJSVal s) resultObject
         return $ jsval resultObject

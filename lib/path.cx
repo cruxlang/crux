@@ -1,0 +1,8 @@
+export fun join(a: String, b: String) {
+  if b->startsWith("/") {
+    return b
+  }
+  if a->endsWith("/")
+    then a + b
+    else a + "/" + b
+}

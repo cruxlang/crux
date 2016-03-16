@@ -66,6 +66,11 @@ jsKeywords =
     , "static"
     , "let"
     , "await"
+    -- literals
+    , "undefined"
+    , "null"
+    , "true"
+    , "false"
     ]
 
 renderJSName :: Text -> Text

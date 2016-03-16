@@ -1,7 +1,19 @@
 exception AssertionError String
 
+export fun true(expr) {
+    if not(expr) {
+        throw AssertionError "expected " + toString(expr) + " to be true"
+    }
+}
+
+export fun false(expr) {
+    if expr {
+        throw AssertionError "expected " + toString(expr) + " to be false"
+    }
+}
+
 export fun equal(expected, actual) {
     if expected != actual {
-       throw AssertionError "expected " + toString(expected) + " but got " + toString(actual)
+        throw AssertionError "expected " + toString(expected) + " but got " + toString(actual)
     }
 }

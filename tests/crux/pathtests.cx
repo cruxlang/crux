@@ -1,0 +1,12 @@
+import {
+    test(...),
+    assert,
+
+    path,
+}
+
+let _ = test("paths combine", fun() {
+    assert.equal("foo/bar", path.join("foo", "bar"))
+    assert.equal("foo/bar", path.join("foo/", "bar"))
+    assert.equal("/bar", path.join("foo", "/bar"))
+})

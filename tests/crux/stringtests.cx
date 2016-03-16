@@ -1,0 +1,19 @@
+import {
+    test(...),
+    assert,
+}
+
+let _ = test("startsWith", fun() {
+    assert.true("foo"->startsWith("f"))
+    assert.true("foo"->startsWith("foo"))
+    assert.false("foo"->startsWith("foob"))
+    assert.false("foo"->startsWith("o"))
+    assert.true("foo"->startsWith(""))
+})
+
+let _ = test("endsWith", fun() {
+    assert.true("foo"->endsWith("o"))
+    assert.true("foo"->endsWith("foo"))
+    assert.false("foo"->endsWith("boo"))
+    assert.true("foo"->endsWith(""))
+})

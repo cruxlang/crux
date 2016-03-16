@@ -10,6 +10,15 @@ export fun length(s: String): Number {
     _unsafe_coerce(s).length
 }
 
+export fun startsWith(haystack: String, needle: String) {
+    let h = _unsafe_coerce(haystack)
+    let n = _unsafe_coerce(needle)
+    if n.length > h.length {
+        return False
+    }
+    return h.indexOf(n, 0) == 0
+}
+
 export fun endsWith(haystack: String, needle: String) {
     // Oops, how do I use a record with a keyword property name :D
     // return _unsafe_coerce(haystack).match(needle + "$") == needle;

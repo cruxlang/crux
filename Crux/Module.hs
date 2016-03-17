@@ -223,9 +223,8 @@ loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, basename) = FP.splitFileName path
-    let moduleName = pathToModuleName basename
     let loader = newProjectModuleLoader config dirname path
-    loadProgram loader moduleName
+    loadProgram loader "main"
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do

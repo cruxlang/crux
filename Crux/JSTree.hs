@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances, ExtendedDefaultRules #-}
 
 module Crux.JSTree where
 
@@ -8,6 +8,35 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as B
+import Control.Monad.State.Class (get)
+import Control.Monad.Writer.Class (tell)
+import Control.Monad.Trans.State.Strict (State, evalState)
+import Control.Monad.Trans.Writer.Strict (WriterT, execWriterT)
+
+type JSWriter = WriterT Builder (State Int)
+
+class StringType a where
+    toBuilder :: a -> Builder
+
+instance StringType Builder where
+    toBuilder = id
+instance StringType Text where
+    toBuilder = B.fromText
+instance StringType [Char] where
+    toBuilder = B.fromString
+
+write :: StringType a => a -> JSWriter ()
+write s = do
+    tell $ toBuilder s
+
+writeS :: String -> JSWriter ()
+writeS = write
+
+writeLine :: StringType a => a -> JSWriter ()
+writeLine s = do
+    indent <- get
+    write $ Text.replicate indent " "
+    write s
 
 type Name = Text
 
@@ -59,68 +88,76 @@ intercalate sep els = case els of
     [x] -> x
     (x:y:xs) -> x <> sep <> intercalate sep (y:xs)
 
-renderFunction :: Maybe Text -> [Text] -> [Statement] -> Builder
-renderFunction maybeName maybeArg body =
-    "function "
-        <> (maybe mempty B.fromText maybeName)
-        <> "("
-        <> intercalate "," (map B.fromText maybeArg)
-        <> "){\n"
-        <> mconcat (map render body)
-        <> "}\n"
+renderFunction :: Maybe Text -> [Text] -> [Statement] -> JSWriter ()
+renderFunction maybeName args body = do
+    writeS "function"
+    for_ maybeName $ \name -> do
+        writeS " "
+        write name
+    writeS "("
+    write $ intercalate ", " args
+    writeS "){\n"
+    for_ body renderStatement
+    writeS "}\n"
 
-render :: Statement -> Builder
-render stmt = case stmt of
-    SBlock s ->
-        "{\n"
-        <> mconcat (map render s)
-        <> "}\n"
+renderStatement :: Statement -> JSWriter ()
+renderStatement = \case
+    SBlock s -> do
+        writeS "{\n"
+        for_ s renderStatement
+        writeS "}\n"
 
-    SVar name maybeExpr ->
-        "var "
-            <> B.fromText name
-            <> maybe mempty (\expr -> " = " <> renderExpr expr) maybeExpr
-            <> ";\n"
+    SVar name maybeExpr -> do
+        writeS "var "
+        write name
+        for_ maybeExpr $ \expr -> do
+            writeS " = "
+            renderExpr expr
+        writeS ";\n"
 
-    SAssign lhs rhs ->
+    SAssign lhs rhs -> do
         renderExpr lhs
-            <> " = "
-            <> renderExpr rhs
-            <> ";\n"
+        writeS " = "
+        renderExpr rhs
+        writeS ";\n"
 
     SFunction name maybeArg body ->
         renderFunction (Just name) maybeArg body
-    SExpression expr ->
+    SExpression expr -> do
         renderExpr expr
-            <> B.fromText ";\n"
-    SReturn expr ->
-        "return "
-            <> maybe mempty renderExpr expr
-            <> ";\n"
+        writeS ";"
+    SReturn expr -> do
+        writeS "return "
+        for_ expr renderExpr
+        writeS ";\n"
     SBreak ->
-        "break;\n"
-    SIf expr thenStmt elseStatement ->
-        "if("
-        <> renderExpr expr
-        <> ")"
-        <> render thenStmt
-        <> (case elseStatement of
-            Just elseStmt -> "else " <> render elseStmt
-            Nothing -> mempty)
-    SWhile expr body ->
-        "while("
-        <> renderExpr expr
-        <> ")"
-        <> render body
-    SThrow expr ->
-        "throw " <> renderExpr expr <> ";"
-    STryCatch tryBody exceptionName catchBody ->
-        "try{\n"
-        <> mconcat (map render tryBody)
-        <> "}\n"
-        <> "catch(" <> B.fromText exceptionName <> "){\n"
-        <> mconcat (map render catchBody)
-        <> "}\n"
+        writeS "break;\n"
+    SIf expr thenStmt elseStatement -> do
+        writeS "if("
+        renderExpr expr
+        writeS ")"
+        renderStatement thenStmt
+        for_ elseStatement $ \es -> do
+            writeS "else "
+            renderStatement es
+    SWhile expr body -> do
+        writeS "while("
+        renderExpr expr
+        writeS ")"
+        renderStatement body
+    SThrow expr -> do
+        writeS "throw "
+        renderExpr expr
+        writeS ";"
+    STryCatch tryBody exceptionName catchBody -> do
+        writeS "try {"
+        for_ tryBody renderStatement
+        writeS "}"
+        writeS "catch ("
+        write exceptionName
+        writeS ") {"
+        for_ catchBody renderStatement
+        writeS "}"
 
 -- TODO: render nonprintable characters in a human-readable way
 renderChar :: Char -> Builder
@@ -133,69 +170,98 @@ renderChar c = B.fromString [c]
 renderString :: String -> Builder
 renderString s = "\"" <> mconcat (map renderChar s) <> "\""
 
-renderExpr :: Expression -> Builder
-renderExpr expr = case expr of
-    EApplication lhs maybeRhs ->
+commaSeparated :: [JSWriter ()] -> JSWriter ()
+commaSeparated [] = return ()
+commaSeparated [x] = x
+commaSeparated (x:xs) = do
+    x
+    writeS ", "
+    commaSeparated xs
+
+renderExpr :: Expression -> JSWriter ()
+renderExpr = \case
+    EApplication lhs args -> do
         renderExpr lhs
-            <> "("
-            <> (intercalate (", ") $ map renderExpr maybeRhs)
-            <> ")"
-    EFunction args body ->
-        "("
-            <> renderFunction Nothing args body
-            <> ")"
-    EObject fields ->
-        let renderKeyValuePair (key, value) = B.fromText key <> ":" <> renderExpr value
-        in "{"
-        <> (intercalate (", ") $ map renderKeyValuePair (HashMap.toList fields))
-        <> "}"
-    EPrefixOp op arg ->
-        "("
-        <> B.fromText op
-        <> renderExpr arg
-        <> ")"
-    EBinOp op lhs rhs ->
-        "("
-            <> renderExpr lhs
-            <> B.fromText op
-            <> renderExpr rhs
-            <> ")"
-    ELookup lhs propName ->
-        "("
-        <> renderExpr lhs
-        <> ")."
-        <> B.fromText propName
-    EIndex lhs rhs ->
-        renderExpr lhs <> "[" <> renderExpr rhs <> "]"
+        writeS "("
+        commaSeparated $ map renderExpr args
+        writeS ")"
+    EFunction args body -> do
+        writeS "("
+        renderFunction Nothing args body
+        writeS ")"
+    EObject fields -> do
+        writeS "{"
+        commaSeparated $ (flip map) (HashMap.toList fields) $ \(key, value) -> do
+            write key
+            writeS ":"
+            renderExpr value
+        writeS "}"
+    EPrefixOp op arg -> do
+        writeS "("
+        write op
+        renderExpr arg
+        writeS ")"
+    EBinOp op lhs rhs -> do
+        writeS "("
+        renderExpr lhs
+        write op
+        renderExpr rhs
+        writeS ")"
+    ELookup lhs propName -> do
+        writeS "("
+        renderExpr lhs
+        writeS ")."
+        write propName
+    EIndex lhs rhs -> do
+        renderExpr lhs
+        writeS "["
+        renderExpr rhs
+        writeS "]"
     ELiteral lit -> case lit of
-        LInteger i -> B.fromString $ show i
-        LString i -> renderString $ Text.unpack i
-        LTrue -> "true"
-        LFalse -> "false"
-        LNull -> "null"
-        LUndefined -> "(void 0)"
-    EIdentifier n -> B.fromText n
-    EArray els ->
-        "["
-        <> intercalate "," (map renderExpr els)
-        <> "]"
-    ESemi lhs rhs ->
+        LInteger i -> write $ show i
+        LString i -> write $ renderString $ Text.unpack i
+        LTrue -> writeS "true"
+        LFalse -> writeS "false"
+        LNull -> writeS "null"
+        LUndefined -> writeS "(void 0)"
+    EIdentifier n -> write n
+    EArray els -> do
+        writeS "["
+        commaSeparated $ map renderExpr els
+        writeS "]"
+    ESemi lhs rhs -> do
         renderExpr lhs
-            <> ";\n"
-            <> renderExpr rhs
+        writeS ";\n"
+        renderExpr rhs
     EComma lhs rhs -> do
-        "("
-            <> renderExpr lhs
-            <> ",\n"
-            <> renderExpr rhs
-            <> ")"
-    ETernary condition ifTrue ifFalse ->
-        renderExpr condition <> "?" <> renderExpr ifTrue <> ":" <> renderExpr ifFalse
-    ERaw txt ->
-        B.fromText txt
+        writeS "("
+        renderExpr lhs
+        writeS ",\n"
+        renderExpr rhs
+        writeS ")"
+    ETernary condition ifTrue ifFalse -> do
+        renderExpr condition
+        writeS "?"
+        renderExpr ifTrue
+        writeS ":"
+        renderExpr ifFalse
+    ERaw txt -> write txt
+
+{-
+type State s = StateT s Identity
+newtype WriterT w m a
+execWriterT :: Monad m => WriterT w m a -> m w
+evalState :: State s a -> s -> a
+WriterT Builder (State Int) a -> (State Int) Builder a
+execWriterT Builder (State Int) (theshit) :: State
+-}
 
 renderDocument :: [Statement] -> Text
-renderDocument statements = TL.toStrict $ B.toLazyText $ mconcat (map render statements)
+renderDocument statements = output
+  where
+    output = TL.toStrict $ B.toLazyText builder
+    builder :: B.Builder
+    builder = evalState (execWriterT $ for_ statements renderStatement) 0
 
 iife :: [Statement] -> Expression
 iife body = EApplication (EFunction [] body) []

@@ -61,21 +61,12 @@ intercalate sep els = case els of
 
 renderFunction :: Maybe Text -> [Text] -> [Statement] -> Builder
 renderFunction maybeName maybeArg body =
-    let renderedBody = case body of
-            [] -> mempty
-            _ ->
-                let inits = map render (init body)
-                    lastOne = last body
-                    last' = case lastOne of
-                        SExpression _ -> "return " <> render lastOne
-                        _ -> render lastOne
-                in mconcat inits <> last'
-    in "function "
+    "function "
         <> (maybe mempty B.fromText maybeName)
         <> "("
         <> intercalate "," (map B.fromText maybeArg)
         <> "){\n"
-        <> renderedBody
+        <> mconcat (map render body)
         <> "}\n"
 
 render :: Statement -> Builder

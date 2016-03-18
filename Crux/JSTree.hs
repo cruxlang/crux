@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, FlexibleInstances, ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
 
 module Crux.JSTree where
 
@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy         as TL
 import           Data.Text.Lazy.Builder (Builder)
 import qualified Data.Text.Lazy.Builder as B
-import Control.Monad.State.Class (get)
+import Control.Monad.State.Class (get, modify)
 import Control.Monad.Writer.Class (tell)
 import Control.Monad.Trans.State.Strict (State, evalState)
 import Control.Monad.Trans.Writer.Strict (WriterT, execWriterT)
@@ -32,11 +32,20 @@ write s = do
 writeS :: String -> JSWriter ()
 writeS = write
 
-writeLine :: StringType a => a -> JSWriter ()
-writeLine s = do
-    indent <- get
-    write $ Text.replicate indent " "
+beginLine :: StringType a => a -> JSWriter ()
+beginLine s = do
+    level <- get
+    write $ Text.replicate level " "
     write s
+
+beginLineS :: String -> JSWriter ()
+beginLineS = beginLine
+
+indent :: JSWriter () -> JSWriter ()
+indent inner = do
+    modify $ \level -> level + 2
+    inner
+    modify $ \level -> level - 2
 
 type Name = Text
 
@@ -96,19 +105,19 @@ renderFunction maybeName args body = do
         write name
     writeS "("
     write $ intercalate ", " args
-    writeS "){\n"
-    for_ body renderStatement
-    writeS "}\n"
+    writeS ") {\n"
+    indent $ for_ body renderStatement
+    beginLineS "}"
 
 renderStatement :: Statement -> JSWriter ()
 renderStatement = \case
     SBlock s -> do
-        writeS "{\n"
-        for_ s renderStatement
-        writeS "}\n"
+        beginLineS "{\n"
+        indent $ for_ s renderStatement
+        beginLineS "}\n"
 
     SVar name maybeExpr -> do
-        writeS "var "
+        beginLineS "var "
         write name
         for_ maybeExpr $ \expr -> do
             writeS " = "
@@ -116,48 +125,62 @@ renderStatement = \case
         writeS ";\n"
 
     SAssign lhs rhs -> do
+        beginLineS ""
         renderExpr lhs
         writeS " = "
         renderExpr rhs
         writeS ";\n"
 
-    SFunction name maybeArg body ->
+    SFunction name maybeArg body -> do
+        beginLineS ""
         renderFunction (Just name) maybeArg body
+        writeS "\n"
     SExpression expr -> do
+        beginLineS ""
         renderExpr expr
-        writeS ";"
+        writeS ";\n"
     SReturn expr -> do
-        writeS "return "
+        beginLineS "return "
         for_ expr renderExpr
         writeS ";\n"
     SBreak ->
-        writeS "break;\n"
+        beginLineS "break;\n"
     SIf expr thenStmt elseStatement -> do
-        writeS "if("
+        beginLineS "if ("
         renderExpr expr
-        writeS ")"
-        renderStatement thenStmt
-        for_ elseStatement $ \es -> do
-            writeS "else "
-            renderStatement es
+        case thenStmt of
+            SBlock body -> do
+                writeS ") {\n"
+                indent $ for_ body renderStatement
+                beginLineS "}\n"
+            _ -> do
+                writeS ")\n"
+                indent $ renderStatement thenStmt
+        for_ elseStatement $ \case
+            SBlock body -> do
+                beginLineS "else {\n"
+                indent $ for_ body renderStatement
+                beginLineS "}\n"
+            es -> do
+                beginLineS "else\n"
+                indent $ renderStatement es
     SWhile expr body -> do
-        writeS "while("
+        beginLineS "while ("
         renderExpr expr
-        writeS ")"
+        writeS ")\n"
         renderStatement body
     SThrow expr -> do
-        writeS "throw "
+        beginLineS "throw "
         renderExpr expr
-        writeS ";"
+        writeS ";\n"
     STryCatch tryBody exceptionName catchBody -> do
-        writeS "try {"
-        for_ tryBody renderStatement
-        writeS "}"
-        writeS "catch ("
+        beginLineS "try {\n"
+        indent $ for_ tryBody renderStatement
+        beginLineS "} catch ("
         write exceptionName
-        writeS ") {"
-        for_ catchBody renderStatement
-        writeS "}"
+        writeS ") {\n"
+        indent $ for_ catchBody renderStatement
+        beginLineS "}\n"
 
 -- TODO: render nonprintable characters in a human-readable way
 renderChar :: Char -> Builder

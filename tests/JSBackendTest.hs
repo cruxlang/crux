@@ -37,25 +37,25 @@ test_direct_prints = do
 test_return_from_function = do
     doc <- genDoc "fun f() { return 1 }"
     assertEqual
-        "function f(){\nreturn 1;\n}\n"
+        "function f() {\n  return 1;\n}\n"
         doc
 
 test_export_function = do
     doc <- genDoc "export fun f() { 1 }"
     assertEqual
-        "function f(){\nreturn 1;\n}\n(exports).f = f;\n"
+        "function f() {\n  return 1;\n}\n(exports).f = f;\n"
         doc
 
 test_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2 }"
     assertEqual
-        "function f(){\nvar $0;\nif($builtin.True){\nreturn 1;\n}\nelse {\nreturn 2;\n}\nreturn $0;\n}\n"
+        "function f() {\n  var $0;\n  if ($builtin.True) {\n    return 1;\n  }\n  else {\n    return 2;\n  }\n  return $0;\n}\n"
         result
 
 test_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2"
     assertEqual
-        "var $0;\nif($builtin.True){\n$0 = 1;\n}\nelse {\n$0 = 2;\n}\nvar x = $0;\n"
+        "var $0;\nif ($builtin.True) {\n  $0 = 1;\n}\nelse {\n  $0 = 2;\n}\nvar x = $0;\n"
         result
 
 test_jsffi_data = do

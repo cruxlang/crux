@@ -19,16 +19,9 @@ public class Main {
 
   public static void main(String[] args) {
     port(Integer.valueOf(System.getenv("PORT")));
-    staticFileLocation("/public");
+    //staticFileLocation("/public");
 
     get("/hello", (req, res) -> "Hello World");
-
-    get("/", (request, response) -> {
-        Map<String, Object> attributes = new HashMap<>();
-        attributes.put("message", "Hello World!");
-
-        return new ModelAndView(attributes, "index.ftl");
-    }, new FreeMarkerEngine());
 
     post("/compile", (request, response) -> {
         Compiler compiler = new Compiler();
@@ -41,8 +34,10 @@ public class Main {
             // result.errors
         }
 
-        response.status(200);
-        response.body(compiler.toSource());
+        return compiler.toSource();
+
+        //response.status(200);
+        //response.body(compiler.toSource());
     });
   }
 

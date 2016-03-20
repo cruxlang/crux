@@ -91,7 +91,7 @@ renderResolvedReference = JSTree.EIdentifier . \case
     Ambient n -> renderJSName n
     Local n -> renderJSName n
     ThisModule n -> renderJSName n
-    OtherModule mn n -> renderModuleName mn <> "." <> n
+    OtherModule mn n -> renderModuleName mn <> "_" <> n
     Builtin n -> n
 
 renderValue :: Gen.Value -> JSTree.Expression
@@ -233,31 +233,29 @@ renderJSVariant :: JSVariant -> JSTree.Statement
 renderJSVariant (JSVariant name value) =
     JSTree.SVar name $ Just $ JSTree.ELiteral value
 
-renderExports :: ExportFlag -> [Name] -> [JSTree.Statement]
-renderExports NoExport _ = []
-renderExports Export names =
-    map (\n -> JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "exports") n) $ JSTree.EIdentifier $ renderJSName n) names
-
 renderDeclaration :: Gen.Declaration -> [JSTree.Statement]
-renderDeclaration (Gen.Declaration export decl) = case decl of
-    Gen.DData _name variants ->
-        let renderedVariants = map renderVariant variants in
-        let exports = renderExports export $ map (\(Variant () n _) -> n) variants in
-        renderedVariants ++ exports
+renderDeclaration (Gen.Declaration _export decl) = case decl of
+    Gen.DData _name variants -> map renderVariant variants
     Gen.DJSData _name variants ->
-        let renderedVariants = map renderJSVariant variants in
-        let exports = renderExports export $ map (\(JSVariant n _) -> n) variants in
-        renderedVariants ++ exports
+        map renderJSVariant variants
     Gen.DFun name args body ->
-        let func = JSTree.SFunction (renderJSName name) (map renderArgument args) $ map renderInstruction body in
-        func : renderExports export [name]
+        [JSTree.SFunction (renderJSName name) (map renderArgument args) $ map renderInstruction body]
     Gen.DLet pat defn ->
         case pat of
             PWildcard ->
                 map renderInstruction defn
-            PBinding name ->
-                let zz = map renderInstruction defn
-                in zz ++ renderExports export [renderJSName name]
+            PBinding _name ->
+                map renderInstruction defn
+
+getExportedValues :: Gen.Declaration -> [Name]
+getExportedValues (Gen.Declaration NoExport _) = []
+getExportedValues (Gen.Declaration Export decl) = case decl of
+    Gen.DData _name variants -> fmap (\(Variant () n _) -> n) variants
+    Gen.DJSData _name variants -> fmap (\(JSVariant n _) -> n) variants
+    Gen.DFun name _args _body -> [name]
+    Gen.DLet pat _defn -> case pat of
+        PWildcard -> []
+        PBinding name -> [name]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body
@@ -265,12 +263,16 @@ wrapInModule body = JSTree.SExpression $ JSTree.iife body
 generateModule :: Gen.Module -> [JSTree.Statement]
 generateModule decls = concat $ map renderDeclaration decls
 
+renderExportName :: ModuleName -> Text -> Text
+renderExportName mn n = renderModuleName mn <> "_" <> n
+
 generateJS :: Gen.Program -> Text
 generateJS modules =
     let allStatements = (flip map) modules $ \(moduleName, decls) ->
-            let body = generateModule decls
-                intro = [JSTree.SVar "exports" $ Just $ JSTree.EObject mempty]
-                outro = [JSTree.SReturn $ Just $ JSTree.EIdentifier "exports"]
-            in JSTree.SVar (renderModuleName moduleName) $ Just $ JSTree.iife $ intro ++ body ++ outro
+            let exportedValueNames = mconcat $ fmap getExportedValues decls
+                declareExports = [JSTree.SVar (renderExportName moduleName n) Nothing | n <- exportedValueNames]
+                body = generateModule decls
+                setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName n) | n <- exportedValueNames]
+            in declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
 
-    in JSTree.renderDocument [wrapInModule allStatements]
+    in JSTree.renderDocument [wrapInModule $ mconcat allStatements]

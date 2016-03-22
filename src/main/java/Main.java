@@ -39,11 +39,11 @@ public class Main {
         get("/hello", (req, res) -> "Hello World");
 
         options("/compile", (req, res) -> {
+            res.header("Access-Control-Allow-Origin", "*");
             String accessControlRequestHeaders = req.headers("Access-Control-Request-Headers");
             if (accessControlRequestHeaders != null) {
                 res.header("Access-Control-Allow-Headers", accessControlRequestHeaders);
             }
-
             String accessControlRequestMethod = req.headers("Access-Control-Request-Method");
             if (accessControlRequestMethod != null) {
                 res.header("Access-Control-Allow-Methods", accessControlRequestMethod);

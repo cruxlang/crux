@@ -23,14 +23,23 @@
   
   .header {
     flex: 0 0 auto;
+
+    display: flex;
     padding: 0 0 $browser-padding 0;
+
+    .run-container {
+      flex: 1 0 auto;
+    }
+
+    .optimize-container {
+      flex: 0 0 auto;
+    }
   }
 
   .body {
     flex: 1 0 auto;
 
     display: flex;
-    flex-direction: row;
 
     .source {
       flex: 1 1 auto;

@@ -8,7 +8,6 @@ import java.net.URISyntaxException;
 import static spark.Spark.*;
 import spark.ResponseTransformer;
 import spark.ModelAndView;
-import static spark.Spark.get;
 
 import com.google.javascript.jscomp.CompilationLevel;
 import com.google.javascript.jscomp.Compiler;
@@ -39,6 +38,19 @@ public class Main {
 
         get("/hello", (req, res) -> "Hello World");
 
+        options("/compile", (req, res) -> {
+            String accessControlRequestHeaders = req.headers("Access-Control-Request-Headers");
+            if (accessControlRequestHeaders != null) {
+                res.header("Access-Control-Allow-Headers", accessControlRequestHeaders);
+            }
+
+            String accessControlRequestMethod = req.headers("Access-Control-Request-Method");
+            if (accessControlRequestMethod != null) {
+                res.header("Access-Control-Allow-Methods", accessControlRequestMethod);
+            }
+            return "OK";
+        });
+
         post("/compile", (req, res) -> {
             String body = req.body();
             CompileRequest request = new Gson().fromJson(body, CompileRequest.class);
@@ -66,6 +78,7 @@ public class Main {
             }
 
             res.type("application/json");
+            res.header("Access-Control-Allow-Origin", "*");
 
             CompileResponse response = new CompileResponse();
             response.source = compiler.toSource();

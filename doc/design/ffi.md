@@ -179,19 +179,32 @@ Cons: Multi-param type classes are very heavyweight type system features.
 
 # Symbol Naming
 
-Crux values are alphanumeric and can never start with an underscore.  Importantly, Crux values cannot use the character $ but JavaScript names can.
+Crux values are alphanumeric and can never start with an underscore.  Importantly, Crux values cannot use the character `$` but JavaScript names can.
 
 For sane debugging, values are mapped directly to the corresponding JS names as necessary.
 
-Special cases:
-1) runtime functions
-2) module-qualified references
-3) internally-generated names
-4) shadowed names when targeting ES5 or earlier
-5) exceptions
+## Special Cases
+
+### Runtime Functions
 
 Runtime functions can start with an underscore.  `_rts_set_current_exception`
+
+### Module-Qualified References
+
 Module-qualified references can be `$module$name_valueName`.
-Internally-generated names can start with `$_`.
+
+### Internally-Generated Names
+
+Start with `$_`.  Temporaries are like `$0` or `$_0`.
+
+### Shadowed Names When Targeting ES5 or Earlier
+
 For shadowed names, we can either generate ES6 `let` constructs or do some light mangling like `_foo` or `foo2`.
+
+### Names That Line Up With JS Keywords
+
+Internally-generated names can start with `$_`.
+
+### Exceptions
+
 Exception constructors end with `$$`.  Exception FooError would be a `FooError$$` value in the generated JS.

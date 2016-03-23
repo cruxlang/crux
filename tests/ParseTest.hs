@@ -88,7 +88,7 @@ test_pattern = do
         (RPConstructor Nothing "Cons" [RPIrrefutable $ PBinding "a", RPConstructor Nothing "Cons" [RPIrrefutable $ PBinding "b", RPConstructor Nothing "Nil" []]]) id
 
 test_match = do
-    assertExprParses matchExpression "match hoot { Nil => hodor ; Cons(a, b) => hoober ; }"
+    assertExprParses matchExpression "match hoot {\n  Nil => hodor\n  Cons(a, b) => hoober\n}"
         (EMatch () (EIdentifier () "hoot")
             [ Case (RPConstructor Nothing "Nil" []) (EIdentifier () "hodor")
             , Case (RPConstructor Nothing "Cons" [RPIrrefutable $ PBinding "a", RPIrrefutable $ PBinding "b"]) (EIdentifier () "hoober")

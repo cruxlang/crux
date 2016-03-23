@@ -1,8 +1,8 @@
 fun main() {
   match Some(Some(1)) {
-    Some(None) => print("some(none)");
-    Some(Some(x)) => print(x);
-    None => print("none");
+    Some(None) => print("some(none)")
+    Some(Some(x)) => print(x)
+    None => print("none")
   }
   
 /*

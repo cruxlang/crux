@@ -67,7 +67,8 @@ withIndentation i = local $ \(mn, _) -> (mn, i)
 enclosed :: Parser (Token Pos) -> Parser b -> Parser a -> Parser (Pos, a)
 enclosed open close body = do
     openToken <- open
-    rv <- body
+    rv <- withIndentation (IRDeeper openToken) $ do
+        body
     withIndentation (IRAtOrDeeper openToken) $ do
         void $ close
     return (tokenData openToken, rv)
@@ -312,9 +313,9 @@ matchExpression = do
     expr <- noSemiExpression
     cases <- braced $ P.many $ do
         pat <- pattern
-        _ <- token TFatRightArrow
-        ex <- noSemiExpression
-        _ <- token TSemicolon
+        arrowToken <- token TFatRightArrow
+        ex <- withIndentation (IRDeeper arrowToken) $ do
+            blockExpression <|> noSemiExpression
         return $ Case pat ex
     return $ EMatch (tokenData tmatch) expr cases
 

@@ -4,7 +4,7 @@ data MyThing {
 
 export fun foo(x) {
     match x {
-        MyThing => print("hi");
+        MyThing => print("hi")
     }
 }
 

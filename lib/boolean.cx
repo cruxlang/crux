@@ -7,7 +7,7 @@ export data jsffi Boolean {
 
 export fun not(b: Boolean): Boolean {
     match b {
-        True => False;
-        False => True;
+        True => False
+        False => True
     }
 }

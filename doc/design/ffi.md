@@ -188,8 +188,10 @@ Special cases:
 2) module-qualified references
 3) internally-generated names
 4) shadowed names when targeting ES5 or earlier
+5) exceptions
 
 Runtime functions can start with an underscore.  `_rts_set_current_exception`
 Module-qualified references can be `$module$name_valueName`.
 Internally-generated names can start with `$_`.
 For shadowed names, we can either generate ES6 `let` constructs or do some light mangling like `_foo` or `foo2`.
+Exception constructors end with `$$`.  Exception FooError would be a `FooError$$` value in the generated JS.

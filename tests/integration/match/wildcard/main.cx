@@ -1,7 +1,7 @@
 fun main() {
-  match None {
-    Some(x) => print("some")
-    _ => print("none")
-  }
+  print(match None {
+    Some(x) => "some"
+    _ => "none"
+  })
 }
 let _ = main()

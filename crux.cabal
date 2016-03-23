@@ -53,6 +53,7 @@ library
                  , raw-strings-qq
                  , optparse-applicative
                  , yaml
+                 , process
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

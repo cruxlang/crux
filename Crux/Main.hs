@@ -9,18 +9,16 @@ import Crux.Project (buildProject)
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
 import           System.Exit         (ExitCode (..), exitWith)
---import           Text.Show.Pretty    (ppShow)
+import System.Process (readProcessWithExitCode)
 import System.IO
 
 data Options = Options
-     { ast   :: Bool
-     , files :: [String]
+     { files :: [String]
      }
 
 optionsParser :: Opt.Parser Options
 optionsParser = Options
-    <$> Opt.switch (Opt.long "ast" <> Opt.help "output AST only")
-    <*> Opt.some (Opt.strArgument (Opt.metavar "SOURCE"))
+    <$> Opt.some (Opt.strArgument (Opt.metavar "SOURCE"))
 
 parseOptions :: IO Options
 parseOptions = Opt.execParser $
@@ -39,28 +37,39 @@ failed message = do
     exitWith $ ExitFailure 1
 -}
 
-
+runJS :: String -> IO ()
+runJS js = do
+    readProcessWithExitCode "node" [] js >>= \case
+        (ExitSuccess, stdoutBody, stderrBody) -> do
+            -- TODO: just inherit stdout and stderr
+            hPutStr stderr stderrBody
+            hPutStr stdout stdoutBody
+        (ExitFailure code, _, stderrBody) -> do
+            fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderrBody
 
 main :: IO ()
 main = do
     options <- parseOptions
     case files options of
         [] -> help
-        (_:_:_) -> help
         ["build"] -> do
             buildProject
+        ["run", fn] -> do
+            loadProgramFromFile fn >>= \case
+                Left (moduleName, err) -> do
+                    Error.renderError moduleName err >>= hPutStrLn stderr
+                    exitWith $ ExitFailure 1
+                Right program -> do
+                    program'' <- Gen.generateProgram program
+                    let js = JS.generateJS program''
+                    runJS $ Text.unpack js
         [fn] -> do
             loadProgramFromFile fn >>= \case
                 Left (moduleName, err) -> do
                     Error.renderError moduleName err >>= hPutStrLn stderr
                     exitWith $ ExitFailure 1
                 Right program -> do
-                    if ast options then do
-                        fail "bitroooottttt"
-                        --putStrLn $ ppShow program
-                    else do
-                        program'' <- Gen.generateProgram program
-                        putStr $ Text.unpack $ JS.generateJS program''
-                    -- putStrLn $ ppShow (concatMap generateDecl typetree')
-                     --T.writeFile outfile $ JSTree.renderDocument doc
+                    program'' <- Gen.generateProgram program
+                    putStr $ Text.unpack $ JS.generateJS program''
                     exitWith ExitSuccess
+        _ -> help

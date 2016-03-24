@@ -359,7 +359,7 @@ check' expectedType env = \case
         resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
         (rr, tyref) <- do
-            resolveValueReference pos env txt >>= \case
+            resolveValueReference env pos txt >>= \case
                 Just (a@(Local _), _mutability, b) -> do
                     -- Don't instantiate locals.  Let generalization is tricky.
                     return (a, b)
@@ -407,10 +407,10 @@ check' expectedType env = \case
                 return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
            | isRelationalOp bi -> do
                 unify pos (edata lhs') (edata rhs')
-                booleanType <- resolveBooleanType pos env
+                booleanType <- resolveBooleanType env pos
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | isBooleanOp bi -> do
-                booleanType <- resolveBooleanType (edata lhs) env
+                booleanType <- resolveBooleanType env (edata lhs)
                 unify pos (edata lhs') booleanType
                 unify pos (edata rhs') booleanType
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
@@ -418,7 +418,7 @@ check' expectedType env = \case
                 error "This should be impossible: Check EBinIntrinsic"
 
     EIfThenElse pos condition ifTrue ifFalse -> do
-        booleanType <- resolveBooleanType pos env
+        booleanType <- resolveBooleanType env pos
 
         condition' <- check env condition
         unify pos booleanType (edata condition')
@@ -430,7 +430,7 @@ check' expectedType env = \case
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
     EWhile pos cond body -> do
-        booleanType <- resolveBooleanType pos env
+        booleanType <- resolveBooleanType env pos
         let unitType = TPrimitive Unit
 
         condition' <- check env cond

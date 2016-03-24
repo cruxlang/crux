@@ -19,7 +19,7 @@ import Crux.AST
     , ModuleName
     , ResolvedReference
     )
-import           Crux.Prelude
+import Crux.Prelude
 
 -- TODO: newtype this somewhere and import it
 type Name = Text

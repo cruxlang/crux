@@ -93,6 +93,7 @@ printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $
 
 data UnresolvedReference
     = UnqualifiedReference Name
+    | QualifiedReference Name Name
     | KnownReference ModuleName Name
     deriving (Show, Eq)
 
@@ -272,17 +273,9 @@ setEdata expr e = case expr of
     EThrow _ a b          -> EThrow e a b
     ETryCatch _ a b c d   -> ETryCatch e a b c d
 
-data TypeIdentifier
-    = QualifiedType Name Name
-    | UnqualifiedType Name
-    deriving (Show, Eq)
-
-instance IsString TypeIdentifier where
-    fromString s = UnqualifiedType $ fromString s
-
 data TypeIdent
     = UnitTypeIdent
-    | TypeIdent TypeIdentifier [TypeIdent]
+    | TypeIdent UnresolvedReference [TypeIdent]
     | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent

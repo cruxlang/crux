@@ -480,22 +480,22 @@ functionTypeIdent = do
     retType <- typeIdent
     return $ FunctionIdent argTypes retType
 
-typeIdentifier :: Parser TypeIdentifier
-typeIdentifier = do
+unresolvedReference :: Parser UnresolvedReference
+unresolvedReference = do
     first <- anyIdentifier
-    let unq = return $ UnqualifiedType first
+    let unq = return $ UnqualifiedReference first
     let qua = do
             _ <- token TDot
             second <- anyIdentifier
-            return $ QualifiedType first second
+            return $ QualifiedReference first second
     qua <|> unq
 
 sumIdent :: Parser TypeIdent
 sumIdent = do
     let justOne = do
-            ti <- typeIdentifier
+            ti <- unresolvedReference
             return $ TypeIdent ti []
-    name <- typeIdentifier
+    name <- unresolvedReference
     params <- P.many (parenthesized sumIdent <|> justOne)
     return $ TypeIdent name params
 

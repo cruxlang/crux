@@ -28,7 +28,7 @@ data InternalCompilerError
 data TypeError
     = UnificationError String TypeVar TypeVar
     | RecordMutabilityUnificationError Name String
-    -- TODO: split into UnboundValue and UnboundType
+    | UnboundImport Name
     | UnboundSymbol AST.UnresolvedReference
     | UnboundType Name
     | UnboundException Name
@@ -43,6 +43,7 @@ data TypeError
 instance Show TypeError where
     show (UnificationError s _ _) = "UnificationError " ++ s ++ " _ _"
     show (RecordMutabilityUnificationError s m) = "RecordMutabilityUnificationError " ++ show s ++ " " ++ show m
+    show (UnboundImport s) = "UnboundImport " ++ show s
     show (UnboundSymbol s) = "UnboundSymbol " ++ show s
     show (UnboundType n) = "UnboundType " ++ show n
     show (UnboundException n) = "UnboundException " ++ show n
@@ -97,6 +98,7 @@ getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case
     UnificationError{} -> "unification"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
+    UnboundImport{} -> "unbound-import"
     UnboundSymbol{} -> "unbound-symbol"
     UnboundType{} -> "unbound-type"
     UnboundException{} -> "unbound-exception"
@@ -117,6 +119,8 @@ typeErrorToString (UnificationError message at bt) = do
     return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
+typeErrorToString (UnboundImport name) =
+    return $ printf "Unbound import %s" (show name)
 typeErrorToString (UnboundSymbol message) =
     return $ printf "Unbound symbol %s" (show message)
 typeErrorToString (UnboundType name) =

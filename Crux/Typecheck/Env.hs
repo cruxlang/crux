@@ -67,20 +67,6 @@ childEnv env@Env{..} = do
 exportedDecls :: [Declaration a b] -> [DeclarationType a b]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
-resolveTypeIdentifier :: Env -> TypeIdentifier -> TC (Name, Maybe TypeReference)
-resolveTypeIdentifier env = \case
-    UnqualifiedType name -> do
-        (name,) <$> HashTable.lookup name (eTypeBindings env)
-    QualifiedType importName name -> do
-        maybeTypeVar <- HashTable.lookup importName (eValueBindings env) >>= \case
-            Nothing -> fail "TODO: qualified type references unknown import"
-            Just (ModuleReference moduleName) -> do
-                return $ fmap snd $ findExportedTypeByName env moduleName name
-            Just _ -> do
-                fail "TODO: qualified type is not a module"
-        return (name, fmap TypeReference maybeTypeVar)
-
--- TODO: move into TC so errors are recorded properly
 resolveTypeIdent :: Env -> Pos -> ResolvePolicy -> TypeIdent -> TC TypeVar
 resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
     go typeIdent
@@ -90,40 +76,30 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         return $ TPrimitive Unit
 
     go (TypeIdent typeName typeParameters) = do
-        resolveTypeIdentifier env typeName >>= \case
-            (_, Just (TypeReference ty)) -> do
-                followTypeVar ty >>= \case
-                    TPrimitive {}
-                        | [] == typeParameters ->
-                            return ty
-                        | otherwise ->
-                            error "Primitive types don't take type parameters"
-                    TUserType def@TUserTypeDef{tuParameters} _
-                        | length tuParameters == length typeParameters -> do
-                            params <- for typeParameters go
-                            return $ TUserType def params
-                        | otherwise ->
-                            fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
-                    TTypeFun tuParameters _rt
-                        | length tuParameters == length typeParameters -> do
-                            (TTypeFun tuParameters' rt') <- instantiate env ty
-                            for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
-                                b' <- resolveTypeIdent env pos NewTypesAreErrors b
-                                unify pos a b'
-                            return rt'
-                        | otherwise -> do
-                            fail $ printf "Type %s takes %i type parameters.  %i given" (show $ typeName) (length tuParameters) (length typeParameters)
-                    _ ->
-                        return ty
-
-            (typeName', Nothing) | NewTypesAreQuantified == resolvePolicy && not (isCapitalized typeName') -> do
-                tyVar <- freshType env
-                quantify tyVar
-
-                HashTable.insert typeName' (TypeReference tyVar) eTypeBindings
-                return tyVar
-            (typeName', Nothing) ->
-                failTypeError pos $ Error.UnboundType typeName'
+        ty <- resolveTypeReference env pos resolvePolicy typeName
+        case ty of
+            TPrimitive {}
+                | [] == typeParameters ->
+                    return ty
+                | otherwise ->
+                    error "Primitive types don't take type parameters"
+            TUserType def@TUserTypeDef{tuParameters} _
+                | length tuParameters == length typeParameters -> do
+                    params <- for typeParameters go
+                    return $ TUserType def params
+                | otherwise ->
+                    fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
+            TTypeFun tuParameters _rt
+                | length tuParameters == length typeParameters -> do
+                    (TTypeFun tuParameters' rt') <- instantiate env ty
+                    for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
+                        b' <- resolveTypeIdent env pos NewTypesAreErrors b
+                        unify pos a b'
+                    return rt'
+                | otherwise -> do
+                    fail $ printf "Type %s takes %i type parameters.  %i given" (show $ typeName) (length tuParameters) (length typeParameters)
+            _ ->
+                return ty
 
     go (RecordIdent rows) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
@@ -147,26 +123,49 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         unify pos elementType' elementType''
         return arrayType
 
-resolveTypeReference :: Pos -> Env -> UnresolvedReference -> TC TypeVar
-resolveTypeReference pos env ref@(UnqualifiedReference name) = do
-    HashTable.lookup name (eTypeBindings env) >>= \case
-        Just (TypeReference t) -> return t
-        Nothing -> failTypeError pos $ Error.UnboundSymbol ref
-resolveTypeReference pos env (KnownReference moduleName name) = do
-    if moduleName == eThisModule env then do
-        resolveTypeReference pos env (UnqualifiedReference name)
-    else do
-        case findExportedTypeByName env moduleName name of
-            Just (_, tv) -> return tv
-            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+resolveImportName :: Env -> Pos -> Name -> TC ModuleName
+resolveImportName env pos importName = do
+    HashTable.lookup importName (eValueBindings env) >>= \case
+        Just (ModuleReference moduleName) -> return moduleName
+        -- TODO: should we differentiate between these cases?
+        Just _ -> failTypeError pos $ Error.UnboundImport importName
+        _ -> failTypeError pos $ Error.UnboundImport importName
 
-resolveValueReference :: Pos -> Env -> UnresolvedReference -> TC (Maybe (ResolvedReference, Mutability, TypeVar))
-resolveValueReference pos env ref = case ref of
+resolveTypeReference :: Env -> Pos -> ResolvePolicy -> UnresolvedReference -> TC TypeVar
+resolveTypeReference env pos resolvePolicy = \case
+    UnqualifiedReference name -> do
+        HashTable.lookup name (eTypeBindings env) >>= \case
+            Just (TypeReference t) -> do
+                return t
+            Nothing | NewTypesAreQuantified == resolvePolicy && not (isCapitalized name) -> do
+                tyVar <- freshType env
+                quantify tyVar
+
+                HashTable.insert name (TypeReference tyVar) (eTypeBindings env)
+                return tyVar
+            Nothing -> do
+                failTypeError pos $ Error.UnboundType name
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolveTypeReference env pos resolvePolicy $ KnownReference moduleName name
+    KnownReference moduleName name -> do
+        if moduleName == eThisModule env then do
+            resolveTypeReference env pos NewTypesAreErrors (UnqualifiedReference name)
+        else do
+            case findExportedTypeByName env moduleName name of
+                Just (_, tv) -> return tv
+                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (Maybe (ResolvedReference, Mutability, TypeVar))
+resolveValueReference env pos ref = case ref of
     UnqualifiedReference name -> do
         result <- HashTable.lookup name (eValueBindings env)
         return $ case result of
             Just (ValueReference rr mut t) -> Just (rr, mut, t)
             _ -> Nothing
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolveValueReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         -- TODO: better error messages
         case findExportedValueByName env moduleName name of
@@ -183,16 +182,16 @@ resolveArrayType env pos mutability = do
     let typeReference = case mutability of
             Immutable -> KnownReference "array" "Array"
             Mutable -> KnownReference "mutarray" "MutableArray"
-    arrayType <- resolveTypeReference pos env typeReference
+    arrayType <- resolveTypeReference env pos NewTypesAreErrors typeReference
     followTypeVar arrayType >>= \case
         TUserType td [_elementType] -> do
             let newArrayType = TUserType td [elementType]
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
-resolveBooleanType :: Pos -> Env -> TC TypeVar
-resolveBooleanType pos env = do
-    resolveTypeReference pos env (KnownReference "boolean" "Boolean")
+resolveBooleanType :: Env -> Pos -> TC TypeVar
+resolveBooleanType env pos = do
+    resolveTypeReference env pos NewTypesAreErrors (KnownReference "boolean" "Boolean")
 
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env
@@ -419,7 +418,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     dataDecls' <- for dataDecls $ \(pos, typeName, moduleName, typeVarNames, variants) -> do
         e <- childEnv env
         tyVars <- for typeVarNames $ \tvName ->
-            resolveTypeIdent e pos NewTypesAreQuantified (TypeIdent (UnqualifiedType tvName) [])
+            resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
 
         (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
         HashTable.insert typeName (TypeReference tyVar) (eTypeBindings env)

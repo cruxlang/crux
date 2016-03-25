@@ -8,9 +8,7 @@ module Crux.Typecheck.Env
     , resolveTypeIdent
     , exportedDecls
     , getAllExportedValues
-    , findExportedValueByName
     , getAllExportedTypes
-    , findExportedTypeByName
     , getAllExportedPatterns
     , findExportedPatternByName
 

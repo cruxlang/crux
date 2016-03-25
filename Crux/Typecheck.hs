@@ -264,13 +264,7 @@ check' expectedType env = \case
             EIdentifier pos' (UnqualifiedReference name) -> do
                 HashTable.lookup name (eValueBindings env) >>= \case
                     Just (ModuleReference mn) -> do
-                        case findExportedValueByName env mn propName of
-                            -- TODO: where does mutability go?
-                            Just (resolvedRef, _mutability, typeVar) -> do
-                                ntv <- instantiate env typeVar
-                                return $ EIdentifier ntv resolvedRef
-                            Nothing -> do
-                                resumableTypeError pos' $ ModuleReferenceError mn propName
+                        check env $ EIdentifier pos' $ KnownReference mn propName
                     _ -> valueLookup
             _ -> valueLookup
 

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-
 module Crux.Typecheck.Types
     ( ValueReference(..)
     , TypeReference(..)
@@ -32,9 +30,6 @@ data ValueReference
     | ModuleReference ModuleName
 
 data TypeReference = TypeReference TypeVar
-    deriving (Eq)
-instance Show TypeReference where
-    show (TypeReference _tv) = "TypeBinding <typevar>"
 
 data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 

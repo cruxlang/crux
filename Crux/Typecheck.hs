@@ -475,9 +475,7 @@ check' expectedType env = \case
 
     EThrow pos exceptionName throwExpr -> do
         free <- freshType env
-        (ExceptionReference rr tyVar) <- resolveExceptionReference env pos exceptionName >>= \case
-            Just e -> return e
-            Nothing -> fail "TODO: this error: unknown exception"
+        ExceptionReference rr tyVar <- resolveExceptionReference env pos exceptionName
         {-
         ty <- HashTable.lookup exceptionName (eExceptionBindings env) >>= \case
             Just tyVar -> return tyVar
@@ -491,10 +489,7 @@ check' expectedType env = \case
         tryBody' <- check env tryBody
         catchEnv <- childEnv env
 
-        (ExceptionReference rr ty) <- resolveExceptionReference env pos exceptionName >>= \case
-            Just tyVar -> return tyVar
-            Nothing -> do
-                fail "TODO: this error message"
+        ExceptionReference rr ty <- resolveExceptionReference env pos exceptionName
 
         -- TODO: generalize this logic.  it's duplicated everywhere.
         case binding of

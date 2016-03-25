@@ -173,17 +173,18 @@ resolveValueReference env pos ref = case ref of
                 return $ Just (rr, mutability, typevar)
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (Maybe ExceptionReference)
+resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC ExceptionReference
 resolveExceptionReference env pos ref = case ref of
     UnqualifiedReference name -> do
-        HashTable.lookup name (eExceptionBindings env)
+        HashTable.lookup name (eExceptionBindings env) >>= \case
+            Just er -> return er
+            Nothing -> failTypeError pos $ Error.UnboundException name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
         resolveExceptionReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         case findExportedExceptionByName env moduleName name of
-            Just (rr, typevar) ->
-                return $ Just $ ExceptionReference rr typevar
+            Just (rr, typevar) -> return $ ExceptionReference rr typevar
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)

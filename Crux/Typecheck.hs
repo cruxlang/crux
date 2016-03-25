@@ -475,30 +475,35 @@ check' expectedType env = \case
 
     EThrow pos exceptionName throwExpr -> do
         free <- freshType env
+        (ExceptionReference rr tyVar) <- resolveExceptionReference env pos exceptionName >>= \case
+            Just e -> return e
+            Nothing -> fail "TODO: this error: unknown exception"
+        {-
         ty <- HashTable.lookup exceptionName (eExceptionBindings env) >>= \case
             Just tyVar -> return tyVar
             Nothing -> do
                 failTypeError pos $ UnboundException exceptionName
-        throwExpr' <- checkExpecting ty env throwExpr
-        return $ EThrow free exceptionName throwExpr'
+        -}
+        throwExpr' <- checkExpecting tyVar env throwExpr
+        return $ EThrow free rr throwExpr'
 
     ETryCatch pos tryBody exceptionName binding catchBody -> do
         tryBody' <- check env tryBody
         catchEnv <- childEnv env
+
+        (ExceptionReference rr ty) <- resolveExceptionReference env pos exceptionName >>= \case
+            Just tyVar -> return tyVar
+            Nothing -> do
+                fail "TODO: this error message"
 
         -- TODO: generalize this logic.  it's duplicated everywhere.
         case binding of
             PWildcard -> do
                 return ()
             PBinding name -> do
-                -- TODO: refactor this into a function
-                ty <- HashTable.lookup exceptionName (eExceptionBindings env) >>= \case
-                    Just tyVar -> return tyVar
-                    Nothing -> do
-                        failTypeError pos $ UnboundException exceptionName
                 HashTable.insert name (ValueReference (Local name) Immutable ty) (eValueBindings catchEnv)
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
-        return $ ETryCatch (edata tryBody') tryBody' exceptionName binding catchBody'
+        return $ ETryCatch (edata tryBody') tryBody' rr binding catchBody'
 
 checkDecl :: Env -> Declaration UnresolvedReference Pos -> TC (Declaration ResolvedReference TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl

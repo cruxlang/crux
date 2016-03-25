@@ -221,8 +221,8 @@ data Expression idtype edata
     | EFor edata Name (Expression idtype edata) (Expression idtype edata)
     | EReturn edata (Expression idtype edata)
     | EBreak edata
-    | EThrow edata Name (Expression idtype edata)
-    | ETryCatch edata (Expression idtype edata) Name Pattern (Expression idtype edata)
+    | EThrow edata idtype (Expression idtype edata)
+    | ETryCatch edata (Expression idtype edata) idtype Pattern (Expression idtype edata)
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 edata :: Expression idtype edata -> edata

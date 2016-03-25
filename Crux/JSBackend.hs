@@ -172,13 +172,15 @@ renderInstruction instr = case instr of
             (JSTree.SBlock $ map renderInstruction body)
 
     Gen.Throw exceptionName body ->
-        JSTree.SThrow $ JSTree.EArray [ JSTree.ELiteral $ JSTree.LString exceptionName, renderValue body ]
+        JSTree.SThrow $ JSTree.EArray
+            [ JSTree.ELiteral $ JSTree.LString (Text.pack $ show exceptionName), renderValue body
+            ]
 
     Gen.TryCatch tryInstrs exceptionName exceptionBinding catchInstrs ->
         let jsarg = renderArgument exceptionBinding in
         let jsident = JSTree.EIdentifier jsarg in
         let notnull = JSTree.EBinOp "!=" jsident $ JSTree.ELiteral JSTree.LNull in
-        let tagmatches = JSTree.EBinOp "===" (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 0)) (JSTree.ELiteral $ JSTree.LString exceptionName) in
+        let tagmatches = JSTree.EBinOp "===" (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 0)) (JSTree.ELiteral $ JSTree.LString (Text.pack $ show exceptionName)) in
         let check = JSTree.EBinOp "&&" notnull tagmatches in
         let assign = JSTree.SAssign jsident (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 1)) in
         let guard = JSTree.SIf check assign (Just $ JSTree.SThrow jsident) in

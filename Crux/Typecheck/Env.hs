@@ -18,6 +18,7 @@ module Crux.Typecheck.Env
     , resolveTypeReference
     , resolveBooleanType
     , resolveArrayType
+    , resolveExceptionReference
     ) where
 
 import           Crux.AST
@@ -167,10 +168,22 @@ resolveValueReference env pos ref = case ref of
         moduleName <- resolveImportName env pos importName
         resolveValueReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
-        -- TODO: better error messages
         case findExportedValueByName env moduleName name of
             Just (rr, mutability, typevar) ->
                 return $ Just (rr, mutability, typevar)
+            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (Maybe ExceptionReference)
+resolveExceptionReference env pos ref = case ref of
+    UnqualifiedReference name -> do
+        HashTable.lookup name (eExceptionBindings env)
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolveExceptionReference env pos $ KnownReference moduleName name
+    KnownReference moduleName name -> do
+        case findExportedExceptionByName env moduleName name of
+            Just (rr, typevar) ->
+                return $ Just $ ExceptionReference rr typevar
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
@@ -281,6 +294,26 @@ findExportedValueByName env moduleName valueName = do
             Nothing
     return (OtherModule moduleName valueName, mutability, typeVar)
 
+getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
+getAllExportedExceptions loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+    DDeclare _ _ _ -> []
+    DLet _ _ _ _ _ -> []
+    DFun _ _ _ _ _ -> []
+    DData _ _ _ _ _ -> []
+    DJSData _ _ _ _ -> []
+    DTypeAlias _ _ _ _ -> []
+    DException typeVar name _ -> [(name, typeVar)]
+
+findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
+findExportedExceptionByName env moduleName exceptionName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    typeVar <- findFirstOf (getAllExportedExceptions modul) $ \(name, typeVar) ->
+        if name == exceptionName then
+            Just typeVar
+        else
+            Nothing
+    return (OtherModule moduleName exceptionName, typeVar)
+
 getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare {} -> []
@@ -371,7 +404,7 @@ registerExceptionDecl env = \case
     DTypeAlias {} -> return ()
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
-        HashTable.insert exceptionName tyVar (eExceptionBindings env)
+        HashTable.insert exceptionName (ExceptionReference (OtherModule (eThisModule env) exceptionName) tyVar) (eExceptionBindings env)
         return ()
 
 addThisModuleDataDeclsToEnvironment

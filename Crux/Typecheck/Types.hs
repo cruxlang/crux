@@ -4,6 +4,7 @@ module Crux.Typecheck.Types
     ( ValueReference(..)
     , TypeReference(..)
     , PatternBinding(..)
+    , ExceptionReference(..)
     , Env(..)
     , TypeLevel(..)
     ) where
@@ -35,6 +36,8 @@ data TypeReference = TypeReference TypeVar
 instance Show TypeReference where
     show (TypeReference _tv) = "TypeBinding <typevar>"
 
+data ExceptionReference = ExceptionReference ResolvedReference TypeVar
+
 -- same structure as TUserType constructor
 data PatternBinding = PatternBinding
     (TUserTypeDef TypeVar) -- type of value being pattern matched
@@ -47,7 +50,7 @@ data Env = Env
     , eValueBindings :: HashTable Name ValueReference
     , eTypeBindings :: HashTable Name TypeReference
     , ePatternBindings :: HashTable Name PatternBinding
-    , eExceptionBindings :: HashTable Name TypeVar
+    , eExceptionBindings :: HashTable Name ExceptionReference
     , eReturnType :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop :: !Bool
     , eLevel :: !TypeLevel

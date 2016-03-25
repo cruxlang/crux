@@ -92,8 +92,8 @@ data Instruction
     | If Input [Instruction] [Instruction]
     | Loop [Instruction]
     | Break
-    | Throw ExceptionName Input
-    | TryCatch [Instruction] ExceptionName AST.Pattern [Instruction]
+    | Throw AST.ResolvedReference Input
+    | TryCatch [Instruction] AST.ResolvedReference AST.Pattern [Instruction]
     deriving (Show, Eq)
 
 type Env = IORef Int

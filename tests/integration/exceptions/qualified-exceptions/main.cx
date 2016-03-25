@@ -1,0 +1,29 @@
+import { mymod }
+
+exception MyException String
+
+fun catchAnException(f) {
+  try {
+    try {
+      f()
+    }
+    catch MyException s {
+      print("main " + s)
+    }
+  }
+  catch mymod.MyException s {
+    print("mymod " + s)
+  }
+}
+
+fun main() {
+  catchAnException(fun() {
+    throw MyException "this module"
+  })
+
+  catchAnException(fun() {
+    throw mymod.MyException "other module"
+  })
+}
+
+let _ = main()

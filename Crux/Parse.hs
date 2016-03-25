@@ -180,7 +180,7 @@ throwExpression :: Parser ParseExpression
 throwExpression = do
     throwToken <- token TThrow
     withIndentation (IRDeeper throwToken) $ do
-        exceptionName <- anyIdentifier
+        exceptionName <- unresolvedReference
         expr <- noSemiExpression
         return $ EThrow (tokenData throwToken) exceptionName expr
 
@@ -190,7 +190,7 @@ tryCatchExpression = do
     tryBody <- withIndentation (IRDeeper tryToken) $ blockExpression
     catchToken <- withIndentation (IRAtOrDeeper tryToken) $ token TCatch
     (exceptionName, bindingName, catchBody) <- withIndentation (IRDeeper catchToken) $ do
-        exceptionName <- anyIdentifier
+        exceptionName <- unresolvedReference
         bindingName <- irrefutablePattern
         catchBody <- blockExpression
         return (exceptionName, bindingName, catchBody)

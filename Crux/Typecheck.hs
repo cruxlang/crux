@@ -358,16 +358,13 @@ check' expectedType env = \case
     EIdentifier pos (UnqualifiedReference "_unsafe_coerce") ->
         resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
-        (rr, tyref) <- do
-            resolveValueReference env pos txt >>= \case
-                Just (a@(Local _), _mutability, b) -> do
-                    -- Don't instantiate locals.  Let generalization is tricky.
-                    return (a, b)
-                Just (a, _mutability, b) -> do
-                    b' <- instantiate env b
-                    return (a, b')
-                Nothing ->
-                    resumableTypeError pos $ UnboundSymbol txt
+        (rr, tyref) <- resolveValueReference env pos txt >>= \case
+            (a@(Local _), _mutability, b) -> do
+                -- Don't instantiate locals.  Let generalization is tricky.
+                return (a, b)
+            (a, _mutability, b) -> do
+                b' <- instantiate env b
+                return (a, b')
 
         return $ EIdentifier tyref rr
     ESemi _ lhs rhs -> do

@@ -157,20 +157,21 @@ resolveTypeReference env pos resolvePolicy = \case
                 Just (_, tv) -> return tv
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (Maybe (ResolvedReference, Mutability, TypeVar))
+resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, Mutability, TypeVar)
 resolveValueReference env pos ref = case ref of
     UnqualifiedReference name -> do
-        result <- HashTable.lookup name (eValueBindings env)
-        return $ case result of
-            Just (ValueReference rr mut t) -> Just (rr, mut, t)
-            _ -> Nothing
+        HashTable.lookup name (eValueBindings env) >>= \case
+            Just (ValueReference rr mut t) -> return (rr, mut, t)
+            -- TODO: turn this into a custom error message
+            Just (ModuleReference _) -> failTypeError pos $ Error.UnboundValue name
+            Nothing -> failTypeError pos $ Error.UnboundValue name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
         resolveValueReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         case findExportedValueByName env moduleName name of
             Just (rr, mutability, typevar) ->
-                return $ Just (rr, mutability, typevar)
+                return (rr, mutability, typevar)
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC ExceptionReference

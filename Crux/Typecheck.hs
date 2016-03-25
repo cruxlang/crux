@@ -46,7 +46,7 @@ buildPatternEnv env pos exprType = \case
 
     RPConstructor Nothing cname cargs -> do
         HashTable.lookup cname (ePatternBindings env) >>= \case
-            Just (PatternBinding def tyVars) -> do
+            Just (PatternReference def tyVars) -> do
                 handlePatternBinding env pos exprType def tyVars cname cargs
             _ -> fail $ printf "Unbound constructor %s" (show cname)
 
@@ -54,7 +54,7 @@ buildPatternEnv env pos exprType = \case
         HashTable.lookup importName (eValueBindings env) >>= \case
             Just (ModuleReference moduleName) -> do
                 case findExportedPatternByName env moduleName cname of
-                    Just (PatternBinding def tyVars) -> do
+                    Just (PatternReference def tyVars) -> do
                         handlePatternBinding env pos exprType def tyVars cname cargs
                     _ -> do
                         fail $ printf "Unknown pattern %s" (Text.unpack cname)

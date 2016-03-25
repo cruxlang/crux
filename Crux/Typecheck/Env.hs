@@ -7,15 +7,13 @@ module Crux.Typecheck.Env
     , buildTypeEnvironment
     , resolveTypeIdent
     , exportedDecls
-    , getAllExportedValues
-    , getAllExportedTypes
-    , getAllExportedPatterns
     , findExportedPatternByName
 
     , resolveValueReference
     , resolveTypeReference
     , resolveBooleanType
     , resolveArrayType
+    , resolvePatternReference
     , resolveExceptionReference
     ) where
 
@@ -170,6 +168,20 @@ resolveValueReference env pos ref = case ref of
         case findExportedValueByName env moduleName name of
             Just (rr, mutability, typevar) ->
                 return (rr, mutability, typevar)
+            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
+resolvePatternReference env pos ref = case ref of
+    UnqualifiedReference name -> do
+        HashTable.lookup name (ePatternBindings env) >>= \case
+            Just er -> return er
+            Nothing -> failTypeError pos $ Error.UnboundPattern name
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolvePatternReference env pos $ KnownReference moduleName name
+    KnownReference moduleName name -> do
+        case findExportedPatternByName env moduleName name of
+            Just p -> return p
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC ExceptionReference
@@ -335,7 +347,7 @@ findExportedTypeByName env moduleName typeName = do
     return (OtherModule moduleName typeName, typeVar)
 
 -- we can just use PatternBinding for now
-getAllExportedPatterns :: LoadedModule -> [(Name, PatternBinding)]
+getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
 getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
@@ -343,17 +355,17 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
     DData typeVar _name _ _ variants ->
         let TUserType def typeVars = typeVar in
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
-            (name, PatternBinding def typeVars)
+            (name, PatternReference def typeVars)
 
     DJSData typeVar _name _ jsVariants ->
         let (TUserType def _) = typeVar in
         (flip fmap) jsVariants $ \(JSVariant name _literal) ->
-            (name, PatternBinding def [])
+            (name, PatternReference def [])
 
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
 
-findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternBinding
+findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName env moduleName patternName = do
     modul <- HashMap.lookup moduleName (eLoadedModules env)
     findFirstOf (getAllExportedPatterns modul) $ \(name, binding) ->
@@ -388,7 +400,7 @@ registerJSFFIDecl env = \case
 
         for_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) Immutable userType) (eValueBindings env)
-            HashTable.insert variantName (PatternBinding typeDef []) (ePatternBindings env)
+            HashTable.insert variantName (PatternReference typeDef []) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
     DException {} -> return ()
@@ -507,7 +519,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
             HashTable.insert vname (ValueReference (ThisModule vname) Immutable ctorType) (eValueBindings env)
-            HashTable.insert vname (PatternBinding typeDef (fmap snd qvars)) (ePatternBindings env)
+            HashTable.insert vname (PatternReference typeDef (fmap snd qvars)) (ePatternBindings env)
 
     -- Phase 3.
     for_ decls $ \decl -> do

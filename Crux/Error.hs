@@ -31,6 +31,7 @@ data TypeError
     | UnboundImport Name
     | UnboundValue Name
     | UnboundType Name
+    | UnboundPattern Name
     | UnboundException Name
     | OccursCheckFailed
     | IntrinsicError String
@@ -46,6 +47,7 @@ instance Show TypeError where
     show (UnboundImport s) = "UnboundImport " ++ show s
     show (UnboundValue s) = "UnboundValue " ++ show s
     show (UnboundType n) = "UnboundType " ++ show n
+    show (UnboundPattern n) = "UnboundPattern " ++ show n
     show (UnboundException n) = "UnboundException " ++ show n
     show (OccursCheckFailed) = "OccursCheckFailed "
     show (IntrinsicError s) = "IntrinsicError " ++ show s
@@ -101,6 +103,7 @@ getTypeErrorName = \case
     UnboundImport{} -> "unbound-import"
     UnboundValue{} -> "unbound-value"
     UnboundType{} -> "unbound-type"
+    UnboundPattern{} -> "unbound-pattern"
     UnboundException{} -> "unbound-exception"
     OccursCheckFailed{} -> "occurs-check"
     IntrinsicError{} -> "intrinsic"
@@ -125,6 +128,8 @@ typeErrorToString (UnboundValue name) =
     return $ printf "Unbound value %s" (show name)
 typeErrorToString (UnboundType name) =
     return $ printf "Unbound type %s" (show name)
+typeErrorToString (UnboundPattern name) =
+    return $ printf "Unbound pattern %s" (show name)
 typeErrorToString (UnboundException name) =
     return $ printf "Unbound exception %s" (show name)
 typeErrorToString (OccursCheckFailed) =

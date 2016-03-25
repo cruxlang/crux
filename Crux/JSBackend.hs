@@ -195,7 +195,8 @@ generateMatchCond :: JSTree.Expression -> RefutablePattern -> JSTree.Expression
 generateMatchCond matchVar patt = case patt of
     RPIrrefutable _ ->
         JSTree.ELiteral JSTree.LTrue
-    RPConstructor _ name subpatterns ->
+    RPConstructor ref subpatterns ->
+        let name = getUnresolvedReferenceLeaf ref in
         let testIt = JSTree.EBinOp "=="
                 (JSTree.ELiteral $ JSTree.LString name)
                 (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
@@ -214,7 +215,7 @@ generateMatchVars matchVar patt = case patt of
     RPIrrefutable PWildcard -> []
     RPIrrefutable (PBinding name) ->
         [ JSTree.SVar name $ Just matchVar ]
-    RPConstructor _ _ subpatterns ->
+    RPConstructor _ subpatterns ->
         concat
             [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns

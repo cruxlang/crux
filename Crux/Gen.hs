@@ -43,7 +43,6 @@ We'll call these Values.
 -}
 
 type Name = Text
-type ExceptionName = Text
 data Output
     = NewLocalBinding Name
     | ExistingLocalBinding Name

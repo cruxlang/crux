@@ -296,7 +296,11 @@ constructorPattern = do
     importName <- P.optionMaybe $ P.try $ anyIdentifier <* token TDot
     (_, patternName) <- upperIdentifier
     args <- P.option [] $ parenthesized $ commaDelimited pattern
-    return $ RPConstructor importName patternName args
+
+    let ref = case importName of
+            Nothing -> UnqualifiedReference patternName
+            Just i -> QualifiedReference i patternName
+    return $ RPConstructor ref args
 
 noParenPattern :: Parser RefutablePattern
 noParenPattern = constructorPattern <|> (RPIrrefutable <$> irrefutablePattern)

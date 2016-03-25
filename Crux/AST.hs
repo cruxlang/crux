@@ -43,7 +43,7 @@ instance IsString Pattern where
     fromString = PBinding . fromString
 
 data RefutablePattern
-    = RPConstructor (Maybe Name) Name [RefutablePattern]
+    = RPConstructor UnresolvedReference [RefutablePattern]
     | RPIrrefutable Pattern
     deriving (Show, Eq)
 
@@ -96,6 +96,11 @@ data UnresolvedReference
     | QualifiedReference Name Name
     | KnownReference ModuleName Name
     deriving (Show, Eq)
+
+getUnresolvedReferenceLeaf :: UnresolvedReference -> Text
+getUnresolvedReferenceLeaf (UnqualifiedReference n) = n
+getUnresolvedReferenceLeaf (QualifiedReference _ n) = n
+getUnresolvedReferenceLeaf (KnownReference _ n) = n
 
 -- hack for convenience
 instance IsString UnresolvedReference where

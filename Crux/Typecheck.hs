@@ -20,8 +20,9 @@ import Crux.Module.Types
 import Crux.TypeVar
 import Crux.Typecheck.Monad
 
-handlePatternBinding :: Env -> Pos -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> Text -> [RefutablePattern] -> TC ()
-handlePatternBinding env pos exprType def tyVars cname cargs = do
+handlePatternBinding :: Env -> Pos -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> UnresolvedReference -> [RefutablePattern] -> TC ()
+handlePatternBinding env pos exprType def tyVars cname' cargs = do
+    let cname = getUnresolvedReferenceLeaf cname'
     subst <- HashTable.new
     (ty', variants) <- instantiateUserType subst env def tyVars
     let [thisVariantParameters] = [tvParameters | TVariant{..} <- variants, tvName == cname]
@@ -44,22 +45,9 @@ buildPatternEnv env pos exprType = \case
     RPIrrefutable (PBinding pname) -> do
         HashTable.insert pname (ValueReference (Local pname) Immutable exprType) (eValueBindings env)
 
-    RPConstructor Nothing cname cargs -> do
-        HashTable.lookup cname (ePatternBindings env) >>= \case
-            Just (PatternReference def tyVars) -> do
-                handlePatternBinding env pos exprType def tyVars cname cargs
-            _ -> fail $ printf "Unbound constructor %s" (show cname)
-
-    RPConstructor (Just importName) cname cargs -> do
-        HashTable.lookup importName (eValueBindings env) >>= \case
-            Just (ModuleReference moduleName) -> do
-                case findExportedPatternByName env moduleName cname of
-                    Just (PatternReference def tyVars) -> do
-                        handlePatternBinding env pos exprType def tyVars cname cargs
-                    _ -> do
-                        fail $ printf "Unknown pattern %s" (Text.unpack cname)
-            _ -> do
-                fail $ printf "Qualified pattern uses unknown import %s" (Text.unpack importName)
+    RPConstructor patternRef cargs -> do
+        PatternReference def tyVars <- resolvePatternReference env pos patternRef
+        handlePatternBinding env pos exprType def tyVars patternRef cargs
 
 lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do

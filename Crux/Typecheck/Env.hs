@@ -125,8 +125,8 @@ resolveImportName env pos importName = do
     HashTable.lookup importName (eValueBindings env) >>= \case
         Just (ModuleReference moduleName) -> return moduleName
         -- TODO: should we differentiate between these cases?
-        Just _ -> failTypeError pos $ Error.UnboundImport importName
-        _ -> failTypeError pos $ Error.UnboundImport importName
+        Just _ -> failTypeError pos $ Error.UnboundSymbol "import" importName
+        _ -> failTypeError pos $ Error.UnboundSymbol "import" importName
 
 resolveTypeReference :: Env -> Pos -> ResolvePolicy -> UnresolvedReference -> TC TypeVar
 resolveTypeReference env pos resolvePolicy = \case
@@ -141,7 +141,7 @@ resolveTypeReference env pos resolvePolicy = \case
                 HashTable.insert name (TypeReference tyVar) (eTypeBindings env)
                 return tyVar
             Nothing -> do
-                failTypeError pos $ Error.UnboundType name
+                failTypeError pos $ Error.UnboundSymbol "type" name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
         resolveTypeReference env pos resolvePolicy $ KnownReference moduleName name
@@ -159,8 +159,8 @@ resolveValueReference env pos ref = case ref of
         HashTable.lookup name (eValueBindings env) >>= \case
             Just (ValueReference rr mut t) -> return (rr, mut, t)
             -- TODO: turn this into a custom error message
-            Just (ModuleReference _) -> failTypeError pos $ Error.UnboundValue name
-            Nothing -> failTypeError pos $ Error.UnboundValue name
+            Just (ModuleReference _) -> failTypeError pos $ Error.UnboundSymbol "value" name
+            Nothing -> failTypeError pos $ Error.UnboundSymbol "value" name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
         resolveValueReference env pos $ KnownReference moduleName name
@@ -175,7 +175,7 @@ resolvePatternReference env pos ref = case ref of
     UnqualifiedReference name -> do
         HashTable.lookup name (ePatternBindings env) >>= \case
             Just er -> return er
-            Nothing -> failTypeError pos $ Error.UnboundPattern name
+            Nothing -> failTypeError pos $ Error.UnboundSymbol "pattern" name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
         resolvePatternReference env pos $ KnownReference moduleName name
@@ -189,7 +189,7 @@ resolveExceptionReference env pos ref = case ref of
     UnqualifiedReference name -> do
         HashTable.lookup name (eExceptionBindings env) >>= \case
             Just er -> return er
-            Nothing -> failTypeError pos $ Error.UnboundException name
+            Nothing -> failTypeError pos $ Error.UnboundSymbol "exception" name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
         resolveExceptionReference env pos $ KnownReference moduleName name

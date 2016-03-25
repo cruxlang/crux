@@ -28,11 +28,7 @@ data InternalCompilerError
 data TypeError
     = UnificationError String TypeVar TypeVar
     | RecordMutabilityUnificationError Name String
-    | UnboundImport Name
-    | UnboundValue Name
-    | UnboundType Name
-    | UnboundPattern Name
-    | UnboundException Name
+    | UnboundSymbol String Name
     | OccursCheckFailed
     | IntrinsicError String
     | NotAnLVar String
@@ -44,11 +40,7 @@ data TypeError
 instance Show TypeError where
     show (UnificationError s _ _) = "UnificationError " ++ s ++ " _ _"
     show (RecordMutabilityUnificationError s m) = "RecordMutabilityUnificationError " ++ show s ++ " " ++ show m
-    show (UnboundImport s) = "UnboundImport " ++ show s
-    show (UnboundValue s) = "UnboundValue " ++ show s
-    show (UnboundType n) = "UnboundType " ++ show n
-    show (UnboundPattern n) = "UnboundPattern " ++ show n
-    show (UnboundException n) = "UnboundException " ++ show n
+    show (UnboundSymbol t s) = "UnboundImport " ++ t ++ " " ++ show s
     show (OccursCheckFailed) = "OccursCheckFailed "
     show (IntrinsicError s) = "IntrinsicError " ++ show s
     show (NotAnLVar t) = "NotAnLVar " ++ show t
@@ -82,8 +74,6 @@ renderError' (TypeError pos ue) = do
     te <- typeErrorToString ue
     return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
 
-
-
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
 
@@ -100,11 +90,7 @@ getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case
     UnificationError{} -> "unification"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
-    UnboundImport{} -> "unbound-import"
-    UnboundValue{} -> "unbound-value"
-    UnboundType{} -> "unbound-type"
-    UnboundPattern{} -> "unbound-pattern"
-    UnboundException{} -> "unbound-exception"
+    UnboundSymbol t _ -> "unbound-" <> Text.pack t
     OccursCheckFailed{} -> "occurs-check"
     IntrinsicError{} -> "intrinsic"
     NotAnLVar{} -> "not-an-lvar"
@@ -122,16 +108,8 @@ typeErrorToString (UnificationError message at bt) = do
     return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
-typeErrorToString (UnboundImport name) =
-    return $ printf "Unbound import %s" (show name)
-typeErrorToString (UnboundValue name) =
-    return $ printf "Unbound value %s" (show name)
-typeErrorToString (UnboundType name) =
-    return $ printf "Unbound type %s" (show name)
-typeErrorToString (UnboundPattern name) =
-    return $ printf "Unbound pattern %s" (show name)
-typeErrorToString (UnboundException name) =
-    return $ printf "Unbound exception %s" (show name)
+typeErrorToString (UnboundSymbol type_ name) =
+    return $ printf "Unbound %s %s" (show type_) (show name)
 typeErrorToString (OccursCheckFailed) =
     return $ printf "Occurs check failed"
 typeErrorToString (IntrinsicError message) =

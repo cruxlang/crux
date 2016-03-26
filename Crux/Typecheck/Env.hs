@@ -83,7 +83,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
             TUserType def@TUserTypeDef{tuParameters} _
                 | length tuParameters == length typeParameters -> do
                     params <- for typeParameters go
-                    return $ TUserType def params
+                    return $ TUserType def{tuParameters=params} params
                 | otherwise -> do
                     fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
             TTypeFun tuParameters _rt

@@ -224,22 +224,19 @@ createUserTypeDef :: Env
                   -> ModuleName
                   -> [TypeVar]
                   -> [Variant _edata]
-                  -> TC (TUserTypeDef TypeVar, TypeVar)
+                  -> TC (TUserTypeDef TypeVar)
 createUserTypeDef env name moduleName typeVars variants = do
     variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
         tvParameters <- for vparameters $ const $ freshType env
         let tvName = vname
         return TVariant {..}
 
-    let typeDef = TUserTypeDef
-            { tuName = name
-            , tuModuleName = moduleName
-            , tuParameters = typeVars
-            , tuVariants = variants'
-            }
-
-    let tyVar = TUserType typeDef typeVars
-    return (typeDef, tyVar)
+    return $ TUserTypeDef
+        { tuName = name
+        , tuModuleName = moduleName
+        , tuParameters = typeVars
+        , tuVariants = variants'
+        }
 
 buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> TC Env
 buildTypeEnvironment thisModuleName loadedModules thisModule = do
@@ -447,7 +444,8 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         tyVars <- for typeVarNames $ \tvName ->
             resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
 
-        (typeDef, tyVar) <- createUserTypeDef e typeName moduleName tyVars variants
+        typeDef <- createUserTypeDef e typeName moduleName tyVars variants
+        let tyVar = TUserType typeDef (tuParameters typeDef)
         HashTable.insert typeName (TypeReference tyVar) (eTypeBindings env)
 
         let qvars = zip typeVarNames tyVars

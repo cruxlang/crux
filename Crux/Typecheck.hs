@@ -130,11 +130,11 @@ weaken level e = do
         TQuant {} ->
             return t
         TFun args ret -> do
-            args' <- mapM weaken' args
+            args' <- for args weaken'
             ret' <- weaken' ret
             return $ TFun args' ret'
         TUserType typeDef tyvars -> do
-            tyvars' <- mapM weaken' tyvars
+            tyvars' <- for tyvars weaken'
             return $ TUserType typeDef tyvars'
         TRecord rtv -> do
             weakenRecord rtv
@@ -142,7 +142,7 @@ weaken level e = do
         TPrimitive {} ->
             return t
         TTypeFun a b -> do
-            a' <- mapM weaken' a
+            a' <- for a weaken'
             b' <- weaken' b
             return $ TTypeFun a' b'
 

@@ -1,0 +1,10 @@
+type StackTrace = [{
+  file: String,
+  line: String,
+  column: String,
+  functionName: String,
+}]
+
+export fun getStackTrace(): Option StackTrace {
+  None
+}

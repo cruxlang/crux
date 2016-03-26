@@ -150,7 +150,7 @@ resolveTypeReference env pos resolvePolicy = \case
             resolveTypeReference env pos NewTypesAreErrors (UnqualifiedReference name)
         else do
             case findExportedTypeByName env moduleName name of
-                Just (_, tv) -> return tv
+                Just tv -> return tv
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, Mutability, TypeVar)
@@ -166,8 +166,8 @@ resolveValueReference env pos ref = case ref of
         resolveValueReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         case findExportedValueByName env moduleName name of
-            Just (rr, mutability, typevar) ->
-                return (rr, mutability, typevar)
+            Just (mutability, typevar) ->
+                return (OtherModule moduleName name, mutability, typevar)
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
@@ -195,7 +195,7 @@ resolveExceptionReference env pos ref = case ref of
         resolveExceptionReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         case findExportedExceptionByName env moduleName name of
-            Just (rr, typevar) -> return $ ExceptionReference rr typevar
+            Just typevar -> return $ ExceptionReference (OtherModule moduleName name) typevar
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
@@ -296,16 +296,6 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
 
-findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
-findExportedValueByName env moduleName valueName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    (typeVar, mutability) <- findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
-        if name == valueName then
-            Just (typeVar, mutability)
-        else
-            Nothing
-    return (OtherModule moduleName valueName, mutability, typeVar)
-
 getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedExceptions loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare _ _ _ -> []
@@ -316,16 +306,6 @@ getAllExportedExceptions loadedModule = mconcat $ (flip fmap $ exportedDecls $ m
     DTypeAlias _ _ _ _ -> []
     DException typeVar name _ -> [(name, typeVar)]
 
-findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
-findExportedExceptionByName env moduleName exceptionName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    typeVar <- findFirstOf (getAllExportedExceptions modul) $ \(name, typeVar) ->
-        if name == exceptionName then
-            Just typeVar
-        else
-            Nothing
-    return (OtherModule moduleName exceptionName, typeVar)
-
 getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare {} -> []
@@ -335,16 +315,6 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DJSData typeVar name _ _ -> [(name, typeVar)]
     DTypeAlias typeVar name _ _ -> [(name, typeVar)]
     DException _ _ _ -> []
-
-findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TypeVar)
-findExportedTypeByName env moduleName typeName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    typeVar <- findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
-        if name == typeName then
-            Just typeVar
-        else
-            Nothing
-    return (OtherModule moduleName typeName, typeVar)
 
 -- we can just use PatternBinding for now
 getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
@@ -364,6 +334,44 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
 
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
+
+{-
+findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
+findExportByName getExports env moduleName valueName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    findFirstOf (getExports modul) $ \(name, v) ->
+        if name == valueName then
+            Just v
+        else
+            Nothing
+-}
+
+findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (Mutability, TypeVar)
+findExportedValueByName env moduleName valueName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
+        if name == valueName then
+            Just (mutability, typeVar)
+        else
+            Nothing
+
+findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
+findExportedTypeByName env moduleName typeName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
+        if name == typeName then
+            Just typeVar
+        else
+            Nothing
+
+findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
+findExportedExceptionByName env moduleName exceptionName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    findFirstOf (getAllExportedExceptions modul) $ \(name, typeVar) ->
+        if name == exceptionName then
+            Just typeVar
+        else
+            Nothing
 
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName env moduleName patternName = do

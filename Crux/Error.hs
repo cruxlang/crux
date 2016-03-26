@@ -15,7 +15,7 @@ import qualified Text.Parsec as P
 import qualified Data.Text as Text
 import qualified Crux.Tokens as Tokens
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, showTypeVarIO)
+import Crux.TypeVar (PrimitiveType, TypeVar, showTypeVarIO)
 import Text.Printf
 
 type Name = Text
@@ -35,6 +35,7 @@ data TypeError
     | TdnrLhsTypeUnknown String
     | ExportError String
     | ModuleReferenceError AST.ModuleName Name
+    | PrimitiveTypeApplication PrimitiveType
     deriving (Eq)
 
 instance Show TypeError where
@@ -47,6 +48,7 @@ instance Show TypeError where
     show (TdnrLhsTypeUnknown s) = "TdnrLhsTypeUnknown " ++ s
     show (ExportError s) = "ExportError " ++ s
     show (ModuleReferenceError mn n) = "ModuleReferenceError " ++ show mn ++ " " ++ show n
+    show (PrimitiveTypeApplication pt) = "PrimitiveTypeApplication " ++ show pt
 
 data Error
     = LexError P.ParseError
@@ -97,6 +99,7 @@ getTypeErrorName = \case
     TdnrLhsTypeUnknown{} -> "tdnr-lhs-type-unknown"
     ExportError{} -> "export"
     ModuleReferenceError{} -> "module-reference"
+    PrimitiveTypeApplication{} -> "primitive-type-application"
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
@@ -122,3 +125,5 @@ typeErrorToString (ExportError s) = do
     return $ printf "Export error at %s" s
 typeErrorToString (ModuleReferenceError moduleName name) = do
     return $ printf "Module %s does not export %s" (Text.unpack $ AST.printModuleName moduleName) (Text.unpack name)
+typeErrorToString (PrimitiveTypeApplication pt) = do
+    return $ printf "Primitive type %s does not take take parameters" (show pt)

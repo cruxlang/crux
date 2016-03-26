@@ -75,16 +75,16 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
     go (TypeIdent typeName typeParameters) = do
         ty <- resolveTypeReference env pos resolvePolicy typeName
         case ty of
-            TPrimitive {}
+            TPrimitive pt
                 | [] == typeParameters ->
                     return ty
-                | otherwise ->
-                    error "Primitive types don't take type parameters"
+                | otherwise -> do
+                    failTypeError pos $ Error.PrimitiveTypeApplication pt
             TUserType def@TUserTypeDef{tuParameters} _
                 | length tuParameters == length typeParameters -> do
                     params <- for typeParameters go
                     return $ TUserType def params
-                | otherwise ->
+                | otherwise -> do
                     fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
             TTypeFun tuParameters _rt
                 | length tuParameters == length typeParameters -> do

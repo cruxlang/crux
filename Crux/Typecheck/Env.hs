@@ -91,7 +91,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     (TTypeFun tuParameters' rt') <- instantiate env ty
                     for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
                         b' <- resolveTypeIdent env pos NewTypesAreErrors b
-                        unify pos a b'
+                        unify pos (TQuant a) b'
                     return rt'
                 | otherwise -> do
                     fail $ printf "Type %s takes %i type parameters.  %i given" (show $ typeName) (length tuParameters) (length typeParameters)

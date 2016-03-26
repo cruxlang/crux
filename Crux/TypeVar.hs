@@ -129,7 +129,7 @@ data TypeVar
     | TUserType (TUserTypeDef TypeVar) [TypeVar]
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
-    | TTypeFun [TypeVar] TypeVar
+    | TTypeFun [TypeNumber] TypeVar
     deriving (Eq)
 
 data TypeState
@@ -207,7 +207,7 @@ showTypeVarIO' showBound = \case
     TPrimitive ty ->
         return $ show ty
     TTypeFun args ret -> do
-        args' <- for args $ showTypeVarIO' showBound
+        args' <- for (fmap TQuant args) $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret
         return $ "TTypeFun " ++ show args' ++ " " ++ rs
 

@@ -142,9 +142,8 @@ weaken level e = do
         TPrimitive {} ->
             return t
         TTypeFun a b -> do
-            a' <- for a weaken'
             b' <- weaken' b
-            return $ TTypeFun a' b'
+            return $ TTypeFun a b'
 
     weakenRecord rtv = readIORef rtv >>= \case
         RRecord (RecordType open rows) -> do

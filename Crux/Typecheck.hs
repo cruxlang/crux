@@ -24,10 +24,9 @@ handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [Re
 handlePatternBinding env pos exprType patternReference cname cargs = do
     let (PatternReference def) = patternReference
     let tyVars = tuParameters def
-    subst <- HashTable.new
-    (ty', variants) <- instantiateUserType subst env def tyVars
-    let [thisVariantParameters] = [tvParameters | TVariant{..} <- variants, tvName == cname]
-    unify pos exprType ty'
+    def' <- instantiateUserTypeDef env def tyVars
+    let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
+    unify pos exprType $ TUserType def' []
 
     when (length thisVariantParameters /= length cargs) $
         fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)

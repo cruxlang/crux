@@ -23,8 +23,7 @@ import Crux.Typecheck.Monad
 handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [RefutablePattern] -> TC ()
 handlePatternBinding env pos exprType patternReference cname cargs = do
     let (PatternReference def) = patternReference
-    let tyVars = tuParameters def
-    def' <- instantiateUserTypeDef env def tyVars
+    def' <- instantiateUserTypeDef env def
     let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
     unify pos exprType $ TUserType def' []
 

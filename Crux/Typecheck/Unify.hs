@@ -36,20 +36,15 @@ data RecordSubst
     | SQuant RowVariable
     | SRows [TypeRow TypeVar]
 
-instantiateUserTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TUserTypeDef TypeVar -> [TypeVar] -> m (TUserTypeDef TypeVar)
-instantiateUserTypeDef' subst recordSubst env def tyVars = do
-    typeVars' <- for tyVars $ instantiate' subst recordSubst env
-    variants <- for (tuVariants def) $ \variant -> do
-        paramTypes <- for (tvParameters variant) $ \param -> do
-            instantiate' subst recordSubst env param
-        return variant{tvParameters=paramTypes}
-    return def { tuParameters = typeVars', tuVariants = variants }
+instantiateUserTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TUserTypeDef TypeVar -> m (TUserTypeDef TypeVar)
+instantiateUserTypeDef' subst recordSubst env def = do
+    for def $ instantiate' subst recordSubst env
 
-instantiateUserTypeDef :: MonadIO m => Env -> TUserTypeDef TypeVar -> [TypeVar] -> m (TUserTypeDef TypeVar)
-instantiateUserTypeDef env def tyVars = do
+instantiateUserTypeDef :: MonadIO m => Env -> TUserTypeDef TypeVar -> m (TUserTypeDef TypeVar)
+instantiateUserTypeDef env def = do
     subst <- HashTable.new
     recordSubst <- HashTable.new
-    instantiateUserTypeDef' subst recordSubst env def tyVars
+    instantiateUserTypeDef' subst recordSubst env def
 
 instantiateRecord
     :: MonadIO m

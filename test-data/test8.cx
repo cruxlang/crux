@@ -6,8 +6,8 @@ data IntList {
 
 fun length(list) {
     match list {
-        Nil => 0;
-        Element(num, tail) => 1 + length(tail);
+        Nil => 0
+        Element(num, tail) => 1 + length(tail)
     }
 }
 

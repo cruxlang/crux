@@ -47,6 +47,6 @@ fun i(x: XMLHttpRequest, url: String, onLoaded): () {
 
 export fun http_get(xhr: XHR, url: String, onLoaded): () {
     match xhr {
-        XHR(x) => i(x, url, onLoaded);
+        XHR(x) => i(x, url, onLoaded)
     }
 }

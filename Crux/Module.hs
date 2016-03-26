@@ -72,7 +72,7 @@ newProjectModuleLoader config root mainModulePath =
             if moduleName == "main"
             then parseModuleFromFile moduleName mainModulePath
             else return $ Left $ Error.ModuleNotFound moduleName
-    in newChainedModuleLoader [mainLoader, projectLoader, baseLoader]
+    in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
 
 newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
 newMemoryLoader sources moduleName = do

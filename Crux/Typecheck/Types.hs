@@ -34,9 +34,7 @@ data TypeReference = TypeReference TypeVar
 data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 
 -- same structure as TUserType constructor
-data PatternReference = PatternReference
-    (TUserTypeDef TypeVar) -- type of value being pattern matched
-    [TypeVar] -- type parameters to type
+data PatternReference = PatternReference (TUserTypeDef TypeVar)
 
 data Env = Env
     { eThisModule :: ModuleName

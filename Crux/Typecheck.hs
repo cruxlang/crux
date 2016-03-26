@@ -20,9 +20,10 @@ import Crux.Module.Types
 import Crux.TypeVar
 import Crux.Typecheck.Monad
 
-handlePatternBinding :: Env -> Pos -> TypeVar -> TUserTypeDef TypeVar -> [TypeVar] -> UnresolvedReference -> [RefutablePattern] -> TC ()
-handlePatternBinding env pos exprType def tyVars cname' cargs = do
-    let cname = getUnresolvedReferenceLeaf cname'
+handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [RefutablePattern] -> TC ()
+handlePatternBinding env pos exprType patternReference cname cargs = do
+    let (PatternReference def) = patternReference
+    let tyVars = tuParameters def
     subst <- HashTable.new
     (ty', variants) <- instantiateUserType subst env def tyVars
     let [thisVariantParameters] = [tvParameters | TVariant{..} <- variants, tvName == cname]
@@ -46,8 +47,9 @@ buildPatternEnv env pos exprType = \case
         HashTable.insert pname (ValueReference (Local pname) Immutable exprType) (eValueBindings env)
 
     RPConstructor patternRef cargs -> do
-        PatternReference def tyVars <- resolvePatternReference env pos patternRef
-        handlePatternBinding env pos exprType def tyVars patternRef cargs
+        ref <- resolvePatternReference env pos patternRef
+        let cname = getUnresolvedReferenceLeaf patternRef
+        handlePatternBinding env pos exprType ref cname cargs
 
 lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do

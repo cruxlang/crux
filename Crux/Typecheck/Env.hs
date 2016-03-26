@@ -323,14 +323,14 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
     DLet {} -> []
     DFun {} -> []
     DData typeVar _name _ _ variants ->
-        let TUserType def typeVars = typeVar in
+        let TUserType def _ = typeVar in
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
-            (name, PatternReference def typeVars)
+            (name, PatternReference def)
 
     DJSData typeVar _name _ jsVariants ->
         let (TUserType def _) = typeVar in
         (flip fmap) jsVariants $ \(JSVariant name _literal) ->
-            (name, PatternReference def [])
+            (name, PatternReference def)
 
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
@@ -382,7 +382,7 @@ registerJSFFIDecl env = \case
 
         for_ variants $ \(JSVariant variantName _value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) Immutable userType) (eValueBindings env)
-            HashTable.insert variantName (PatternReference typeDef []) (ePatternBindings env)
+            HashTable.insert variantName (PatternReference typeDef) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
     DException {} -> return ()
@@ -501,7 +501,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
             HashTable.insert vname (ValueReference (ThisModule vname) Immutable ctorType) (eValueBindings env)
-            HashTable.insert vname (PatternReference typeDef (fmap snd qvars)) (ePatternBindings env)
+            HashTable.insert vname (PatternReference typeDef) (ePatternBindings env)
 
     -- Phase 3.
     for_ decls $ \decl -> do

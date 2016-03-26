@@ -268,7 +268,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 HashTable.insert name (TypeReference typeVar) (eTypeBindings env)
 
             -- populate values
-            for_ (getAllExportedValues $ importedModule) $ \(name, mutability, tr) -> do
+            for_ (getAllExportedValues $ importedModule) $ \(name, (mutability, tr)) -> do
                 HashTable.insert name (ValueReference (OtherModule importName name) mutability tr) (eValueBindings env)
 
             -- populate patterns
@@ -283,16 +283,16 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     return env
 
-getAllExportedValues :: LoadedModule -> [(Name, Mutability, TypeVar)]
+getAllExportedValues :: LoadedModule -> [(Name, (Mutability, TypeVar))]
 getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
-    DDeclare typeVar name _typeIdent -> [(name, Immutable, typeVar)]
+    DDeclare typeVar name _typeIdent -> [(name, (Immutable, typeVar))]
     -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
     DLet typeVar mutability binding _ _ -> case binding of
-        PBinding name -> [(name, mutability, typeVar)]
+        PBinding name -> [(name, (mutability, typeVar))]
         PWildcard -> []
-    DFun typeVar name _ _ _ -> [(name, Immutable, typeVar)]
-    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, Immutable, typeVar)) variants
-    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, Immutable, typeVar)) variants
+    DFun typeVar name _ _ _ -> [(name, (Immutable, typeVar))]
+    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, (Immutable, typeVar))) variants
+    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, (Immutable, typeVar))) variants
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
 
@@ -335,7 +335,6 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
 
-{-
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
 findExportByName getExports env moduleName valueName = do
     modul <- HashMap.lookup moduleName (eLoadedModules env)
@@ -344,43 +343,18 @@ findExportByName getExports env moduleName valueName = do
             Just v
         else
             Nothing
--}
 
 findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (Mutability, TypeVar)
-findExportedValueByName env moduleName valueName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    findFirstOf (getAllExportedValues modul) $ \(name, mutability, typeVar) ->
-        if name == valueName then
-            Just (mutability, typeVar)
-        else
-            Nothing
+findExportedValueByName = findExportByName getAllExportedValues
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedTypeByName env moduleName typeName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    findFirstOf (getAllExportedTypes modul) $ \(name, typeVar) ->
-        if name == typeName then
-            Just typeVar
-        else
-            Nothing
+findExportedTypeByName = findExportByName getAllExportedTypes
 
 findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedExceptionByName env moduleName exceptionName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    findFirstOf (getAllExportedExceptions modul) $ \(name, typeVar) ->
-        if name == exceptionName then
-            Just typeVar
-        else
-            Nothing
+findExportedExceptionByName = findExportByName getAllExportedExceptions
 
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
-findExportedPatternByName env moduleName patternName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    findFirstOf (getAllExportedPatterns modul) $ \(name, binding) ->
-        if name == patternName then
-            Just binding
-        else
-            Nothing
+findExportedPatternByName = findExportByName getAllExportedPatterns
 
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference Pos -> TC ()

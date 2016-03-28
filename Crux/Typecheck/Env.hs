@@ -210,7 +210,7 @@ resolveArrayType env pos mutability = do
     arrayType <- resolveTypeReference env pos NewTypesAreErrors typeReference
     followTypeVar arrayType >>= \case
         TUserType td [_elementType] -> do
-            let newArrayType = TUserType td [elementType]
+            let newArrayType = TUserType td{ tuParameters=[elementType] } [elementType]
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 

@@ -40,6 +40,12 @@ instantiateUserTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (Ha
 instantiateUserTypeDef' subst recordSubst env def = do
     for def $ instantiate' subst recordSubst env
 
+instantiateAll :: (MonadIO m, Traversable c) => Env -> c TypeVar -> m (c TypeVar)
+instantiateAll env container = do
+    subst <- HashTable.new
+    recordSubst <- HashTable.new
+    for container $ instantiate' subst recordSubst env
+
 instantiateUserTypeDef :: MonadIO m => Env -> TUserTypeDef TypeVar -> m (TUserTypeDef TypeVar)
 instantiateUserTypeDef env def = do
     subst <- HashTable.new
@@ -98,7 +104,7 @@ instantiate' subst recordSubst env ty = case ty of
         return $ TFun ty1 ty2
     TUserType def tyVars -> do
         typeVars' <- for tyVars $ instantiate' subst recordSubst env
-        return $ TUserType def typeVars'
+        return $ TUserType def{ tuParameters = typeVars' } typeVars'
     TRecord ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
         let rv = case open of
                 RecordFree r -> Just r

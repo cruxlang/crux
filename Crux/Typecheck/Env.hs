@@ -80,10 +80,10 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     return ty
                 | otherwise -> do
                     failTypeError pos $ Error.PrimitiveTypeApplication pt
-            TUserType def@TUserTypeDef{tuParameters} _
+            TUserType def@TUserTypeDef{tuParameters}
                 | length tuParameters == length typeParameters -> do
                     params <- for typeParameters go
-                    return $ TUserType def{tuParameters=params} params
+                    return $ TUserType def{tuParameters=params}
                 | otherwise -> do
                     fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
             TTypeFun tuParameters _rt
@@ -209,8 +209,8 @@ resolveArrayType env pos mutability = do
             Mutable -> KnownReference "mutarray" "MutableArray"
     arrayType <- resolveTypeReference env pos NewTypesAreErrors typeReference
     followTypeVar arrayType >>= \case
-        TUserType td [_elementType] -> do
-            let newArrayType = TUserType td{ tuParameters=[elementType] } [elementType]
+        TUserType td -> do
+            let newArrayType = TUserType td{ tuParameters=[elementType] }
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
@@ -320,12 +320,12 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
     DLet {} -> []
     DFun {} -> []
     DData typeVar _name _ _ variants ->
-        let TUserType def _ = typeVar in
+        let TUserType def = typeVar in
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
             (name, PatternReference def)
 
     DJSData typeVar _name _ jsVariants ->
-        let (TUserType def _) = typeVar in
+        let (TUserType def) = typeVar in
         (flip fmap) jsVariants $ \(JSVariant name _literal) ->
             (name, PatternReference def)
 
@@ -374,7 +374,7 @@ registerJSFFIDecl env = \case
                 , tuParameters = []
                 , tuVariants = variants'
                 }
-        let userType = TUserType typeDef []
+        let userType = TUserType typeDef
         HashTable.insert name (TypeReference userType) (eTypeBindings env)
 
         for_ variants $ \(JSVariant variantName _value) -> do
@@ -445,7 +445,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
 
         typeDef <- createUserTypeDef e typeName moduleName tyVars variants
-        let tyVar = TUserType typeDef (tuParameters typeDef)
+        let tyVar = TUserType typeDef
         HashTable.insert typeName (TypeReference tyVar) (eTypeBindings env)
 
         let qvars = zip typeVarNames tyVars

@@ -26,7 +26,7 @@ handlePatternBinding env pos exprType patternReference cname cargs = do
     def' <- instantiateUserTypeDef env def
     -- I don't understand why looking up the variant from def vs. def' is OK.
     let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def, tvName == cname]
-    unify pos exprType $ TUserType def' []
+    unify pos exprType $ TUserType def'
 
     when (length thisVariantParameters /= length cargs) $
         fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
@@ -134,9 +134,9 @@ weaken level e = do
             args' <- for args weaken'
             ret' <- weaken' ret
             return $ TFun args' ret'
-        TUserType typeDef tyvars -> do
-            tyvars' <- for tyvars weaken'
-            return $ TUserType typeDef{ tuParameters=tyvars' } tyvars'
+        TUserType typeDef -> do
+            tyvars' <- for (tuParameters typeDef) weaken'
+            return $ TUserType typeDef{ tuParameters=tyvars' }
         TRecord rtv -> do
             weakenRecord rtv
             return t
@@ -359,7 +359,7 @@ check' expectedType env = \case
         -- the location of that type.
         lhs' <- check env lhs
         moduleName <- followTypeVar (edata lhs') >>= \case
-            TUserType TUserTypeDef{..} _ -> do
+            TUserType TUserTypeDef{..} -> do
                 return tuModuleName
             TPrimitive ptype -> return $ case ptype of
                 Unit -> "builtin"

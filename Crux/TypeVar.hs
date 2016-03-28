@@ -125,8 +125,7 @@ data TypeVar
     = TypeVar (IORef TypeState)
     | TQuant TypeNumber
     | TFun [TypeVar] TypeVar
-    -- TODO: remove type parameters from TUserType, and use TTypeFun to instantiate/apply
-    | TUserType (TUserTypeDef TypeVar) [TypeVar]
+    | TUserType (TUserTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
     | TTypeFun [TypeNumber] TypeVar
@@ -199,8 +198,8 @@ showTypeVarIO' showBound = \case
         as <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret
         return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
-    TUserType def tvars -> do
-        tvs <- for tvars $ showTypeVarIO' showBound
+    TUserType def -> do
+        tvs <- for (tuParameters def) $ showTypeVarIO' showBound
         return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
     TRecord rtv -> do
         showRecordTypeVarIO' showBound rtv

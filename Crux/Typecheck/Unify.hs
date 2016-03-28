@@ -102,9 +102,9 @@ instantiate' subst recordSubst env ty = case ty of
         ty1 <- for param $ instantiate' subst recordSubst env
         ty2 <- instantiate' subst recordSubst env ret
         return $ TFun ty1 ty2
-    TUserType def tyVars -> do
-        typeVars' <- for tyVars $ instantiate' subst recordSubst env
-        return $ TUserType def{ tuParameters = typeVars' } typeVars'
+    TUserType def -> do
+        typeVars' <- for (tuParameters def) $ instantiate' subst recordSubst env
+        return $ TUserType def{ tuParameters = typeVars' }
     TRecord ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
         let rv = case open of
                 RecordFree r -> Just r
@@ -139,8 +139,8 @@ quantify ty = case ty of
     TFun param ret -> do
         for_ param quantify
         quantify ret
-    TUserType _ tyParams ->
-        for_ tyParams quantify
+    TUserType def ->
+        for_ (tuParameters def) quantify
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType open rows) -> do
         for_ rows $ \TypeRow{..} -> do
             quantify trTyVar
@@ -173,8 +173,8 @@ occurs pos tvn = \case
     TFun arg ret -> do
         for_ arg $ occurs pos tvn
         occurs pos tvn ret
-    TUserType _ tvars -> do
-        for_ tvars $ occurs pos tvn
+    TUserType def -> do
+        for_ (tuParameters def) $ occurs pos tvn
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
         for_ rows $ \TypeRow{..} ->
             occurs pos tvn trTyVar
@@ -328,10 +328,10 @@ unify pos av' bv' = do
             | otherwise -> do
                 unificationError pos "" av bv
 
-        (TUserType ad atv, TUserType bd btv)
+        (TUserType ad, TUserType bd)
             | userTypeIdentity ad == userTypeIdentity bd -> do
                 -- TODO: assert the two lists have the same length
-                for_ (zip atv btv) $ uncurry $ unify pos
+                for_ (zip (tuParameters ad) (tuParameters bd)) $ uncurry $ unify pos
             | otherwise -> do
                 unificationError pos "" av bv
 

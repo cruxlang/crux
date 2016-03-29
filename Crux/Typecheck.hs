@@ -24,8 +24,7 @@ handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [Re
 handlePatternBinding env pos exprType patternReference cname cargs = do
     let (PatternReference def) = patternReference
     def' <- instantiateUserTypeDef env def
-    -- I don't understand why looking up the variant from def vs. def' is OK.
-    let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def, tvName == cname]
+    let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
     unify pos exprType $ TUserType def'
 
     when (length thisVariantParameters /= length cargs) $

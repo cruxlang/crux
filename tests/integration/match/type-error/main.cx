@@ -1,0 +1,11 @@
+data Wrapper a {
+  Wrapped(a)
+}
+
+fun main() {
+  match Wrapped("hi") {
+    Wrapped(x) => x == 1
+  }
+}
+
+let _ = main()

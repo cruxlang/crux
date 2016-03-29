@@ -73,7 +73,9 @@ newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }
 instance Hashable ModuleSegment
 
 data ModuleName = ModuleName [ModuleSegment] ModuleSegment
-    deriving (Show, Eq, Ord, Generic)
+    deriving (Eq, Ord, Generic)
+instance Show ModuleName where
+    show (ModuleName prefixes base) = show $ Text.intercalate "." $ fmap (unModuleSegment) (prefixes ++ [base])
 instance Hashable ModuleName
 
 -- TODO: assert that first letter is capitalized, remainder are alphanumeric

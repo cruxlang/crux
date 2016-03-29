@@ -227,6 +227,7 @@ createUserTypeDef :: Env
                   -> TC (TUserTypeDef TypeVar)
 createUserTypeDef env name moduleName typeVars variants = do
     variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
+        -- the variant parameters are unified with the corresponding typeidents later
         tvParameters <- for vparameters $ const $ freshType env
         let tvName = vname
         return TVariant {..}
@@ -491,6 +492,11 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         e <- childEnv env
         for_ qvars $ \(qvName, qvTypeVar) ->
             HashTable.insert qvName (TypeReference qvTypeVar) (eTypeBindings e)
+
+        for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do
+            for_ (zip typeIdents typeVars) $ \(typeIdent, typeVar) -> do
+                tv' <- resolveTypeIdent e vpos NewTypesAreErrors typeIdent
+                unify vpos typeVar tv'
 
         let computeVariantType [] = tyVar
             computeVariantType argTypeIdents = TFun argTypeIdents tyVar

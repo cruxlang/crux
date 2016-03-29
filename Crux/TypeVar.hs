@@ -27,6 +27,7 @@ import qualified Data.Text as Text
 import Data.List (intercalate)
 import Crux.AST (ModuleName)
 import Crux.Prelude
+import System.IO.Unsafe (unsafePerformIO)
 
 type Name = Text
 
@@ -118,7 +119,7 @@ data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
 type TypeNumber = Int
 
 data Strength = Strong | Weak
-    deriving (Eq)
+    deriving (Eq, Show)
 
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
@@ -131,10 +132,24 @@ data TypeVar
     | TTypeFun [TypeNumber] TypeVar
     deriving (Eq)
 
+unsafeShowRef :: Show a => IORef a -> String
+unsafeShowRef ref = show $ unsafePerformIO $ readIORef ref
+
+-- This instance is only for debugging
+-- TODO: showsPrec
+instance Show TypeVar where
+    show (TypeVar r) = "(TypeVar " ++ unsafeShowRef r ++ ")"
+    show (TQuant tn) = "(TQuant " ++ show tn ++ ")"
+    show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
+    show (TUserType def) = "(TUserType " ++ show def ++ ")"
+    show (TRecord _) = "(TRecord ???)" -- TODO
+    show (TPrimitive pt) = "(TPrimitive " ++ show pt ++ ")"
+    show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
+
 data TypeState
     = TUnbound Strength TypeLevel TypeNumber
     | TBound TypeVar
-    deriving (Eq)
+    deriving (Eq, Show)
 
 newTypeVar :: MonadIO m => TypeState -> m TypeVar
 newTypeVar tv = TypeVar <$> newIORef tv

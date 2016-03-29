@@ -30,7 +30,7 @@ export data Option a {
 }
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
-export type Array a = array.Array a
+export type Array a = [a]
 
 export fun emptyArray(): [a] {
     _unsafe_js("[]")

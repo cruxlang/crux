@@ -32,7 +32,7 @@ export fun endsWith(haystack: String, needle: String) {
     return h.indexOf(n, h.length - n.length) != 0 - 1
 }
 
-export fun join(sep: String, elements: array.Array String): String {
+export fun join(sep: String, elements: [String]): String {
     _unsafe_coerce(elements).join(sep)
 }
 

@@ -29,7 +29,6 @@ import Data.Maybe (catMaybes)
 import           Crux.Typecheck.Unify
 import qualified Data.HashMap.Strict   as HashMap
 import           Prelude               hiding (String)
-import           Text.Printf           (printf)
 import Crux.Util
 import Crux.TypeVar
 import Crux.Module.Types
@@ -76,7 +75,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         ty <- resolveTypeReference env pos resolvePolicy typeName
         case ty of
             TPrimitive pt
-                | [] == typeParameters ->
+                | [] == typeParameters -> do
                     return ty
                 | otherwise -> do
                     failTypeError pos $ Error.PrimitiveTypeApplication pt
@@ -85,7 +84,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     params <- for typeParameters go
                     return $ TUserType def{tuParameters=params}
                 | otherwise -> do
-                    fail $ printf "Type %s takes %i type parameters.  %i given" (show $ tuName def) (length tuParameters) (length typeParameters)
+                    failTypeError pos $ Error.TypeApplicationMismatch (tuName def) (length tuParameters) (length typeParameters)
             TTypeFun tuParameters _rt
                 | length tuParameters == length typeParameters -> do
                     (TTypeFun tuParameters' rt') <- instantiate env ty
@@ -94,7 +93,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                         unify pos (TQuant a) b'
                     return rt'
                 | otherwise -> do
-                    fail $ printf "Type %s takes %i type parameters.  %i given" (show $ typeName) (length tuParameters) (length typeParameters)
+                    failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeName) (length tuParameters) (length typeParameters)
             _ ->
                 return ty
 

@@ -36,19 +36,8 @@ data TypeError
     | ExportError String
     | ModuleReferenceError AST.ModuleName Name
     | PrimitiveTypeApplication PrimitiveType
-    deriving (Eq)
-
-instance Show TypeError where
-    show (UnificationError s _ _) = "UnificationError " ++ s ++ " _ _"
-    show (RecordMutabilityUnificationError s m) = "RecordMutabilityUnificationError " ++ show s ++ " " ++ show m
-    show (UnboundSymbol t s) = "UnboundImport " ++ t ++ " " ++ show s
-    show (OccursCheckFailed) = "OccursCheckFailed "
-    show (IntrinsicError s) = "IntrinsicError " ++ show s
-    show (NotAnLVar t) = "NotAnLVar " ++ show t
-    show (TdnrLhsTypeUnknown s) = "TdnrLhsTypeUnknown " ++ s
-    show (ExportError s) = "ExportError " ++ s
-    show (ModuleReferenceError mn n) = "ModuleReferenceError " ++ show mn ++ " " ++ show n
-    show (PrimitiveTypeApplication pt) = "PrimitiveTypeApplication " ++ show pt
+    | TypeApplicationMismatch Name Int Int
+    deriving (Eq, Show)
 
 data Error
     = LexError P.ParseError
@@ -100,6 +89,7 @@ getTypeErrorName = \case
     ExportError{} -> "export"
     ModuleReferenceError{} -> "module-reference"
     PrimitiveTypeApplication{} -> "primitive-type-application"
+    TypeApplicationMismatch{} -> "type-application-mismatch"
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
@@ -127,3 +117,5 @@ typeErrorToString (ModuleReferenceError moduleName name) = do
     return $ printf "Module %s does not export %s" (Text.unpack $ AST.printModuleName moduleName) (Text.unpack name)
 typeErrorToString (PrimitiveTypeApplication pt) = do
     return $ printf "Primitive type %s does not take take parameters" (show pt)
+typeErrorToString (TypeApplicationMismatch name total applied) = do
+    return $ printf "Type %s takes %i type parameters.  %i given" (show name) total applied

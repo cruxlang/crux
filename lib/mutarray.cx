@@ -60,6 +60,6 @@ export fun freeze(arr: mutable [a]): [a] {
 }
 
 // TODO: add comparator support
-export fun sort(arr: MutableArray String) {
+export fun sort(arr: mutable [String]) {
     _unsafe_coerce(arr).sort()
 }

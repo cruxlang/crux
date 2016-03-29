@@ -1,0 +1,180 @@
+data Result errTy successTy {
+    Ok(successTy),
+    Err(errTy)
+}
+
+data TimerId {
+    TimerId(Number)
+}
+
+fun unTimerId(tid) {
+    match tid {
+        TimerId(t) => t
+    }
+}
+
+let COMPILE_DELAY = 1000 // milliseconds
+
+fun as_bool(a : a) : Boolean {
+    not(not(_unsafe_coerce(a)))
+}
+
+fun querySelector(sel) {
+    _unsafe_js("window").querySelector(sel)
+}
+
+fun getElementById(id) {
+    _unsafe_js("window").getElementById(id)
+}
+
+fun setTimeout(f, delay) : TimerId {
+    TimerId(_unsafe_js("window").setTimeout(f, delay))
+}
+
+fun clearTimeout(tid : TimerId) {
+    _unsafe_js("window").clearTimeout(unTimerId(tid))
+}
+
+fun compileCrux(source) {
+    _unsafe_js("window").compileSource(source)
+}
+
+type XHR = {
+    abort: () -> ()
+}
+
+type Compiler = {
+            onresult:             (Result String String) -> (),
+    mutable lastCompiledOptimize: Boolean,
+    mutable lastCompiledError:    Option String,
+    mutable xhr:                  Option XHR,
+    mutable lastCompiledSource:   Option String,
+    mutable timerId:              Option TimerId,
+    mutable lastCompiledResult:   Option String
+}
+
+fun newCompiler(onresult) : Compiler {
+    return {
+        onresult: onresult,
+        lastCompiledSource: None,
+        lastCompiledOptimize: False,
+
+        lastCompiledResult: None,
+        lastCompiledError: None,
+
+        timerId: None,
+        xhr: None
+    }
+}
+
+fun getLastCompileError(compiler) {
+    None
+}
+
+fun compile(compiler, source, optimize) {
+    match compiler.timerId {
+        Some(tid) => {
+            clearTimeout(tid)
+        }
+        None => {}
+    }
+
+    match compiler.xhr {
+        Some(x) => {
+            x.abort()
+            compiler.xhr = None
+        }
+        None => {}
+    }
+
+    if source == compiler.lastCompiledSource && optimize == compiler.lastCompiledOptimize {
+        return ()
+    }
+
+    compiler.timerId = Some(setTimeout(
+        fun() {
+            compiler.timerId = None
+
+            let res = compileCrux(source)
+            if as_bool(res.error) {
+                compiler.lastCompiledSource = source
+                compiler.lastCompiledResult = None
+                compiler.lastCompiledError = Some("Compile error:\n" + res.error)
+                compiler.onresult(Err(res.error))
+                return ()
+            }
+
+            if not(optimize) {
+                compiler.lastCompiledSource = source
+                compiler.lastCompiledResult = Some(res.result)
+                compiler.lastCompiledError = None
+                compiler.onresult(Ok(res.result))
+                return ()
+            }
+
+            let xhr = newXmlHttpRequest()
+            compiler.xhr = xhr
+            xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
+            xhr.setRequestHeader("content-type", "application/json")
+            xhr.timeout = 15000 // 15s
+            xhr.send(toJSON({source: res.result}))
+
+            xhr.onload = fun() {
+                !!!
+            }
+        }, COMPILE_DELAY
+    ))
+}
+
+fun main() {
+    let sourceTextArea = querySelector(".crux-playground .source")
+    let outputTextArea = querySelector(".crux-playground .output")
+    let optimizeCheckbox = querySelector(".crux-playground .optimize")
+    let runButton = querySelector(".crux-playground .run")
+
+    let loadExampleSource = fun() {
+        let source = getElementById("initial_example").text
+        // source = source.replace(/^\s+/, "") // trim leading whitespace
+        sourceTextArea.value = source
+    }
+
+    let compiler = newCompiler(
+        fun (result) {
+            match result {
+                Ok(res) => {
+                    outputTextArea.classList.remove("has-errors")
+                    outputTextArea.value = res
+                }
+                Err(err) => {
+                    outputTextArea.classList.add("has-errors")
+                    outputTextArea.value = err
+                }
+            }
+        }
+    )
+
+    let recompile = fun() {
+        let content = sourceTextArea.value
+        let optimize = optimizeCheckbox.checked
+        compile(compiler, content, optimize)
+    }
+
+    let registerCompileListener = fun() {
+        sourceTextArea.addEventListener("input", recompile)
+        optimizeCheckbox.addEventListener("change", recompile)
+    }
+
+    loadExampleSource()
+    registerCompileListener()
+    recompile()
+
+    sourceTextArea.disabled = False
+    sourceTextArea.setSelectionRange(0, 0)
+    sourceTextArea.focus()
+
+    runButton.addEventListener("click", fun() {
+        print("run button temporarily disabled")
+    })
+}
+
+let _ = main()

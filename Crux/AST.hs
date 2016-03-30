@@ -282,6 +282,7 @@ setEdata expr e = case expr of
 
 data TypeIdent
     = UnitTypeIdent
+    -- TODO: split into two?  TypeIdent and TypeApplication
     | TypeIdent UnresolvedReference [TypeIdent]
     | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent

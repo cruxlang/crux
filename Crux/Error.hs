@@ -15,7 +15,7 @@ import qualified Text.Parsec as P
 import qualified Data.Text as Text
 import qualified Crux.Tokens as Tokens
 import Crux.Prelude
-import Crux.TypeVar (PrimitiveType, TypeVar, showTypeVarIO)
+import Crux.TypeVar (TypeVar, showTypeVarIO)
 import Text.Printf
 
 type Name = Text
@@ -35,7 +35,7 @@ data TypeError
     | TdnrLhsTypeUnknown String
     | ExportError String
     | ModuleReferenceError AST.ModuleName Name
-    | PrimitiveTypeApplication PrimitiveType
+    | IllegalTypeApplication Name
     | TypeApplicationMismatch Name Int Int
     deriving (Eq, Show)
 
@@ -88,7 +88,7 @@ getTypeErrorName = \case
     TdnrLhsTypeUnknown{} -> "tdnr-lhs-type-unknown"
     ExportError{} -> "export"
     ModuleReferenceError{} -> "module-reference"
-    PrimitiveTypeApplication{} -> "primitive-type-application"
+    IllegalTypeApplication{} -> "illegal-type-application"
     TypeApplicationMismatch{} -> "type-application-mismatch"
 
 typeErrorToString :: TypeError -> IO String
@@ -115,7 +115,7 @@ typeErrorToString (ExportError s) = do
     return $ printf "Export error at %s" s
 typeErrorToString (ModuleReferenceError moduleName name) = do
     return $ printf "Module %s does not export %s" (Text.unpack $ AST.printModuleName moduleName) (Text.unpack name)
-typeErrorToString (PrimitiveTypeApplication pt) = do
-    return $ printf "Primitive type %s does not take take parameters" (show pt)
+typeErrorToString (IllegalTypeApplication pt) = do
+    return $ printf "Type %s does not take parameters" (show pt)
 typeErrorToString (TypeApplicationMismatch name total applied) = do
     return $ printf "Type %s takes %i type parameters.  %i given" (show name) total applied

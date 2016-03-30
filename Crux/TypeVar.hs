@@ -14,6 +14,7 @@ module Crux.TypeVar
     , TypeVar(..)
     , TypeState(..)
     , TypeLevel(..)
+    , primitiveTypeName
     , newTypeVar
     , followRecordTypeVar'
     , followRecordTypeVar
@@ -43,6 +44,11 @@ data PrimitiveType
     | String
     | Unit
     deriving (Show, Eq)
+
+primitiveTypeName :: PrimitiveType -> Text
+primitiveTypeName Number = "Number"
+primitiveTypeName String = "String"
+primitiveTypeName Unit = "()"
 
 data TVariant typevar = TVariant
     { tvName       :: Name
@@ -129,7 +135,7 @@ data TypeVar
     | TUserType (TUserTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
-    | TTypeFun [TypeNumber] TypeVar
+    | TTypeFun [TypeVar] TypeVar
     deriving (Eq)
 
 unsafeShowRef :: Show a => IORef a -> String
@@ -221,7 +227,7 @@ showTypeVarIO' showBound = \case
     TPrimitive ty ->
         return $ show ty
     TTypeFun args ret -> do
-        args' <- for (fmap TQuant args) $ showTypeVarIO' showBound
+        args' <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret
         return $ "TTypeFun " ++ show args' ++ " " ++ rs
 

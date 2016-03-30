@@ -78,19 +78,18 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                 | [] == typeParameters -> do
                     return ty
                 | otherwise -> do
-                    failTypeError pos $ Error.PrimitiveTypeApplication pt
-            TUserType def@TUserTypeDef{tuParameters}
-                | length tuParameters == length typeParameters -> do
-                    params <- for typeParameters go
-                    return $ TUserType def{tuParameters=params}
+                    failTypeError pos $ Error.IllegalTypeApplication (primitiveTypeName pt)
+            TUserType TUserTypeDef{tuName}
+                | [] == typeParameters -> do
+                    return ty
                 | otherwise -> do
-                    failTypeError pos $ Error.TypeApplicationMismatch (tuName def) (length tuParameters) (length typeParameters)
+                    failTypeError pos $ Error.IllegalTypeApplication tuName
             TTypeFun tuParameters _rt
                 | length tuParameters == length typeParameters -> do
                     (TTypeFun tuParameters' rt') <- instantiate env ty
                     for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
-                        b' <- resolveTypeIdent env pos NewTypesAreErrors b
-                        unify pos (TQuant a) b'
+                        b' <- resolveTypeIdent env pos NewTypesAreQuantified b
+                        unify pos a b'
                     return rt'
                 | otherwise -> do
                     failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeName) (length tuParameters) (length typeParameters)
@@ -208,7 +207,7 @@ resolveArrayType env pos mutability = do
             Mutable -> KnownReference "mutarray" "MutableArray"
     arrayType <- resolveTypeReference env pos NewTypesAreErrors typeReference
     followTypeVar arrayType >>= \case
-        TUserType td -> do
+        TTypeFun [_argType] (TUserType td) -> do
             let newArrayType = TUserType td{ tuParameters=[elementType] }
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
@@ -313,14 +312,16 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DTypeAlias typeVar name _ _ -> [(name, typeVar)]
     DException _ _ _ -> []
 
--- we can just use PatternBinding for now
 getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
 getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
-    DData typeVar _name _ _ variants ->
-        let TUserType def = typeVar in
+    DData typeVar _name _ _ variants -> do
+        let def = case typeVar of
+                TUserType d -> d
+                TTypeFun _ (TUserType d) -> d
+                _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
             (name, PatternReference def)
 
@@ -446,7 +447,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
         typeDef <- createUserTypeDef e typeName moduleName tyVars variants
         let tyVar = TUserType typeDef
-        HashTable.insert typeName (TypeReference tyVar) (eTypeBindings env)
+        HashTable.insert typeName (TypeReference $ TTypeFun tyVars tyVar) (eTypeBindings env)
 
         let qvars = zip typeVarNames tyVars
         return (pos, typeDef, tyVar, qvars, variants)
@@ -454,37 +455,28 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     -- Phase 2c.
     aliasDecls <- fmap catMaybes $ for decls $ \case
         DTypeAlias pos name params ident -> do
-            typeVar <- freshType env
-            HashTable.insert name (TypeReference typeVar) $ eTypeBindings env
-            return $ Just (pos, params, ident, typeVar)
+            bodyTypeVar <- freshType env
+
+            paramTypes <- for params $ \tvName -> do
+                tv <- freshType env
+                quantify tv
+                return (tvName, tv)
+
+            let registeredType = case params of
+                    [] -> bodyTypeVar
+                    _ -> TTypeFun (fmap snd paramTypes) bodyTypeVar
+            HashTable.insert name (TypeReference registeredType) $ eTypeBindings env
+            return $ Just (pos, paramTypes, ident, bodyTypeVar)
         _ -> do
             return Nothing
 
-    for_ aliasDecls $ \(pos, params, ident, typeVar) -> do
+    -- Phase 2c.2.
+    for_ aliasDecls $ \(pos, paramTypes, ident, bodyTypeVar) -> do
         env' <- childEnv env
-        for_ params $ \tvName -> do
-            tv <- freshType env'
-            quantify tv
+        for_ paramTypes $ \(tvName, tv) -> do
             HashTable.insert tvName (TypeReference tv) $ eTypeBindings env'
         resolvedType <- resolveTypeIdent env' pos NewTypesAreErrors ident
-        unify pos typeVar resolvedType
-
-    for_ decls $ \case
-        DJSData {} -> return ()
-        DTypeAlias pos name params ident -> do
-            -- TODO: This feels buggy to me somehow.  -chad
-            env' <- childEnv env
-            for_ params $ \tvName -> do
-                tv <- freshType env'
-                quantify tv
-                HashTable.insert tvName (TypeReference tv) $ eTypeBindings env'
-            abc <- resolveTypeIdent env' pos NewTypesAreErrors ident
-            HashTable.insert name (TypeReference abc) (eTypeBindings env)
-        DDeclare {} -> return ()
-        DData {}    -> return ()
-        DFun {}     -> return ()
-        DLet {}     -> return ()
-        DException {} -> return ()
+        unify pos bodyTypeVar resolvedType
 
     -- Phase 2d.
     for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do

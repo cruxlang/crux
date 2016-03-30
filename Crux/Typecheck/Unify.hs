@@ -114,9 +114,11 @@ instantiate' subst recordSubst env ty = case ty of
                         return tr
             Nothing ->
                 instantiateRecord subst recordSubst env rows open
-
     TPrimitive {} -> return ty
-    TTypeFun {} -> fail "TODO: instantiate on typefun"
+    TTypeFun args rv -> do
+        args' <- for args $ instantiate' subst recordSubst env
+        rv' <- instantiate' subst recordSubst env rv
+        return $ TTypeFun args' rv'
 
 quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of

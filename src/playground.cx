@@ -35,22 +35,45 @@ fun clearTimeout(tid : TimerId) {
     _unsafe_js("window").clearTimeout(unTimerId(tid))
 }
 
-fun compileCrux(source) {
-    _unsafe_js("window").compileSource(source)
+fun compileCrux(source) : Result String String {
+    let rawRes = _unsafe_js("window").compileCrux(source)
+    if as_bool(rawRes.error) {
+        Err(rawRes.error)
+    } else {
+        Ok(rawRes.result)
+    }
+}
+
+fun newXmlHttpRequest() : XHR {
+    _unsafe_js("new XMLHttpRequest")
+}
+
+fun toJson(o) : String {
+    _unsafe_js("JSON.stringify")(o)
+}
+
+fun parseJson(s) {
+    _unsafe_js("JSON.parse")(s)
 }
 
 type XHR = {
-    abort: () -> ()
+    open: (String, String) -> (),
+    setRequestHeader: (String, String) -> (),
+    abort: () -> (),
+    send: (String) -> (),
+    onload: () -> (),
+    onerror: (String) -> (),
+    ontimeout: () -> (),
+    response: String,
+    mutable timeout: Number
 }
 
 type Compiler = {
             onresult:             (Result String String) -> (),
     mutable lastCompiledOptimize: Boolean,
-    mutable lastCompiledError:    Option String,
     mutable xhr:                  Option XHR,
     mutable lastCompiledSource:   Option String,
     mutable timerId:              Option TimerId,
-    mutable lastCompiledResult:   Option String
 }
 
 fun newCompiler(onresult) : Compiler {
@@ -59,19 +82,12 @@ fun newCompiler(onresult) : Compiler {
         lastCompiledSource: None,
         lastCompiledOptimize: False,
 
-        lastCompiledResult: None,
-        lastCompiledError: None,
-
         timerId: None,
         xhr: None
     }
 }
 
-fun getLastCompileError(compiler) {
-    None
-}
-
-fun compile(compiler, source, optimize) {
+fun compile(compiler : Compiler, source : String, optimize) {
     match compiler.timerId {
         Some(tid) => {
             clearTimeout(tid)
@@ -87,40 +103,61 @@ fun compile(compiler, source, optimize) {
         None => {}
     }
 
-    if source == compiler.lastCompiledSource && optimize == compiler.lastCompiledOptimize {
-        return ()
+    match compiler.lastCompiledSource {
+        Some(lcs) => {
+            if lcs == source && optimize == compiler.lastCompiledOptimize {
+                return ()
+            }
+        }
+        _ => {
+        }
     }
 
     compiler.timerId = Some(setTimeout(
         fun() {
             compiler.timerId = None
 
-            let res = compileCrux(source)
-            if as_bool(res.error) {
-                compiler.lastCompiledSource = source
-                compiler.lastCompiledResult = None
-                compiler.lastCompiledError = Some("Compile error:\n" + res.error)
-                compiler.onresult(Err(res.error))
-                return ()
-            }
-
-            if not(optimize) {
-                compiler.lastCompiledSource = source
-                compiler.lastCompiledResult = Some(res.result)
-                compiler.lastCompiledError = None
-                compiler.onresult(Ok(res.result))
-                return ()
+            let result = match compileCrux(source) {
+                Err(error) => {
+                    compiler.lastCompiledSource = Some(source)
+                    compiler.onresult(Err("Compile error:\n" + error))
+                    return ()
+                }
+                Ok(res) => {
+                    if not(optimize) {
+                        compiler.lastCompiledSource = Some(source)
+                        compiler.onresult(Ok(res))
+                        return ()
+                    } else {
+                        res
+                    }
+                }
             }
 
             let xhr = newXmlHttpRequest()
-            compiler.xhr = xhr
+            compiler.xhr = Some(xhr)
             xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
             xhr.setRequestHeader("content-type", "application/json")
             xhr.timeout = 15000 // 15s
-            xhr.send(toJSON({source: res.result}))
+            xhr.send(toJson({source: result}))
 
             xhr.onload = fun() {
-                !!!
+                let result = parseJson(xhr.response)
+                compiler.xhr = None
+                compiler.lastCompiledSource = Some(source)
+                compiler.onresult(Ok(result.source))
+            }
+
+            xhr.onerror = fun(e) {
+                compiler.xhr = None
+                compiler.lastCompiledSource = None
+                compiler.onresult(Err("Network error:\n" + e))
+            }
+
+            xhr.ontimeout = fun() {
+                compiler.xhr = None
+                compiler.lastCompiledSource = None
+                compiler.onresult(Err("Network timeout"))
             }
         }, COMPILE_DELAY
     ))

@@ -16,15 +16,16 @@ fun unTimerId(tid) {
 let COMPILE_DELAY = 1000 // milliseconds
 
 fun as_bool(a : a) : Boolean {
-    not(not(_unsafe_coerce(a)))
+    let to_bool = _unsafe_js("function (x) { return !!x; }");
+    to_bool(_unsafe_coerce(a))
 }
 
 fun querySelector(sel) {
-    _unsafe_js("window").querySelector(sel)
+    _unsafe_js("document").querySelector(sel)
 }
 
 fun getElementById(id) {
-    _unsafe_js("window").getElementById(id)
+    _unsafe_js("document").getElementById(id)
 }
 
 fun setTimeout(f, delay) : TimerId {

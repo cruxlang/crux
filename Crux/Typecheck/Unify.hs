@@ -146,7 +146,9 @@ quantify ty = case ty of
             _ -> return ()
     TPrimitive {} ->
         return ()
-    TTypeFun {} -> fail "TODO: quantify on TypeFun"
+    TTypeFun args rv -> do
+        for_ args quantify
+        quantify rv
 
 instantiate :: MonadIO m => Env -> TypeVar -> m TypeVar
 instantiate env t = do
@@ -184,7 +186,9 @@ occurs pos tvn = \case
         return ()
     TQuant {} ->
         return ()
-    TTypeFun {} -> fail "TODO: occurs on TypeFun"
+    TTypeFun args rv -> do
+        for_ args $ occurs pos tvn
+        occurs pos tvn rv
 
 unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
 unificationError pos message a b = do

@@ -27,6 +27,7 @@ import           Crux.Text             (isCapitalized)
 import           Crux.Typecheck.Types
 import Data.Maybe (catMaybes)
 import           Crux.Typecheck.Unify
+import qualified Data.Text as Text
 import qualified Data.HashMap.Strict   as HashMap
 import           Prelude               hiding (String)
 import Crux.Util
@@ -72,7 +73,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         return $ TPrimitive Unit
 
     go (TypeIdent typeName typeParameters) = do
-        ty <- resolveTypeReference env pos resolvePolicy typeName
+        ty <- resolveTypeReference env pos resolvePolicy typeName >>= followTypeVar
         case ty of
             TPrimitive pt
                 | [] == typeParameters -> do
@@ -85,6 +86,8 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                 | otherwise -> do
                     failTypeError pos $ Error.IllegalTypeApplication tuName
             TTypeFun tuParameters _rt
+                | [] == typeParameters -> do
+                    return ty
                 | length tuParameters == length typeParameters -> do
                     (TTypeFun tuParameters' rt') <- instantiate env ty
                     for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
@@ -93,8 +96,11 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     return rt'
                 | otherwise -> do
                     failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeName) (length tuParameters) (length typeParameters)
-            _ ->
-                return ty
+            _
+                | [] == typeParameters ->
+                    return ty
+                | otherwise ->
+                    failTypeError pos $ Error.IllegalTypeApplication (Text.pack $ show ty)
 
     go (RecordIdent rows) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
@@ -447,7 +453,10 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
         typeDef <- createUserTypeDef e typeName moduleName tyVars variants
         let tyVar = TUserType typeDef
-        HashTable.insert typeName (TypeReference $ TTypeFun tyVars tyVar) (eTypeBindings env)
+        let typeRef = case tyVars of
+                [] -> tyVar
+                _ -> TTypeFun tyVars tyVar
+        HashTable.insert typeName (TypeReference typeRef) (eTypeBindings env)
 
         let qvars = zip typeVarNames tyVars
         return (pos, typeDef, tyVar, qvars, variants)

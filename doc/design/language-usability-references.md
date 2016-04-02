@@ -12,6 +12,8 @@ https://lists.swift.org/pipermail/swift-evolution/Week-of-Mon-20151207/001948.ht
 
 http://blog.ezyang.com/2015/12/the-convergence-of-compilers-build-systems-and-package-managers/
 
+https://quaxio.com/on_the_design_of_hack
+
 # Koka
 
 http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf

@@ -42,6 +42,7 @@ An unordered set of interesting language design resources.
 ## Other Interesting Languages
 
 * [Myrrdin](https://github.com/oridb/mc/blob/master/doc/lang.txt)
+* [Opa](http://opalang.org/)
 
 ## Software Engineering
 

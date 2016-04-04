@@ -38,7 +38,8 @@ import System.Directory (doesDirectoryExist)
 runProgram' :: AST.Program -> IO String
 runProgram' p = do
     m' <- Gen.generateProgram p
-    let js = JS.generateJS m'
+    rtsSource <- Crux.Module.loadRTSSource
+    let js = JS.generateJS rtsSource m'
     readProcessWithExitCode "node" [] (T.unpack js) >>= \case
         (ExitSuccess, stdoutBody, _) -> do
             return stdoutBody

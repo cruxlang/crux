@@ -3,7 +3,7 @@ module Crux.Main (main) where
 import qualified Crux.Error as Error
 import qualified Crux.JSBackend     as JS
 import qualified Crux.Gen            as Gen
-import           Crux.Module         (loadProgramFromFile)
+import           Crux.Module         (loadProgramFromFile, loadRTSSource)
 import           Crux.Prelude
 import Crux.Project (buildProject)
 import qualified Data.Text           as Text
@@ -55,21 +55,23 @@ main = do
         ["build"] -> do
             buildProject
         ["run", fn] -> do
+            rtsSource <- loadRTSSource
             loadProgramFromFile fn >>= \case
                 Left (moduleName, err) -> do
                     Error.renderError moduleName err >>= hPutStrLn stderr
                     exitWith $ ExitFailure 1
                 Right program -> do
                     program'' <- Gen.generateProgram program
-                    let js = JS.generateJS program''
+                    let js = JS.generateJS rtsSource program''
                     runJS $ Text.unpack js
         [fn] -> do
+            rtsSource <- loadRTSSource
             loadProgramFromFile fn >>= \case
                 Left (moduleName, err) -> do
                     Error.renderError moduleName err >>= hPutStrLn stderr
                     exitWith $ ExitFailure 1
                 Right program -> do
                     program'' <- Gen.generateProgram program
-                    putStr $ Text.unpack $ JS.generateJS program''
+                    putStr $ Text.unpack $ JS.generateJS rtsSource program''
                     exitWith ExitSuccess
         _ -> help

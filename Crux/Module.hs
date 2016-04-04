@@ -7,6 +7,7 @@ module Crux.Module
     , loadProgramFromSources
     , loadProgramFromFile
     , loadProgramFromDirectoryAndModule
+    , loadRTSSource
 
       -- largely for cruxjs
     , pathToModuleName
@@ -105,10 +106,14 @@ findCompilerConfig = do
 
 data CompilerConfig = CompilerConfig
     { baseLibraryPath :: FilePath
+    , rtsPath :: FilePath
     }
 
 instance JSON.FromJSON CompilerConfig where
-    parseJSON (JSON.Object o) = CompilerConfig <$> o JSON..: "baseLibraryPath"
+    parseJSON (JSON.Object o) = do
+        baseLibraryPath <- o JSON..: "baseLibraryPath"
+        rtsPath <- o JSON..: "rtsPath"
+        return $ CompilerConfig{..}
     parseJSON _ = fail "must be object"
 
 loadCompilerConfig :: IO CompilerConfig
@@ -121,7 +126,16 @@ loadCompilerConfig = do
         Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ prettyPrintParseException err
         Right c -> return c
 
-    return config { baseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ baseLibraryPath config) }
+    return config
+        { baseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ baseLibraryPath config)
+        , rtsPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ rtsPath config)
+        }
+
+loadRTSSource :: IO Text
+loadRTSSource = do
+    config <- loadCompilerConfig
+    bytes <- BS.readFile $ FP.combine (rtsPath config) "rts.js"
+    return $ TE.decodeUtf8 bytes
 
 parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource moduleName filename source = do
@@ -222,7 +236,7 @@ pathToModuleName path =
 loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig
-    let (dirname, basename) = FP.splitFileName path
+    let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
     loadProgram loader "main"
 

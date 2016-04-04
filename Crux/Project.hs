@@ -38,8 +38,8 @@ loadProjectBuild = do
         Left err -> fail $ show err
         Right x -> return x
 
-buildTarget :: Text -> TargetConfig -> IO ()
-buildTarget targetName TargetConfig{..} = do
+buildTarget :: Text -> Text -> TargetConfig -> IO ()
+buildTarget rtsSource targetName TargetConfig{..} = do
     let targetPath = combine "build" $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
@@ -48,11 +48,12 @@ buildTarget targetName TargetConfig{..} = do
             Exit.die $ "project build failed\nin module: " ++ Text.unpack (AST.printModuleName moduleName) ++ "\n" ++ message
         Right program -> do
             program' <- Gen.generateProgram program
-            TextIO.writeFile targetPath $ JSBackend.generateJS program'
+            TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
             putStrLn $ "Built " ++ targetPath
 
 buildProject :: IO ()
 buildProject = do
+    rtsSource <- loadRTSSource
     config <- loadProjectBuild
     for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
-        buildTarget targetName targetConfig
+        buildTarget rtsSource targetName targetConfig

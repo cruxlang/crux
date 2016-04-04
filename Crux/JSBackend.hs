@@ -269,8 +269,8 @@ generateModule decls = concat $ map renderDeclaration decls
 renderExportName :: ModuleName -> Text -> Text
 renderExportName mn n = renderModuleName mn <> "_" <> n
 
-generateJS :: Gen.Program -> Text
-generateJS modules =
+generateJS :: Text -> Gen.Program -> Text
+generateJS rtsSource modules =
     let allStatements = (flip map) modules $ \(moduleName, decls) ->
             let exportedValueNames = mconcat $ fmap getExportedValues decls
                 declareExports = [JSTree.SVar (renderExportName moduleName n) Nothing | n <- exportedValueNames]
@@ -278,4 +278,4 @@ generateJS modules =
                 setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName n) | n <- exportedValueNames]
             in declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
 
-    in JSTree.renderDocument [wrapInModule $ mconcat allStatements]
+    in JSTree.renderDocument [wrapInModule $ (JSTree.SExpression $ JSTree.ERaw rtsSource) : mconcat allStatements]

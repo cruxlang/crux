@@ -3,12 +3,12 @@
 'fileTypes': ['cx']
 'patterns': [
   {
-    'match': '\\b(data|type|let|mutable|export|while|fun|for|in)\\b',
+    'match': '\\b(data|type|let|mutable|export|while|fun|for|in|if|return|match)\\b',
     'name': 'keyword.crux'
   },
   {
-    'match': '[=<>\\+\\-;\\(\\)\\[\\]]',
-    'name': 'operator.crux'
+    'match': '[<=>\\+\\-;\\(\\)\\[\\]\{\}]',
+    'name': 'keyword.operator.assignment.compound.js.crux'
   },
   {
       'match': '//.*',

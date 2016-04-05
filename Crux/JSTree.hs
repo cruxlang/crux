@@ -76,6 +76,7 @@ data Literal
 
 data Expression
     = EApplication Expression [Expression]
+    | ENew Expression [Expression]
     | EFunction [Name] [Statement] -- function(args) { statements }
     | EObject (HashMap Name Expression)
     | EPrefixOp Text Expression
@@ -205,6 +206,12 @@ renderExpr :: Expression -> JSWriter ()
 renderExpr = \case
     EApplication lhs args -> do
         renderExpr lhs
+        writeS "("
+        commaSeparated $ map renderExpr args
+        writeS ")"
+    ENew ctor args -> do
+        writeS "new "
+        renderExpr ctor
         writeS "("
         commaSeparated $ map renderExpr args
         writeS ")"

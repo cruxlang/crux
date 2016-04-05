@@ -86,13 +86,16 @@ renderOutput output input = case output of
     Gen.ExistingTemporary i -> JSTree.SAssign (JSTree.EIdentifier $ renderTemporary i) input
     Gen.OutputProperty v name -> JSTree.SAssign (JSTree.ELookup (renderValue v) name) input
 
-renderResolvedReference :: ResolvedReference -> JSTree.Expression
-renderResolvedReference = JSTree.EIdentifier . \case
+renderResolvedReference' :: ResolvedReference -> Text
+renderResolvedReference' = \case
     Ambient n -> renderJSName n
     Local n -> renderJSName n
     ThisModule n -> renderJSName n
     OtherModule mn n -> renderModuleName mn <> "_" <> n
     Builtin n -> n
+
+renderResolvedReference :: ResolvedReference -> JSTree.Expression
+renderResolvedReference = JSTree.EIdentifier . renderResolvedReference'
 
 renderValue :: Gen.Value -> JSTree.Expression
 renderValue value = case value of
@@ -172,17 +175,14 @@ renderInstruction instr = case instr of
             (JSTree.SBlock $ map renderInstruction body)
 
     Gen.Throw exceptionName body ->
-        JSTree.SThrow $ JSTree.EArray
-            [ JSTree.ELiteral $ JSTree.LString (Text.pack $ show exceptionName), renderValue body
-            ]
+        JSTree.SThrow $ JSTree.ENew (JSTree.EIdentifier $ renderResolvedReference' exceptionName <> "$") $ [renderValue body]
 
     Gen.TryCatch tryInstrs exceptionName exceptionBinding catchInstrs ->
         let jsarg = renderArgument exceptionBinding in
         let jsident = JSTree.EIdentifier jsarg in
-        let notnull = JSTree.EBinOp "!=" jsident $ JSTree.ELiteral JSTree.LNull in
-        let tagmatches = JSTree.EBinOp "===" (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 0)) (JSTree.ELiteral $ JSTree.LString (Text.pack $ show exceptionName)) in
-        let check = JSTree.EBinOp "&&" notnull tagmatches in
-        let assign = JSTree.SAssign jsident (JSTree.EIndex jsident (JSTree.ELiteral $ JSTree.LInteger 1)) in
+        -- TODO: instanceof may not be right if we want customized tag checks later
+        let check = JSTree.EBinOp " instanceof " jsident $ JSTree.EIdentifier $ renderResolvedReference' exceptionName <> "$" in
+        let assign = JSTree.SAssign jsident (JSTree.ELookup jsident "message") in
         let guard = JSTree.SIf check assign (Just $ JSTree.SThrow jsident) in
         JSTree.STryCatch
             (map renderInstruction tryInstrs)
@@ -249,6 +249,8 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
                 map renderInstruction defn
             PBinding _name ->
                 map renderInstruction defn
+    Gen.DException name ->
+        [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
 
 getExportedValues :: Gen.Declaration -> [Name]
 getExportedValues (Gen.Declaration NoExport _) = []
@@ -259,6 +261,7 @@ getExportedValues (Gen.Declaration Export decl) = case decl of
     Gen.DLet pat _defn -> case pat of
         PWildcard -> []
         PBinding name -> [name]
+    Gen.DException name -> [name <> "$"]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body
@@ -278,4 +281,5 @@ generateJS rtsSource modules =
                 setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName n) | n <- exportedValueNames]
             in declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
 
+    -- TODO: introduce an SRaw
     in JSTree.renderDocument [wrapInModule $ (JSTree.SExpression $ JSTree.ERaw rtsSource) : mconcat allStatements]

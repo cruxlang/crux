@@ -402,7 +402,7 @@ registerExceptionDecl env = \case
     DTypeAlias {} -> return ()
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
-        HashTable.insert exceptionName (ExceptionReference (OtherModule (eThisModule env) exceptionName) tyVar) (eExceptionBindings env)
+        HashTable.insert exceptionName (ExceptionReference (ThisModule exceptionName) tyVar) (eExceptionBindings env)
         return ()
 
 addThisModuleDataDeclsToEnvironment

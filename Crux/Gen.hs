@@ -102,6 +102,7 @@ data DeclarationType
     | DJSData Name [AST.JSVariant]
     | DFun Name [AST.Pattern] [Instruction]
     | DLet AST.Pattern [Instruction]
+    | DException Name
     deriving (Show, Eq)
 
 data Declaration = Declaration AST.ExportFlag DeclarationType
@@ -341,8 +342,8 @@ generateDecl env (AST.Declaration export _pos decl) = do
         AST.DTypeAlias {} -> do
             -- type aliases are not reflected into the IR
             return ()
-        AST.DException {} -> do
-            return ()
+        AST.DException _ name _ -> do
+            writeDeclaration $ Declaration export $ DException name
 
 generateModule :: AST.Module AST.ResolvedReference t -> IO Module
 generateModule AST.Module{..} = do

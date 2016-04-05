@@ -7,18 +7,10 @@ module Crux.Typecheck.Types
     , TypeLevel(..)
     ) where
 
-import Crux.TypeVar
-    ( TypeVar(..)
-    , TUserTypeDef(..)
-    , TypeLevel(..)
-    )
-import Crux.Module.Types (LoadedModule)
-import Crux.AST
-    ( Mutability
-    , ModuleName
-    , ResolvedReference
-    )
-import Crux.Prelude
+import           Crux.AST          (ModuleName, Mutability, ResolvedReference)
+import           Crux.Module.Types (LoadedModule)
+import           Crux.Prelude
+import           Crux.TypeVar      (TUserTypeDef (..), TypeLevel (..), TypeVar (..))
 
 -- TODO: newtype this somewhere and import it
 type Name = Text
@@ -37,14 +29,14 @@ data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 data PatternReference = PatternReference (TUserTypeDef TypeVar)
 
 data Env = Env
-    { eThisModule :: ModuleName
-    , eLoadedModules :: HashMap ModuleName LoadedModule
-    , eNextTypeIndex :: IORef Int
-    , eValueBindings :: HashTable Name ValueReference
-    , eTypeBindings :: HashTable Name TypeReference
-    , ePatternBindings :: HashTable Name PatternReference
+    { eThisModule        :: ModuleName
+    , eLoadedModules     :: HashMap ModuleName LoadedModule
+    , eNextTypeIndex     :: IORef Int
+    , eValueBindings     :: HashTable Name ValueReference
+    , eTypeBindings      :: HashTable Name TypeReference
+    , ePatternBindings   :: HashTable Name PatternReference
     , eExceptionBindings :: HashTable Name ExceptionReference
-    , eReturnType :: Maybe TypeVar -- Nothing if top-level expression
-    , eInLoop :: !Bool
-    , eLevel :: !TypeLevel
+    , eReturnType        :: Maybe TypeVar -- Nothing if top-level expression
+    , eInLoop            :: !Bool
+    , eLevel             :: !TypeLevel
     }

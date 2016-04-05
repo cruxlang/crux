@@ -1,16 +1,17 @@
-{-# LANGUAGE NamedFieldPuns, RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Crux.Typecheck.Unify where
 
 import           Crux.AST
+import           Crux.Error
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
+import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types
+import           Crux.TypeVar
 import           Data.List             (sort)
 import           Text.Printf           (printf)
-import Crux.TypeVar
-import Crux.Error
-import Crux.Typecheck.Monad
 
 freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do

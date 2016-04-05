@@ -5,20 +5,20 @@ module Crux.Typecheck
     ( run
     ) where
 
-import Crux.AST
+import           Crux.AST
+import           Crux.Error
+import           Crux.Module.Types
 import qualified Crux.MutableHashTable as HashTable
-import Crux.Prelude
-import Crux.Typecheck.Env
+import           Crux.Prelude
+import           Crux.Typecheck.Env
+import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types
 import           Crux.Typecheck.Unify
+import           Crux.TypeVar
 import qualified Data.HashMap.Strict   as HashMap
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
-import Crux.Error
-import Crux.Module.Types
-import Crux.TypeVar
-import Crux.Typecheck.Monad
 
 handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [RefutablePattern] -> TC ()
 handlePatternBinding env pos exprType patternReference cname cargs = do

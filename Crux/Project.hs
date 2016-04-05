@@ -1,21 +1,21 @@
 module Crux.Project (buildProject) where
 
-import Crux.Prelude
-import Data.Yaml
-import Data.Map.Strict (Map)
+import qualified Crux.AST        as AST
+import qualified Crux.Error      as Error
+import qualified Crux.Gen        as Gen
+import qualified Crux.JSBackend  as JSBackend
+import           Crux.Module
+import           Crux.Prelude
+import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import System.FilePath (combine)
-import qualified Data.Text.IO as TextIO
-import qualified Data.Text as Text
-import Crux.Module
-import qualified Crux.AST as AST
-import qualified Crux.Gen as Gen
-import qualified Crux.JSBackend as JSBackend
-import qualified Crux.Error as Error
-import qualified System.Exit as Exit
+import qualified Data.Text       as Text
+import qualified Data.Text.IO    as TextIO
+import           Data.Yaml
+import qualified System.Exit     as Exit
+import           System.FilePath (combine)
 
 data TargetConfig = TargetConfig
-    { tcSourceDir :: String
+    { tcSourceDir  :: String
     , tcMainModule :: Text
     }
 

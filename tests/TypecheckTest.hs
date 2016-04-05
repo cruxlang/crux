@@ -3,14 +3,14 @@
 
 module TypecheckTest (htf_thisModulesTests) where
 
-import Test.Framework
-import Data.List (sort)
-import Crux.AST
-import Crux.Typecheck.Types
-import qualified Crux.Typecheck.Env as Env
-import Crux.Typecheck.Monad
-import qualified Data.HashMap.Strict as HashMap
-import Crux.Prelude
+import           Crux.AST
+import           Crux.Prelude
+import qualified Crux.Typecheck.Env   as Env
+import           Crux.Typecheck.Monad
+import           Crux.Typecheck.Types
+import qualified Data.HashMap.Strict  as HashMap
+import           Data.List            (sort)
+import           Test.Framework
 
 test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
     let aModuleName = ModuleName [] (ModuleSegment "A")

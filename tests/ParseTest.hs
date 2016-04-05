@@ -3,12 +3,12 @@
 
 module ParseTest (htf_thisModulesTests) where
 
-import           Crux.Parse
 import           Crux.AST
-import qualified Crux.Lex as Lex
-import qualified Data.Text as T
+import qualified Crux.Lex            as Lex
+import           Crux.Parse
+import           Data.HashMap.Strict (fromList)
+import qualified Data.Text           as T
 import           Test.Framework
-import Data.HashMap.Strict (fromList)
 
 discardData expr = fmap (const ()) expr
 

@@ -1,39 +1,39 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module IntegrationTest where
 
-import Control.Concurrent (getNumCapabilities)
-import Control.Concurrent.MVar
-import Control.Concurrent.STM (atomically)
-import Control.Concurrent.STM.TMQueue
-import Control.Monad (when, replicateM)
-import Control.Exception (SomeException, try, throwIO)
-import Control.Concurrent.Async (async, wait)
-import Data.Foldable (for_)
-import Data.Monoid ((<>))
-import qualified Crux.AST             as AST
-import qualified Crux.JSBackend      as JS
-import qualified Crux.Error as Error
-import qualified Crux.Gen             as Gen
+import           Control.Concurrent             (getNumCapabilities)
+import           Control.Concurrent.Async       (async, wait)
+import           Control.Concurrent.MVar
+import           Control.Concurrent.STM         (atomically)
+import           Control.Concurrent.STM.TMQueue
+import           Control.Exception              (SomeException, throwIO, try)
+import           Control.Monad                  (replicateM, when)
+import qualified Crux.AST                       as AST
+import           Crux.Error                     (TypeError (..))
+import qualified Crux.Error                     as Error
+import qualified Crux.Gen                       as Gen
+import qualified Crux.JSBackend                 as JS
 import qualified Crux.Module
-import           Crux.Tokens          (Pos (..))
-import           Crux.Error (TypeError (..))
-import Crux.TypeVar (renderTypeVarIO)
-import qualified Data.HashMap.Strict  as HashMap
-import           Data.Text            (Text)
-import qualified Data.Text            as T
-import qualified Data.Text.IO         as T
-import           System.Exit          (ExitCode (..))
-import           System.Process       (readProcessWithExitCode)
+import           Crux.Module.Types              as AST
+import           Crux.Tokens                    (Pos (..))
+import           Crux.TypeVar                   (renderTypeVarIO)
+import           Data.Foldable                  (for_)
+import qualified Data.HashMap.Strict            as HashMap
+import           Data.Monoid                    ((<>))
+import           Data.Text                      (Text)
+import qualified Data.Text                      as T
+import qualified Data.Text.IO                   as T
+import qualified Data.Yaml                      as Yaml
+import           System.Directory               (doesFileExist)
+import           System.Directory               (doesDirectoryExist)
+import qualified System.Directory.PathWalk      as PathWalk
+import           System.Exit                    (ExitCode (..))
+import qualified System.FilePath                as FilePath
+import           System.Process                 (readProcessWithExitCode)
 import           Test.Framework
-import           Text.RawString.QQ    (r)
-import System.Directory (doesFileExist)
-import qualified Data.Yaml as Yaml
-import qualified System.Directory.PathWalk as PathWalk
-import qualified System.FilePath as FilePath
-import Crux.Module.Types as AST
-import System.Directory (doesDirectoryExist)
+import           Text.RawString.QQ              (r)
 
 runProgram' :: AST.Program -> IO String
 runProgram' p = do
@@ -93,7 +93,7 @@ failWithError root moduleName err = do
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 
 data ErrorConfig = ErrorConfig
-    { errorName :: Maybe Text
+    { errorName     :: Maybe Text
     , typeErrorName :: Maybe Text
     }
 

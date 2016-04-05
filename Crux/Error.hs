@@ -10,13 +10,13 @@ module Crux.Error
     , renderError'
     ) where
 
-import qualified Crux.AST as AST
-import qualified Text.Parsec as P
-import qualified Data.Text as Text
-import qualified Crux.Tokens as Tokens
-import Crux.Prelude
-import Crux.TypeVar (TypeVar, showTypeVarIO)
-import Text.Printf
+import qualified Crux.AST     as AST
+import           Crux.Prelude
+import qualified Crux.Tokens  as Tokens
+import           Crux.TypeVar (TypeVar, showTypeVarIO)
+import qualified Data.Text    as Text
+import qualified Text.Parsec  as P
+import           Text.Printf
 
 type Name = Text
 

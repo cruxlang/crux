@@ -12,17 +12,17 @@ module Crux.Typecheck.Monad
     , bridgeEitherTC
     ) where
 
-import Crux.Prelude
-import Control.Monad.Trans.Reader
-import Control.Exception (try, throwIO, Exception)
-import Crux.Error
-import Crux.Tokens (Pos)
+import           Control.Exception          (Exception, throwIO, try)
+import           Control.Monad.Trans.Reader
+import           Crux.Error
+import           Crux.Prelude
+import           Crux.Tokens                (Pos)
 
 data Warning -- TODO: move this into Crux.Warning
 
 data TCState = TCState
     { tcWarnings :: IORef [Warning]
-    , tcErrors :: IORef [Error]
+    , tcErrors   :: IORef [Error]
     }
 
 newtype TC a = TC (ReaderT TCState IO a)

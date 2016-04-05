@@ -1,17 +1,19 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, LambdaCase #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module UnifyTest (htf_thisModulesTests) where
 
+import           Crux.AST             (Pos (..))
+import           Crux.Error
+import           Crux.IORef
 import           Crux.Typecheck.Env   (newEnv)
+import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Unify
+import           Crux.TypeVar
 import qualified Data.HashMap.Strict  as HashMap
 import           Test.Framework
-import Crux.IORef
-import Crux.TypeVar
-import Crux.Error
-import Crux.AST (Pos(..))
-import Crux.Typecheck.Monad
 
 test_quantified_with_number = do
     let lhs = TPrimitive $ Number

@@ -1,16 +1,16 @@
 module Crux.Main (main) where
 
-import qualified Crux.Error as Error
-import qualified Crux.JSBackend     as JS
+import qualified Crux.Error          as Error
 import qualified Crux.Gen            as Gen
+import qualified Crux.JSBackend      as JS
 import           Crux.Module         (loadProgramFromFile, loadRTSSource)
 import           Crux.Prelude
-import Crux.Project (buildProject)
+import           Crux.Project        (buildProject)
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
 import           System.Exit         (ExitCode (..), exitWith)
-import System.Process (readProcessWithExitCode)
-import System.IO
+import           System.IO
+import           System.Process      (readProcessWithExitCode)
 
 data Options = Options
      { files :: [String]

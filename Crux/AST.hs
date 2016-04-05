@@ -10,11 +10,11 @@ module Crux.AST
     , Pos(..)
     ) where
 
-import qualified Crux.JSTree   as JSTree
+import qualified Crux.JSTree  as JSTree
 import           Crux.Prelude
-import Crux.Tokens (Pos)
-import qualified Crux.Tokens   as Tokens
-import qualified Data.Text     as Text
+import           Crux.Tokens  (Pos)
+import qualified Crux.Tokens  as Tokens
+import qualified Data.Text    as Text
 
 type Name = Text -- Temporary
 

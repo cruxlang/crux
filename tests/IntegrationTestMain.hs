@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
 module Main where
 
-import Test.Framework
-import System.Environment (getArgs)
+import           System.Environment (getArgs)
+import           Test.Framework
 
 import {-@ HTF_TESTS @-} IntegrationTest
 

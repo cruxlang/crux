@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Crux.Tokens where
 
-import Crux.Prelude
+import           Crux.Prelude
 
 -- TODO: we should record the start and end positions of tokens
 -- All of these numbers are one-based, because that's how editors standardized.
@@ -11,9 +11,9 @@ data Pos = Pos
     -- The start column of the line containing this token.
     { posLineStart :: Int
     -- This token's line number.
-    , posLine :: Int
+    , posLine      :: Int
     -- This token's column number.
-    , posCol :: Int
+    , posCol       :: Int
     }
     deriving (Eq)
 

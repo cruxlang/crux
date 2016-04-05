@@ -18,22 +18,22 @@ module Crux.Typecheck.Env
     ) where
 
 import           Crux.AST
-import qualified Crux.Error as Error
+import qualified Crux.Error            as Error
 import           Crux.Intrinsic        (Intrinsic (..))
 import qualified Crux.Intrinsic        as Intrinsic
+import           Crux.Module.Types
 import qualified Crux.MutableHashTable as HashTable
 import           Crux.Prelude
 import           Crux.Text             (isCapitalized)
+import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types
-import Data.Maybe (catMaybes)
 import           Crux.Typecheck.Unify
-import qualified Data.Text as Text
+import           Crux.TypeVar
+import           Crux.Util
 import qualified Data.HashMap.Strict   as HashMap
+import           Data.Maybe            (catMaybes)
+import qualified Data.Text             as Text
 import           Prelude               hiding (String)
-import Crux.Util
-import Crux.TypeVar
-import Crux.Module.Types
-import Crux.Typecheck.Monad
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)

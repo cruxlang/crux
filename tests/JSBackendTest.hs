@@ -3,12 +3,12 @@
 
 module JSBackendTest (htf_thisModulesTests) where
 
-import qualified Crux.Error as Error
+import qualified Crux.Error     as Error
+import qualified Crux.Gen       as Gen
 import qualified Crux.JSBackend as JS
-import qualified Crux.Gen as Gen
-import qualified Crux.JSTree as JSTree
+import qualified Crux.JSTree    as JSTree
 import qualified Crux.Module
-import           Data.Text       (Text)
+import           Data.Text      (Text)
 import           Test.Framework
 
 genDoc' :: Text -> IO (Either Error.Error Text)

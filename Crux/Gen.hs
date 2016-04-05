@@ -16,11 +16,11 @@ module Crux.Gen
 
 import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST                  as AST
+import           Crux.Module               (importsOf)
+import qualified Crux.Module.Types         as AST
 import           Crux.Prelude
-import Crux.Module (importsOf)
 import           Data.Graph                (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict       as HashMap
-import qualified Crux.Module.Types as AST
 
 {-
 Instructions can:

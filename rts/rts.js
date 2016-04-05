@@ -9,15 +9,24 @@ function _rts_clear_exception() {
 }
 
 function _rts_new_exception(name, baseException) {
-    // TODO: _rts_create_named_function
-    var errorClass = function(message) {
-        this.name = name;
-        this.message = message;
-        // we could fix up this.stack too
+    // TODO: catch the eval exception in CSP contexts and try something simpler in that case
+    var ctor = new Function("name", "message", "e", "  this.name = name;\n  this.message = message;  this.buildStack(e || new Error);\n");
+
+    ctor.prototype.buildStack = function(e) {
+        var stack = e.stack;
+        if (stack !== undefined) {
+            this.stack = this.toString() + '\n' +
+                stack.replace(/^Error:(:[^\n]*)?\n/, '');
+        }
     };
 
-    // TODO: when necessary
-    errorClass.prototype.constructor = errorClass;
+    ctor.throw = function(message, e) {
+        throw new ctor(name, message, e);
+    };
 
-    return errorClass;
+    ctor.check = function(e) {
+        return e instanceof ctor;
+    };
+
+    return ctor;
 }

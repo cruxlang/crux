@@ -176,13 +176,16 @@ renderInstruction instr = case instr of
             (JSTree.SBlock $ map renderInstruction body)
 
     Gen.Throw exceptionName body ->
-        JSTree.SThrow $ JSTree.ENew (JSTree.EIdentifier $ renderResolvedReference' exceptionName <> "$") $ [renderValue body]
+        JSTree.SExpression $ JSTree.EApplication
+            (JSTree.ELookup (JSTree.EIdentifier $ renderResolvedReference' exceptionName <> "$") "throw")
+            [renderValue body, JSTree.ENew (JSTree.EIdentifier "Error") Nothing]
 
     Gen.TryCatch tryInstrs exceptionName exceptionBinding catchInstrs ->
         let jsarg = renderArgument exceptionBinding in
         let jsident = JSTree.EIdentifier jsarg in
+        let excident = JSTree.EIdentifier $ renderResolvedReference' exceptionName <> "$" in
         -- TODO: instanceof may not be right if we want customized tag checks later
-        let check = JSTree.EBinOp " instanceof " jsident $ JSTree.EIdentifier $ renderResolvedReference' exceptionName <> "$" in
+        let check = JSTree.EApplication (JSTree.ELookup excident "check") [jsident] in
         let assign = JSTree.SAssign jsident (JSTree.ELookup jsident "message") in
         let guard = JSTree.SIf check assign (Just $ JSTree.SThrow jsident) in
         JSTree.STryCatch

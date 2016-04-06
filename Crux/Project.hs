@@ -1,4 +1,8 @@
-module Crux.Project (buildProject) where
+module Crux.Project
+    ( runJS
+    , buildProject
+    , buildProjectAndRunTests
+    ) where
 
 import qualified Crux.AST        as AST
 import qualified Crux.Error      as Error
@@ -12,7 +16,10 @@ import qualified Data.Text       as Text
 import qualified Data.Text.IO    as TextIO
 import           Data.Yaml
 import qualified System.Exit     as Exit
+import           System.Exit         (ExitCode (..))
 import           System.FilePath (combine)
+import           System.Process      (readProcessWithExitCode)
+import System.IO
 
 data TargetConfig = TargetConfig
     { tcSourceDir  :: String
@@ -21,6 +28,7 @@ data TargetConfig = TargetConfig
 
 data ProjectConfig = ProjectConfig
     { pcTargets :: Map Text TargetConfig
+    , pcTests :: Map Text TargetConfig
     }
 
 instance FromJSON TargetConfig where
@@ -29,8 +37,20 @@ instance FromJSON TargetConfig where
     parseJSON _ = fail "Target must be an object"
 instance FromJSON ProjectConfig where
     parseJSON (Object o) = do
-        ProjectConfig <$> o .: "targets"
+        pcTargets <- o .:? "targets" .!= mempty
+        pcTests <- o .:? "tests" .!= mempty
+        return ProjectConfig{..}
     parseJSON _ = fail "Config must be an object"
+
+runJS :: String -> IO ()
+runJS js = do
+    readProcessWithExitCode "node" [] js >>= \case
+        (ExitSuccess, stdoutBody, stderrBody) -> do
+            -- TODO: just inherit stdout and stderr
+            hPutStr stderr stderrBody
+            hPutStr stdout stdoutBody
+        (ExitFailure code, _, stderrBody) -> do
+            fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderrBody
 
 loadProjectBuild :: IO ProjectConfig
 loadProjectBuild = do
@@ -57,3 +77,19 @@ buildProject = do
     config <- loadProjectBuild
     for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
         buildTarget rtsSource targetName targetConfig
+    for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
+        buildTarget rtsSource targetName targetConfig
+
+buildProjectAndRunTests :: IO ()
+buildProjectAndRunTests = do
+    rtsSource <- loadRTSSource
+    config <- loadProjectBuild
+    for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
+        loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
+            Left (moduleName, err) -> do
+                message <- Error.renderError' err
+                Exit.die $ "test build failed\nin module: " ++ Text.unpack (AST.printModuleName moduleName) ++ "\n" ++ message
+            Right program -> do
+                program' <- Gen.generateProgram program
+                let source = JSBackend.generateJS rtsSource program'
+                runJS $ Text.unpack source

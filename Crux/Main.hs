@@ -5,12 +5,11 @@ import qualified Crux.Gen            as Gen
 import qualified Crux.JSBackend      as JS
 import           Crux.Module         (loadProgramFromFile, loadRTSSource)
 import           Crux.Prelude
-import           Crux.Project        (buildProject)
+import           Crux.Project (runJS, buildProject, buildProjectAndRunTests)
 import qualified Data.Text           as Text
 import qualified Options.Applicative as Opt
-import           System.Exit         (ExitCode (..), exitWith)
 import           System.IO
-import           System.Process      (readProcessWithExitCode)
+import System.Exit (exitWith, ExitCode(..))
 
 data Options = Options
      { files :: [String]
@@ -37,16 +36,6 @@ failed message = do
     exitWith $ ExitFailure 1
 -}
 
-runJS :: String -> IO ()
-runJS js = do
-    readProcessWithExitCode "node" [] js >>= \case
-        (ExitSuccess, stdoutBody, stderrBody) -> do
-            -- TODO: just inherit stdout and stderr
-            hPutStr stderr stderrBody
-            hPutStr stdout stdoutBody
-        (ExitFailure code, _, stderrBody) -> do
-            fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderrBody
-
 main :: IO ()
 main = do
     options <- parseOptions
@@ -54,6 +43,8 @@ main = do
         [] -> help
         ["build"] -> do
             buildProject
+        ["test"] -> do
+            buildProjectAndRunTests
         ["run", fn] -> do
             rtsSource <- loadRTSSource
             loadProgramFromFile fn >>= \case

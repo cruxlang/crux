@@ -6,7 +6,7 @@ project:
     - Chad Austin
     - Andy Friesen
 
-targets:
+tests:
   crux-test:
     src-dir: tests/crux
     main-module: main

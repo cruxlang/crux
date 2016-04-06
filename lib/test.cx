@@ -19,5 +19,5 @@ export fun run() {
     print("test: " + t.name)
     t.fn()
   }
-  print("done")
+  print("\x1b[0;32mpass ✔️\x1b[0m")
 }

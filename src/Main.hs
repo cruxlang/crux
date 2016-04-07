@@ -5,7 +5,7 @@ module Main
     ) where
 
 import Crux.Module (newMemoryLoader, loadProgram, pathToModuleName)
-import Data.FileEmbed (embedDir)
+import Data.FileEmbed (embedDir, embedFile)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Text.Encoding (decodeUtf8)
@@ -18,16 +18,20 @@ import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
 import qualified Data.HashMap.Strict as HashMap
 import GHCJS.Marshal.Pure (pFromJSVal, pToJSVal)
+import qualified Data.Text.Encoding as TE
 
 baseModuleFiles :: [(FilePath, ByteString)]
 baseModuleFiles = $(embedDir "../crux/lib")
+
+rtsFile :: ByteString
+rtsFile = $(embedFile "../crux/rts/rts.js")
 
 compile :: Text -> IO (Either (AST.ModuleName, Error.Error) Text)
 compile source = do
     let decodeBaseModule (path, contents) =
             (pathToModuleName path, decodeUtf8 contents)
     let baseModules = fmap decodeBaseModule baseModuleFiles
-        
+
     let mapping = mconcat
             [ HashMap.fromList baseModules
             , HashMap.singleton "main" source
@@ -43,7 +47,7 @@ compile source = do
         Left err -> return $ Left err
         Right program -> do
             program' <- Gen.generateProgram program
-            return $ Right $ JS.generateJS program'
+            return $ Right $ JS.generateJS (TE.decodeUtf8 rtsFile) program'
 
 foreign import javascript unsafe "global[$1] = $2"
     js_exportFunction :: JSVal -> JSVal -> IO ()

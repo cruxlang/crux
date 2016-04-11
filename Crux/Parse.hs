@@ -413,7 +413,7 @@ letExpression = do
     tlet <- token TLet
     withIndentation (IRDeeper tlet) $ do
         mut <- P.option Immutable (token TMutable >> return Mutable)
-        pat <- irrefutablePattern <|> fmap (PBinding . snd) lowerIdentifier
+        pat <- irrefutablePattern
         typeAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent

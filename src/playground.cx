@@ -15,7 +15,7 @@ fun unTimerId(tid) {
 
 let COMPILE_DELAY = 1000 // milliseconds
 
-fun as_bool(a : a) : Boolean {
+fun as_bool(a: a): Boolean {
     let to_bool = _unsafe_js("function (x) { return !!x; }");
     to_bool(_unsafe_coerce(a))
 }
@@ -28,15 +28,15 @@ fun getElementById(id) {
     _unsafe_js("document").getElementById(id)
 }
 
-fun setTimeout(f, delay) : TimerId {
+fun setTimeout(f, delay): TimerId {
     TimerId(_unsafe_js("window").setTimeout(f, delay))
 }
 
-fun clearTimeout(tid : TimerId) {
+fun clearTimeout(tid: TimerId) {
     _unsafe_js("window").clearTimeout(unTimerId(tid))
 }
 
-fun compileCrux(source) : Result String String {
+fun compileCrux(source): Result String String {
     let rawRes = _unsafe_js("window").compileCrux(source)
     if as_bool(rawRes.error) {
         Err(rawRes.error)
@@ -45,11 +45,11 @@ fun compileCrux(source) : Result String String {
     }
 }
 
-fun newXmlHttpRequest() : XHR {
+fun newXmlHttpRequest(): XHR {
     _unsafe_js("new XMLHttpRequest")
 }
 
-fun toJson(o) : String {
+fun toJson(o): String {
     _unsafe_js("JSON.stringify")(o)
 }
 
@@ -70,14 +70,14 @@ type XHR = {
 }
 
 type Compiler = {
-            onresult:             (Result String String) -> (),
+    onresult: (Result String String) -> (),
     mutable lastCompiledOptimize: Boolean,
-    mutable xhr:                  Option XHR,
-    mutable lastCompiledSource:   Option String,
-    mutable timerId:              Option TimerId,
+    mutable xhr: Option XHR,
+    mutable lastCompiledSource: Option String,
+    mutable timerId: Option TimerId,
 }
 
-fun newCompiler(onresult) : Compiler {
+fun newCompiler(onresult): Compiler {
     return {
         onresult: onresult,
         lastCompiledSource: None,
@@ -88,7 +88,7 @@ fun newCompiler(onresult) : Compiler {
     }
 }
 
-fun compile(compiler : Compiler, source : String, optimize) {
+fun compile(compiler: Compiler, source: String, optimize) {
     match compiler.timerId {
         Some(tid) => {
             clearTimeout(tid)

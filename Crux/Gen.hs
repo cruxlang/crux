@@ -87,7 +87,7 @@ data Instruction
 
     -- control flow
     | Return Input
-    | Match Input [(AST.RefutablePattern, [Instruction])]
+    | Match Input [(AST.Pattern, [Instruction])]
     | If Input [Instruction] [Instruction]
     | Loop [Instruction]
     | Break

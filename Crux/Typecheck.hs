@@ -20,7 +20,7 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 
-handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [RefutablePattern] -> TC ()
+handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [Pattern] -> TC ()
 handlePatternBinding env pos exprType patternReference cname cargs = do
     let (PatternReference def) = patternReference
     def' <- instantiateUserTypeDef env def
@@ -36,15 +36,15 @@ handlePatternBinding env pos exprType patternReference cname cargs = do
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 -- TODO: wipe this out and replace it with ePatternBindings in Env
-buildPatternEnv :: Env -> Pos -> TypeVar -> RefutablePattern -> TC ()
+buildPatternEnv :: Env -> Pos -> TypeVar -> Pattern -> TC ()
 buildPatternEnv env pos exprType = \case
-    RPIrrefutable PWildcard -> do
+    PWildcard -> do
         return ()
 
-    RPIrrefutable (PBinding pname) -> do
+    PBinding pname -> do
         HashTable.insert pname (ValueReference (Local pname) Immutable exprType) (eValueBindings env)
 
-    RPConstructor patternRef cargs -> do
+    PConstructor patternRef cargs -> do
         ref <- resolvePatternReference env pos patternRef
         let cname = getUnresolvedReferenceLeaf patternRef
         handlePatternBinding env pos exprType ref cname cargs

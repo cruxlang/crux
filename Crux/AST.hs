@@ -30,22 +30,15 @@ data Variant edata = Variant edata Name [TypeIdent]
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
 
--- Irrefutable only -- should it be called IrrefutablePattern?
--- This very easily could grow PTuple or irrefutable constructor matches.
--- TODO: eventually this will need to be merged with RefutablePattern when we have
--- dynamic checks for refutability, like a data type with a single data constructor.
+-- TODO: should grow tuples and stuff
 data Pattern
     = PWildcard
     | PBinding Name
+    | PConstructor UnresolvedReference [Pattern]
     deriving (Show, Eq)
 
 instance IsString Pattern where
     fromString = PBinding . fromString
-
-data RefutablePattern
-    = RPConstructor UnresolvedReference [RefutablePattern]
-    | RPIrrefutable Pattern
-    deriving (Show, Eq)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
@@ -141,7 +134,7 @@ data Module idtype edata = Module
 
 type ParsedModule = Module UnresolvedReference Tokens.Pos
 
-data Case idtype edata = Case RefutablePattern (Expression idtype edata)
+data Case idtype edata = Case Pattern (Expression idtype edata)
     deriving (Show, Eq, Foldable, Traversable)
 
 instance Functor (Case idtype) where

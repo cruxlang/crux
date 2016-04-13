@@ -192,7 +192,7 @@ tryCatchExpression = do
     catchToken <- withIndentation (IRAtOrDeeper tryToken) $ token TCatch
     (exceptionName, bindingName, catchBody) <- withIndentation (IRDeeper catchToken) $ do
         exceptionName <- unresolvedReference
-        bindingName <- irrefutablePattern
+        bindingName <- pattern IrrefutableContext
         catchBody <- blockExpression
         return (exceptionName, bindingName, catchBody)
     return $ ETryCatch (tokenData tryToken) tryBody exceptionName bindingName catchBody
@@ -289,35 +289,51 @@ functionExpression = do
     body <- blockExpression
     return $ EFun (tokenData tfun) args returnAnn body
 
-pattern :: Parser RefutablePattern
-pattern = parenthesized pattern <|> noParenPattern
+wildcardPattern :: Parser Pattern
+wildcardPattern = token TWildcard *> return PWildcard
 
-constructorPattern :: Parser RefutablePattern
-constructorPattern = do
-    importName <- P.optionMaybe $ P.try $ anyIdentifier <* token TDot
-    (_, patternName) <- upperIdentifier
-    args <- P.option [] $ parenthesized $ commaDelimited pattern
+data PatternContext = RefutableContext | IrrefutableContext
 
-    let ref = case importName of
-            Nothing -> UnqualifiedReference patternName
-            Just i -> QualifiedReference i patternName
-    return $ RPConstructor ref args
+-- lower - PBinding
+-- UPPER - PBinding if irrefutable else PConstructor
+-- UPPER(...) - PConstructor
+-- mod.UPPER - PConstructor
+-- mod.UPPER(...) - PConstructor
+pattern :: PatternContext -> Parser Pattern
+pattern ctx = parenthesized (pattern ctx) <|> wildcardPattern <|> do
+    let lowerBinding = lowerIdentifier >>= return . PBinding . snd
+    let parseConstructor = do
+            (_, constructorName) <- upperIdentifier
+            -- TODO: if parenthesized, this should require at least one arg
+            -- commaDelimited1?
+            args <- P.optionMaybe $ parenthesized $ commaDelimited $ pattern ctx
+            return (constructorName, args)
 
-noParenPattern :: Parser RefutablePattern
-noParenPattern = constructorPattern <|> (RPIrrefutable <$> irrefutablePattern)
-
-irrefutablePattern :: Parser Pattern
-irrefutablePattern = do
-    let wildcardPattern = token TWildcard *> return PWildcard
-    let bindingPattern = PBinding <$> anyIdentifier
-    wildcardPattern <|> bindingPattern
+    (P.optionMaybe $ P.try $ anyIdentifier <* token TDot) >>= \case
+        Nothing -> do
+            lowerBinding <|> do
+                (constructorName, args) <- parseConstructor
+                case (ctx, args) of
+                    (RefutableContext, Nothing) -> do
+                        return $ PConstructor (UnqualifiedReference constructorName) []
+                    (IrrefutableContext, Nothing) -> do
+                        return $ PBinding constructorName
+                    (_, Just a) -> do
+                        return $ PConstructor (UnqualifiedReference constructorName) a
+        Just importName -> do
+            (constructorName, args') <- parseConstructor
+            let args = case args' of
+                    Nothing -> []
+                    Just i -> i
+            let ref = QualifiedReference importName constructorName
+            return $ PConstructor ref args
 
 matchExpression :: Parser ParseExpression
 matchExpression = do
     tmatch <- token TMatch
     expr <- noSemiExpression
     cases <- braced $ P.many $ do
-        pat <- pattern
+        pat <- pattern RefutableContext
         arrowToken <- token TFatRightArrow
         ex <- withIndentation (IRDeeper arrowToken) $ do
             blockExpression <|> noSemiExpression
@@ -413,7 +429,7 @@ letExpression = do
     tlet <- token TLet
     withIndentation (IRDeeper tlet) $ do
         mut <- P.option Immutable (token TMutable >> return Mutable)
-        pat <- irrefutablePattern
+        pat <- pattern IrrefutableContext
         typeAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent
@@ -605,7 +621,7 @@ aliasDeclaration = do
 
 funArgument :: Parser (Pattern, Maybe TypeIdent)
 funArgument = do
-    n <- irrefutablePattern
+    n <- pattern IrrefutableContext
     ann <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent

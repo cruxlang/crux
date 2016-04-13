@@ -195,17 +195,20 @@ renderInstruction instr = case instr of
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
-generateMatchCond :: JSTree.Expression -> RefutablePattern -> JSTree.Expression
+generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression
 generateMatchCond matchVar patt = case patt of
-    RPIrrefutable _ ->
+    PWildcard ->
         JSTree.ELiteral JSTree.LTrue
-    RPConstructor ref subpatterns ->
+    PBinding _ ->
+        JSTree.ELiteral JSTree.LTrue
+    PConstructor ref subpatterns ->
         let name = getUnresolvedReferenceLeaf ref in
         let testIt = JSTree.EBinOp "=="
                 (JSTree.ELiteral $ JSTree.LString name)
                 (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
             buildTestCascade acc (index, subpattern) = case subpattern of
-                RPIrrefutable _ -> acc
+                PWildcard -> acc
+                PBinding _ -> acc
                 _ -> JSTree.EBinOp "&&"
                     acc
                     (generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
@@ -214,12 +217,12 @@ generateMatchCond matchVar patt = case patt of
             _ -> JSTree.EBinOp "&&" testIt
                 (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
 
-generateMatchVars :: JSTree.Expression -> RefutablePattern -> [JSTree.Statement]
-generateMatchVars matchVar patt = case patt of
-    RPIrrefutable PWildcard -> []
-    RPIrrefutable (PBinding name) ->
+generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
+generateMatchVars matchVar = \case
+    PWildcard -> []
+    PBinding name ->
         [ JSTree.SVar name $ Just matchVar ]
-    RPConstructor _ subpatterns ->
+    PConstructor _ subpatterns ->
         concat
             [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns

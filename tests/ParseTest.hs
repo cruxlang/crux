@@ -84,14 +84,14 @@ test_mutable_let = do
         (ELet () Mutable (PBinding "x") Nothing (ELiteral () (LInteger 22)))
 
 test_pattern = do
-    assertParseOk pattern "Cons(a, Cons(b, Nil))"
-        (RPConstructor "Cons" [RPIrrefutable $ PBinding "a", RPConstructor "Cons" [RPIrrefutable $ PBinding "b", RPConstructor "Nil" []]]) id
+    assertParseOk (pattern RefutableContext) "Cons(a, Cons(b, Nil))"
+        (PConstructor "Cons" [PBinding "a", PConstructor "Cons" [PBinding "b", PConstructor "Nil" []]]) id
 
 test_match = do
     assertExprParses matchExpression "match hoot {\n  Nil => hodor\n  Cons(a, b) => hoober\n}"
         (EMatch () (EIdentifier () "hoot")
-            [ Case (RPConstructor "Nil" []) (EIdentifier () "hodor")
-            , Case (RPConstructor "Cons" [RPIrrefutable $ PBinding "a", RPIrrefutable $ PBinding "b"]) (EIdentifier () "hoober")
+            [ Case (PConstructor "Nil" []) (EIdentifier () "hodor")
+            , Case (PConstructor "Cons" [PBinding "a", PBinding "b"]) (EIdentifier () "hoober")
             ])
 
 test_plus = do

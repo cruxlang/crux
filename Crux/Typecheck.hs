@@ -20,8 +20,8 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 
-handlePatternBinding :: Env -> Pos -> TypeVar -> PatternReference -> Text -> [Pattern] -> TC ()
-handlePatternBinding env pos exprType patternReference cname cargs = do
+handlePatternBinding :: Env -> Pos -> TypeVar -> Mutability -> PatternReference -> Text -> [Pattern] -> TC ()
+handlePatternBinding env pos exprType mut patternReference cname cargs = do
     let (PatternReference def) = patternReference
     def' <- instantiateUserTypeDef env def
     let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
@@ -31,23 +31,23 @@ handlePatternBinding env pos exprType patternReference cname cargs = do
         fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
 
     for_ (zip cargs thisVariantParameters) $ \(arg, vp) -> do
-        buildPatternEnv env pos vp arg
+        buildPatternEnv env pos vp mut arg
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 -- TODO: wipe this out and replace it with ePatternBindings in Env
-buildPatternEnv :: Env -> Pos -> TypeVar -> Pattern -> TC ()
-buildPatternEnv env pos exprType = \case
+buildPatternEnv :: Env -> Pos -> TypeVar -> Mutability -> Pattern -> TC ()
+buildPatternEnv env pos exprType mut = \case
     PWildcard -> do
         return ()
 
     PBinding pname -> do
-        HashTable.insert pname (ValueReference (Local pname) Immutable exprType) (eValueBindings env)
+        HashTable.insert pname (ValueReference (Local pname) mut exprType) (eValueBindings env)
 
     PConstructor patternRef cargs -> do
         ref <- resolvePatternReference env pos patternRef
         let cname = getUnresolvedReferenceLeaf patternRef
-        handlePatternBinding env pos exprType ref cname cargs
+        handlePatternBinding env pos exprType mut ref cname cargs
 
 lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do
@@ -262,7 +262,7 @@ check' expectedType env = \case
 
         cases' <- for cases $ \(Case patt caseExpr) -> do
             env' <- childEnv env
-            buildPatternEnv env' pos (edata matchExpr') patt
+            buildPatternEnv env' pos (edata matchExpr') Immutable patt
             caseExpr' <- check env' caseExpr
             unify pos resultType (edata caseExpr')
             return $ Case patt caseExpr'
@@ -276,13 +276,7 @@ check' expectedType env = \case
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
             Immutable -> return expr''
-        -- TODO: this logic is duplicated all over the place.  generalize it
-        -- somewhere
-        case pat of
-            PWildcard -> do
-                return ()
-            PBinding name -> do
-                HashTable.insert name (ValueReference (Local name) mut ty) (eValueBindings env)
+        buildPatternEnv env pos ty mut pat
         unify pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation

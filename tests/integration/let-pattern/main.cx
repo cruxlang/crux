@@ -1,0 +1,10 @@
+data A {
+  A(Number),
+}
+
+fun main() {
+  let A(x) = A(10)
+  print(x)
+}
+
+let _ = main()

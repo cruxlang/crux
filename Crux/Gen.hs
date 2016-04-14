@@ -144,11 +144,7 @@ generate env expr = case expr of
     AST.ELet _ _mut pat _ v -> do
         v' <- generate env v
         for v' $ \v'' -> do
-            case pat of
-                AST.PWildcard -> do
-                    return ()
-                AST.PBinding name -> do
-                    writeInstruction $ Assign (NewLocalBinding name) v''
+            writeInstruction $ BindPattern v'' pat
             return $ Literal AST.LUnit
 
     AST.EFun _ params _retAnn body -> do

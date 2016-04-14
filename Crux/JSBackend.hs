@@ -215,7 +215,7 @@ generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
 generateMatchVars matchVar = \case
     PWildcard -> []
     PBinding name ->
-        [ JSTree.SVar name $ Just matchVar ]
+        [ JSTree.SVar (renderJSName name) $ Just matchVar ]
     PConstructor _ subpatterns ->
         concat
             [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern

@@ -113,11 +113,17 @@ renderValue value = case value of
         (map renderInstruction body)
     Gen.ArrayLiteral elements -> JSTree.EArray $ fmap renderValue elements
     Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
+    Gen.TagCheck value pattern -> generateMatchCond (renderValue value) pattern
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
     Gen.EmptyLocalBinding name -> JSTree.SVar (renderJSName name) Nothing
     Gen.EmptyTemporary i -> JSTree.SVar (renderTemporary i) Nothing
+
+    Gen.BindPattern input pattern ->
+        let value' = renderValue input in
+        JSTree.SBlock $ generateMatchVars value' pattern
+
     Gen.Assign output value -> renderOutput output $ renderValue value
     Gen.BinIntrinsic output op lhs rhs ->
         let sym = case op of
@@ -151,18 +157,6 @@ renderInstruction instr = case instr of
     Gen.Index output arr idx -> renderOutput output $ JSTree.EIndex (renderValue arr) (renderValue idx)
     Gen.Return value -> JSTree.SReturn $ Just $ renderValue value
     Gen.Break -> JSTree.SBreak
-    Gen.Match value cases ->
-        let value' = renderValue value
-
-            genIfElse (pattern, body) um =
-                JSTree.SIf
-                    (generateMatchCond value' pattern)
-                    (JSTree.SBlock $ generateMatchVars value' pattern <> map renderInstruction body)
-                    (Just um)
-
-            -- TODO: throw "unreachable"
-            unmatched = JSTree.SBlock []
-        in foldr genIfElse unmatched cases
 
     Gen.If cond ifTrue ifFalse ->
         JSTree.SIf

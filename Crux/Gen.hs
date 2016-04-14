@@ -59,6 +59,8 @@ data Value
     | FunctionLiteral [AST.Pattern] [Instruction]
     | ArrayLiteral [Value]
     | RecordLiteral (HashMap Name Value)
+    -- This is kind of a hack. We at least know that tag checks cannot have side effects.
+    | TagCheck Value AST.Pattern
     deriving (Show, Eq)
 type Input = Value
 
@@ -75,6 +77,7 @@ data Instruction
     -- binding
     = EmptyLocalBinding Name
     | EmptyTemporary Int
+    | BindPattern Input AST.Pattern
 
     -- operations
     | Assign Output Input
@@ -87,7 +90,6 @@ data Instruction
 
     -- control flow
     | Return Input
-    | Match Input [(AST.Pattern, [Instruction])]
     | If Input [Instruction] [Instruction]
     | Loop [Instruction]
     | Break
@@ -225,11 +227,20 @@ generate env expr = case expr of
         value' <- generate env value
         for value' $ \value'' -> do
             output <- lift $ newTempOutput env
+
             writeInstruction $ EmptyTemporary output
             cases' <- for cases $ \(AST.Case pat expr') -> do
                 expr'' <- subBlockWithOutput env (ExistingTemporary output) expr'
                 return (pat, expr'')
-            writeInstruction $ Match value'' cases'
+
+            let genIfElse (pattern, bodyInstructions) um = [
+                    If
+                        (TagCheck value'' pattern)
+                        (BindPattern value'' pattern : bodyInstructions)
+                        um]
+
+            -- TODO: throw "unreachable"
+            traverse writeInstruction $ foldr genIfElse [] cases'
             return $ Temporary output
 
     AST.EIfThenElse _ cond ifTrue ifFalse -> do

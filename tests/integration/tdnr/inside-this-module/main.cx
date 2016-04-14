@@ -1,0 +1,10 @@
+data Thing {
+  Thing(String),
+}
+
+fun run(thing) {
+  let Thing(this) = thing
+  print(this)
+}
+
+let _ = Thing("hello oop world")->run()

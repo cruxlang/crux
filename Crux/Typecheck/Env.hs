@@ -169,10 +169,13 @@ resolveValueReference env pos ref = case ref of
         moduleName <- resolveImportName env pos importName
         resolveValueReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
-        case findExportedValueByName env moduleName name of
-            Just (mutability, typevar) ->
-                return (OtherModule moduleName name, mutability, typevar)
-            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+        if moduleName == eThisModule env then do
+            resolveValueReference env pos (UnqualifiedReference name)
+        else do
+            case findExportedValueByName env moduleName name of
+                Just (mutability, typevar) ->
+                    return (OtherModule moduleName name, mutability, typevar)
+                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
 resolvePatternReference env pos ref = case ref of

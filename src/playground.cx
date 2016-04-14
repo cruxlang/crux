@@ -66,47 +66,50 @@ type XHR = {
     onerror: (String) -> (),
     ontimeout: () -> (),
     response: String,
-    mutable timeout: Number
+    mutable timeout: Number,
 }
 
-type Compiler = {
+data Compiler {
+  Compiler({
     onresult: (Result String String) -> (),
     mutable lastCompiledOptimize: Boolean,
     mutable xhr: Option XHR,
     mutable lastCompiledSource: Option String,
     mutable timerId: Option TimerId,
+  })
 }
 
 fun newCompiler(onresult): Compiler {
-    return {
+    return Compiler({
         onresult: onresult,
         lastCompiledSource: None,
         lastCompiledOptimize: False,
 
         timerId: None,
         xhr: None
-    }
+    })
 }
 
 fun compile(compiler: Compiler, source: String, optimize) {
-    match compiler.timerId {
+    let Compiler(this) = compiler
+    match this.timerId {
         Some(tid) => {
             clearTimeout(tid)
         }
         None => {}
     }
 
-    match compiler.xhr {
+    match this.xhr {
         Some(x) => {
             x.abort()
-            compiler.xhr = None
+            this.xhr = None
         }
         None => {}
     }
 
-    match compiler.lastCompiledSource {
+    match this.lastCompiledSource {
         Some(lcs) => {
-            if lcs == source && optimize == compiler.lastCompiledOptimize {
+            if lcs == source && optimize == this.lastCompiledOptimize {
                 return ()
             }
         }
@@ -114,20 +117,20 @@ fun compile(compiler: Compiler, source: String, optimize) {
         }
     }
 
-    compiler.timerId = Some(setTimeout(
+    this.timerId = Some(setTimeout(
         fun() {
-            compiler.timerId = None
+            this.timerId = None
 
             let result = match compileCrux(source) {
                 Err(error) => {
-                    compiler.lastCompiledSource = Some(source)
-                    compiler.onresult(Err("Compile error:\n" + error))
+                    this.lastCompiledSource = Some(source)
+                    this.onresult(Err("Compile error:\n" + error))
                     return ()
                 }
                 Ok(res) => {
                     if not(optimize) {
-                        compiler.lastCompiledSource = Some(source)
-                        compiler.onresult(Ok(res))
+                        this.lastCompiledSource = Some(source)
+                        this.onresult(Ok(res))
                         return ()
                     } else {
                         res
@@ -136,7 +139,7 @@ fun compile(compiler: Compiler, source: String, optimize) {
             }
 
             let xhr = newXmlHttpRequest()
-            compiler.xhr = Some(xhr)
+            this.xhr = Some(xhr)
             xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
             xhr.setRequestHeader("content-type", "application/json")
             xhr.timeout = 15000 // 15s
@@ -144,21 +147,21 @@ fun compile(compiler: Compiler, source: String, optimize) {
 
             xhr.onload = fun() {
                 let result = parseJson(xhr.response)
-                compiler.xhr = None
-                compiler.lastCompiledSource = Some(source)
-                compiler.onresult(Ok(result.source))
+                this.xhr = None
+                this.lastCompiledSource = Some(source)
+                this.onresult(Ok(result.source))
             }
 
             xhr.onerror = fun(e) {
-                compiler.xhr = None
-                compiler.lastCompiledSource = None
-                compiler.onresult(Err("Network error:\n" + e))
+                this.xhr = None
+                this.lastCompiledSource = None
+                this.onresult(Err("Network error:\n" + e))
             }
 
             xhr.ontimeout = fun() {
-                compiler.xhr = None
-                compiler.lastCompiledSource = None
-                compiler.onresult(Err("Network timeout"))
+                this.xhr = None
+                this.lastCompiledSource = None
+                this.onresult(Err("Network timeout"))
             }
         }, COMPILE_DELAY
     ))
@@ -194,7 +197,7 @@ fun main() {
     let recompile = fun() {
         let content = sourceTextArea.value
         let optimize = optimizeCheckbox.checked
-        compile(compiler, content, optimize)
+        compiler->compile(content, optimize)
     }
 
     let registerCompileListener = fun() {

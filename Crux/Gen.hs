@@ -64,15 +64,6 @@ data Value
     deriving (Show, Eq)
 type Input = Value
 
-{-
-ref :: Output -> Value
-ref (NewLocalBinding x) = LocalBinding x
-ref (ExistingLocalBinding x) = LocalBinding x
-ref (NewTemporary i) = Temporary i
-ref (ExistingTemporary i) = Temporary i
-ref (OutputProperty v n) = Property v n
--}
-
 data Instruction
     -- binding
     = EmptyLocalBinding Name

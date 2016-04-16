@@ -113,7 +113,9 @@ renderValue value = case value of
         (map renderInstruction body)
     Gen.ArrayLiteral elements -> JSTree.EArray $ fmap renderValue elements
     Gen.RecordLiteral props -> JSTree.EObject $ fmap renderValue props
-    Gen.TagCheck value pattern -> generateMatchCond (renderValue value) pattern
+    Gen.TagCheck value pattern -> case generateMatchCond (renderValue value) pattern of
+        Just cond' -> cond'
+        Nothing -> JSTree.ELiteral JSTree.LTrue
 
 renderInstruction :: Gen.Instruction -> JSTree.Statement
 renderInstruction instr = case instr of
@@ -189,12 +191,10 @@ renderInstruction instr = case instr of
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
-generateMatchCond :: JSTree.Expression -> Pattern -> JSTree.Expression
+generateMatchCond :: JSTree.Expression -> Pattern -> Maybe JSTree.Expression
 generateMatchCond matchVar patt = case patt of
-    PWildcard ->
-        JSTree.ELiteral JSTree.LTrue
-    PBinding _ ->
-        JSTree.ELiteral JSTree.LTrue
+    PWildcard -> Nothing
+    PBinding _ -> Nothing
     PConstructor ref subpatterns ->
         let name = getUnresolvedReferenceLeaf ref in
         let testIt = JSTree.EBinOp "=="
@@ -203,13 +203,14 @@ generateMatchCond matchVar patt = case patt of
             buildTestCascade acc (index, subpattern) = case subpattern of
                 PWildcard -> acc
                 PBinding _ -> acc
-                _ -> JSTree.EBinOp "&&"
-                    acc
-                    (generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
-        in case subpatterns of
-            [] -> testIt
-            _ -> JSTree.EBinOp "&&" testIt
-                (foldl' buildTestCascade (JSTree.ELiteral JSTree.LTrue) (zip [1..] subpatterns))
+                _ -> let cond = (generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger index))) subpattern)
+                    in case (acc, cond) of
+                        (Nothing, Nothing) -> Nothing
+                        (Just acc', Nothing) -> Just acc'
+                        (Nothing, Just cond') -> Just cond'
+                        (Just acc', Just cond') -> Just $ JSTree.EBinOp "&&" acc' cond'
+
+        in (foldl' buildTestCascade (Just testIt) (zip [1..] subpatterns))
 
 generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
 generateMatchVars matchVar = \case

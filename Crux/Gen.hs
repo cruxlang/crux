@@ -5,6 +5,7 @@
 module Crux.Gen
     ( Value(..)
     , Output(..)
+    , Tag(..)
     , Instruction(..)
     , DeclarationType(..)
     , Declaration(..)
@@ -21,6 +22,7 @@ import qualified Crux.Module.Types         as AST
 import           Crux.Prelude
 import           Data.Graph                (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict       as HashMap
+import qualified Crux.JSTree as JSTree
 
 {-
 Instructions can:
@@ -42,6 +44,11 @@ Instructions can read from:
 We'll call these Values.
 -}
 
+data Tag
+    = TagVariant Name [(Integer, Tag)] -- zero-based index of payload that needs to be matched
+    | TagLiteral JSTree.Literal
+    deriving (Show, Eq)
+
 type Name = Text
 data Output
     = NewLocalBinding Name
@@ -60,7 +67,8 @@ data Value
     | ArrayLiteral [Value]
     | RecordLiteral (HashMap Name Value)
     -- This is kind of a hack. We at least know that tag checks cannot have side effects.
-    | TagCheck Value AST.Pattern
+    -- Returns a boolean value.
+    | TagCheck Value Tag
     deriving (Show, Eq)
 type Input = Value
 
@@ -129,6 +137,18 @@ newInstruction env instr = do
 both :: Maybe a -> Maybe b -> Maybe (a, b)
 both (Just x) (Just y) = Just (x, y)
 both _ _ = Nothing
+
+tagFromPattern :: AST.Pattern -> Maybe Tag
+tagFromPattern = \case
+    AST.PWildcard -> Nothing
+    AST.PBinding _ -> Nothing
+    AST.PConstructor ref subpatterns -> do
+        let name = AST.getUnresolvedReferenceLeaf ref
+        let subtags = fmap tagFromPattern subpatterns
+        let subtags' = (flip map) (zip [0..] subtags) $ \(i, st) -> case st of
+                Just st' -> Just (i, st')
+                Nothing -> Nothing
+        Just $ TagVariant name $ catMaybes subtags'
 
 generate :: Env -> AST.Expression AST.ResolvedReference t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
@@ -220,11 +240,15 @@ generate env expr = case expr of
                 expr'' <- subBlockWithOutput env (ExistingTemporary output) expr'
                 return (pat, expr'')
 
-            let genIfElse (pattern, bodyInstructions) um = [
-                    If
-                        (TagCheck value'' pattern)
-                        (BindPattern value'' pattern : bodyInstructions)
-                        um]
+            let genIfElse (pattern, bodyInstructions) um =
+                    case tagFromPattern pattern of
+                        Just tag -> [
+                            If
+                                (TagCheck value'' tag)
+                                (BindPattern value'' pattern : bodyInstructions)
+                                um]
+                        -- irrefutable
+                        Nothing -> BindPattern value'' pattern : bodyInstructions
 
             -- TODO: throw "unreachable"
             traverse writeInstruction $ foldr genIfElse [] cases'

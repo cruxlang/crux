@@ -1,9 +1,10 @@
 import {
     test,
 
-    numbertests as _,
-    stringtests as _,
-    pathtests as _,
+    booltest as _,
+    numbertest as _,
+    stringtest as _,
+    pathtest as _,
 }
 
 let _ = test.run()

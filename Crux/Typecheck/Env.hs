@@ -31,7 +31,6 @@ import           Crux.Typecheck.Unify
 import           Crux.TypeVar
 import           Crux.Util
 import qualified Data.HashMap.Strict   as HashMap
-import           Data.Maybe            (catMaybes)
 import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 

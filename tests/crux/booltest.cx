@@ -1,0 +1,9 @@
+import {
+    test(...),
+    assert,
+}
+
+let _ = test("not", fun() {
+    assert.equal(True, not(False))
+    assert.equal(False, not(True))
+})

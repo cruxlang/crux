@@ -12,9 +12,10 @@ module Crux.AST
 
 import qualified Crux.JSTree  as JSTree
 import           Crux.Prelude
-import           Crux.Tokens  (Pos)
-import qualified Crux.Tokens  as Tokens
+import           Crux.Tokens  (Pos(..))
 import qualified Data.Text    as Text
+
+type ParsedModule = Module UnresolvedReference () Pos
 
 type Name = Text -- Temporary
 
@@ -30,23 +31,23 @@ data Variant edata = Variant edata Name [TypeIdent]
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
 
--- TODO: should grow tuples and stuff
-data Pattern
+-- TODO: should grow tuples and stuff. perhaps PConstructor is the best way to do that
+data Pattern tag
     = PWildcard
     | PBinding Name
-    | PConstructor UnresolvedReference [Pattern]
+    | PConstructor UnresolvedReference tag [Pattern tag]
     deriving (Show, Eq)
 
-instance IsString Pattern where
+instance IsString (Pattern tagtype) where
     fromString = PBinding . fromString
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
-data DeclarationType idtype edata
+data DeclarationType idtype tagtype edata
     -- Values
     = DDeclare edata Name TypeIdent
-    | DLet edata Mutability Pattern (Maybe TypeIdent) (Expression idtype edata)
-    | DFun edata Name [(Pattern, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
+    | DLet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | DFun edata Name [(Pattern tagtype, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype tagtype edata)
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]
@@ -58,7 +59,7 @@ data DeclarationType idtype edata
 data ExportFlag = Export | NoExport
     deriving (Show, Eq)
 
-data Declaration idtype edata = Declaration ExportFlag Pos (DeclarationType idtype edata)
+data Declaration idtype tagtype edata = Declaration ExportFlag Pos (DeclarationType idtype tagtype edata)
     deriving (Show, Eq, Functor)
 
 newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }
@@ -125,19 +126,17 @@ data Pragma
     = PNoBuiltin
     deriving (Show, Eq)
 
-data Module idtype edata = Module
+data Module idtype tagtype edata = Module
     { mPragmas :: [Pragma]
     , mImports :: [(Pos, Import)]
-    , mDecls   :: [Declaration idtype edata]
+    , mDecls   :: [Declaration idtype tagtype edata]
     }
     deriving (Show, Eq)
 
-type ParsedModule = Module UnresolvedReference Tokens.Pos
-
-data Case idtype edata = Case Pattern (Expression idtype edata)
+data Case idtype tagtype edata = Case (Pattern tagtype) (Expression idtype tagtype edata)
     deriving (Show, Eq, Foldable, Traversable)
 
-instance Functor (Case idtype) where
+instance Functor (Case idtype tagtype) where
     fmap f (Case patt subExpr) = Case patt (fmap f subExpr)
 
 data BinIntrinsic
@@ -185,47 +184,47 @@ data Intrinsic input
     | INot input
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
-type IntrinsicId idtype edata = Intrinsic (Expression idtype edata)
+type IntrinsicId idtype tagtype edata = Intrinsic (Expression idtype tagtype edata)
 
 data Mutability
     = Mutable
     | Immutable
     deriving (Show, Eq)
 
-data Expression idtype edata
+data Expression idtype tagtype edata
     -- Mutable Wildcard makes no sense -- disallow that?
     -- TODO: should mutability status be part of the pattern?
-    = ELet edata Mutability Pattern (Maybe TypeIdent) (Expression idtype edata)
-    | ELookup edata (Expression idtype edata) Name
-    | EApp edata (Expression idtype edata) [Expression idtype edata]
-    | EMatch edata (Expression idtype edata) [Case idtype edata]
-    | EAssign edata (Expression idtype edata) (Expression idtype edata)
+    = ELet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | ELookup edata (Expression idtype tagtype edata) Name
+    | EApp edata (Expression idtype tagtype edata) [Expression idtype tagtype edata]
+    | EMatch edata (Expression idtype tagtype edata) [Case idtype tagtype edata]
+    | EAssign edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
     | EIdentifier edata idtype
-    | ESemi edata (Expression idtype edata) (Expression idtype edata)
+    | ESemi edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
 
-    | EMethodApp edata (Expression idtype edata) Name [Expression idtype edata]
+    | EMethodApp edata (Expression idtype tagtype edata) Name [Expression idtype tagtype edata]
 
     -- literals
-    | EFun edata [(Pattern, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype edata)
-    | ERecordLiteral edata (HashMap Name (Expression idtype edata))
-    | EArrayLiteral edata Mutability [Expression idtype edata]
+    | EFun edata [(Pattern tagtype, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | ERecordLiteral edata (HashMap Name (Expression idtype tagtype edata))
+    | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ELiteral edata Literal
 
     -- intrinsics
-    | EBinIntrinsic edata BinIntrinsic (Expression idtype edata) (Expression idtype edata)
-    | EIntrinsic edata (IntrinsicId idtype edata)
+    | EBinIntrinsic edata BinIntrinsic (Expression idtype tagtype edata) (Expression idtype tagtype edata)
+    | EIntrinsic edata (IntrinsicId idtype tagtype edata)
 
     -- flow control
-    | EIfThenElse edata (Expression idtype edata) (Expression idtype edata) (Expression idtype edata)
-    | EWhile edata (Expression idtype edata) (Expression idtype edata)
-    | EFor edata Name (Expression idtype edata) (Expression idtype edata)
-    | EReturn edata (Expression idtype edata)
+    | EIfThenElse edata (Expression idtype tagtype edata) (Expression idtype tagtype edata) (Expression idtype tagtype edata)
+    | EWhile edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
+    | EFor edata Name (Expression idtype tagtype edata) (Expression idtype tagtype edata)
+    | EReturn edata (Expression idtype tagtype edata)
     | EBreak edata
-    | EThrow edata idtype (Expression idtype edata)
-    | ETryCatch edata (Expression idtype edata) idtype Pattern (Expression idtype edata)
+    | EThrow edata idtype (Expression idtype tagtype edata)
+    | ETryCatch edata (Expression idtype tagtype edata) idtype (Pattern tagtype) (Expression idtype tagtype edata)
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
-edata :: Expression idtype edata -> edata
+edata :: Expression idtype tagtype edata -> edata
 edata expr = case expr of
     ELet ed _ _ _ _ -> ed
     EFun ed _ _ _ -> ed
@@ -249,7 +248,7 @@ edata expr = case expr of
     EThrow ed _ _ -> ed
     ETryCatch ed _ _ _ _ -> ed
 
-setEdata :: Expression idtype edata -> edata -> Expression idtype edata
+setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
     ELet _ a b c d        -> ELet e a b c d
     EFun _ a b c          -> EFun e a b c

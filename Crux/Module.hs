@@ -163,15 +163,15 @@ getModuleName :: AST.Import -> AST.ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn
 getModuleName (AST.QualifiedImport mn _) = mn
 
-importsOf :: AST.Module a b -> [(Tokens.Pos, AST.ModuleName)]
+importsOf :: AST.Module a b c -> [(Tokens.Pos, AST.ModuleName)]
 importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 
-addBuiltin :: AST.Module a b -> AST.Module a b
+addBuiltin :: AST.Module a b c -> AST.Module a b c
 addBuiltin m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "builtin") : AST.mImports m }
 
 type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
 
-hasNoBuiltinPragma :: AST.ParsedModule -> Bool
+hasNoBuiltinPragma :: AST.Module a b c -> Bool
 hasNoBuiltinPragma AST.Module{..} = AST.PNoBuiltin `elem` mPragmas
 
 loadModule ::

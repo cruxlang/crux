@@ -20,7 +20,7 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 
-handlePatternBinding :: Env -> Pos -> TypeVar -> Mutability -> PatternReference -> Text -> [Pattern] -> TC ()
+handlePatternBinding :: Env -> Pos -> TypeVar -> Mutability -> PatternReference -> Text -> [Pattern ()] -> TC ()
 handlePatternBinding env pos exprType mut patternReference cname cargs = do
     let (PatternReference def) = patternReference
     def' <- instantiateUserTypeDef env def
@@ -36,7 +36,7 @@ handlePatternBinding env pos exprType mut patternReference cname cargs = do
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 -- TODO: wipe this out and replace it with ePatternBindings in Env
-buildPatternEnv :: Env -> Pos -> TypeVar -> Mutability -> Pattern -> TC ()
+buildPatternEnv :: Env -> Pos -> TypeVar -> Mutability -> Pattern () -> TC ()
 buildPatternEnv env pos exprType mut = \case
     PWildcard -> do
         return ()
@@ -44,7 +44,7 @@ buildPatternEnv env pos exprType mut = \case
     PBinding pname -> do
         HashTable.insert pname (ValueReference (Local pname) mut exprType) (eValueBindings env)
 
-    PConstructor patternRef cargs -> do
+    PConstructor patternRef () cargs -> do
         ref <- resolvePatternReference env pos patternRef
         let cname = getUnresolvedReferenceLeaf patternRef
         handlePatternBinding env pos exprType mut ref cname cargs
@@ -55,7 +55,7 @@ lookupBinding name Env{..} = do
         Just (ValueReference a b c) -> return $ Just (a, b, c)
         _ -> return $ Nothing
 
-isLValue :: MonadIO m => Env -> Expression ResolvedReference TypeVar -> m Bool
+isLValue :: MonadIO m => Env -> Expression ResolvedReference () TypeVar -> m Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- lookupBinding (resolvedReferenceName name) env
@@ -93,12 +93,12 @@ isLValue env expr = case expr of
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
-check :: Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
+check :: Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference () TypeVar)
 check env expr = do
     newType <- freshType env
     checkExpecting newType env expr
 
-checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
+checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference () TypeVar)
 checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
     unify (edata expr) (edata e) expectedType
@@ -108,7 +108,7 @@ checkExpecting expectedType env expr = do
 resumableTypeError :: Pos -> TypeError -> TC a
 resumableTypeError pos = failError . TypeError pos
 
-weaken :: MonadIO m => TypeLevel -> Expression idtype TypeVar -> m (Expression idtype TypeVar)
+weaken :: MonadIO m => TypeLevel -> Expression idtype tagtype TypeVar -> m (Expression idtype tagtype TypeVar)
 weaken level e = do
     t' <- weaken' (edata e)
     return $ setEdata e t'
@@ -155,7 +155,7 @@ weaken level e = do
         RBound rtv' ->
             weakenRecord rtv'
 
-check' :: TypeVar -> Env -> Expression UnresolvedReference Pos -> TC (Expression ResolvedReference TypeVar)
+check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference () TypeVar)
 check' expectedType env = \case
     EFun pos params retAnn body -> do
         valueBindings' <- HashTable.clone (eValueBindings env)
@@ -472,10 +472,10 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding catchBody'
 
-checkDecl :: Env -> Declaration UnresolvedReference Pos -> TC (Declaration ResolvedReference TypeVar)
+checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference () TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
-  g :: DeclarationType UnresolvedReference Pos -> TC (DeclarationType ResolvedReference TypeVar)
+  g :: DeclarationType UnresolvedReference () Pos -> TC (DeclarationType ResolvedReference () TypeVar)
   g = \case
 
     {- VALUE DEFINITIONS -}
@@ -547,7 +547,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
         return $ DException typeVar name typeIdent
 
-run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> ModuleName -> TC LoadedModule
+run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference () Pos -> ModuleName -> TC LoadedModule
 run loadedModules thisModule thisModuleName = do
     {-
     populate environment:

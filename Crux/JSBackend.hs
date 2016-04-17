@@ -15,7 +15,7 @@ renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSe
 renderTemporary :: Int -> Text
 renderTemporary = Text.pack . ("$" <>). show
 
-renderArgument :: Pattern -> Name
+renderArgument :: Pattern tagtype -> Name
 renderArgument = \case
     PWildcard -> "$_"
     PBinding n -> n
@@ -202,12 +202,12 @@ generateMatchCond matchVar = \case
     Gen.TagLiteral literal -> do
         JSTree.EBinOp "===" (JSTree.ELiteral literal) matchVar
 
-generateMatchVars :: JSTree.Expression -> Pattern -> [JSTree.Statement]
+generateMatchVars :: JSTree.Expression -> Pattern () -> [JSTree.Statement]
 generateMatchVars matchVar = \case
     PWildcard -> []
     PBinding name ->
         [ JSTree.SVar (renderJSName name) $ Just matchVar ]
-    PConstructor _ subpatterns ->
+    PConstructor _ _tag subpatterns ->
         concat
             [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns

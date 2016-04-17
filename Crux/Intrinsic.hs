@@ -16,10 +16,10 @@ import qualified Data.HashMap.Strict as HashMap
 
 data Intrinsic = Intrinsic
     { iType :: TypeVar
-    , iGen  :: forall a. JSGen.GenVTable -> JSGen.Env -> AST.Expression Text a -> JSGen.JSWrite JS.Expression
+    , iGen  :: forall tagtype a. JSGen.GenVTable -> JSGen.Env -> AST.Expression Text tagtype a -> JSGen.JSWrite JS.Expression
     }
 
-genPlus :: JSGen.GenVTable -> JSGen.Env -> AST.Expression Text t -> JSGen.JSWrite JS.Expression
+genPlus :: JSGen.GenVTable -> JSGen.Env -> AST.Expression Text tagtype t -> JSGen.JSWrite JS.Expression
 genPlus JSGen.GenVTable{..} env (AST.EApp _ (AST.EIdentifier _ "+") [lhs, rhs]) = do
     lhs' <- vGenerateExpr env lhs
     rhs' <- vGenerateExpr env rhs

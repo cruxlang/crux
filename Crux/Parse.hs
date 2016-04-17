@@ -20,8 +20,8 @@ import qualified Text.Parsec                as P
 
 type Parser = P.ParsecT [Token Pos] () (Reader (ModuleName, IndentReq))
 type ParseData = Pos
-type ParseExpression = Expression UnresolvedReference ParseData
-type ParseDeclaration = DeclarationType UnresolvedReference ParseData
+type ParseExpression = Expression UnresolvedReference () ParseData
+type ParseDeclaration = DeclarationType UnresolvedReference () ParseData
 
 data IndentReq
     = IRLeftMost
@@ -289,7 +289,7 @@ functionExpression = do
     body <- blockExpression
     return $ EFun (tokenData tfun) args returnAnn body
 
-wildcardPattern :: Parser Pattern
+wildcardPattern :: Parser (Pattern ())
 wildcardPattern = token TWildcard *> return PWildcard
 
 data PatternContext = RefutableContext | IrrefutableContext
@@ -299,7 +299,7 @@ data PatternContext = RefutableContext | IrrefutableContext
 -- UPPER(...) - PConstructor
 -- mod.UPPER - PConstructor
 -- mod.UPPER(...) - PConstructor
-pattern :: PatternContext -> Parser Pattern
+pattern :: PatternContext -> Parser (Pattern ())
 pattern ctx = parenthesized (pattern ctx) <|> wildcardPattern <|> do
     let lowerBinding = lowerIdentifier >>= return . PBinding . snd
     let parseConstructor = do
@@ -315,18 +315,18 @@ pattern ctx = parenthesized (pattern ctx) <|> wildcardPattern <|> do
                 (constructorName, args) <- parseConstructor
                 case (ctx, args) of
                     (RefutableContext, Nothing) -> do
-                        return $ PConstructor (UnqualifiedReference constructorName) []
+                        return $ PConstructor (UnqualifiedReference constructorName) () []
                     (IrrefutableContext, Nothing) -> do
                         return $ PBinding constructorName
                     (_, Just a) -> do
-                        return $ PConstructor (UnqualifiedReference constructorName) a
+                        return $ PConstructor (UnqualifiedReference constructorName) () a
         Just importName -> do
             (constructorName, args') <- parseConstructor
             let args = case args' of
                     Nothing -> []
                     Just i -> i
             let ref = QualifiedReference importName constructorName
-            return $ PConstructor ref args
+            return $ PConstructor ref () args
 
 matchExpression :: Parser ParseExpression
 matchExpression = do
@@ -619,7 +619,7 @@ aliasDeclaration = do
         ty <- typeIdent
         return $ DTypeAlias (tokenData typeToken) name vars ty
 
-funArgument :: Parser (Pattern, Maybe TypeIdent)
+funArgument :: Parser (Pattern (), Maybe TypeIdent)
 funArgument = do
     n <- pattern IrrefutableContext
     ann <- P.optionMaybe $ do
@@ -665,7 +665,7 @@ exceptionDeclaration = do
         ti <- typeIdent
         return $ DException (tokenData texc) name ti
 
-declaration :: Parser (Declaration UnresolvedReference ParseData)
+declaration :: Parser (Declaration UnresolvedReference () ParseData)
 declaration = do
     pos <- tokenData <$> P.lookAhead P.anyToken
 

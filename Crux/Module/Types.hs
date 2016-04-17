@@ -4,7 +4,7 @@ import           Crux.AST     (Module, ModuleName, ResolvedReference)
 import           Crux.Prelude
 import           Crux.TypeVar (TypeVar)
 
-type LoadedModule = Module ResolvedReference TypeVar
+type LoadedModule = Module ResolvedReference () TypeVar
 
 data Program = Program
     { pMainModule   :: LoadedModule

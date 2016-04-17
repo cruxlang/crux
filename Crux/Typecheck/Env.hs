@@ -60,7 +60,7 @@ childEnv env@Env{..} = do
         , eLevel = eLevel + 1
         }
 
-exportedDecls :: [Declaration a b] -> [DeclarationType a b]
+exportedDecls :: [Declaration a b c] -> [DeclarationType a b c]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
 resolveTypeIdent :: Env -> Pos -> ResolvePolicy -> TypeIdent -> TC TypeVar
@@ -246,7 +246,7 @@ createUserTypeDef env name moduleName typeVars variants = do
         , tuVariants = variants'
         }
 
-buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> Module UnresolvedReference Pos -> TC Env
+buildTypeEnvironment :: ModuleName -> HashMap ModuleName LoadedModule -> Module UnresolvedReference () Pos -> TC Env
 buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let imports = mImports thisModule
 
@@ -365,7 +365,7 @@ findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName = findExportByName getAllExportedPatterns
 
 -- Phase 2a
-registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference Pos -> TC ()
+registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerJSFFIDecl env = \case
     DDeclare {} -> return ()
     DLet {} -> return ()
@@ -396,7 +396,7 @@ registerJSFFIDecl env = \case
     DTypeAlias {} -> return ()
     DException {} -> return ()
 
-registerExceptionDecl :: Env -> DeclarationType UnresolvedReference Pos -> TC ()
+registerExceptionDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerExceptionDecl env = \case
     DDeclare {} -> return ()
     DLet {} -> return ()
@@ -412,7 +412,7 @@ registerExceptionDecl env = \case
 
 addThisModuleDataDeclsToEnvironment
     :: Env
-    -> Module UnresolvedReference Pos
+    -> Module UnresolvedReference () Pos
     -> TC ()
 addThisModuleDataDeclsToEnvironment env thisModule = do
     {-

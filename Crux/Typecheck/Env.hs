@@ -240,6 +240,7 @@ createUserTypeDef env name moduleName typeVars variants = do
 
     return $ TUserTypeDef
         { tuName = name
+        , tuType = TDNormal
         , tuModuleName = moduleName
         , tuParameters = typeVars
         , tuVariants = variants'
@@ -293,6 +294,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
     -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
     DLet typeVar mutability binding _ _ -> case binding of
         PBinding name -> [(name, (mutability, typeVar))]
+        PConstructor {} -> error "FIXME: Top-level pattern matches are not yet implemented"
         PWildcard -> []
     DFun typeVar name _ _ _ -> [(name, (Immutable, typeVar))]
     DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, (Immutable, typeVar))) variants
@@ -379,6 +381,7 @@ registerJSFFIDecl env = \case
 
         let typeDef = TUserTypeDef
                 { tuName = name
+                , tuType = TDFfi
                 , tuModuleName = moduleName
                 , tuParameters = []
                 , tuVariants = variants'

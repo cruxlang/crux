@@ -93,12 +93,6 @@ data Expression
     | ERaw Text
     deriving (Show, Eq)
 
-intercalate :: (Show m, Monoid m) => m -> [m] -> m
-intercalate sep els = case els of
-    [] -> mempty
-    [x] -> x
-    (x:y:xs) -> x <> sep <> intercalate sep (y:xs)
-
 renderFunction :: Maybe Text -> [Text] -> [Statement] -> JSWriter ()
 renderFunction maybeName args body = do
     writeS "function"

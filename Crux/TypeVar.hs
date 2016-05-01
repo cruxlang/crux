@@ -16,6 +16,7 @@ module Crux.TypeVar
     , TypeVar(..)
     , TypeState(..)
     , TypeLevel(..)
+    , TypeDefType(..)
     , primitiveTypeName
     , newTypeVar
     , followRecordTypeVar'
@@ -28,7 +29,6 @@ module Crux.TypeVar
 
 import           Crux.AST         (ModuleName)
 import           Crux.Prelude
-import           Data.List        (intercalate)
 import qualified Data.Text        as Text
 import           System.IO.Unsafe (unsafePerformIO)
 
@@ -57,8 +57,14 @@ data TVariant typevar = TVariant
     , tvParameters :: [typevar]
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
+data TypeDefType
+    = TDNormal
+    | TDFfi
+    deriving (Show, Eq)
+
 data TUserTypeDef typevar = TUserTypeDef
     { tuName       :: !Name
+    , tuType       :: !TypeDefType
     , tuModuleName :: !ModuleName
     , tuParameters :: ![typevar]
     , tuVariants   :: ![TVariant typevar]

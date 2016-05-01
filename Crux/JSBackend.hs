@@ -19,6 +19,8 @@ renderArgument :: Pattern -> Name
 renderArgument = \case
     PWildcard -> "$_"
     PBinding n -> n
+    PConstructor ref subpatterns ->
+        getUnresolvedReferenceLeaf ref <> "(" <> intercalate "," (map renderArgument subpatterns) <> ")"
 
 -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
 jsKeywords :: [Text]
@@ -99,7 +101,7 @@ renderResolvedReference :: ResolvedReference -> JSTree.Expression
 renderResolvedReference = JSTree.EIdentifier . renderResolvedReference'
 
 renderValue :: Gen.Value -> JSTree.Expression
-renderValue value = case value of
+renderValue val = case val of
     Gen.LocalBinding name -> JSTree.EIdentifier $ renderJSName name
     Gen.Temporary i -> JSTree.EIdentifier $ renderTemporary i
     Gen.ResolvedBinding n -> renderResolvedReference n
@@ -239,6 +241,8 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
         case pat of
             PWildcard ->
                 map renderInstruction defn
+            PConstructor {} ->
+                error "Gen: Top-level pattern bindings are not supported"
             PBinding _name ->
                 map renderInstruction defn
     Gen.DException name ->
@@ -253,6 +257,8 @@ getExportedValues (Gen.Declaration Export decl) = case decl of
     Gen.DLet pat _defn -> case pat of
         PWildcard -> []
         PBinding name -> [name]
+        PConstructor {} ->
+            error "Gen: Top-level pattern bindings are not supported"
     Gen.DException name -> [name <> "$"]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement

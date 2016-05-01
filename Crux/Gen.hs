@@ -17,12 +17,12 @@ module Crux.Gen
 
 import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST                  as AST
+import qualified Crux.JSTree               as JSTree
 import           Crux.Module               (importsOf)
 import qualified Crux.Module.Types         as AST
 import           Crux.Prelude
 import           Data.Graph                (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict       as HashMap
-import qualified Crux.JSTree as JSTree
 
 {-
 Instructions can:
@@ -138,6 +138,7 @@ both :: Maybe a -> Maybe b -> Maybe (a, b)
 both (Just x) (Just y) = Just (x, y)
 both _ _ = Nothing
 
+-- TODO: Pass TypeVar here?  We could have another pattern type which is "match jsffi constructor"
 tagFromPattern :: AST.Pattern -> Maybe Tag
 tagFromPattern = \case
     AST.PWildcard -> Nothing
@@ -240,6 +241,8 @@ generate env expr = case expr of
                 expr'' <- subBlockWithOutput env (ExistingTemporary output) expr'
                 return (pat, expr'')
 
+            -- TODO: Here, we must carry type information forward:
+            -- Matching on jsffi constructors requires different logic.
             let genIfElse (pattern, bodyInstructions) um =
                     case tagFromPattern pattern of
                         Just tag -> [
@@ -251,7 +254,7 @@ generate env expr = case expr of
                         Nothing -> BindPattern value'' pattern : bodyInstructions
 
             -- TODO: throw "unreachable"
-            traverse writeInstruction $ foldr genIfElse [] cases'
+            traverse_ writeInstruction $ foldr genIfElse [] cases'
             return $ Temporary output
 
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
@@ -360,6 +363,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
             defn' <- case pat of
                 AST.PWildcard -> subBlock env defn
                 AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
+                AST.PConstructor {} -> error "Gen: Top-level pattern matches are not yet supported"
             writeDeclaration $ Declaration export $ DLet pat defn'
         AST.DTypeAlias {} -> do
             -- type aliases are not reflected into the IR

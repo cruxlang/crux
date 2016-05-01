@@ -177,6 +177,7 @@ check' expectedType env = \case
                 unify pos pt annTy
             case p of
                 PWildcard -> return ()
+                PConstructor {} -> error "Function parameters cannot yet be patterns"
                 PBinding name -> HashTable.insert name (ValueReference (Local name) Immutable pt) valueBindings'
 
         let env' = env
@@ -469,6 +470,8 @@ check' expectedType env = \case
                 return ()
             PBinding name -> do
                 HashTable.insert name (ValueReference (Local name) Immutable ty) (eValueBindings catchEnv)
+            PConstructor {} ->
+                error "Patterns as exception specifications is not supported"
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding catchBody'
 
@@ -503,6 +506,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 return ()
             PBinding name -> do
                 HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
+            PConstructor {} ->
+                error "Patterns on top-level let bindings is not supported"
         quantify ty
         return $ DLet (edata expr'') mut pat maybeAnnot expr''
     DFun pos' name args returnAnn body -> do

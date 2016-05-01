@@ -176,6 +176,11 @@ resolveValueReference env pos ref = case ref of
                     return (OtherModule moduleName name, mutability, typevar)
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
+{-
+resolveReference :: String -> (Env -> HashTable Name a) -> Env -> Pos -> UnresolvedReference -> TC a
+resolveReference symbolType symbolTable env pos ref = do
+-}
+
 resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
 resolvePatternReference env pos ref = case ref of
     UnqualifiedReference name -> do

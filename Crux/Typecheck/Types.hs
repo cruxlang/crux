@@ -1,16 +1,18 @@
 module Crux.Typecheck.Types
     ( ValueReference(..)
     , TypeReference(..)
+    , PatternTag(..)
     , PatternReference(..)
     , ExceptionReference(..)
     , Env(..)
     , TypeLevel(..)
     ) where
 
-import           Crux.AST          (ModuleName, Mutability, ResolvedReference)
-import           Crux.Module.Types (LoadedModule)
-import           Crux.Prelude
-import           Crux.TypeVar      (TUserTypeDef (..), TypeLevel (..), TypeVar (..))
+import Crux.AST (ModuleName, Mutability, ResolvedReference)
+import Crux.Module.Types (LoadedModule)
+import Crux.Prelude
+import Crux.TypeVar (TUserTypeDef(..), TypeLevel(..), TypeVar(..))
+import qualified Crux.JSTree as JSTree
 
 -- TODO: newtype this somewhere and import it
 type Name = Text
@@ -26,7 +28,11 @@ data TypeReference = TypeReference TypeVar
 data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 
 -- same structure as TUserType constructor
-data PatternReference = PatternReference (TUserTypeDef TypeVar)
+data PatternTag
+    = TagVariant Name
+    | TagLiteral JSTree.Literal
+
+data PatternReference = PatternReference (TUserTypeDef TypeVar) PatternTag
 
 data Env = Env
     { eThisModule        :: ModuleName

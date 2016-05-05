@@ -333,12 +333,12 @@ getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDe
                 TTypeFun _ (TUserType d) -> d
                 _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
-            (name, PatternReference def)
+            (name, PatternReference def $ TagVariant name)
 
     DJSData typeVar _name _ jsVariants ->
         let (TUserType def) = typeVar in
-        (flip fmap) jsVariants $ \(JSVariant name _literal) ->
-            (name, PatternReference def)
+        (flip fmap) jsVariants $ \(JSVariant name literal) ->
+            (name, PatternReference def $ TagLiteral literal)
 
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
@@ -389,9 +389,9 @@ registerJSFFIDecl env = \case
         let userType = TUserType typeDef
         HashTable.insert name (TypeReference userType) (eTypeBindings env)
 
-        for_ variants $ \(JSVariant variantName _value) -> do
+        for_ variants $ \(JSVariant variantName value) -> do
             HashTable.insert variantName (ValueReference (Local variantName) Immutable userType) (eValueBindings env)
-            HashTable.insert variantName (PatternReference typeDef) (ePatternBindings env)
+            HashTable.insert variantName (PatternReference typeDef $ TagLiteral value) (ePatternBindings env)
         return ()
     DTypeAlias {} -> return ()
     DException {} -> return ()
@@ -510,7 +510,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
             HashTable.insert vname (ValueReference (ThisModule vname) Immutable ctorType) (eValueBindings env)
-            HashTable.insert vname (PatternReference typeDef) (ePatternBindings env)
+            HashTable.insert vname (PatternReference typeDef $ TagVariant vname) (ePatternBindings env)
 
     -- Phase 3.
     for_ decls $ \decl -> do

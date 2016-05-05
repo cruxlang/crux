@@ -22,8 +22,8 @@ import           Text.Printf           (printf)
 
 handlePatternBinding :: Env -> Pos -> TypeVar -> Mutability -> PatternReference -> Text -> [Pattern ()] -> TC ()
 handlePatternBinding env pos exprType mut patternReference cname cargs = do
-    let (PatternReference def) = patternReference
-    def' <- instantiateUserTypeDef env def
+    let (PatternReference typeDef patternTag) = patternReference
+    def' <- instantiateUserTypeDef env typeDef
     let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
     unify pos exprType $ TUserType def'
 

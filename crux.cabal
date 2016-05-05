@@ -63,7 +63,7 @@ library
                       , GeneralizedNewtypeDeriving
 
     ghc-options: -Wall
-    ghc-options: -Werror
+    -- ghc-options: -Werror
     default-language: Haskell2010
 
 executable crux

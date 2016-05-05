@@ -171,20 +171,18 @@ check' expectedType env = \case
                 returnType <- freshType env
                 return (paramTypes, returnType)
 
-        for_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
-            for_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
-                unify pos pt annTy
-            case p of
-                PWildcard -> return ()
-                PConstructor {} -> error "Function parameters cannot yet be patterns"
-                PBinding name -> HashTable.insert name (ValueReference (Local name) Immutable pt) valueBindings'
-
         let env' = env
                 { eValueBindings=valueBindings'
                 , eReturnType=Just returnType
                 , eInLoop=False
                 }
+
+        for_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
+            for_ pAnn $ \ann -> do
+                annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
+                unify pos pt annTy
+            -- TODO: exhaustiveness check on this pattern
+            buildPatternEnv env' pos pt Immutable p
 
         for_ retAnn $ \ann -> do
             annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
@@ -277,6 +275,7 @@ check' expectedType env = \case
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
             Immutable -> return expr''
+        -- TODO: exhaustiveness check on this pattern
         buildPatternEnv env pos ty mut pat
         unify pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
@@ -464,14 +463,8 @@ check' expectedType env = \case
 
         ExceptionReference rr ty <- resolveExceptionReference env pos exceptionName
 
-        -- TODO: generalize this logic.  it's duplicated everywhere.
-        case binding of
-            PWildcard -> do
-                return ()
-            PBinding name -> do
-                HashTable.insert name (ValueReference (Local name) Immutable ty) (eValueBindings catchEnv)
-            PConstructor {} ->
-                error "Patterns as exception specifications is not supported"
+        -- TODO: exhaustiveness check on this pattern
+        buildPatternEnv catchEnv pos ty Immutable binding
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding catchBody'
 

@@ -20,34 +20,35 @@ import qualified Data.Text             as Text
 import           Prelude               hiding (String)
 import           Text.Printf           (printf)
 
-handlePatternBinding :: Env -> Pos -> TypeVar -> Mutability -> PatternReference -> Text -> [Pattern ()] -> TC ()
-handlePatternBinding env pos exprType mut patternReference cname cargs = do
-    let (PatternReference typeDef patternTag) = patternReference
-    def' <- instantiateUserTypeDef env typeDef
-    let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
-    unify pos exprType $ TUserType def'
-
-    when (length thisVariantParameters /= length cargs) $
-        fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
-
-    for_ (zip cargs thisVariantParameters) $ \(arg, vp) -> do
-        buildPatternEnv env pos vp mut arg
-
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
 -- TODO: wipe this out and replace it with ePatternBindings in Env
-buildPatternEnv :: Env -> Pos -> TypeVar -> Mutability -> Pattern () -> TC ()
+buildPatternEnv :: Env -> Pos -> TypeVar -> Mutability -> Pattern () -> TC (Pattern PatternTag)
 buildPatternEnv env pos exprType mut = \case
     PWildcard -> do
-        return ()
+        return PWildcard
 
     PBinding pname -> do
         HashTable.insert pname (ValueReference (Local pname) mut exprType) (eValueBindings env)
+        return $ PBinding pname
 
-    PConstructor patternRef () cargs -> do
-        ref <- resolvePatternReference env pos patternRef
-        let cname = getUnresolvedReferenceLeaf patternRef
-        handlePatternBinding env pos exprType mut ref cname cargs
+    PConstructor unresolvedReference () cargs -> do
+        ref <- resolvePatternReference env pos unresolvedReference
+        let cname = getUnresolvedReferenceLeaf unresolvedReference
+
+        let (PatternReference typeDef patternTag) = ref
+        def' <- instantiateUserTypeDef env typeDef
+
+        let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
+        unify pos exprType $ TUserType def'
+
+        when (length thisVariantParameters /= length cargs) $
+            fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
+
+        args' <- for (zip cargs thisVariantParameters) $ \(arg, vp) -> do
+            buildPatternEnv env pos vp mut arg
+
+        return $ PConstructor unresolvedReference patternTag args'
 
 lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do
@@ -55,7 +56,7 @@ lookupBinding name Env{..} = do
         Just (ValueReference a b c) -> return $ Just (a, b, c)
         _ -> return $ Nothing
 
-isLValue :: MonadIO m => Env -> Expression ResolvedReference () TypeVar -> m Bool
+isLValue :: MonadIO m => Env -> Expression ResolvedReference tagtype TypeVar -> m Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- lookupBinding (resolvedReferenceName name) env
@@ -93,12 +94,12 @@ isLValue env expr = case expr of
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
-check :: Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference () TypeVar)
+check :: Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 check env expr = do
     newType <- freshType env
     checkExpecting newType env expr
 
-checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference () TypeVar)
+checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
     unify (edata expr) (edata e) expectedType
@@ -155,7 +156,7 @@ weaken level e = do
         RBound rtv' ->
             weakenRecord rtv'
 
-check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference () TypeVar)
+check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 check' expectedType env = \case
     EFun pos params retAnn body -> do
         valueBindings' <- HashTable.clone (eValueBindings env)
@@ -177,12 +178,13 @@ check' expectedType env = \case
                 , eInLoop=False
                 }
 
-        for_ (zip params paramTypes) $ \((p, pAnn), pt) -> do
+        params' <- for (zip params paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
                 unify pos pt annTy
             -- TODO: exhaustiveness check on this pattern
-            buildPatternEnv env' pos pt Immutable p
+            param' <- buildPatternEnv env' pos pt Immutable p
+            return (param', pAnn)
 
         for_ retAnn $ \ann -> do
             annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
@@ -192,7 +194,7 @@ check' expectedType env = \case
         unify pos returnType $ edata body'
 
         let ty = TFun paramTypes returnType
-        return $ EFun ty params retAnn body'
+        return $ EFun ty params' retAnn body'
 
     -- Compiler intrinsics
     EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
@@ -261,10 +263,10 @@ check' expectedType env = \case
 
         cases' <- for cases $ \(Case patt caseExpr) -> do
             env' <- childEnv env
-            buildPatternEnv env' pos (edata matchExpr') Immutable patt
+            patt' <- buildPatternEnv env' pos (edata matchExpr') Immutable patt
             caseExpr' <- check env' caseExpr
             unify pos resultType (edata caseExpr')
-            return $ Case patt caseExpr'
+            return $ Case patt' caseExpr'
 
         return $ EMatch resultType matchExpr' cases'
 
@@ -276,13 +278,13 @@ check' expectedType env = \case
             Mutable -> weaken (eLevel env') expr''
             Immutable -> return expr''
         -- TODO: exhaustiveness check on this pattern
-        buildPatternEnv env pos ty mut pat
+        pat' <- buildPatternEnv env pos ty mut pat
         unify pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
             unify pos ty annotTy
 
-        return $ ELet (TPrimitive Unit) mut pat maybeAnnot expr'''
+        return $ ELet (TPrimitive Unit) mut pat' maybeAnnot expr'''
 
     EAssign pos lhs rhs -> do
         lhs' <- check env lhs
@@ -464,14 +466,14 @@ check' expectedType env = \case
         ExceptionReference rr ty <- resolveExceptionReference env pos exceptionName
 
         -- TODO: exhaustiveness check on this pattern
-        buildPatternEnv catchEnv pos ty Immutable binding
+        binding' <- buildPatternEnv catchEnv pos ty Immutable binding
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
-        return $ ETryCatch (edata tryBody') tryBody' rr binding catchBody'
+        return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
 
-checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference () TypeVar)
+checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference PatternTag TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
-  g :: DeclarationType UnresolvedReference () Pos -> TC (DeclarationType ResolvedReference () TypeVar)
+  g :: DeclarationType UnresolvedReference () Pos -> TC (DeclarationType ResolvedReference PatternTag TypeVar)
   g = \case
 
     {- VALUE DEFINITIONS -}
@@ -496,23 +498,24 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         -- This is not unified with buildPatternEnv because ThisModule has different
         -- behavior from Local with respect to let generalization.
-        case pat of
+        pat' <- case pat of
             PWildcard -> do
-                return ()
+                return PWildcard
             PBinding name -> do
                 HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
+                return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings is not supported"
         quantify ty
-        return $ DLet (edata expr'') mut pat maybeAnnot expr''
+        return $ DLet (edata expr'') mut pat' maybeAnnot expr''
     DFun pos' name args returnAnn body -> do
         let expr = EFun pos' args returnAnn body
         ty <- freshType env
         HashTable.insert name (ValueReference (ThisModule name) Immutable ty) (eValueBindings env)
-        expr'@(EFun _ _ _ body') <- check env expr
+        expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty
-        return $ DFun (edata expr') name args returnAnn body'
+        return $ DFun (edata expr') name args' returnAnn body'
 
     {- TYPE DEFINITIONS -}
 

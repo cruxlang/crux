@@ -63,7 +63,7 @@ data Value
     | ResolvedBinding AST.ResolvedReference
     | Property Value Name
     | Literal AST.Literal
-    | FunctionLiteral [AST.Pattern ()] [Instruction]
+    | FunctionLiteral [AST.Pattern AST.PatternTag] [Instruction]
     | ArrayLiteral [Value]
     | RecordLiteral (HashMap Name Value)
     -- This is kind of a hack. We at least know that tag checks cannot have side effects.
@@ -76,7 +76,7 @@ data Instruction
     -- binding
     = EmptyLocalBinding Name
     | EmptyTemporary Int
-    | BindPattern Input (AST.Pattern ())
+    | BindPattern Input (AST.Pattern AST.PatternTag)
 
     -- operations
     | Assign Output Input
@@ -93,7 +93,7 @@ data Instruction
     | Loop [Instruction]
     | Break
     | Throw AST.ResolvedReference Input
-    | TryCatch [Instruction] AST.ResolvedReference (AST.Pattern ()) [Instruction]
+    | TryCatch [Instruction] AST.ResolvedReference (AST.Pattern AST.PatternTag) [Instruction]
     deriving (Show, Eq)
 
 type Env = IORef Int
@@ -101,8 +101,8 @@ type Env = IORef Int
 data DeclarationType
     = DData Name [AST.Variant ()]
     | DJSData Name [AST.JSVariant]
-    | DFun Name [AST.Pattern ()] [Instruction]
-    | DLet (AST.Pattern ()) [Instruction]
+    | DFun Name [AST.Pattern AST.PatternTag] [Instruction]
+    | DLet (AST.Pattern AST.PatternTag) [Instruction]
     | DException Name
     deriving (Show, Eq)
 
@@ -138,7 +138,7 @@ both :: Maybe a -> Maybe b -> Maybe (a, b)
 both (Just x) (Just y) = Just (x, y)
 both _ _ = Nothing
 
-tagFromPattern :: AST.Pattern () -> Maybe Tag
+tagFromPattern :: AST.Pattern AST.PatternTag -> Maybe Tag
 tagFromPattern = \case
     AST.PWildcard -> Nothing
     AST.PBinding _ -> Nothing
@@ -150,7 +150,7 @@ tagFromPattern = \case
                 Nothing -> Nothing
         Just $ TagVariant name $ catMaybes subtags'
 
-generate :: Env -> AST.Expression AST.ResolvedReference () t -> InstructionWriter (Maybe Value)
+generate :: Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of
     AST.ELet _ _mut pat _ v -> do
         v' <- generate env v
@@ -326,26 +326,26 @@ generate env expr = case expr of
         writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
         return $ Just $ Temporary output
 
-subBlock :: MonadIO m => Env -> AST.Expression AST.ResolvedReference () t -> m [Instruction]
+subBlock :: MonadIO m => Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
 subBlock env expr = do
     (_output, instructions) <- liftIO $ runWriterT $ generate env expr
     return instructions
 
-subBlockWithReturn :: MonadIO m => Env -> AST.Expression AST.ResolvedReference () t -> m [Instruction]
+subBlockWithReturn :: MonadIO m => Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
         Just output' -> instrs ++ [Return output']
         Nothing -> instrs
 
-subBlockWithOutput :: MonadIO m => Env -> Output -> AST.Expression AST.ResolvedReference () t -> m [Instruction]
+subBlockWithOutput :: MonadIO m => Env -> Output -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
 subBlockWithOutput env output expr = do
     (output', instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output' of
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Env -> AST.Declaration AST.ResolvedReference () t -> DeclarationWriter ()
+generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag t -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = do
     case decl of
         AST.DDeclare _ _ _ -> do
@@ -370,7 +370,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
         AST.DException _ name _ -> do
             writeDeclaration $ Declaration export $ DException name
 
-generateModule :: AST.Module AST.ResolvedReference () t -> IO Module
+generateModule :: AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
 generateModule AST.Module{..} = do
     env <- newIORef 0
     decls <- fmap snd $ runWriterT $ do

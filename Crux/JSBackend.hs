@@ -204,7 +204,7 @@ generateMatchCond matchVar = \case
     Gen.TagLiteral literal -> do
         JSTree.EBinOp "===" (JSTree.ELiteral literal) matchVar
 
-generateMatchVars :: JSTree.Expression -> Pattern () -> [JSTree.Statement]
+generateMatchVars :: JSTree.Expression -> Pattern tagtype -> [JSTree.Statement]
 generateMatchVars matchVar = \case
     PWildcard -> []
     PBinding name ->

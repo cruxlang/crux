@@ -142,13 +142,15 @@ tagFromPattern :: AST.Pattern AST.PatternTag -> Maybe Tag
 tagFromPattern = \case
     AST.PWildcard -> Nothing
     AST.PBinding _ -> Nothing
-    AST.PConstructor ref _tag subpatterns -> do
-        let name = AST.getUnresolvedReferenceLeaf ref
-        let subtags = fmap tagFromPattern subpatterns
-        let subtags' = (flip map) (zip [0..] subtags) $ \(i, st) -> case st of
-                Just st' -> Just (i, st')
-                Nothing -> Nothing
-        Just $ TagVariant name $ catMaybes subtags'
+    AST.PConstructor _ref tag subpatterns -> case tag of
+        AST.TagVariant name -> do
+            let subtags = fmap tagFromPattern subpatterns
+            let subtags' = (flip map) (zip [0..] subtags) $ \(i, st) -> case st of
+                    Just st' -> Just (i, st')
+                    Nothing -> Nothing
+            Just $ TagVariant name $ catMaybes subtags'
+        AST.TagLiteral literal ->
+            Just $ TagLiteral literal
 
 generate :: Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> InstructionWriter (Maybe Value)
 generate env expr = case expr of

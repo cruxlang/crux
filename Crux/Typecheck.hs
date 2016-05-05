@@ -494,6 +494,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             Mutable -> weaken (eLevel env') expr'
             Immutable -> return expr'
 
+        -- This is not unified with buildPatternEnv because ThisModule has different
+        -- behavior from Local with respect to let generalization.
         case pat of
             PWildcard -> do
                 return ()

@@ -146,13 +146,13 @@ function _rts_new_exception(name, baseException) {
     var False = false;
     function not(b) {
       var $0;
-      if (("True"==b[0])) {
+      if ((true===b)) {
         {
         }
         $0 = False;
       }
       else {
-        if (("False"==b[0])) {
+        if ((false===b)) {
           {
           }
           $0 = True;
@@ -437,7 +437,7 @@ function _rts_new_exception(name, baseException) {
     }
     function unTimerId(tid) {
       var $0;
-      if ((("TimerId"==tid[0])&&true)) {
+      if (("TimerId"===tid[0])) {
         {
           var t = tid[1];
         }
@@ -527,7 +527,7 @@ function _rts_new_exception(name, baseException) {
       }
       var $29 = (this$).timerId;
       var $30;
-      if ((("Some"==$29[0])&&true)) {
+      if (("Some"===$29[0])) {
         {
           var tid = $29[1];
         }
@@ -535,7 +535,7 @@ function _rts_new_exception(name, baseException) {
         $30 = $31;
       }
       else {
-        if (("None"==$29[0])) {
+        if (("None"===$29[0])) {
           {
           }
           $30 = (void 0);
@@ -545,7 +545,7 @@ function _rts_new_exception(name, baseException) {
       }
       var $32 = (this$).xhr;
       var $33;
-      if ((("Some"==$32[0])&&true)) {
+      if (("Some"===$32[0])) {
         {
           var x = $32[1];
         }
@@ -554,7 +554,7 @@ function _rts_new_exception(name, baseException) {
         $33 = (void 0);
       }
       else {
-        if (("None"==$32[0])) {
+        if (("None"===$32[0])) {
           {
           }
           $33 = (void 0);
@@ -564,7 +564,7 @@ function _rts_new_exception(name, baseException) {
       }
       var $35 = (this$).lastCompiledSource;
       var $36;
-      if ((("Some"==$35[0])&&true)) {
+      if (("Some"===$35[0])) {
         {
           var lcs = $35[1];
         }
@@ -582,19 +582,15 @@ function _rts_new_exception(name, baseException) {
         $36 = $41;
       }
       else {
-        if (true) {
-          {
-          }
-          $36 = (void 0);
+        {
         }
-        else {
-        }
+        $36 = (void 0);
       }
       var $70 = setTimeout((function() {
         (this$).timerId = $builtin_None;
         var $42 = compileCrux(source);
         var $43;
-        if ((("Err"==$42[0])&&true)) {
+        if (("Err"===$42[0])) {
           {
             var error = $42[1];
           }
@@ -606,7 +602,7 @@ function _rts_new_exception(name, baseException) {
           return (void 0);
         }
         else {
-          if ((("Ok"==$42[0])&&true)) {
+          if (("Ok"===$42[0])) {
             {
               var res = $42[1];
             }
@@ -706,7 +702,7 @@ function _rts_new_exception(name, baseException) {
       }
       var $83 = newCompiler((function(result) {
         var $78;
-        if ((("Ok"==result[0])&&true)) {
+        if (("Ok"===result[0])) {
           {
             var res = result[1];
           }
@@ -716,7 +712,7 @@ function _rts_new_exception(name, baseException) {
           $78 = (void 0);
         }
         else {
-          if ((("Err"==result[0])&&true)) {
+          if (("Err"===result[0])) {
             {
               var err = result[1];
             }

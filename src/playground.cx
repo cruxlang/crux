@@ -69,14 +69,17 @@ type XHR = {
     mutable timeout: Number,
 }
 
+data CompilerState {
+}
+
 data Compiler {
-  Compiler({
-    onresult: (Result String String) -> (),
-    mutable lastCompiledOptimize: Boolean,
-    mutable xhr: Option XHR,
-    mutable lastCompiledSource: Option String,
-    mutable timerId: Option TimerId,
-  })
+    Compiler({
+        onresult: (Result String String) -> (),
+        mutable lastCompiledOptimize: Boolean,
+        mutable xhr: Option XHR,
+        mutable lastCompiledSource: Option String,
+        mutable timerId: Option TimerId,
+    })
 }
 
 fun newCompiler(onresult): Compiler {

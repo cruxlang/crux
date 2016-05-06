@@ -1,24 +1,23 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE ScopedTypeVariables, TupleSections #-}
 
 module Crux.Typecheck
     ( run
     ) where
 
-import           Crux.AST
-import           Crux.Error
-import           Crux.Module.Types
+import Crux.AST
+import Crux.Error
+import Crux.Module.Types
 import qualified Crux.MutableHashTable as HashTable
-import           Crux.Prelude
-import           Crux.Typecheck.Env
-import           Crux.Typecheck.Monad
-import           Crux.Typecheck.Types
-import           Crux.Typecheck.Unify
-import           Crux.TypeVar
-import qualified Data.HashMap.Strict   as HashMap
-import qualified Data.Text             as Text
-import           Prelude               hiding (String)
-import           Text.Printf           (printf)
+import Crux.Prelude
+import Crux.Typecheck.Env
+import Crux.Typecheck.Monad
+import Crux.Typecheck.Types
+import Crux.Typecheck.Unify
+import Crux.TypeVar
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
+import Prelude hiding (String)
+import Text.Printf (printf)
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern

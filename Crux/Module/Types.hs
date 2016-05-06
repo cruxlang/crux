@@ -5,9 +5,9 @@ module Crux.Module.Types
     ) where
 
 import Crux.AST (Module, ModuleName, ResolvedReference)
+import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.TypeVar (TypeVar)
-import qualified Crux.JSTree as JSTree
 
 type Name = Text
 

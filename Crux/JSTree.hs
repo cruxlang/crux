@@ -1,18 +1,17 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
 
 module Crux.JSTree where
 
-import           Control.Monad.State.Class         (get, modify)
-import           Control.Monad.Trans.State.Strict  (State, evalState)
-import           Control.Monad.Trans.Writer.Strict (WriterT, execWriterT)
-import           Control.Monad.Writer.Class        (tell)
-import           Crux.Prelude
-import qualified Data.HashMap.Strict               as HashMap
-import qualified Data.Text                         as Text
-import qualified Data.Text.Lazy                    as TL
-import           Data.Text.Lazy.Builder            (Builder)
-import qualified Data.Text.Lazy.Builder            as B
+import Control.Monad.State.Class (get, modify)
+import Control.Monad.Trans.State.Strict (State, evalState)
+import Control.Monad.Trans.Writer.Strict (WriterT, execWriterT)
+import Control.Monad.Writer.Class (tell)
+import Crux.Prelude
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
+import qualified Data.Text.Lazy as TL
+import Data.Text.Lazy.Builder (Builder)
+import qualified Data.Text.Lazy.Builder as B
 
 type JSWriter = WriterT Builder (State Int)
 

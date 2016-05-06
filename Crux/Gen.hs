@@ -1,6 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards, TupleSections #-}
 
 module Crux.Gen
     ( Value(..)
@@ -15,14 +13,14 @@ module Crux.Gen
     , generateProgram
     ) where
 
-import           Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
-import qualified Crux.AST                  as AST
-import qualified Crux.JSTree               as JSTree
-import           Crux.Module               (importsOf)
-import qualified Crux.Module.Types         as AST
-import           Crux.Prelude
-import           Data.Graph                (graphFromEdges, topSort)
-import qualified Data.HashMap.Strict       as HashMap
+import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
+import qualified Crux.AST as AST
+import qualified Crux.JSTree as JSTree
+import Crux.Module (importsOf)
+import qualified Crux.Module.Types as AST
+import Crux.Prelude
+import Data.Graph (graphFromEdges, topSort)
+import qualified Data.HashMap.Strict as HashMap
 
 {-
 Instructions can:

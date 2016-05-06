@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Crux.Tokens where
 
-import           Crux.Prelude
+import Crux.Prelude
 
 -- TODO: we should record the start and end positions of tokens
 -- All of these numbers are one-based, because that's how editors standardized.

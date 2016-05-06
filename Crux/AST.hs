@@ -1,19 +1,15 @@
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable,
+             OverloadedStrings, RecordWildCards #-}
 
 module Crux.AST
     ( module Crux.AST
     , Pos(..)
     ) where
 
-import qualified Crux.JSTree  as JSTree
-import           Crux.Prelude
-import           Crux.Tokens  (Pos(..))
-import qualified Data.Text    as Text
+import qualified Crux.JSTree as JSTree
+import Crux.Prelude
+import Crux.Tokens (Pos (..))
+import qualified Data.Text as Text
 
 type ParsedModule = Module UnresolvedReference () Pos
 

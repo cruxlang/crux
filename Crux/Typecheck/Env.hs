@@ -17,22 +17,22 @@ module Crux.Typecheck.Env
     , resolveExceptionReference
     ) where
 
-import           Crux.AST
-import qualified Crux.Error            as Error
-import           Crux.Intrinsic        (Intrinsic (..))
-import qualified Crux.Intrinsic        as Intrinsic
-import           Crux.Module.Types
+import Crux.AST
+import qualified Crux.Error as Error
+import Crux.Intrinsic (Intrinsic (..))
+import qualified Crux.Intrinsic as Intrinsic
+import Crux.Module.Types
 import qualified Crux.MutableHashTable as HashTable
-import           Crux.Prelude
-import           Crux.Text             (isCapitalized)
-import           Crux.Typecheck.Monad
-import           Crux.Typecheck.Types
-import           Crux.Typecheck.Unify
-import           Crux.TypeVar
-import           Crux.Util
-import qualified Data.HashMap.Strict   as HashMap
-import qualified Data.Text             as Text
-import           Prelude               hiding (String)
+import Crux.Prelude
+import Crux.Text (isCapitalized)
+import Crux.Typecheck.Monad
+import Crux.Typecheck.Types
+import Crux.Typecheck.Unify
+import Crux.TypeVar
+import Crux.Util
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
+import Prelude hiding (String)
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)

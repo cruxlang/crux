@@ -4,22 +4,22 @@ module Crux.Project
     , buildProjectAndRunTests
     ) where
 
-import qualified Crux.AST        as AST
-import qualified Crux.Error      as Error
-import qualified Crux.Gen        as Gen
-import qualified Crux.JSBackend  as JSBackend
-import           Crux.Module
-import           Crux.Prelude
-import           Data.Map.Strict (Map)
+import qualified Crux.AST as AST
+import qualified Crux.Error as Error
+import qualified Crux.Gen as Gen
+import qualified Crux.JSBackend as JSBackend
+import Crux.Module
+import Crux.Prelude
+import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import qualified Data.Text       as Text
-import qualified Data.Text.IO    as TextIO
-import           Data.Yaml
-import qualified System.Exit     as Exit
-import           System.Exit         (ExitCode (..))
-import           System.FilePath (combine)
-import           System.Process      (readProcessWithExitCode)
+import qualified Data.Text as Text
+import qualified Data.Text.IO as TextIO
+import Data.Yaml
+import System.Exit (ExitCode (..))
+import qualified System.Exit as Exit
+import System.FilePath (combine)
 import System.IO
+import System.Process (readProcessWithExitCode)
 
 data TargetConfig = TargetConfig
     { tcSourceDir  :: String
@@ -28,7 +28,7 @@ data TargetConfig = TargetConfig
 
 data ProjectConfig = ProjectConfig
     { pcTargets :: Map Text TargetConfig
-    , pcTests :: Map Text TargetConfig
+    , pcTests   :: Map Text TargetConfig
     }
 
 instance FromJSON TargetConfig where

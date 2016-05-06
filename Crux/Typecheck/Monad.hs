@@ -12,11 +12,11 @@ module Crux.Typecheck.Monad
     , bridgeEitherTC
     ) where
 
-import           Control.Exception          (Exception, throwIO, try)
-import           Control.Monad.Trans.Reader
-import           Crux.Error
-import           Crux.Prelude
-import           Crux.Tokens                (Pos)
+import Control.Exception (Exception, throwIO, try)
+import Control.Monad.Trans.Reader
+import Crux.Error
+import Crux.Prelude
+import Crux.Tokens (Pos)
 
 data Warning -- TODO: move this into Crux.Warning
 

@@ -7,9 +7,9 @@ module Crux.IORef
     , modifyIORef'
     ) where
 
-import           Control.Monad.IO.Class
-import           Data.IORef             (IORef)
-import qualified Data.IORef             as IORef
+import Control.Monad.IO.Class
+import Data.IORef (IORef)
+import qualified Data.IORef as IORef
 
 newIORef :: MonadIO m => a -> m (IORef a)
 newIORef a = liftIO $ IORef.newIORef a

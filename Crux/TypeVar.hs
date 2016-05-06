@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveTraversable #-}
 
 module Crux.TypeVar
     ( PrimitiveType(..)
@@ -27,10 +25,10 @@ module Crux.TypeVar
     , userTypeIdentity
     ) where
 
-import           Crux.AST         (ModuleName)
-import           Crux.Prelude
-import qualified Data.Text        as Text
-import           System.IO.Unsafe (unsafePerformIO)
+import Crux.AST (ModuleName)
+import Crux.Prelude
+import qualified Data.Text as Text
+import System.IO.Unsafe (unsafePerformIO)
 
 type Name = Text
 

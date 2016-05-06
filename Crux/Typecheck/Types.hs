@@ -9,9 +9,9 @@ module Crux.Typecheck.Types
     ) where
 
 import Crux.AST (ModuleName, Mutability, ResolvedReference)
-import Crux.Module.Types (LoadedModule, PatternTag(..))
+import Crux.Module.Types (LoadedModule, PatternTag (..))
 import Crux.Prelude
-import Crux.TypeVar (TUserTypeDef(..), TypeLevel(..), TypeVar(..))
+import Crux.TypeVar (TUserTypeDef (..), TypeLevel (..), TypeVar (..))
 
 -- TODO: newtype this somewhere and import it
 type Name = Text

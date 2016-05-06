@@ -31,7 +31,7 @@ steps:
       # - none: Do not perform any alignment.
       #
       # Default: global.
-      align: global
+      align: none
 
   # Language pragmas
   - language_pragmas:
@@ -45,14 +45,14 @@ steps:
       #   `{-#LANGUAGE #-}'.
       #
       # Default: vertical.
-      style: vertical
+      style: compact
 
       # stylish-haskell can detect redundancy of some language pragmas. If this
       # is set to true, it will remove those redundant pragmas. Default: true.
       remove_redundant: true
 
   # Align the types in record declarations
-  - records: {}
+  #- records: null
 
   # Replace tabs by spaces. This is disabled by default.
   # - tabs:
@@ -65,7 +65,7 @@ steps:
 
 # A common setting is the number of columns (parts of) code will be wrapped
 # to. Different steps take this into account. Default: 80.
-columns: 120
+columns: 80
 
 # Sometimes, language extensions are specified in a cabal file or from the
 # command line instead of using language pragmas in the file. stylish-haskell

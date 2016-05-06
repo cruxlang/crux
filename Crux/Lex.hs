@@ -2,13 +2,13 @@
 
 module Crux.Lex where
 
-import           Control.Monad.Identity (Identity)
-import           Crux.Prelude
-import           Crux.Tokens
-import           Data.Char
-import qualified Data.Text              as T
-import           Text.Parsec            ((<|>))
-import qualified Text.Parsec            as P
+import Control.Monad.Identity (Identity)
+import Crux.Prelude
+import Crux.Tokens
+import Data.Char
+import qualified Data.Text as T
+import Text.Parsec ((<|>))
+import qualified Text.Parsec as P
 
 type ParserState = (Int, Int) -- current line, start column
 type Parser a = P.ParsecT Text ParserState Identity a

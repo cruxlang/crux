@@ -1,17 +1,15 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE Rank2Types        #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE OverloadedStrings, Rank2Types, RecordWildCards #-}
 
 module Crux.Intrinsic
     ( Intrinsic(..)
     , intrinsics
     ) where
 
-import qualified Crux.AST            as AST
-import qualified Crux.JSGen.Types    as JSGen
-import qualified Crux.JSTree         as JS
-import           Crux.Prelude
-import           Crux.TypeVar
+import qualified Crux.AST as AST
+import qualified Crux.JSGen.Types as JSGen
+import qualified Crux.JSTree as JS
+import Crux.Prelude
+import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap
 
 data Intrinsic = Intrinsic

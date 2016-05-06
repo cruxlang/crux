@@ -1,6 +1,6 @@
 module Crux.MutableHashTable where
 
-import           Crux.Prelude
+import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
 
 new :: MonadIO m => m (IORef (HashMap key value))

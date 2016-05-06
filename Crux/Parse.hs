@@ -1,22 +1,18 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, MultiParamTypeClasses,
+             OverloadedStrings, RecordWildCards, TupleSections #-}
 
 module Crux.Parse where
 
-import           Control.Applicative        ((<|>))
-import           Control.Monad.Reader.Class (MonadReader, ask, local)
-import           Control.Monad.Trans.Reader (Reader, runReader)
-import           Crux.AST                   as AST
-import qualified Crux.JSTree                as JSTree
-import           Crux.Prelude
-import           Crux.Text                  (isCapitalized)
-import           Crux.Tokens                as Tokens
-import qualified Data.HashMap.Strict        as HashMap
-import qualified Text.Parsec                as P
+import Control.Applicative ((<|>))
+import Control.Monad.Reader.Class (MonadReader, ask, local)
+import Control.Monad.Trans.Reader (Reader, runReader)
+import Crux.AST as AST
+import qualified Crux.JSTree as JSTree
+import Crux.Prelude
+import Crux.Text (isCapitalized)
+import Crux.Tokens as Tokens
+import qualified Data.HashMap.Strict as HashMap
+import qualified Text.Parsec as P
 
 type Parser = P.ParsecT [Token Pos] () (Reader (ModuleName, IndentReq))
 type ParseData = Pos

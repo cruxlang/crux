@@ -15,28 +15,28 @@ module Crux.Module
     , loadProgram
     ) where
 
-import           Control.Exception     (tryJust)
-import qualified Crux.AST              as AST
-import qualified Crux.Error            as Error
-import qualified Crux.Lex              as Lex
-import           Crux.Module.Types     as AST
+import Control.Exception (tryJust)
+import qualified Crux.AST as AST
+import qualified Crux.Error as Error
+import qualified Crux.Lex as Lex
+import Crux.Module.Types as AST
 import qualified Crux.MutableHashTable as HashTable
-import qualified Crux.Parse            as Parse
-import           Crux.Prelude
-import qualified Crux.Tokens           as Tokens
-import qualified Crux.Typecheck        as Typecheck
-import           Crux.Typecheck.Monad
-import qualified Data.Aeson            as JSON
-import qualified Data.ByteString       as BS
-import qualified Data.HashMap.Strict   as HashMap
-import qualified Data.HashSet          as HashSet
-import qualified Data.Text             as Text
-import qualified Data.Text.Encoding    as TE
-import           Data.Yaml
-import           System.Directory      (doesFileExist, getCurrentDirectory)
-import           System.Environment    (getExecutablePath)
-import qualified System.FilePath       as FP
-import           System.IO.Error       (isDoesNotExistError)
+import qualified Crux.Parse as Parse
+import Crux.Prelude
+import qualified Crux.Tokens as Tokens
+import qualified Crux.Typecheck as Typecheck
+import Crux.Typecheck.Monad
+import qualified Data.Aeson as JSON
+import qualified Data.ByteString as BS
+import qualified Data.HashMap.Strict as HashMap
+import qualified Data.HashSet as HashSet
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as TE
+import Data.Yaml
+import System.Directory (doesFileExist, getCurrentDirectory)
+import System.Environment (getExecutablePath)
+import qualified System.FilePath as FP
+import System.IO.Error (isDoesNotExistError)
 
 type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
 

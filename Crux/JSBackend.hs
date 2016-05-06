@@ -1,13 +1,12 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
 
 module Crux.JSBackend where
 
-import           Crux.AST
-import qualified Crux.Gen     as Gen
-import qualified Crux.JSTree  as JSTree
-import           Crux.Prelude
-import qualified Data.Text    as Text
+import Crux.AST
+import qualified Crux.Gen as Gen
+import qualified Crux.JSTree as JSTree
+import Crux.Prelude
+import qualified Data.Text as Text
 
 renderModuleName :: ModuleName -> Text
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]

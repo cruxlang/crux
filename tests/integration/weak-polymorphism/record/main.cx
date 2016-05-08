@@ -1,0 +1,10 @@
+pragma { NoBuiltin }
+
+data Maybe a { None, Some(a) }
+
+let a = { x : None }
+
+fun main() {
+    a.x = Some(4)
+    a.x = Some("Hoot")
+}

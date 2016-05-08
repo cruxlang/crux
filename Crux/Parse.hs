@@ -477,47 +477,35 @@ delimited delim parseElement = do
 commaDelimited :: Parser a -> Parser [a]
 commaDelimited = delimited $ token TComma
 
+recordField :: Parser (Text, Maybe Mutability, TypeIdent)
+recordField = do
+    mut <- P.optionMaybe (
+        (token TMutable *> pure Mutable) <|>
+        (token TConst *> pure Immutable))
+    name <- anyIdentifier
+    _ <- token TColon
+    ty <- typeIdent
+    return (name, mut, ty)
+
 nonEmptyRecord :: Parser TypeIdent
 nonEmptyRecord = do
-    firstProp <- P.try $ do
-        _ <- token TOpenBrace
-        mut <- P.optionMaybe (
-            (token TMutable *> pure Mutable) <|>
-            (token TConst *> pure Immutable))
-        name <- anyIdentifier
-        _ <- token TColon
-        ty <- typeIdent
-        return (name, mut, ty)
+    firstProp <- P.try $
+        token TOpenBrace *> recordField
 
     areMore <- P.optionMaybe $ token TComma
-    props <- case areMore of
+    props <- (firstProp:) <$> case areMore of
         Nothing ->
-            return [firstProp]
+            return []
         Just _ -> do
-            fmap (firstProp:) $ commaDelimited $ do
-                mut <- P.optionMaybe (
-                    (token TMutable *> pure Mutable) <|>
-                    (token TConst *> pure Immutable))
-                name <- anyIdentifier
-                _ <- token TColon
-                ty <- typeIdent
-                return (name, mut, ty)
+            commaDelimited recordField
 
     _ <- token TCloseBrace
 
     return $ RecordIdent props
 
 recordTypeIdent :: Parser TypeIdent
-recordTypeIdent = do
-    props <- braced $ commaDelimited $ do
-        mut <- P.optionMaybe (
-            (token TMutable *> pure Mutable) <|>
-            (token TConst *> pure Immutable))
-        name <- anyIdentifier
-        _ <- token TColon
-        ty <- typeIdent
-        return (name, mut, ty)
-    return $ RecordIdent props
+recordTypeIdent =
+    RecordIdent <$> braced (commaDelimited recordField)
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do

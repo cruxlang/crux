@@ -4,6 +4,7 @@
 module Crux.Parse where
 
 import Control.Applicative ((<|>))
+import Data.Foldable (asum)
 import Control.Monad.Reader.Class (MonadReader, ask, local)
 import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
@@ -476,6 +477,36 @@ delimited delim parseElement = do
 commaDelimited :: Parser a -> Parser [a]
 commaDelimited = delimited $ token TComma
 
+nonEmptyRecord :: Parser TypeIdent
+nonEmptyRecord = do
+    firstProp <- P.try $ do
+        _ <- token TOpenBrace
+        mut <- P.optionMaybe (
+            (token TMutable *> pure Mutable) <|>
+            (token TConst *> pure Immutable))
+        name <- anyIdentifier
+        _ <- token TColon
+        ty <- typeIdent
+        return (name, mut, ty)
+
+    areMore <- P.optionMaybe $ token TComma
+    props <- case areMore of
+        Nothing ->
+            return [firstProp]
+        Just _ -> do
+            fmap (firstProp:) $ commaDelimited $ do
+                mut <- P.optionMaybe (
+                    (token TMutable *> pure Mutable) <|>
+                    (token TConst *> pure Immutable))
+                name <- anyIdentifier
+                _ <- token TColon
+                ty <- typeIdent
+                return (name, mut, ty)
+
+    _ <- token TCloseBrace
+
+    return $ RecordIdent props
+
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent = do
     props <- braced $ commaDelimited $ do
@@ -512,8 +543,15 @@ sumIdent = do
     let justOne = do
             ti <- unresolvedReference
             return $ TypeIdent ti []
+
     name <- unresolvedReference
-    params <- P.many (parenthesized sumIdent <|> justOne)
+    params <- P.many $
+        asum
+            [ nonEmptyRecord
+            , justOne
+            , arrayTypeIdent
+            , parenthesized (sumIdent <|> functionTypeIdent <|> recordTypeIdent)
+            ]
     return $ TypeIdent name params
 
 unitTypeIdent :: Parser TypeIdent

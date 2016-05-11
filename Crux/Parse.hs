@@ -526,20 +526,10 @@ unresolvedReference = do
             return $ QualifiedReference first second
     qua <|> unq
 
-sumIdent :: Parser TypeIdent
-sumIdent = do
-    let justOne = do
-            ti <- unresolvedReference
-            return $ TypeIdent ti []
-
+sumIdent :: Parser TypeIdent -> Parser TypeIdent
+sumIdent paramParser = do
     name <- unresolvedReference
-    params <- P.many $
-        asum
-            [ nonEmptyRecord
-            , justOne
-            , arrayTypeIdent
-            , parenthesized (sumIdent <|> functionTypeIdent <|> recordTypeIdent)
-            ]
+    params <- P.many paramParser
     return $ TypeIdent name params
 
 unitTypeIdent :: Parser TypeIdent
@@ -554,7 +544,33 @@ arrayTypeIdent = do
     return $ ArrayIdent mutability ti
 
 typeIdent :: Parser TypeIdent
-typeIdent = functionTypeIdent <|> unitTypeIdent <|> sumIdent <|> recordTypeIdent <|> arrayTypeIdent
+typeIdent = asum
+    [ arrayTypeIdent
+    , functionTypeIdent
+    , recordTypeIdent
+    , sumIdent noSpaceTypeIdent
+    , unitTypeIdent
+    , parenthesized typeIdent
+    ]
+
+noSpaceTypeIdent :: Parser TypeIdent
+noSpaceTypeIdent = asum
+    [ arrayTypeIdent
+    , recordTypeIdent
+    , sumIdent noSpaceTypeIdent
+    , unitTypeIdent
+    , parenthesized typeIdent
+    ]
+
+returnTypeIdent :: Parser TypeIdent
+returnTypeIdent = asum
+    [ arrayTypeIdent
+    , functionTypeIdent
+    , nonEmptyRecord
+    , sumIdent returnTypeIdent
+    , unitTypeIdent
+    , parenthesized typeIdent
+    ]
 
 typeName :: Parser Text
 typeName = do
@@ -674,7 +690,7 @@ funDeclaration = do
         params <- parenthesized $ commaDelimited funArgument
         returnAnn <- P.optionMaybe $ do
             _ <- token TColon
-            typeIdent
+            returnTypeIdent
 
         body <- blockExpression
         return $ DFun (tokenData tfun) name params returnAnn body

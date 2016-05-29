@@ -83,6 +83,7 @@ test-suite unit
         GenTest
         JSBackendTest
         ParseTest
+        TypecheckTest
         UnifyTest
     ghc-options: -Wall -Werror -fno-warn-missing-signatures
     build-depends: base
@@ -99,6 +100,8 @@ test-suite integration
     type: exitcode-stdio-1.0
     main-is: IntegrationTestMain.hs
     hs-source-dirs: tests
+
+    other-modules: IntegrationTest
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

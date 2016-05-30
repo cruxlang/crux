@@ -507,14 +507,19 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 error "Patterns on top-level let bindings is not supported"
         quantify ty
         return $ DLet (edata expr'') mut pat' maybeAnnot expr''
-    DFun pos' name args returnAnn body -> do
-        let expr = EFun pos' args returnAnn body
+    DFun pos' FunctionDecl{..} -> do
+        let expr = EFun pos' fdParams fdReturnAnnot fdBody
         ty <- freshType env
-        HashTable.insert name (ValueReference (ThisModule name) Immutable ty) (eValueBindings env)
+        HashTable.insert fdName (ValueReference (ThisModule fdName) Immutable ty) (eValueBindings env)
         expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty
-        return $ DFun (edata expr') name args' returnAnn body'
+        return $ DFun (edata expr') FunctionDecl
+            { fdName
+            , fdParams = args'
+            , fdReturnAnnot
+            , fdBody = body'
+            }
 
     {- TYPE DEFINITIONS -}
 

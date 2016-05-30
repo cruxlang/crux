@@ -693,7 +693,7 @@ funDeclaration = do
             returnTypeIdent
 
         body <- blockExpression
-        return $ DFun (tokenData tfun) name params returnAnn body
+        return $ DFun (tokenData tfun) $ FunctionDecl name params returnAnn body
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

@@ -301,7 +301,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
         PBinding name -> [(name, (mutability, typeVar))]
         PConstructor {} -> error "FIXME: Top-level pattern matches are not yet implemented"
         PWildcard -> []
-    DFun typeVar name _ _ _ -> [(name, (Immutable, typeVar))]
+    DFun typeVar FunctionDecl{fdName} -> [(fdName, (Immutable, typeVar))]
     DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, (Immutable, typeVar))) variants
     DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, (Immutable, typeVar))) variants
     DTypeAlias _ _ _ _ -> []
@@ -309,12 +309,12 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
 
 getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedExceptions loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
-    DDeclare _ _ _ -> []
-    DLet _ _ _ _ _ -> []
-    DFun _ _ _ _ _ -> []
-    DData _ _ _ _ _ -> []
-    DJSData _ _ _ _ -> []
-    DTypeAlias _ _ _ _ -> []
+    DDeclare {} -> []
+    DLet {} -> []
+    DFun {} -> []
+    DData {} -> []
+    DJSData {} -> []
+    DTypeAlias {} -> []
     DException typeVar name _ -> [(name, typeVar)]
 
 getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]

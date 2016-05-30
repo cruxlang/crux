@@ -355,9 +355,10 @@ generateDecl env (AST.Declaration export _pos decl) = do
             writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
         AST.DJSData _ name _ variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
-        AST.DFun _ name params _retAnn body -> do
-            body' <- subBlockWithReturn env body
-            writeDeclaration $ Declaration export $ DFun name (map fst params) body'
+        AST.DFun _ funDecl -> do -- name params _retAnn body -> do
+            let AST.FunctionDecl{..} = funDecl
+            body' <- subBlockWithReturn env fdBody
+            writeDeclaration $ Declaration export $ DFun fdName (map fst fdParams) body'
         AST.DLet _ _mut pat _ defn -> do
             defn' <- case pat of
                 AST.PWildcard -> subBlock env defn

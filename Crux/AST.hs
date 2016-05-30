@@ -37,13 +37,20 @@ data Pattern tag
 instance IsString (Pattern tagtype) where
     fromString = PBinding . fromString
 
+data FunctionDecl idtype tagtype edata = FunctionDecl
+    { fdName        :: !Name
+    , fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
+    , fdReturnAnnot :: !(Maybe TypeIdent)
+    , fdBody        :: !(Expression idtype tagtype edata)
+    } deriving (Eq, Show, Functor, Foldable, Traversable)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype tagtype edata
     -- Values
     = DDeclare edata Name TypeIdent
     | DLet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
-    | DFun edata Name [(Pattern tagtype, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | DFun edata !(FunctionDecl idtype tagtype edata)
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]

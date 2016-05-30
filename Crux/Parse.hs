@@ -682,18 +682,26 @@ blockExpression = do
         -- of all ESemi is wrong
         _ -> foldl1 (ESemi (tokenData br)) body
 
+forallQualifier :: Parser [Name]
+forallQualifier = do
+    tforall <- token Tokens.TForall
+    braced $ commaDelimited typeVarName
+  where
+    typeVarName = anyIdentifier
+
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
+    fdForall <- maybe [] id <$> P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
     withIndentation (IRDeeper tfun) $ do
-        name <- anyIdentifier
-        params <- parenthesized $ commaDelimited funArgument
-        returnAnn <- P.optionMaybe $ do
+        fdName <- anyIdentifier
+        fdParams <- parenthesized $ commaDelimited funArgument
+        fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon
             returnTypeIdent
 
-        body <- blockExpression
-        return $ DFun (tokenData tfun) $ FunctionDecl name params returnAnn body
+        fdBody <- blockExpression
+        return $ DFun (tokenData tfun) FunctionDecl{..}
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

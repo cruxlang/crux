@@ -79,6 +79,7 @@ data TokenType
     | TReturn
     | TConst
     | TMutable
+    | TForall
     deriving (Show, Eq)
 
 data Token tdata = Token tdata TokenType

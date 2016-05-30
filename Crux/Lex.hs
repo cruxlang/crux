@@ -159,6 +159,7 @@ keyword = P.try $ do
         "return" -> return TReturn
         "const" -> return TConst
         "mutable" -> return TMutable
+        "forall" -> return TForall
         _ -> fail ""
 
 symbol :: Parser (Token Pos)

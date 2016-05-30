@@ -42,6 +42,7 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     , fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
     , fdReturnAnnot :: !(Maybe TypeIdent)
     , fdBody        :: !(Expression idtype tagtype edata)
+    , fdForall      :: [Name]
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
@@ -283,3 +284,6 @@ data TypeIdent
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
     deriving (Show, Eq)
+
+data TypeConstraint
+    = Unconstrained Name

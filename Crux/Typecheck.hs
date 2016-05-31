@@ -7,7 +7,7 @@ module Crux.Typecheck
 import Crux.AST
 import Crux.Error
 import Crux.Module.Types
-import qualified Crux.MutableHashTable as HashTable
+import qualified Crux.HashTable as HashTable
 import Crux.Prelude
 import Crux.Typecheck.Env
 import Crux.Typecheck.Monad

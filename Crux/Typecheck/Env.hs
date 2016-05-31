@@ -22,7 +22,7 @@ import qualified Crux.Error as Error
 import Crux.Intrinsic (Intrinsic (..))
 import qualified Crux.Intrinsic as Intrinsic
 import Crux.Module.Types
-import qualified Crux.MutableHashTable as HashTable
+import qualified Crux.HashTable as HashTable
 import Crux.Prelude
 import Crux.Text (isCapitalized)
 import Crux.Typecheck.Monad

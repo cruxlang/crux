@@ -12,6 +12,7 @@ library
     exposed-modules: Crux.AST
                    , Crux.Error
                    , Crux.Gen
+                   , Crux.HashTable
                    , Crux.Intrinsic
                    , Crux.IORef
                    , Crux.JSBackend
@@ -21,10 +22,10 @@ library
                    , Crux.Main
                    , Crux.Module
                    , Crux.Module.Types
-                   , Crux.MutableHashTable
                    , Crux.Parse
                    , Crux.Prelude
                    , Crux.Project
+                   , Crux.SymbolTable
                    , Crux.Text
                    , Crux.Tokens
                    , Crux.Typecheck

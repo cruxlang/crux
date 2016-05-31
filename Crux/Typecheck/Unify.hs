@@ -4,7 +4,7 @@ module Crux.Typecheck.Unify where
 
 import Crux.AST
 import Crux.Error
-import qualified Crux.MutableHashTable as HashTable
+import qualified Crux.HashTable as HashTable
 import Crux.Prelude
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Types

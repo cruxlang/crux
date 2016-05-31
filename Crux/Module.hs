@@ -20,7 +20,7 @@ import qualified Crux.AST as AST
 import qualified Crux.Error as Error
 import qualified Crux.Lex as Lex
 import Crux.Module.Types as AST
-import qualified Crux.MutableHashTable as HashTable
+import qualified Crux.HashTable as HashTable
 import qualified Crux.Parse as Parse
 import Crux.Prelude
 import qualified Crux.Tokens as Tokens

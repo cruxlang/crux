@@ -1,11 +1,18 @@
-module Crux.MutableHashTable where
+module Crux.SymbolTable
+    ( SymbolTable
+    , new
+    ) where
 
 import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
 
-new :: MonadIO m => m (IORef (HashMap key value))
-new = newIORef HashMap.empty
+type Name = Text
+newtype SymbolTable v = SymbolTable (IORef (HashMap Name v))
 
+new :: MonadIO m => m (SymbolTable value)
+new = SymbolTable <$> newIORef HashMap.empty
+
+{-
 read :: MonadIO m => IORef (HashMap key value) -> m (HashMap key value)
 read = readIORef
 
@@ -36,3 +43,4 @@ mergeImmutable :: (Eq key, Hashable key, MonadIO m) => IORef (HashMap key value)
 mergeImmutable a b = do
     a' <- readIORef a
     newIORef $ HashMap.union a' b
+-}

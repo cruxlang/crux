@@ -7,7 +7,7 @@ module Crux.Typecheck
 import Crux.AST
 import Crux.Error
 import Crux.Module.Types
-import qualified Crux.HashTable as HashTable
+import qualified Crux.SymbolTable as SymbolTable
 import Crux.Prelude
 import Crux.Typecheck.Env
 import Crux.Typecheck.Monad
@@ -28,7 +28,7 @@ buildPatternEnv env pos exprType mut = \case
         return PWildcard
 
     PBinding pname -> do
-        HashTable.insert pname (ValueReference (Local pname) mut exprType) (eValueBindings env)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates pname (ValueReference (Local pname) mut exprType)
         return $ PBinding pname
 
     PConstructor unresolvedReference () cargs -> do
@@ -51,7 +51,7 @@ buildPatternEnv env pos exprType mut = \case
 
 lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do
-    HashTable.lookup name eValueBindings >>= \case
+    SymbolTable.lookup eValueBindings name >>= \case
         Just (ValueReference a b c) -> return $ Just (a, b, c)
         _ -> return $ Nothing
 
@@ -158,7 +158,7 @@ weaken level e = do
 check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 check' expectedType env = \case
     EFun pos params retAnn body -> do
-        valueBindings' <- HashTable.clone (eValueBindings env)
+        valueBindings' <- SymbolTable.clone (eValueBindings env)
 
         -- If we know the expected function type, then use its type variables
         -- rather than make new ones.
@@ -249,7 +249,7 @@ check' expectedType env = \case
                 return $ ELookup ty lhs' propName
         case lhs of
             EIdentifier pos' (UnqualifiedReference name) -> do
-                HashTable.lookup name (eValueBindings env) >>= \case
+                SymbolTable.lookup (eValueBindings env) name >>= \case
                     Just (ModuleReference mn) -> do
                         check env $ EIdentifier pos' $ KnownReference mn propName
                     _ -> valueLookup
@@ -421,8 +421,8 @@ check' expectedType env = \case
         (arrayType, iteratorType) <- resolveArrayType env pos Immutable
         over' <- checkExpecting arrayType env over
 
-        bindings' <- HashTable.clone (eValueBindings env)
-        HashTable.insert name (ValueReference (Local name) Immutable iteratorType) bindings'
+        bindings' <- SymbolTable.clone (eValueBindings env)
+        SymbolTable.insert bindings' SymbolTable.DisallowDuplicates name (ValueReference (Local name) Immutable iteratorType)
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
@@ -479,7 +479,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DDeclare _pos name typeIdent -> do
         ty <- resolveTypeIdent env pos NewTypesAreQuantified typeIdent
-        HashTable.insert name (ValueReference (Ambient name) Immutable ty) (eValueBindings env)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Ambient name) Immutable ty)
         return $ DDeclare ty name typeIdent
     DLet pos' mut pat maybeAnnot expr -> do
         env' <- childEnv env
@@ -501,7 +501,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             PWildcard -> do
                 return PWildcard
             PBinding name -> do
-                HashTable.insert name (ValueReference (ThisModule name) mut ty) (eValueBindings env)
+                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (ThisModule name) mut ty)
                 return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings is not supported"
@@ -510,7 +510,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     DFun pos' FunctionDecl{..} -> do
         let expr = EFun pos' fdParams fdReturnAnnot fdBody
         ty <- freshType env
-        HashTable.insert fdName (ValueReference (ThisModule fdName) Immutable ty) (eValueBindings env)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates fdName (ValueReference (ThisModule fdName) Immutable ty)
         expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty
@@ -528,10 +528,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
 
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
-            (Just (ValueReference _rr _mut ctorType)) <- HashTable.lookup vname (eValueBindings env)
+            (Just (ValueReference _rr _mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
             return $ Variant ctorType vname vparameters
 
         return $ DData typeVar name moduleName typeParameters typedVariants
@@ -541,14 +541,14 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
         return $ DJSData typeVar name moduleName variants
     DTypeAlias _pos name typeVars ident -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeReference typeVar)) <- HashTable.lookup name (eTypeBindings env)
+        (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
         return $ DTypeAlias typeVar name typeVars ident
     DException _pos name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent

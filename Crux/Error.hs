@@ -46,6 +46,7 @@ data Error
     | CircularImport AST.ModuleName
     | InternalCompilerError InternalCompilerError
     | TypeError Tokens.Pos TypeError
+    | DuplicateSymbol Text
     deriving (Eq, Show)
 
 renderError :: AST.ModuleName -> Error -> IO String
@@ -54,16 +55,19 @@ renderError moduleName err = do
     return $ "At " ++ Text.unpack (AST.printModuleName moduleName) ++ ": " ++ e
 
 renderError' :: Error -> IO String
-renderError' (LexError e) = return $ "Lex error: " ++ show e
-renderError' (ParseError e) = return $ "Parse error: " ++ show e
-renderError' (ModuleNotFound mn) = return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError' (CircularImport mn) = return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
-renderError' (InternalCompilerError ice) = return $ "ICE: " ++ case ice of
-    DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
-    StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
-renderError' (TypeError pos ue) = do
-    te <- typeErrorToString ue
-    return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
+renderError' = \case
+    LexError e -> return $ "Lex error: " ++ show e
+    ParseError e -> return $ "Parse error: " ++ show e
+    ModuleNotFound mn -> return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
+    CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
+    InternalCompilerError ice -> return $ "ICE: " ++ case ice of
+        DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
+        StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
+    TypeError pos ue -> do
+        te <- typeErrorToString ue
+        return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
+    DuplicateSymbol name -> do
+        return $ "Duplicate symbol: " ++ Text.unpack name
 
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
@@ -76,6 +80,7 @@ getErrorName = \case
     CircularImport _ -> "circular-import"
     InternalCompilerError _ -> "internal"
     TypeError _ _ -> "type"
+    DuplicateSymbol _ -> "duplicate-symbol"
 
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case

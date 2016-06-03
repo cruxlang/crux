@@ -5,11 +5,11 @@ data List a {
 
 let s = Cons(5, Cons(6, Cons(7, Nil)))
 
-fun len(list) {
+fun length(list) {
     match list {
         Nil => 0
-        Cons(x, tail) => 1 + len(tail)
+        Cons(x, tail) => 1 + length(tail)
     }
 }
 
-let _ = print(len(s))
+let _ = print(length(s))

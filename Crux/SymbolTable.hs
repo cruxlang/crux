@@ -1,35 +1,55 @@
 module Crux.SymbolTable
     ( SymbolTable
+    , InsertPolicy(..)
     , new
+    , clone
+    , readAll
+    , lookup
+    , insert
     ) where
 
+import Prelude hiding (lookup)
 import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
+import Crux.Typecheck.Monad (TC, Warning(..), recordWarning, failError)
+import Crux.Error (Error(DuplicateSymbol))
 
 type Name = Text
 newtype SymbolTable v = SymbolTable (IORef (HashMap Name v))
 
+data InsertPolicy = WarnOnShadow | DisallowDuplicates
+
 new :: MonadIO m => m (SymbolTable value)
 new = SymbolTable <$> newIORef HashMap.empty
 
+clone :: MonadIO m => SymbolTable value -> m (SymbolTable value)
+clone (SymbolTable ref) = do
+    h <- readIORef ref
+    SymbolTable <$> newIORef h
+
+readAll :: MonadIO m => SymbolTable value -> m (HashMap Name value)
+readAll (SymbolTable ref) = readIORef ref
+
+insert :: SymbolTable value -> InsertPolicy -> Name -> value -> TC ()
+insert (SymbolTable ref) policy key value = do
+    hm <- readIORef ref
+    case HashMap.lookup key hm of
+        Nothing ->
+            writeIORef ref $ HashMap.insert key value hm
+        Just _ -> case policy of
+            WarnOnShadow -> do
+                -- TODO: a real warning
+                recordWarning Warning
+                writeIORef ref $ HashMap.insert key value hm
+            DisallowDuplicates -> do
+                failError $ DuplicateSymbol key
+
+lookup :: MonadIO m => SymbolTable value -> Name -> m (Maybe value)
+lookup (SymbolTable ref) key = do
+    hm <- readIORef ref
+    return $ HashMap.lookup key hm
+
 {-
-read :: MonadIO m => IORef (HashMap key value) -> m (HashMap key value)
-read = readIORef
-
-insert :: (Hashable key, Eq key, MonadIO m) => key -> value -> IORef (HashMap key value) -> m ()
-insert k v hm = do
-    modifyIORef hm $ HashMap.insert k v
-
-lookup :: (Hashable key, Eq key, MonadIO m) => key -> IORef (HashMap key value) -> m (Maybe value)
-lookup k hm = do
-    h <- readIORef hm
-    return $ HashMap.lookup k h
-
-clone :: MonadIO m => IORef (HashMap key value) -> m (IORef (HashMap key value))
-clone hm = do
-    h <- readIORef hm
-    newIORef h
-
 -- Create a new mutable hash table containing the union of the two provided mutable hash tables
 merge :: (Eq key, Hashable key, MonadIO m) => IORef (HashMap key value) -> IORef (HashMap key value) -> m (IORef (HashMap key value))
 merge a b = do

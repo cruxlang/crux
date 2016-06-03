@@ -16,11 +16,11 @@ export fun len(a: [a]): Number {
     _unsafe_coerce(a).length
 }
 
-export fun replicate(element: a, len: Number): [a] {
-    let arr = _unsafe_new(len);
+export fun replicate(element: a, length: Number): [a] {
+    let arr = _unsafe_new(length);
 
     let mutable i = 0;
-    while i < len {
+    while i < length {
         _unsafe_set(arr, i, element)
         i = i + 1
     };

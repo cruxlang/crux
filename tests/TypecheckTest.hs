@@ -4,12 +4,12 @@
 module TypecheckTest (htf_thisModulesTests) where
 
 import           Crux.AST
-import           Crux.Prelude
 import qualified Crux.Typecheck.Env   as Env
 import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types
 import qualified Data.HashMap.Strict  as HashMap
 import           Data.List            (sort)
+import qualified Crux.SymbolTable as SymbolTable
 import           Test.Framework
 
 test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
@@ -30,5 +30,5 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             [ ("A", aModule) ]
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
-    types <- readIORef (eTypeBindings env)
+    types <- SymbolTable.readAll (eTypeBindings env)
     assertEqual ["Number", "String"] $ sort $ HashMap.keys types

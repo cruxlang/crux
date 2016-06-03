@@ -12,11 +12,7 @@ import Crux.AST (ModuleName, Mutability, ResolvedReference)
 import Crux.Module.Types (LoadedModule, PatternTag (..))
 import Crux.Prelude
 import Crux.TypeVar (TUserTypeDef (..), TypeLevel (..), TypeVar (..))
-
--- TODO: newtype this somewhere and import it
-type Name = Text
-
-type HashTable k v = IORef (HashMap k v)
+import Crux.SymbolTable (SymbolTable)
 
 data ValueReference
     = ValueReference ResolvedReference Mutability TypeVar
@@ -32,10 +28,10 @@ data Env = Env
     { eThisModule        :: ModuleName
     , eLoadedModules     :: HashMap ModuleName LoadedModule
     , eNextTypeIndex     :: IORef Int
-    , eValueBindings     :: HashTable Name ValueReference
-    , eTypeBindings      :: HashTable Name TypeReference
-    , ePatternBindings   :: HashTable Name PatternReference
-    , eExceptionBindings :: HashTable Name ExceptionReference
+    , eValueBindings     :: SymbolTable ValueReference
+    , eTypeBindings      :: SymbolTable TypeReference
+    , ePatternBindings   :: SymbolTable PatternReference
+    , eExceptionBindings :: SymbolTable ExceptionReference
     , eReturnType        :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop            :: !Bool
     , eLevel             :: !TypeLevel

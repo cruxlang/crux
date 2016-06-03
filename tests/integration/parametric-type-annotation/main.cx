@@ -1,2 +1,3 @@
-data Option a { None, Some(a) }
-let x: Option Number = Some(22)
+
+data Option2 a { None2, Some2(a) }
+let x: Option2 Number = Some2(22)

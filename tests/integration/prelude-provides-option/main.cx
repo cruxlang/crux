@@ -1,2 +1,2 @@
 let a = None
-let a = Some(8)
+let b = Some(8)

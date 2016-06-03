@@ -2,6 +2,7 @@
 
 module Crux.Typecheck.Monad
     ( TC
+    , Warning(..)
     , recordError
     , failError
     , failICE
@@ -18,7 +19,7 @@ import Crux.Error
 import Crux.Prelude
 import Crux.Tokens (Pos)
 
-data Warning -- TODO: move this into Crux.Warning
+data Warning = Warning -- TODO: move this into Crux.Warning and give it real options
 
 data TCState = TCState
     { tcWarnings :: IORef [Warning]

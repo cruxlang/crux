@@ -1,8 +1,9 @@
 data IntList { Cons(Number, IntList), Nil }
-fun len(l) {
+
+fun length(l) {
     match l {
         Nil => 0
-        Cons(num, tail) => 1 + len(tail)
+        Cons(num, tail) => 1 + length(tail)
     }
 }
-let _ = print(len(Cons(5, Nil)))
+let _ = print(length(Cons(5, Nil)))

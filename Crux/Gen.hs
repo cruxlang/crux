@@ -382,11 +382,11 @@ generateProgram :: AST.Program -> IO Program
 generateProgram AST.Program{..} = do
     let allModules = HashMap.toList pOtherModules
 
-    let nodes = [(m, mn, fmap snd $ importsOf m) | (mn, m) <- allModules]
+    let nodes = [(m, mn, fmap snd $ importsOf $ AST.lmModule m) | (mn, m) <- allModules]
     let (graph, getModule, _) = graphFromEdges nodes
 
     -- topologically sort
     let sortedModules = map getModule $ reverse $ topSort graph
 
     for sortedModules $ \(mod', moduleName, _) ->
-        fmap (moduleName,) $ generateModule mod'
+        fmap (moduleName,) $ generateModule $ AST.lmModule mod'

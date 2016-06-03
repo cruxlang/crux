@@ -8,6 +8,7 @@ import qualified Crux.Gen       as Gen
 import qualified Crux.JSBackend as JS
 import qualified Crux.JSTree    as JSTree
 import qualified Crux.Module
+import qualified Crux.Module.Types as MT
 import           Data.Text      (Text)
 import           Test.Framework
 
@@ -18,7 +19,7 @@ genDoc' src = do
         Left (_, err) ->
             return $ Left err
         Right m -> do
-            modul <- Gen.generateModule m
+            modul <- Gen.generateModule $ MT.lmModule m
             return $ Right $ JSTree.renderDocument $ JS.generateModule modul
 
 genDoc :: Text -> IO Text

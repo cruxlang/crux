@@ -583,4 +583,5 @@ run loadedModules thisModule thisModuleName = do
     decls <- for (mDecls thisModule) $ \decl -> do
         checkDecl env decl
 
-    return $ thisModule{ mDecls = decls }
+    let lmModule = thisModule{ mDecls = decls }
+    return LoadedModule{..}

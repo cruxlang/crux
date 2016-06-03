@@ -1,6 +1,6 @@
 module Crux.Module.Types
     ( PatternTag(..)
-    , LoadedModule
+    , LoadedModule(..)
     , Program(..)
     ) where
 
@@ -16,7 +16,10 @@ data PatternTag
     | TagLiteral JSTree.Literal
     deriving (Eq, Show)
 
-type LoadedModule = Module ResolvedReference PatternTag TypeVar
+data LoadedModule = LoadedModule
+    { lmModule :: Module ResolvedReference PatternTag TypeVar
+    }
+    deriving (Eq)
 
 data Program = Program
     { pMainModule   :: LoadedModule

@@ -8,6 +8,7 @@ import qualified Crux.AST          as AST
 import qualified Crux.Error        as Error
 import qualified Crux.Gen          as Gen
 import qualified Crux.Module
+import qualified Crux.Module.Types
 import           Data.Text         (Text)
 import           GHC.Exception     (ErrorCall (..))
 import           Test.Framework
@@ -19,7 +20,7 @@ genDoc' src = do
         Left (_, err) ->
             return $ Left err
         Right m -> do
-            fmap Right $ Gen.generateModule m
+            fmap Right $ Gen.generateModule $ Crux.Module.Types.lmModule m
 
 genDoc :: Text -> IO Gen.Module
 genDoc src = do

@@ -298,7 +298,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     return env
 
 getAllExportedValues :: LoadedModule -> [(Name, (Mutability, TypeVar))]
-getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+getAllExportedValues LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
     DDeclare typeVar name _typeIdent -> [(name, (Immutable, typeVar))]
     -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
     DLet typeVar mutability binding _ _ -> case binding of
@@ -312,7 +312,7 @@ getAllExportedValues loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecl
     DException _ _ _ -> []
 
 getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedExceptions loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
@@ -322,7 +322,7 @@ getAllExportedExceptions loadedModule = mconcat $ (flip fmap $ exportedDecls $ m
     DException typeVar name _ -> [(name, typeVar)]
 
 getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+getAllExportedTypes LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
@@ -332,7 +332,7 @@ getAllExportedTypes loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls
     DException _ _ _ -> []
 
 getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
-getAllExportedPatterns loadedModule = mconcat $ (flip fmap $ exportedDecls $ mDecls loadedModule) $ \case
+getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []

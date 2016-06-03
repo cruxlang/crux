@@ -4,6 +4,7 @@
 module TypecheckTest (htf_thisModulesTests) where
 
 import           Crux.AST
+import Crux.Module.Types
 import qualified Crux.Typecheck.Env   as Env
 import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types
@@ -27,7 +28,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             , mDecls = []
             }
     let loadedModules = HashMap.fromList
-            [ ("A", aModule) ]
+            [ ("A", LoadedModule { lmModule = aModule }) ]
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- SymbolTable.readAll (eTypeBindings env)

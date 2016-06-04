@@ -308,7 +308,7 @@ getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls
     DDeclare _ _ _ -> []
     DLet _ _ _ _ _ -> []
     DFun _ _ -> []
-    DData _ _ _ _ _ -> []
+    DData _ _ _ _ -> []
     DJSData _ _ _ -> []
     DTypeAlias _ _ _ _ -> []
     DException typeVar name _ -> [(name, typeVar)]
@@ -318,7 +318,7 @@ getAllExportedTypes LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mD
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
-    DData typeVar name _ _ _ -> [(name, typeVar)]
+    DData typeVar name _ _ -> [(name, typeVar)]
     DJSData typeVar name _ -> [(name, typeVar)]
     DTypeAlias typeVar name _ _ -> [(name, typeVar)]
     DException _ _ _ -> []
@@ -328,7 +328,7 @@ getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
-    DData typeVar _name _ _ variants -> do
+    DData typeVar _name _ variants -> do
         let def = case typeVar of
                 TUserType d -> d
                 TTypeFun _ (TUserType d) -> d
@@ -447,17 +447,17 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     -- Phase 2b.
     dataDecls <- fmap catMaybes $ for decls $ \case
-        DData pos name moduleName typeVarNames variants ->
-            return $ Just (pos, name, moduleName, typeVarNames, variants)
+        DData pos name typeVarNames variants ->
+            return $ Just (pos, name, typeVarNames, variants)
         _ ->
             return Nothing
 
-    dataDecls' <- for dataDecls $ \(pos, typeName, moduleName, typeVarNames, variants) -> do
+    dataDecls' <- for dataDecls $ \(pos, typeName, typeVarNames, variants) -> do
         e <- childEnv env
         tyVars <- for typeVarNames $ \tvName ->
             resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
 
-        typeDef <- createUserTypeDef e typeName moduleName tyVars variants
+        typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
         let tyVar = TUserType typeDef
         let typeRef = case tyVars of
                 [] -> tyVar

@@ -15,7 +15,7 @@ import Crux.Tokens as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec as P
 
-type Parser = P.ParsecT [Token Pos] () (Reader (ModuleName, IndentReq))
+type Parser = P.ParsecT [Token Pos] () (Reader IndentReq)
 type ParseData = Pos
 type ParseExpression = Expression UnresolvedReference () ParseData
 type ParseDeclaration = DeclarationType UnresolvedReference () ParseData
@@ -52,15 +52,12 @@ indentationPredicate p = \case
             then IndentOK
             else UnexpectedDedent $ "Expected indentation at or past " ++ show t ++ " p = " ++ show p
 
-readModuleName :: MonadReader (a, b) f => f a
-readModuleName = fmap fst ask
-
-readIndentReq :: MonadReader (a, b) f => f b
-readIndentReq = fmap snd ask
+readIndentReq :: MonadReader a f => f a
+readIndentReq = ask
 
 -- Temporarily adjust the indentation policy for a parser
-withIndentation :: MonadReader (a, b) m => b -> m r -> m r
-withIndentation i = local $ \(mn, _) -> (mn, i)
+withIndentation :: MonadReader a m => a -> m r -> m r
+withIndentation i = local $ \_ -> i
 
 enclosed :: Parser (Token Pos) -> Parser b -> Parser a -> Parser (Pos, a)
 enclosed open close body = do
@@ -613,8 +610,7 @@ cruxDataDeclaration pos = do
     typeVars <- P.many typeVariableName
 
     variants <- braced $ commaDelimited variantDefinition
-    moduleName <- readModuleName
-    return $ DData pos name moduleName typeVars variants
+    return $ DData pos name typeVars variants
 
 jsValue :: Parser JSTree.Literal
 jsValue =
@@ -764,10 +760,10 @@ parseModule = do
         , mDecls = doc
         }
 
-runParser :: Parser a -> ModuleName -> P.SourceName -> [Token Pos] -> Either P.ParseError a
-runParser parser moduleName sourceName tokens = do
+runParser :: Parser a -> P.SourceName -> [Token Pos] -> Either P.ParseError a
+runParser parser sourceName tokens = do
     let parseResult = P.runParserT parser () sourceName tokens
-    runReader parseResult (moduleName, IRLeftMost)
+    runReader parseResult IRLeftMost
 
-parse :: ModuleName -> P.SourceName -> [Token Pos] -> Either P.ParseError ParsedModule
+parse :: P.SourceName -> [Token Pos] -> Either P.ParseError ParsedModule
 parse = runParser parseModule

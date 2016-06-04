@@ -535,7 +535,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     {- TYPE DEFINITIONS -}
 
-    DData _pos name moduleName typeParameters variants -> do
+    DData _pos name typeParameters variants -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
@@ -548,7 +548,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (OtherModule (eThisModule env) vname, mut, ctorType)
             return $ Variant ctorType vname vparameters
 
-        return $ DData typeVar name moduleName typeParameters typedVariants
+        return $ DData typeVar name typeParameters typedVariants
 
     DJSData _pos name variants -> do
         -- TODO: add an internal compiler error if the name is not in bindings

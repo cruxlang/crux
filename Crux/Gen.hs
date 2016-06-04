@@ -351,7 +351,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
         AST.DDeclare _ _ _ -> do
             -- declarations are not reflected into the IR
             return ()
-        AST.DData _ name _ _ variants -> do
+        AST.DData _ name _ variants -> do
             writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
         AST.DJSData _ name variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants

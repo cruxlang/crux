@@ -44,6 +44,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eTypeBindings <- SymbolTable.new
     ePatternBindings <- SymbolTable.new
     eExceptionBindings <- SymbolTable.new
+    eExportedValues <- SymbolTable.new
     return Env
         { eInLoop = False
         , eLevel = 1
@@ -176,8 +177,8 @@ resolveValueReference env pos ref = case ref of
             resolveValueReference env pos (UnqualifiedReference name)
         else do
             case findExportedValueByName env moduleName name of
-                Just (mutability, typevar) ->
-                    return (OtherModule moduleName name, mutability, typevar)
+                Just (rref, mutability, typevar) ->
+                    return (rref, mutability, typevar)
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 {-
@@ -282,8 +283,8 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference typeVar)
 
             -- populate values
-            for_ (getAllExportedValues $ importedModule) $ \(name, (mutability, tr)) -> do
-                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (OtherModule importName name) mutability tr)
+            for_ (getAllExportedValues $ importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
+                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
 
             -- populate patterns
             for_ (getAllExportedPatterns $ importedModule) $ \(name, pb) -> do
@@ -297,28 +298,19 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     return env
 
-getAllExportedValues :: LoadedModule -> [(Name, (Mutability, TypeVar))]
-getAllExportedValues LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare typeVar name _typeIdent -> [(name, (Immutable, typeVar))]
-    -- TODO: support trickier patterns, like export let (x, y) = (1, 2)
-    DLet typeVar mutability binding _ _ -> case binding of
-        PBinding name -> [(name, (mutability, typeVar))]
-        PConstructor {} -> error "FIXME: Top-level pattern matches are not yet implemented"
-        PWildcard -> []
-    DFun typeVar FunctionDecl{fdName} -> [(fdName, (Immutable, typeVar))]
-    DData _ _ _ _ variants -> fmap (\(Variant typeVar name _) -> (name, (Immutable, typeVar))) variants
-    DJSData typeVar _ _ variants -> fmap (\(JSVariant name _) -> (name, (Immutable, typeVar))) variants
-    DTypeAlias _ _ _ _ -> []
-    DException _ _ _ -> []
+getAllExportedValues :: LoadedModule -> [(Name, (ResolvedReference, Mutability, TypeVar))]
+getAllExportedValues loadedModule =
+    let f (name, ref, mut, tv) = (name, (ref, mut, tv))
+    in fmap f $ lmExportedValues loadedModule
 
 getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare {} -> []
-    DLet {} -> []
-    DFun {} -> []
-    DData {} -> []
-    DJSData {} -> []
-    DTypeAlias {} -> []
+    DDeclare _ _ _ -> []
+    DLet _ _ _ _ _ -> []
+    DFun _ _ -> []
+    DData _ _ _ _ _ -> []
+    DJSData _ _ _ _ -> []
+    DTypeAlias _ _ _ _ -> []
     DException typeVar name _ -> [(name, typeVar)]
 
 getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
@@ -361,7 +353,7 @@ findExportByName getExports env moduleName valueName = do
         else
             Nothing
 
-findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (Mutability, TypeVar)
+findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
 findExportedValueByName = findExportByName getAllExportedValues
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar

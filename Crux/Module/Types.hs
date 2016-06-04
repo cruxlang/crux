@@ -4,7 +4,7 @@ module Crux.Module.Types
     , Program(..)
     ) where
 
-import Crux.AST (Module, ModuleName, ResolvedReference)
+import Crux.AST (Module, ModuleName, Mutability, ResolvedReference)
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.TypeVar (TypeVar)
@@ -18,8 +18,13 @@ data PatternTag
 
 data LoadedModule = LoadedModule
     { lmModule :: Module ResolvedReference PatternTag TypeVar
-    }
-    deriving (Eq)
+    , lmExportedValues :: [(Name, ResolvedReference, Mutability, TypeVar)]
+    --, lmExportedTypes :: [(Name, TypeVar)]
+    --, lmExportedPatterns :: [Name]
+    --, lmExportedExceptions :: [(Name, TypeVar)]
+    } deriving (Eq)
+
+--type CheckedModule = Module ResolvedReference PatternTag TypeVar
 
 data Program = Program
     { pMainModule   :: LoadedModule

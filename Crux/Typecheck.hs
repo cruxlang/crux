@@ -469,6 +469,11 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
 
+exportValue :: ExportFlag -> Env -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
+exportValue export env name value = do
+    when (export == Export) $ do
+        SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates name value
+
 checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference PatternTag TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
@@ -479,7 +484,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DDeclare _pos name typeIdent -> do
         ty <- resolveTypeIdent env pos NewTypesAreQuantified typeIdent
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Ambient name) Immutable ty)
+        let resolvedRef = Ambient name
+        let mut = Immutable
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
+        exportValue export env name (resolvedRef, mut, ty)
         return $ DDeclare ty name typeIdent
     DLet pos' mut pat maybeAnnot expr -> do
         env' <- childEnv env
@@ -500,16 +508,20 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         pat' <- case pat of
             PWildcard -> do
                 return PWildcard
+                -- TODO: warn if export
             PBinding name -> do
                 SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (ThisModule name) mut ty)
+                exportValue export env name (OtherModule (eThisModule env) name, mut, ty)
                 return $ PBinding name
             PConstructor {} ->
-                error "Patterns on top-level let bindings is not supported"
+                error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
         quantify ty
+
         return $ DLet (edata expr'') mut pat' maybeAnnot expr''
     DFun pos' FunctionDecl{..} -> do
         let expr = EFun pos' fdParams fdReturnAnnot fdBody
         ty <- freshType env
+        exportValue export env fdName (OtherModule (eThisModule env) fdName, Immutable, ty)
         SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates fdName (ValueReference (ThisModule fdName) Immutable ty)
         expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
@@ -531,7 +543,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
 
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
-            (Just (ValueReference _rr _mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
+            (Just (ValueReference _rr mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
+            when (export == Export) $ do
+                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (OtherModule (eThisModule env) vname, mut, ctorType)
             return $ Variant ctorType vname vparameters
 
         return $ DData typeVar name moduleName typeParameters typedVariants
@@ -542,6 +556,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
+        when (export == Export) $ do
+            for_ variants $ \(JSVariant vname _) -> do
+                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (OtherModule (eThisModule env) vname, Immutable, typeVar)
         return $ DJSData typeVar name moduleName variants
     DTypeAlias _pos name typeVars ident -> do
         -- TODO: add an internal compiler error if the name is not in bindings
@@ -583,5 +600,7 @@ run loadedModules thisModule thisModuleName = do
     decls <- for (mDecls thisModule) $ \decl -> do
         checkDecl env decl
 
+    exportedValues <- SymbolTable.readAll $ eExportedValues env
     let lmModule = thisModule{ mDecls = decls }
-    return LoadedModule{..}
+    let lmExportedValues = map (\(k, (a, b, c)) -> (k, a, b, c)) $ HashMap.toList exportedValues
+    return $ LoadedModule{..}

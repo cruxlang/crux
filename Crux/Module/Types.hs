@@ -18,7 +18,7 @@ data PatternTag
 
 data LoadedModule = LoadedModule
     { lmModule :: Module ResolvedReference PatternTag TypeVar
-    , lmExportedValues :: [(Name, ResolvedReference, Mutability, TypeVar)]
+    , lmExportedValues :: [(Name, (ResolvedReference, Mutability, TypeVar))]
     --, lmExportedTypes :: [(Name, TypeVar)]
     --, lmExportedPatterns :: [Name]
     --, lmExportedExceptions :: [(Name, TypeVar)]

@@ -605,5 +605,5 @@ run loadedModules thisModule thisModuleName = do
 
     exportedValues <- SymbolTable.readAll $ eExportedValues env
     let lmModule = thisModule{ mDecls = decls }
-    let lmExportedValues = map (\(k, (a, b, c)) -> (k, a, b, c)) $ HashMap.toList exportedValues
+    let lmExportedValues = HashMap.toList exportedValues
     return $ LoadedModule{..}

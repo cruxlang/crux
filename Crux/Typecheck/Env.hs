@@ -301,9 +301,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     return env
 
 getAllExportedValues :: LoadedModule -> [(Name, (ResolvedReference, Mutability, TypeVar))]
-getAllExportedValues loadedModule =
-    let f (name, ref, mut, tv) = (name, (ref, mut, tv))
-    in fmap f $ lmExportedValues loadedModule
+getAllExportedValues loadedModule = lmExportedValues loadedModule
 
 getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case

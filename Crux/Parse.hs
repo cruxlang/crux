@@ -637,8 +637,7 @@ jsDataDeclaration pos = do
     _ <- token TJSFFI
     name <- typeName
     variants <- braced $ commaDelimited jsVariantDefinition
-    moduleName <- readModuleName
-    return $ DJSData pos name moduleName variants
+    return $ DJSData pos name variants
 
 dataDeclaration :: Parser ParseDeclaration
 dataDeclaration = do

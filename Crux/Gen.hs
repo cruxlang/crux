@@ -353,7 +353,7 @@ generateDecl env (AST.Declaration export _pos decl) = do
             return ()
         AST.DData _ name _ _ variants -> do
             writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
-        AST.DJSData _ name _ variants -> do
+        AST.DJSData _ name variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun _ funDecl -> do -- name params _retAnn body -> do
             let AST.FunctionDecl{..} = funDecl

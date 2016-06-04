@@ -309,7 +309,7 @@ getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls
     DLet _ _ _ _ _ -> []
     DFun _ _ -> []
     DData _ _ _ _ _ -> []
-    DJSData _ _ _ _ -> []
+    DJSData _ _ _ -> []
     DTypeAlias _ _ _ _ -> []
     DException typeVar name _ -> [(name, typeVar)]
 
@@ -319,7 +319,7 @@ getAllExportedTypes LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mD
     DLet {} -> []
     DFun {} -> []
     DData typeVar name _ _ _ -> [(name, typeVar)]
-    DJSData typeVar name _ _ -> [(name, typeVar)]
+    DJSData typeVar name _ -> [(name, typeVar)]
     DTypeAlias typeVar name _ _ -> [(name, typeVar)]
     DException _ _ _ -> []
 
@@ -336,7 +336,7 @@ getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
             (name, PatternReference def $ TagVariant name)
 
-    DJSData typeVar _name _ jsVariants ->
+    DJSData typeVar _name jsVariants ->
         let (TUserType def) = typeVar in
         (flip fmap) jsVariants $ \(JSVariant name literal) ->
             (name, PatternReference def $ TagLiteral literal)
@@ -373,7 +373,7 @@ registerJSFFIDecl env = \case
     DFun {} -> return ()
 
     DData {} -> return ()
-    DJSData _pos name moduleName variants -> do
+    DJSData _pos name variants -> do
         -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
         variants' <- for variants $ \(JSVariant variantName _value) -> do
             let tvParameters = []
@@ -383,7 +383,7 @@ registerJSFFIDecl env = \case
         let typeDef = TUserTypeDef
                 { tuName = name
                 , tuType = TDFfi
-                , tuModuleName = moduleName
+                , tuModuleName = eThisModule env
                 , tuParameters = []
                 , tuVariants = variants'
                 }

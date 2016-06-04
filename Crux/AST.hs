@@ -53,7 +53,7 @@ data DeclarationType idtype tagtype edata
     | DFun edata !(FunctionDecl idtype tagtype edata)
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
-    | DJSData edata Name ModuleName [JSVariant]
+    | DJSData edata Name [JSVariant]
     | DTypeAlias edata Name [Name] TypeIdent
     -- Exceptions
     | DException edata Name TypeIdent

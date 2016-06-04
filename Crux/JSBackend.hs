@@ -89,11 +89,11 @@ renderOutput output input = case output of
     Gen.OutputProperty v name -> JSTree.SAssign (JSTree.ELookup (renderValue v) name) input
 
 renderResolvedReference' :: ResolvedReference -> Text
-renderResolvedReference' = \case
-    Ambient n -> renderJSName n
-    Local n -> renderJSName n
-    ThisModule n -> renderJSName n
-    OtherModule mn n -> renderModuleName mn <> "_" <> n
+renderResolvedReference' (reftype, name) = case reftype of
+    Ambient -> renderJSName name
+    Local -> renderJSName name
+    ThisModule -> renderJSName name
+    OtherModule mn -> renderModuleName mn <> "_" <> name
 
 renderResolvedReference :: ResolvedReference -> JSTree.Expression
 renderResolvedReference = JSTree.EIdentifier . renderResolvedReference'

@@ -105,18 +105,12 @@ getUnresolvedReferenceLeaf (KnownReference _ n) = n
 instance IsString UnresolvedReference where
     fromString = UnqualifiedReference . fromString
 
-data ResolvedReference
-    = Ambient Name
-    | Local Name
-    | ThisModule Name
-    | OtherModule ModuleName Name
+data ReferenceType = Ambient | Local | ThisModule | OtherModule ModuleName
     deriving (Show, Eq)
+type ResolvedReference = (ReferenceType, Name)
 
 resolvedReferenceName :: ResolvedReference -> Text
-resolvedReferenceName (Ambient t) = t
-resolvedReferenceName (Local t) = t
-resolvedReferenceName (ThisModule t) = t
-resolvedReferenceName (OtherModule _ t) = t
+resolvedReferenceName (_, n) = n
 
 data Import
     = UnqualifiedImport ModuleName

@@ -28,7 +28,7 @@ buildPatternEnv env pos exprType mut = \case
         return PWildcard
 
     PBinding pname -> do
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates pname (ValueReference (Local pname) mut exprType)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates pname (ValueReference (Local, pname) mut exprType)
         return $ PBinding pname
 
     PConstructor unresolvedReference () cargs -> do
@@ -335,7 +335,7 @@ check' expectedType env = \case
         resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
         (rr, tyref) <- resolveValueReference env pos txt >>= \case
-            (a@(Local _), _mutability, b) -> do
+            (a@(Local, _), _mutability, b) -> do
                 -- Don't instantiate locals.  Let generalization is tricky.
                 return (a, b)
             (a, _mutability, b) -> do
@@ -422,7 +422,7 @@ check' expectedType env = \case
         over' <- checkExpecting arrayType env over
 
         bindings' <- SymbolTable.clone (eValueBindings env)
-        SymbolTable.insert bindings' SymbolTable.DisallowDuplicates name (ValueReference (Local name) Immutable iteratorType)
+        SymbolTable.insert bindings' SymbolTable.DisallowDuplicates name (ValueReference (Local, name) Immutable iteratorType)
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
@@ -484,7 +484,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DDeclare _pos name typeIdent -> do
         ty <- resolveTypeIdent env pos NewTypesAreQuantified typeIdent
-        let resolvedRef = Ambient name
+        let resolvedRef = (Ambient, name)
         let mut = Immutable
         SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
         exportValue export env name (resolvedRef, mut, ty)
@@ -510,8 +510,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 return PWildcard
                 -- TODO: warn if export
             PBinding name -> do
-                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (ThisModule name) mut ty)
-                exportValue export env name (OtherModule (eThisModule env) name, mut, ty)
+                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (ThisModule, name) mut ty)
+                exportValue export env name ((OtherModule (eThisModule env), name), mut, ty)
                 return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
@@ -521,8 +521,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     DFun pos' FunctionDecl{..} -> do
         let expr = EFun pos' fdParams fdReturnAnnot fdBody
         ty <- freshType env
-        exportValue export env fdName (OtherModule (eThisModule env) fdName, Immutable, ty)
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates fdName (ValueReference (ThisModule fdName) Immutable ty)
+        exportValue export env fdName ((OtherModule (eThisModule env), fdName), Immutable, ty)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates fdName (ValueReference (ThisModule, fdName) Immutable ty)
         expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty
@@ -545,7 +545,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference _rr mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
             when (export == Export) $ do
-                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (OtherModule (eThisModule env) vname, mut, ctorType)
+                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname ((OtherModule (eThisModule env), vname), mut, ctorType)
             return $ Variant ctorType vname vparameters
 
         return $ DData typeVar name typeParameters typedVariants
@@ -558,7 +558,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
         when (export == Export) $ do
             for_ variants $ \(JSVariant vname _) -> do
-                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (OtherModule (eThisModule env) vname, Immutable, typeVar)
+                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname ((OtherModule (eThisModule env), vname), Immutable, typeVar)
         return $ DJSData typeVar name variants
     DTypeAlias _pos name typeVars ident -> do
         -- TODO: add an internal compiler error if the name is not in bindings

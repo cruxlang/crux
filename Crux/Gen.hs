@@ -188,11 +188,11 @@ generate env expr = case expr of
                 lhs' <- generate env lhs
                 for lhs' $ \lhs'' -> do
                     return $ OutputProperty lhs'' propName
-            AST.EIdentifier _ name -> case name of
-                AST.Ambient n -> return $ Just $ ExistingLocalBinding n
-                AST.Local n -> return $ Just $ ExistingLocalBinding n
-                AST.ThisModule n -> return $ Just $ ExistingLocalBinding n
-                AST.OtherModule _ _ -> fail "cannot assign to imported names"
+            AST.EIdentifier _ (reftype, n) -> case reftype of
+                AST.Ambient -> return $ Just $ ExistingLocalBinding n
+                AST.Local -> return $ Just $ ExistingLocalBinding n
+                AST.ThisModule -> return $ Just $ ExistingLocalBinding n
+                AST.OtherModule _ -> fail "cannot assign to imported names"
             _ -> fail "Unsupported assignment target"
 
         rhs' <- generate env rhs

@@ -474,6 +474,11 @@ exportValue export env name value = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates name value
 
+exportType :: ExportFlag -> Env -> Name -> TypeVar -> TC ()
+exportType export env name typeVar = do
+    when (export == Export) $ do
+        SymbolTable.insert (eExportedTypes env) SymbolTable.DisallowDuplicates name typeVar
+
 checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference PatternTag TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
@@ -544,10 +549,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
 
+        exportType export env name typeVar
+
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference rr mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
-            when (export == Export) $ do
-                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (rr, mut, ctorType)
+            exportValue export env vname (rr, mut, ctorType)
             return $ Variant ctorType vname vparameters
 
         return $ DData typeVar name typeParameters typedVariants
@@ -558,18 +564,24 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
+
+        exportType export env name typeVar
+
         when (export == Export) $ do
             for_ variants $ \(JSVariant vname _) -> do
                 let rr = (FromModule $ eThisModule env, vname)
                 SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (rr, Immutable, typeVar)
         return $ DJSData typeVar name variants
+
     DTypeAlias _pos name typeVars ident -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
+        exportType export env name typeVar
         return $ DTypeAlias typeVar name typeVars ident
+
     DException _pos name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
         return $ DException typeVar name typeIdent
@@ -603,7 +615,7 @@ run loadedModules thisModule thisModuleName = do
     decls <- for (mDecls thisModule) $ \decl -> do
         checkDecl env decl
 
-    exportedValues <- SymbolTable.readAll $ eExportedValues env
     let lmModule = thisModule{ mDecls = decls }
-    let lmExportedValues = HashMap.toList exportedValues
+    lmExportedValues <- HashMap.toList <$> SymbolTable.readAll (eExportedValues env)
+    lmExportedTypes <- HashMap.toList <$> SymbolTable.readAll (eExportedTypes env)
     return $ LoadedModule{..}

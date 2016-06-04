@@ -45,6 +45,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     ePatternBindings <- SymbolTable.new
     eExceptionBindings <- SymbolTable.new
     eExportedValues <- SymbolTable.new
+    eExportedTypes <- SymbolTable.new
     return Env
         { eInLoop = False
         , eLevel = 1
@@ -281,11 +282,11 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 Nothing -> failICE $ Error.DependentModuleNotLoaded pos importName
 
             -- populate types
-            for_ (getAllExportedTypes $ importedModule) $ \(name, typeVar) -> do
+            for_ (lmExportedTypes importedModule) $ \(name, typeVar) -> do
                 SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference typeVar)
 
             -- populate values
-            for_ (getAllExportedValues $ importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
+            for_ (lmExportedValues importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
                 SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
 
             -- populate patterns
@@ -299,29 +300,6 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     addThisModuleDataDeclsToEnvironment env thisModule
 
     return env
-
-getAllExportedValues :: LoadedModule -> [(Name, (ResolvedReference, Mutability, TypeVar))]
-getAllExportedValues loadedModule = lmExportedValues loadedModule
-
-getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare _ _ _ -> []
-    DLet _ _ _ _ _ -> []
-    DFun _ _ -> []
-    DData _ _ _ _ -> []
-    DJSData _ _ _ -> []
-    DTypeAlias _ _ _ _ -> []
-    DException typeVar name _ -> [(name, typeVar)]
-
-getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedTypes LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare {} -> []
-    DLet {} -> []
-    DFun {} -> []
-    DData typeVar name _ _ -> [(name, typeVar)]
-    DJSData typeVar name _ -> [(name, typeVar)]
-    DTypeAlias typeVar name _ _ -> [(name, typeVar)]
-    DException _ _ _ -> []
 
 getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
 getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
@@ -344,6 +322,16 @@ getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
 
+getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
+getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
+    DDeclare _ _ _ -> []
+    DLet _ _ _ _ _ -> []
+    DFun _ _ -> []
+    DData _ _ _ _ -> []
+    DJSData _ _ _ -> []
+    DTypeAlias _ _ _ _ -> []
+    DException typeVar name _ -> [(name, typeVar)]
+
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
 findExportByName getExports env moduleName valueName = do
     modul <- HashMap.lookup moduleName (eLoadedModules env)
@@ -354,10 +342,10 @@ findExportByName getExports env moduleName valueName = do
             Nothing
 
 findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
-findExportedValueByName = findExportByName getAllExportedValues
+findExportedValueByName = findExportByName lmExportedValues
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedTypeByName = findExportByName getAllExportedTypes
+findExportedTypeByName = findExportByName lmExportedTypes
 
 findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
 findExportedExceptionByName = findExportByName getAllExportedExceptions

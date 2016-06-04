@@ -35,5 +35,7 @@ data Env = Env
     , eReturnType        :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop            :: !Bool
     , eLevel             :: !TypeLevel
+
     , eExportedValues    :: SymbolTable (ResolvedReference, Mutability, TypeVar)
+    , eExportedTypes     :: SymbolTable TypeVar
     }

@@ -105,7 +105,7 @@ getUnresolvedReferenceLeaf (KnownReference _ n) = n
 instance IsString UnresolvedReference where
     fromString = UnqualifiedReference . fromString
 
-data ReferenceType = Ambient | Local | ThisModule | OtherModule ModuleName
+data ReferenceType = Ambient | Local | FromModule ModuleName
     deriving (Show, Eq)
 type ResolvedReference = (ReferenceType, Name)
 

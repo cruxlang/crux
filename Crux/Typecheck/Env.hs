@@ -211,7 +211,7 @@ resolveExceptionReference env pos ref = case ref of
         resolveExceptionReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         case findExportedExceptionByName env moduleName name of
-            Just typevar -> return $ ExceptionReference (OtherModule moduleName, name) typevar
+            Just typevar -> return $ ExceptionReference (FromModule moduleName, name) typevar
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
@@ -410,7 +410,7 @@ registerExceptionDecl env = \case
     DTypeAlias {} -> return ()
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
-        SymbolTable.insert (eExceptionBindings env) SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (ThisModule, exceptionName) tyVar)
+        SymbolTable.insert (eExceptionBindings env) SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
         return ()
 
 addThisModuleDataDeclsToEnvironment
@@ -512,7 +512,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ variants $ \(Variant _typeVar vname vparameters) -> do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
-            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates vname (ValueReference (ThisModule, vname) Immutable ctorType)
+            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates vname (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
             SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates vname (PatternReference typeDef $ TagVariant vname)
 
     -- Phase 3.

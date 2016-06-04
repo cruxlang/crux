@@ -94,7 +94,6 @@ renderResolvedReference' = \case
     Local n -> renderJSName n
     ThisModule n -> renderJSName n
     OtherModule mn n -> renderModuleName mn <> "_" <> n
-    Builtin n -> n
 
 renderResolvedReference :: ResolvedReference -> JSTree.Expression
 renderResolvedReference = JSTree.EIdentifier . renderResolvedReference'

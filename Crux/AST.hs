@@ -110,7 +110,6 @@ data ResolvedReference
     | Local Name
     | ThisModule Name
     | OtherModule ModuleName Name
-    | Builtin Name
     deriving (Show, Eq)
 
 resolvedReferenceName :: ResolvedReference -> Text
@@ -118,7 +117,6 @@ resolvedReferenceName (Ambient t) = t
 resolvedReferenceName (Local t) = t
 resolvedReferenceName (ThisModule t) = t
 resolvedReferenceName (OtherModule _ t) = t
-resolvedReferenceName (Builtin t) = t
 
 data Import
     = UnqualifiedImport ModuleName

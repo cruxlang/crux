@@ -270,7 +270,9 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Builtin name) Immutable iType)
+        -- TODO: Ambient doesn't seem right here.  We should really do some kind of
+        -- substitution from a + b to builtin.add(a, b)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Ambient name) Immutable iType)
 
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do

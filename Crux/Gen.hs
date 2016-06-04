@@ -193,7 +193,6 @@ generate env expr = case expr of
                 AST.Local n -> return $ Just $ ExistingLocalBinding n
                 AST.ThisModule n -> return $ Just $ ExistingLocalBinding n
                 AST.OtherModule _ _ -> fail "cannot assign to imported names"
-                AST.Builtin _ -> fail "cannot assign to builtin names"
             _ -> fail "Unsupported assignment target"
 
         rhs' <- generate env rhs

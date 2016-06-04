@@ -108,27 +108,27 @@ test_polymorphic_data = do
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"
-        (DFun () FunctionDecl { fdName="f", fdParams=[], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit, fdForall=[]})
+        (DFun () "f" FunctionDecl { fdParams=[], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit, fdForall=[]})
 
 test_fun_with_return = do
     assertExprParses funDeclaration "fun f() { return 1 }"
-        (DFun () FunctionDecl { fdName="f", fdParams=[], fdReturnAnnot=Nothing, fdBody=EReturn () $ ELiteral () $ LInteger 1, fdForall=[]})
+        (DFun () "f" FunctionDecl { fdParams=[], fdReturnAnnot=Nothing, fdBody=EReturn () $ ELiteral () $ LInteger 1, fdForall=[]})
 
 test_fun_with_argument_annotations = do
     assertExprParses funDeclaration "fun f(x: Number) { 1 }"
-        (DFun () FunctionDecl { fdName="f", fdParams=[("x", Just $ TypeIdent "Number" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () $ LInteger 1, fdForall=[]})
+        (DFun () "f" FunctionDecl { fdParams=[("x", Just $ TypeIdent "Number" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () $ LInteger 1, fdForall=[]})
 
 test_fun_with_forall = do
     assertExprParses funDeclaration "forall {T} fun f(x: T) {}"
-        (DFun () FunctionDecl { fdName="f", fdParams=[("x", Just $ TypeIdent "T" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit, fdForall=["T"]})
+        (DFun () "f" FunctionDecl { fdParams=[("x", Just $ TypeIdent "T" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit, fdForall=["T"]})
 
 test_fun_that_takes_function = do
     assertExprParses funDeclaration "fun f(x: (Number) -> String) { x(1) }"
-        (DFun () FunctionDecl { fdName="f", fdParams=[("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))], fdReturnAnnot=Nothing, fdBody=EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1], fdForall=[]})
+        (DFun () "f" FunctionDecl { fdParams=[("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))], fdReturnAnnot=Nothing, fdBody=EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1], fdForall=[]})
 
 test_fun_with_return_annotation = do
     assertExprParses funDeclaration "fun f() : Number { 5 }"
-        (DFun () FunctionDecl { fdName="f", fdParams=[], fdReturnAnnot=Just $ TypeIdent "Number" [], fdBody=ELiteral () $ LInteger 5, fdForall=[]})
+        (DFun () "f" FunctionDecl { fdParams=[], fdReturnAnnot=Just $ TypeIdent "Number" [], fdBody=ELiteral () $ LInteger 5, fdForall=[]})
 
 test_prop_and_functions_chain = do
     assertExprParses noSemiExpression "a()().b.c().d().e.f"

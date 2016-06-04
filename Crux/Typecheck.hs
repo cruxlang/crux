@@ -518,18 +518,18 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         return $ DLet (edata expr'') mut pat' maybeAnnot expr''
-    DFun pos' FunctionDecl{..} -> do
+    DFun pos' name FunctionDecl{..} -> do
         let expr = EFun pos' fdParams fdReturnAnnot fdBody
         ty <- freshType env
-        exportValue export env fdName (OtherModule (eThisModule env) fdName, Immutable, ty)
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates fdName (ValueReference (ThisModule fdName) Immutable ty)
+        exportValue export env name (OtherModule (eThisModule env) name, Immutable, ty)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (ThisModule name) Immutable ty)
         expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty
-        return $ DFun (edata expr') FunctionDecl
-            { fdName
-            , fdParams = args'
+        return $ DFun (edata expr') name FunctionDecl
+            { fdParams = args'
             , fdReturnAnnot
+            , fdForall
             , fdBody = body'
             }
 

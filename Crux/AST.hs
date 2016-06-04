@@ -38,8 +38,7 @@ instance IsString (Pattern tagtype) where
     fromString = PBinding . fromString
 
 data FunctionDecl idtype tagtype edata = FunctionDecl
-    { fdName        :: !Name
-    , fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
+    { fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
     , fdReturnAnnot :: !(Maybe TypeIdent)
     , fdBody        :: !(Expression idtype tagtype edata)
     , fdForall      :: [Name]
@@ -50,8 +49,8 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
 data DeclarationType idtype tagtype edata
     -- Values
     = DDeclare edata Name TypeIdent
-    | DLet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
-    | DFun edata !(FunctionDecl idtype tagtype edata)
+    | DLet !edata !Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | DFun !edata !Name !(FunctionDecl idtype tagtype edata)
     -- Types
     | DData edata Name ModuleName [Text] [Variant edata]
     | DJSData edata Name ModuleName [JSVariant]

@@ -684,7 +684,7 @@ blockExpression = do
 
 forallQualifier :: Parser [Name]
 forallQualifier = do
-    tforall <- token Tokens.TForall
+    _tforall <- token Tokens.TForall
     braced $ commaDelimited typeVarName
   where
     typeVarName = anyIdentifier
@@ -694,14 +694,14 @@ funDeclaration = do
     fdForall <- maybe [] id <$> P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
     withIndentation (IRDeeper tfun) $ do
-        fdName <- anyIdentifier
+        name <- anyIdentifier
         fdParams <- parenthesized $ commaDelimited funArgument
         fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon
             returnTypeIdent
 
         fdBody <- blockExpression
-        return $ DFun (tokenData tfun) FunctionDecl{..}
+        return $ DFun (tokenData tfun) name FunctionDecl{..}
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

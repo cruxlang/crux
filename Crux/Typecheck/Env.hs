@@ -307,7 +307,7 @@ getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
 getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
     DDeclare _ _ _ -> []
     DLet _ _ _ _ _ -> []
-    DFun _ _ -> []
+    DFun {} -> []
     DData _ _ _ _ _ -> []
     DJSData _ _ _ _ -> []
     DTypeAlias _ _ _ _ -> []

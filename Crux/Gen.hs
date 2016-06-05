@@ -94,7 +94,8 @@ data Instruction
     | TryCatch [Instruction] AST.ResolvedReference (AST.Pattern AST.PatternTag) [Instruction]
     deriving (Show, Eq)
 
-type Env = IORef Int
+-- TODO: make this into a record
+type Env = (AST.ModuleName, IORef Int)
 
 data DeclarationType
     = DData Name [AST.Variant ()]
@@ -111,9 +112,9 @@ type Program = [(AST.ModuleName, Module)] -- topologically sorted
 type Module = [Declaration]
 
 newTempOutput :: Env -> IO Int
-newTempOutput env = do
-    value <- readIORef env
-    writeIORef env (value + 1)
+newTempOutput (_, counter) = do
+    value <- readIORef counter
+    writeIORef counter (value + 1)
     return value
 
 type DeclarationWriter a = WriterT [Declaration] IO a
@@ -188,12 +189,12 @@ generate env expr = case expr of
                 lhs' <- generate env lhs
                 for lhs' $ \lhs'' -> do
                     return $ OutputProperty lhs'' propName
-            AST.EIdentifier _ name -> case name of
-                AST.Ambient n -> return $ Just $ ExistingLocalBinding n
-                AST.Local n -> return $ Just $ ExistingLocalBinding n
-                AST.ThisModule n -> return $ Just $ ExistingLocalBinding n
-                AST.OtherModule _ _ -> fail "cannot assign to imported names"
-                AST.Builtin _ -> fail "cannot assign to builtin names"
+            AST.EIdentifier _ (reftype, n) -> case reftype of
+                AST.Ambient -> return $ Just $ ExistingLocalBinding n
+                AST.Local -> return $ Just $ ExistingLocalBinding n
+                AST.FromModule mn
+                    | mn == fst env -> return $ Just $ ExistingLocalBinding n
+                    | otherwise -> fail "cannot assign to imported names"
             _ -> fail "Unsupported assignment target"
 
         rhs' <- generate env rhs
@@ -351,9 +352,9 @@ generateDecl env (AST.Declaration export _pos decl) = do
         AST.DDeclare _ _ _ -> do
             -- declarations are not reflected into the IR
             return ()
-        AST.DData _ name _ _ variants -> do
+        AST.DData _ name _ variants -> do
             writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
-        AST.DJSData _ name _ variants -> do
+        AST.DJSData _ name variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
         AST.DFun _ name funDecl -> do -- name params _retAnn body -> do
             let AST.FunctionDecl{..} = funDecl
@@ -371,11 +372,11 @@ generateDecl env (AST.Declaration export _pos decl) = do
         AST.DException _ name _ -> do
             writeDeclaration $ Declaration export $ DException name
 
-generateModule :: AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
-generateModule AST.Module{..} = do
-    env <- newIORef 0
+generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
+generateModule moduleName AST.Module{..} = do
+    counter <- newIORef 0
     decls <- fmap snd $ runWriterT $ do
-        for_ mDecls $ generateDecl env
+        for_ mDecls $ generateDecl (moduleName, counter)
     return decls
 
 generateProgram :: AST.Program -> IO Program
@@ -389,4 +390,4 @@ generateProgram AST.Program{..} = do
     let sortedModules = map getModule $ reverse $ topSort graph
 
     for sortedModules $ \(mod', moduleName, _) ->
-        fmap (moduleName,) $ generateModule $ AST.lmModule mod'
+        fmap (moduleName,) $ generateModule moduleName $ AST.lmModule mod'

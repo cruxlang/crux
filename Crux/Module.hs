@@ -79,7 +79,6 @@ newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
 newMemoryLoader sources moduleName = do
     case HashMap.lookup moduleName sources of
         Just source -> parseModuleFromSource
-            moduleName
             ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
             source
         Nothing ->
@@ -137,13 +136,13 @@ loadRTSSource = do
     bytes <- BS.readFile $ FP.combine (rtsPath config) "rts.js"
     return $ TE.decodeUtf8 bytes
 
-parseModuleFromSource :: AST.ModuleName -> FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
-parseModuleFromSource moduleName filename source = do
+parseModuleFromSource :: FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
+parseModuleFromSource filename source = do
     case Lex.lexSource filename source of
         Left err ->
             return $ Left $ Error.LexError err
         Right tokens -> do
-            case Parse.parse moduleName filename tokens of
+            case Parse.parse filename tokens of
                 Left err ->
                     return $ Left $ Error.ParseError err
                 Right mod' ->
@@ -152,7 +151,7 @@ parseModuleFromSource moduleName filename source = do
 parseModuleFromFile :: AST.ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromFile moduleName filename = runEitherT $ do
     source <- EitherT $ tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName else Nothing) $ BS.readFile filename
-    EitherT $ parseModuleFromSource moduleName filename $ TE.decodeUtf8 source
+    EitherT $ parseModuleFromSource filename $ TE.decodeUtf8 source
 
 loadModuleFromSource :: Text -> IO (Either (AST.ModuleName, Error.Error) AST.LoadedModule)
 loadModuleFromSource source = runEitherT $ do

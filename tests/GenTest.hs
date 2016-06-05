@@ -20,7 +20,7 @@ genDoc' src = do
         Left (_, err) ->
             return $ Left err
         Right m -> do
-            fmap Right $ Gen.generateModule $ Crux.Module.Types.lmModule m
+            fmap Right $ Gen.generateModule "GenTest" $ Crux.Module.Types.lmModule m
 
 genDoc :: Text -> IO Gen.Module
 genDoc src = do
@@ -47,7 +47,7 @@ test_return_from_branch = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "builtin" "True")
+            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "builtin", "True"))
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
@@ -62,7 +62,7 @@ test_branch_with_value = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet (AST.PBinding "x")
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ AST.OtherModule "builtin" "True")
+            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "builtin", "True"))
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 2
@@ -77,6 +77,6 @@ test_method_call = do
     assertEqual
         [ Gen.Declaration AST.NoExport (Gen.DLet (AST.PBinding "hoop") [Gen.Intrinsic (Gen.NewTemporary 0) (AST.IUnsafeJs "we-can-put-anything-here")
             , Gen.Assign (Gen.NewLocalBinding "hoop") (Gen.Temporary 0)])
-        , Gen.Declaration AST.NoExport (Gen.DLet AST.PWildcard [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ AST.ThisModule "hoop") "woop" []])
+        , Gen.Declaration AST.NoExport (Gen.DLet AST.PWildcard [Gen.MethodCall (Gen.NewTemporary 1) (Gen.ResolvedBinding $ (AST.FromModule "main", "hoop")) "woop" []])
         ]
         result

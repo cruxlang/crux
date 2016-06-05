@@ -52,8 +52,8 @@ data DeclarationType idtype tagtype edata
     | DLet !edata !Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
     | DFun !edata !Name !(FunctionDecl idtype tagtype edata)
     -- Types
-    | DData edata Name ModuleName [Text] [Variant edata]
-    | DJSData edata Name ModuleName [JSVariant]
+    | DData edata Name [Text] [Variant edata]
+    | DJSData edata Name [JSVariant]
     | DTypeAlias edata Name [Name] TypeIdent
     -- Exceptions
     | DException edata Name TypeIdent
@@ -105,20 +105,12 @@ getUnresolvedReferenceLeaf (KnownReference _ n) = n
 instance IsString UnresolvedReference where
     fromString = UnqualifiedReference . fromString
 
-data ResolvedReference
-    = Ambient Name
-    | Local Name
-    | ThisModule Name
-    | OtherModule ModuleName Name
-    | Builtin Name
+data ReferenceType = Ambient | Local | FromModule ModuleName
     deriving (Show, Eq)
+type ResolvedReference = (ReferenceType, Name)
 
 resolvedReferenceName :: ResolvedReference -> Text
-resolvedReferenceName (Ambient t) = t
-resolvedReferenceName (Local t) = t
-resolvedReferenceName (ThisModule t) = t
-resolvedReferenceName (OtherModule _ t) = t
-resolvedReferenceName (Builtin t) = t
+resolvedReferenceName (_, n) = n
 
 data Import
     = UnqualifiedImport ModuleName

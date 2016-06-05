@@ -19,8 +19,9 @@ genDoc' src = do
         Left (_, err) ->
             return $ Left err
         Right m -> do
-            modul <- Gen.generateModule $ MT.lmModule m
-            return $ Right $ JSTree.renderDocument $ JS.generateModule modul
+            let moduleName = "JSBackendTest"
+            modul <- Gen.generateModule moduleName $ MT.lmModule m
+            return $ Right $ JSTree.renderDocument $ JS.generateModule moduleName modul
 
 genDoc :: Text -> IO Text
 genDoc src = do

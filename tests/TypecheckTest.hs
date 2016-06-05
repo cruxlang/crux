@@ -19,7 +19,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             { mPragmas = []
             , mImports = []
             , mDecls =
-                [ Declaration Export undefined (DData undefined "DT" aModuleName [] [])
+                [ Declaration Export undefined (DData undefined "DT" [] [])
                 ]
             }
     let thisModule = Module
@@ -28,7 +28,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
             , mDecls = []
             }
     let loadedModules = HashMap.fromList
-            [ ("A", LoadedModule { lmModule = aModule, lmExportedValues = [] }) ]
+            [ ("A", LoadedModule { lmModule = aModule, lmExportedValues = [], lmExportedTypes = [] }) ]
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- SymbolTable.readAll (eTypeBindings env)

@@ -45,6 +45,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     ePatternBindings <- SymbolTable.new
     eExceptionBindings <- SymbolTable.new
     eExportedValues <- SymbolTable.new
+    eExportedTypes <- SymbolTable.new
     return Env
         { eInLoop = False
         , eLevel = 1
@@ -211,7 +212,7 @@ resolveExceptionReference env pos ref = case ref of
         resolveExceptionReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         case findExportedExceptionByName env moduleName name of
-            Just typevar -> return $ ExceptionReference (OtherModule moduleName name) typevar
+            Just typevar -> return $ ExceptionReference (FromModule moduleName, name) typevar
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
@@ -270,7 +271,9 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Builtin name) Immutable iType)
+        -- TODO: Ambient doesn't seem right here.  We should really do some kind of
+        -- substitution from a + b to builtin.add(a, b)
+        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Ambient, name) Immutable iType)
 
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do
@@ -279,11 +282,11 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 Nothing -> failICE $ Error.DependentModuleNotLoaded pos importName
 
             -- populate types
-            for_ (getAllExportedTypes $ importedModule) $ \(name, typeVar) -> do
+            for_ (lmExportedTypes importedModule) $ \(name, typeVar) -> do
                 SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference typeVar)
 
             -- populate values
-            for_ (getAllExportedValues $ importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
+            for_ (lmExportedValues importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
                 SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
 
             -- populate patterns
@@ -298,37 +301,12 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     return env
 
-getAllExportedValues :: LoadedModule -> [(Name, (ResolvedReference, Mutability, TypeVar))]
-getAllExportedValues loadedModule =
-    let f (name, ref, mut, tv) = (name, (ref, mut, tv))
-    in fmap f $ lmExportedValues loadedModule
-
-getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare _ _ _ -> []
-    DLet _ _ _ _ _ -> []
-    DFun {} -> []
-    DData _ _ _ _ _ -> []
-    DJSData _ _ _ _ -> []
-    DTypeAlias _ _ _ _ -> []
-    DException typeVar name _ -> [(name, typeVar)]
-
-getAllExportedTypes :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedTypes LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare {} -> []
-    DLet {} -> []
-    DFun {} -> []
-    DData typeVar name _ _ _ -> [(name, typeVar)]
-    DJSData typeVar name _ _ -> [(name, typeVar)]
-    DTypeAlias typeVar name _ _ -> [(name, typeVar)]
-    DException _ _ _ -> []
-
 getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
 getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
     DDeclare {} -> []
     DLet {} -> []
     DFun {} -> []
-    DData typeVar _name _ _ variants -> do
+    DData typeVar _name _ variants -> do
         let def = case typeVar of
                 TUserType d -> d
                 TTypeFun _ (TUserType d) -> d
@@ -336,13 +314,23 @@ getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $
         (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
             (name, PatternReference def $ TagVariant name)
 
-    DJSData typeVar _name _ jsVariants ->
+    DJSData typeVar _name jsVariants ->
         let (TUserType def) = typeVar in
         (flip fmap) jsVariants $ \(JSVariant name literal) ->
             (name, PatternReference def $ TagLiteral literal)
 
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
+
+getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
+getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
+    DDeclare _ _ _ -> []
+    DLet _ _ _ _ _ -> []
+    DFun {} -> []
+    DData _ _ _ _  -> []
+    DJSData _ _ _ -> []
+    DTypeAlias _ _ _ _ -> []
+    DException typeVar name _ -> [(name, typeVar)]
 
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
 findExportByName getExports env moduleName valueName = do
@@ -354,10 +342,10 @@ findExportByName getExports env moduleName valueName = do
             Nothing
 
 findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
-findExportedValueByName = findExportByName getAllExportedValues
+findExportedValueByName = findExportByName lmExportedValues
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedTypeByName = findExportByName getAllExportedTypes
+findExportedTypeByName = findExportByName lmExportedTypes
 
 findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
 findExportedExceptionByName = findExportByName getAllExportedExceptions
@@ -373,7 +361,7 @@ registerJSFFIDecl env = \case
     DFun {} -> return ()
 
     DData {} -> return ()
-    DJSData _pos name moduleName variants -> do
+    DJSData _pos name variants -> do
         -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
         variants' <- for variants $ \(JSVariant variantName _value) -> do
             let tvParameters = []
@@ -383,7 +371,7 @@ registerJSFFIDecl env = \case
         let typeDef = TUserTypeDef
                 { tuName = name
                 , tuType = TDFfi
-                , tuModuleName = moduleName
+                , tuModuleName = eThisModule env
                 , tuParameters = []
                 , tuVariants = variants'
                 }
@@ -391,7 +379,7 @@ registerJSFFIDecl env = \case
         SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference userType)
 
         for_ variants $ \(JSVariant variantName value) -> do
-            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates variantName (ValueReference (Local variantName) Immutable userType)
+            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates variantName (ValueReference (Local, variantName) Immutable userType)
             SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates variantName (PatternReference typeDef $ TagLiteral value)
         return ()
     DTypeAlias {} -> return ()
@@ -408,7 +396,7 @@ registerExceptionDecl env = \case
     DTypeAlias {} -> return ()
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
-        SymbolTable.insert (eExceptionBindings env) SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (ThisModule exceptionName) tyVar)
+        SymbolTable.insert (eExceptionBindings env) SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
         return ()
 
 addThisModuleDataDeclsToEnvironment
@@ -447,17 +435,17 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     -- Phase 2b.
     dataDecls <- fmap catMaybes $ for decls $ \case
-        DData pos name moduleName typeVarNames variants ->
-            return $ Just (pos, name, moduleName, typeVarNames, variants)
+        DData pos name typeVarNames variants ->
+            return $ Just (pos, name, typeVarNames, variants)
         _ ->
             return Nothing
 
-    dataDecls' <- for dataDecls $ \(pos, typeName, moduleName, typeVarNames, variants) -> do
+    dataDecls' <- for dataDecls $ \(pos, typeName, typeVarNames, variants) -> do
         e <- childEnv env
         tyVars <- for typeVarNames $ \tvName ->
             resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
 
-        typeDef <- createUserTypeDef e typeName moduleName tyVars variants
+        typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
         let tyVar = TUserType typeDef
         let typeRef = case tyVars of
                 [] -> tyVar
@@ -510,7 +498,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ variants $ \(Variant _typeVar vname vparameters) -> do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
-            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates vname (ValueReference (ThisModule vname) Immutable ctorType)
+            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates vname (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
             SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates vname (PatternReference typeDef $ TagVariant vname)
 
     -- Phase 3.

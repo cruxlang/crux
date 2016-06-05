@@ -157,7 +157,7 @@ weaken level e = do
 
 check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 check' expectedType env = \case
-    EFun pos params retAnn body -> do
+    EFun pos FunctionDecl{..} -> do --  params retAnn body
         valueBindings' <- SymbolTable.clone (eValueBindings env)
 
         -- If we know the expected function type, then use its type variables
@@ -166,7 +166,7 @@ check' expectedType env = \case
             TFun paramTypes returnType -> do
                 return (paramTypes, returnType)
             _ -> do
-                paramTypes <- for params $ \_ -> do
+                paramTypes <- for fdParams $ \_ -> do
                     freshType env
                 returnType <- freshType env
                 return (paramTypes, returnType)
@@ -177,7 +177,7 @@ check' expectedType env = \case
                 , eInLoop=False
                 }
 
-        params' <- for (zip params paramTypes) $ \((p, pAnn), pt) -> do
+        params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
                 unify pos pt annTy
@@ -185,15 +185,20 @@ check' expectedType env = \case
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)
 
-        for_ retAnn $ \ann -> do
+        for_ fdReturnAnnot $ \ann -> do
             annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
             unify pos returnType annTy
 
-        body' <- check env' body
+        body' <- check env' fdBody
         unify pos returnType $ edata body'
 
         let ty = TFun paramTypes returnType
-        return $ EFun ty params' retAnn body'
+        return $ EFun ty FunctionDecl
+            { fdParams=params'
+            , fdReturnAnnot
+            , fdForall
+            , fdBody=body'
+            }
 
     -- Compiler intrinsics
     EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
@@ -518,18 +523,19 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         return $ DLet (edata expr'') mut pat' maybeAnnot expr''
-    DFun pos' name FunctionDecl{..} -> do
-        let expr = EFun pos' fdParams fdReturnAnnot fdBody
+    DFun pos' name fd -> do
+        let expr = EFun pos' fd
         ty <- freshType env
         exportValue export env name (OtherModule (eThisModule env) name, Immutable, ty)
         SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (ThisModule name) Immutable ty)
-        expr'@(EFun _ args' _ body') <- check env expr
+        expr'@(EFun _ fd') <- check env expr
+        let FunctionDecl{fdBody=body', fdParams=args'} = fd'
         unify pos' (edata expr') ty
         quantify ty
         return $ DFun (edata expr') name FunctionDecl
             { fdParams = args'
-            , fdReturnAnnot
-            , fdForall
+            , fdReturnAnnot = fdReturnAnnot fd
+            , fdForall = fdForall fd
             , fdBody = body'
             }
 

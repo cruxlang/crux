@@ -158,9 +158,9 @@ generate env expr = case expr of
             writeInstruction $ BindPattern v'' pat
             return $ Literal AST.LUnit
 
-    AST.EFun _ params _retAnn body -> do
-        body' <- subBlockWithReturn env body
-        return $ Just $ FunctionLiteral (map fst params) body'
+    AST.EFun _ AST.FunctionDecl{..} -> do
+        body' <- subBlockWithReturn env fdBody
+        return $ Just $ FunctionLiteral (map fst fdParams) body'
 
     AST.ELookup _ value propertyName -> do
         v <- generate env value

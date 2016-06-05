@@ -208,7 +208,7 @@ data Expression idtype tagtype edata
     | EMethodApp edata (Expression idtype tagtype edata) Name [Expression idtype tagtype edata]
 
     -- literals
-    | EFun edata [(Pattern tagtype, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | EFun edata (FunctionDecl idtype tagtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype tagtype edata))
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ELiteral edata Literal
@@ -230,7 +230,7 @@ data Expression idtype tagtype edata
 edata :: Expression idtype tagtype edata -> edata
 edata expr = case expr of
     ELet ed _ _ _ _ -> ed
-    EFun ed _ _ _ -> ed
+    EFun ed _ -> ed
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
@@ -254,7 +254,7 @@ edata expr = case expr of
 setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
     ELet _ a b c d        -> ELet e a b c d
-    EFun _ a b c          -> EFun e a b c
+    EFun _ a              -> EFun e a
     ELookup _ a b         -> ELookup e a b
     EApp _ a b            -> EApp e a b
     EMatch _ a b          -> EMatch e a b

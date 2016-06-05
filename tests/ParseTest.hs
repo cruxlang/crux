@@ -140,7 +140,7 @@ test_let_if_indentation = do
 
 test_multiline_function_argument_indentation = do
     assertExprParses letDeclaration "let x = foo(fun() {\n}, 1)"
-        (DLet () Immutable (PBinding "x") Nothing $ EApp () (EIdentifier () "foo") [EFun () [] Nothing $ ELiteral () LUnit, ELiteral () $ LInteger 1])
+        (DLet () Immutable (PBinding "x") Nothing $ EApp () (EIdentifier () "foo") [EFun () FunctionDecl {fdParams=[], fdReturnAnnot=Nothing, fdForall=[], fdBody=ELiteral () LUnit}, ELiteral () $ LInteger 1])
 
 test_parameter_list_indentation = do
     let source = T.unlines

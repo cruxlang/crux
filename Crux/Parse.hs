@@ -279,12 +279,13 @@ identifierExpression = do
 functionExpression :: Parser ParseExpression
 functionExpression = do
     tfun <- token Tokens.TFun
-    args <- parenthesized $ commaDelimited funArgument
-    returnAnn <- P.optionMaybe $ do
+    fdParams <- parenthesized $ commaDelimited funArgument
+    fdReturnAnnot <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
-    body <- blockExpression
-    return $ EFun (tokenData tfun) args returnAnn body
+    fdBody <- blockExpression
+    fdForall <- return []
+    return $ EFun (tokenData tfun) FunctionDecl{..}
 
 wildcardPattern :: Parser (Pattern ())
 wildcardPattern = token TWildcard *> return PWildcard

@@ -9,11 +9,7 @@ import {
     string,
 }
 
-// TODO: implement support for export { ... } syntax
-export type Boolean = boolean.Boolean
-export let True = boolean.True
-export let False = boolean.False
-export let not = boolean.not
+export import boolean
 
 export fun print(a): () {
     _unsafe_js("console").log(a)

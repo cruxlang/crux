@@ -47,7 +47,7 @@ test_return_from_branch = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "builtin", "True"))
+            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "boolean", "True"))
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2

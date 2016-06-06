@@ -51,13 +51,13 @@ test_export_function = do
 test_return_from_branch = do
     result <- genDoc "fun f() { if True then return 1 else return 2 }"
     assertEqual
-        "function f() {\n  var $0;\n  if ($builtin_True) {\n    return 1;\n  }\n  else {\n    return 2;\n  }\n  return $0;\n}\n"
+        "function f() {\n  var $0;\n  if ($boolean_True) {\n    return 1;\n  }\n  else {\n    return 2;\n  }\n  return $0;\n}\n"
         result
 
 test_branch_with_value = do
     result <- genDoc "let x = if True then 1 else 2"
     assertEqual
-        "var $0;\nif ($builtin_True) {\n  $0 = 1;\n}\nelse {\n  $0 = 2;\n}\nvar x = $0;\n"
+        "var $0;\nif ($boolean_True) {\n  $0 = 1;\n}\nelse {\n  $0 = 2;\n}\nvar x = $0;\n"
         result
 
 test_jsffi_data = do

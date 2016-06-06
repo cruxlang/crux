@@ -25,23 +25,4 @@ export data Option a {
     None,
 }
 
-// Arrays have unspecified representation here. They are represented as JS arrays.
-export type Array a = [a]
-
-export fun emptyArray(): [a] {
-    _unsafe_js("[]")
-}
-
-// TODO: implement support for export { ... } syntax
-export let get = array.get
-export let len = array.len
-export let replicate = array.replicate
-export let each = array.each
-
-export fun map(f: (a) -> b, a: [a]): [b] {
-    _unsafe_js("[].map").call(a, f)
-}
-
-export let sliceFrom = array.sliceFrom
-export let sliceTo = array.sliceTo
-export let slice = array.slice
+export import array

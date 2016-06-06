@@ -4,7 +4,6 @@
 module Crux.Parse where
 
 import Control.Applicative ((<|>))
-import Data.Foldable (asum)
 import Control.Monad.Reader.Class (MonadReader, ask, local)
 import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
@@ -698,6 +697,13 @@ exceptionDeclaration = do
         ti <- typeIdent
         return $ DException (tokenData texc) name ti
 
+exportImportDeclaration :: Parser ParseDeclaration
+exportImportDeclaration = do
+    importToken <- token Tokens.TImport
+    withIndentation (IRDeeper importToken) $ do
+        name <- anyIdentifier
+        return $ DExportImport (tokenData importToken) name
+
 declaration :: Parser (Declaration UnresolvedReference () ParseData)
 declaration = do
     pos <- tokenData <$> P.lookAhead P.anyToken
@@ -707,14 +713,18 @@ declaration = do
             Just _ -> Export
             Nothing -> NoExport
 
-    declType <- asum
+    let extra :: [Parser ParseDeclaration]
+        extra = if exportFlag == Export
+            then [exportImportDeclaration]
+            else []
+    declType <- asum $
         [ declareDeclaration
         , dataDeclaration
         , aliasDeclaration
         , funDeclaration
         , letDeclaration
         , exceptionDeclaration
-        ]
+        ] ++ extra
     return $ Declaration exportFlag pos declType
 
 importDecl :: Parser (Pos, Import)

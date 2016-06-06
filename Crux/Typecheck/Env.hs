@@ -356,6 +356,8 @@ registerJSFFIDecl env = \case
     DTypeAlias {} -> return ()
     DException {} -> return ()
 
+    DExportImport {} -> return ()
+
 registerExceptionDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerExceptionDecl env = \case
     DDeclare {} -> return ()
@@ -369,6 +371,8 @@ registerExceptionDecl env = \case
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
         SymbolTable.insert (eExceptionBindings env) SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
         return ()
+
+    DExportImport {} -> return ()
 
 addThisModuleDataDeclsToEnvironment
     :: Env

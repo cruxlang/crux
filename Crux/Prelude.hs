@@ -29,7 +29,7 @@ import Control.Monad.Trans.Either (EitherT (..), left)
 import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import Crux.IORef (IORef, modifyIORef, modifyIORef', newIORef, readIORef,
                    writeIORef)
-import Data.Foldable (foldl', foldlM, for_, traverse_)
+import Data.Foldable (foldl', foldlM, for_, traverse_, asum)
 import Data.Hashable (Hashable (..))
 import Data.HashMap.Strict (HashMap)
 import Data.HashSet (HashSet)

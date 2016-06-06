@@ -1,0 +1,10 @@
+import { foo(...) }
+
+fun main() {
+    let x: Foo = Foo
+    match x {
+        Foo => x->output()
+    }
+}
+
+let _ = main()

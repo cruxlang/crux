@@ -607,6 +607,24 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportException export env name typeVar
         return $ DException typeVar name typeIdent
 
+    DExportImport _pos name -> do
+        SymbolTable.lookup (eValueBindings env) name >>= \case
+            Just (ModuleReference mn) -> do
+                case HashMap.lookup mn (eLoadedModules env) of
+                    Just loadedModule -> do
+                        for_ (lmExportedValues loadedModule) $ \(name', v) -> do
+                            exportValue export env name' v
+                        for_ (lmExportedTypes loadedModule) $ \(name', t) -> do
+                            exportType export env name' t
+                        for_ (lmExportedPatterns loadedModule) $ \(name', p) -> do
+                            exportPattern export env name' p
+                        for_ (lmExportedExceptions loadedModule) $ \(name', e) -> do
+                            exportException export env name' e
+                        return $ DExportImport (TPrimitive Unit) name
+                    Nothing ->
+                        fail "ICE: module not loaded!"
+            _ -> fail "Export import is not a module reference"
+
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference () Pos -> ModuleName -> TC LoadedModule
 run loadedModules thisModule thisModuleName = do
     {-

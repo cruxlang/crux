@@ -47,8 +47,10 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype tagtype edata
+    -- Exports
+    = DExportImport edata Name
     -- Values
-    = DDeclare edata Name TypeIdent
+    | DDeclare edata Name TypeIdent
     | DLet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
     | DFun edata !(FunctionDecl idtype tagtype edata)
     -- Types

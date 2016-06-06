@@ -1,1 +1,1 @@
-fun id_int(x: int): int { x }
+fun id_int(x: Number): Number { x }

@@ -32,7 +32,7 @@ export data Option a {
 // Arrays have unspecified representation here. They are represented as JS arrays.
 export type Array a = [a]
 
-export fun emptyArray(): [a] {
+export forall {a} fun emptyArray(): [a] {
     _unsafe_js("[]")
 }
 
@@ -42,7 +42,7 @@ export let len = array.len
 export let replicate = array.replicate
 export let each = array.each
 
-export fun map(f: (a) -> b, a: [a]): [b] {
+export forall {a, b} fun map(f: (a) -> b, a: [a]): [b] {
     _unsafe_js("[].map").call(a, f)
 }
 

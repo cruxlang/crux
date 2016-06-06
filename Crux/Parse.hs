@@ -275,13 +275,13 @@ identifierExpression = do
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
+    fdForall <- maybe [] id <$> P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
     fdParams <- parenthesized $ commaDelimited funArgument
     fdReturnAnnot <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
     fdBody <- blockExpression
-    fdForall <- return []
     return $ EFun (tokenData tfun) FunctionDecl{..}
 
 wildcardPattern :: Parser (Pattern ())

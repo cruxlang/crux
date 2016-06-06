@@ -171,22 +171,28 @@ check' expectedType env = \case
                 returnType <- freshType env
                 return (paramTypes, returnType)
 
-        let env' = env
-                { eValueBindings=valueBindings'
-                , eReturnType=Just returnType
-                , eInLoop=False
-                }
+        env' <- childEnv env >>= \x -> return x
+            { eValueBindings=valueBindings'
+            , eReturnType=Just returnType
+            , eInLoop=False
+            }
+
+        for_ fdForall $ \name -> do
+            tv <- freshType env'
+            SymbolTable.insert (eTypeBindings env') SymbolTable.DisallowDuplicates name (TypeReference tv)
 
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
+                annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
+                -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
                 unify pos pt annTy
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)
 
         for_ fdReturnAnnot $ \ann -> do
-            annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
+            annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
+            -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
             unify pos returnType annTy
 
         body' <- check env' fdBody

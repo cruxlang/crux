@@ -46,6 +46,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eExceptionBindings <- SymbolTable.new
     eExportedValues <- SymbolTable.new
     eExportedTypes <- SymbolTable.new
+    eExportedPatterns <- SymbolTable.new
     eExportedExceptions <- SymbolTable.new
     return Env
         { eInLoop = False
@@ -291,7 +292,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
 
             -- populate patterns
-            for_ (getAllExportedPatterns $ importedModule) $ \(name, pb) -> do
+            for_ (lmExportedPatterns importedModule) $ \(name, pb) -> do
                 SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates name pb
 
         (_pos, QualifiedImport moduleName importName) -> do
@@ -301,27 +302,6 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     addThisModuleDataDeclsToEnvironment env thisModule
 
     return env
-
-getAllExportedPatterns :: LoadedModule -> [(Name, PatternReference)]
-getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare {} -> []
-    DLet {} -> []
-    DFun {} -> []
-    DData typeVar _name _ variants -> do
-        let def = case typeVar of
-                TUserType d -> d
-                TTypeFun _ (TUserType d) -> d
-                _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
-        (flip fmap) variants $ \(Variant _vtype name _typeIdent) ->
-            (name, PatternReference def $ TagVariant name)
-
-    DJSData typeVar _name jsVariants ->
-        let (TUserType def) = typeVar in
-        (flip fmap) jsVariants $ \(JSVariant name literal) ->
-            (name, PatternReference def $ TagLiteral literal)
-
-    DTypeAlias _ _ _ _ -> []
-    DException _ _ _ -> []
 
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
 findExportByName getExports env moduleName valueName = do
@@ -342,7 +322,7 @@ findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
 findExportedExceptionByName = findExportByName lmExportedExceptions
 
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
-findExportedPatternByName = findExportByName getAllExportedPatterns
+findExportedPatternByName = findExportByName lmExportedPatterns
 
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()

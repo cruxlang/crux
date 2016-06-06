@@ -32,6 +32,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
                     { lmModule = aModule
                     , lmExportedValues = []
                     , lmExportedTypes = []
+                    , lmExportedPatterns = []
                     , lmExportedExceptions = [] }) ]
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 

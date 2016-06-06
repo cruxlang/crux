@@ -479,6 +479,11 @@ exportType export env name typeVar = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedTypes env) SymbolTable.DisallowDuplicates name typeVar
 
+exportPattern :: ExportFlag -> Env -> Name -> PatternReference -> TC ()
+exportPattern export env name patternRef = do
+    when (export == Export) $ do
+        SymbolTable.insert (eExportedPatterns env) SymbolTable.DisallowDuplicates name patternRef
+
 exportException :: ExportFlag -> Env -> Name -> TypeVar -> TC ()
 exportException export env name typeVar = do
     when (export == Export) $ do
@@ -561,6 +566,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             exportValue export env vname (rr, mut, ctorType)
             return $ Variant ctorType vname vparameters
 
+        let def = case typeVar of
+                TUserType d -> d
+                TTypeFun _ (TUserType d) -> d
+                _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
+        for_ variants $ \(Variant _vtype vname _typeIdent) -> do
+            exportPattern export env vname $ PatternReference def $ TagVariant vname
+
         return $ DData typeVar name typeParameters typedVariants
 
     DJSData _pos name variants -> do
@@ -572,10 +584,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         exportType export env name typeVar
 
-        when (export == Export) $ do
-            for_ variants $ \(JSVariant vname _) -> do
-                let rr = (FromModule $ eThisModule env, vname)
-                SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates vname (rr, Immutable, typeVar)
+        let (TUserType def) = typeVar
+
+        for_ variants $ \(JSVariant vname literal) -> do
+            let rr = (FromModule $ eThisModule env, vname)
+            exportValue export env vname (rr, Immutable, typeVar)
+            exportPattern export env vname $ PatternReference def $ TagLiteral literal
+
         return $ DJSData typeVar name variants
 
     DTypeAlias _pos name typeVars ident -> do
@@ -624,5 +639,6 @@ run loadedModules thisModule thisModuleName = do
     let lmModule = thisModule{ mDecls = decls }
     lmExportedValues <- HashMap.toList <$> SymbolTable.readAll (eExportedValues env)
     lmExportedTypes <- HashMap.toList <$> SymbolTable.readAll (eExportedTypes env)
+    lmExportedPatterns <- HashMap.toList <$> SymbolTable.readAll (eExportedPatterns env)
     lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
     return $ LoadedModule{..}

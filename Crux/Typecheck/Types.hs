@@ -9,9 +9,9 @@ module Crux.Typecheck.Types
     ) where
 
 import Crux.AST (ModuleName, Mutability, ResolvedReference)
-import Crux.Module.Types (LoadedModule, PatternTag (..))
+import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
 import Crux.Prelude
-import Crux.TypeVar (TUserTypeDef (..), TypeLevel (..), TypeVar (..))
+import Crux.TypeVar (TypeLevel (..), TypeVar (..))
 import Crux.SymbolTable (SymbolTable)
 
 data ValueReference
@@ -21,8 +21,6 @@ data ValueReference
 data TypeReference = TypeReference TypeVar
 
 data ExceptionReference = ExceptionReference ResolvedReference TypeVar
-
-data PatternReference = PatternReference (TUserTypeDef TypeVar) PatternTag
 
 data Env = Env
     { eThisModule         :: ModuleName
@@ -38,5 +36,6 @@ data Env = Env
 
     , eExportedValues     :: SymbolTable (ResolvedReference, Mutability, TypeVar)
     , eExportedTypes      :: SymbolTable TypeVar
+    , eExportedPatterns   :: SymbolTable PatternReference
     , eExportedExceptions :: SymbolTable TypeVar
     }

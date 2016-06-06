@@ -707,12 +707,14 @@ declaration = do
             Just _ -> Export
             Nothing -> NoExport
 
-    declType <- declareDeclaration
-            <|> dataDeclaration
-            <|> aliasDeclaration
-            <|> funDeclaration
-            <|> letDeclaration
-            <|> exceptionDeclaration
+    declType <- asum
+        [ declareDeclaration
+        , dataDeclaration
+        , aliasDeclaration
+        , funDeclaration
+        , letDeclaration
+        , exceptionDeclaration
+        ]
     return $ Declaration exportFlag pos declType
 
 importDecl :: Parser (Pos, Import)

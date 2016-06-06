@@ -20,8 +20,8 @@ data LoadedModule = LoadedModule
     { lmModule :: Module ResolvedReference PatternTag TypeVar
     , lmExportedValues :: [(Name, (ResolvedReference, Mutability, TypeVar))]
     , lmExportedTypes :: [(Name, TypeVar)]
-    --, lmExportedPatterns :: [Name]
-    --, lmExportedExceptions :: [(Name, TypeVar)]
+    --, lmExportedPatterns :: [(Name, PatternReference)]
+    , lmExportedExceptions :: [(Name, TypeVar)]
     } deriving (Eq)
 
 --type CheckedModule = Module ResolvedReference PatternTag TypeVar

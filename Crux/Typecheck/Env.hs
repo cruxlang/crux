@@ -46,6 +46,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eExceptionBindings <- SymbolTable.new
     eExportedValues <- SymbolTable.new
     eExportedTypes <- SymbolTable.new
+    eExportedExceptions <- SymbolTable.new
     return Env
         { eInLoop = False
         , eLevel = 1
@@ -322,16 +323,6 @@ getAllExportedPatterns LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $
     DTypeAlias _ _ _ _ -> []
     DException _ _ _ -> []
 
-getAllExportedExceptions :: LoadedModule -> [(Name, TypeVar)]
-getAllExportedExceptions LoadedModule{..} = mconcat $ (flip fmap $ exportedDecls $ mDecls lmModule) $ \case
-    DDeclare _ _ _ -> []
-    DLet _ _ _ _ _ -> []
-    DFun _ _ -> []
-    DData _ _ _ _ -> []
-    DJSData _ _ _ -> []
-    DTypeAlias _ _ _ _ -> []
-    DException typeVar name _ -> [(name, typeVar)]
-
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
 findExportByName getExports env moduleName valueName = do
     modul <- HashMap.lookup moduleName (eLoadedModules env)
@@ -348,7 +339,7 @@ findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
 findExportedTypeByName = findExportByName lmExportedTypes
 
 findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedExceptionByName = findExportByName getAllExportedExceptions
+findExportedExceptionByName = findExportByName lmExportedExceptions
 
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName = findExportByName getAllExportedPatterns

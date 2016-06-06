@@ -25,17 +25,18 @@ data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 data PatternReference = PatternReference (TUserTypeDef TypeVar) PatternTag
 
 data Env = Env
-    { eThisModule        :: ModuleName
-    , eLoadedModules     :: HashMap ModuleName LoadedModule
-    , eNextTypeIndex     :: IORef Int
-    , eValueBindings     :: SymbolTable ValueReference
-    , eTypeBindings      :: SymbolTable TypeReference
-    , ePatternBindings   :: SymbolTable PatternReference
-    , eExceptionBindings :: SymbolTable ExceptionReference
-    , eReturnType        :: Maybe TypeVar -- Nothing if top-level expression
-    , eInLoop            :: !Bool
-    , eLevel             :: !TypeLevel
+    { eThisModule         :: ModuleName
+    , eLoadedModules      :: HashMap ModuleName LoadedModule
+    , eNextTypeIndex      :: IORef Int
+    , eValueBindings      :: SymbolTable ValueReference
+    , eTypeBindings       :: SymbolTable TypeReference
+    , ePatternBindings    :: SymbolTable PatternReference
+    , eExceptionBindings  :: SymbolTable ExceptionReference
+    , eReturnType         :: Maybe TypeVar -- Nothing if top-level expression
+    , eInLoop             :: !Bool
+    , eLevel              :: !TypeLevel
 
-    , eExportedValues    :: SymbolTable (ResolvedReference, Mutability, TypeVar)
-    , eExportedTypes     :: SymbolTable TypeVar
+    , eExportedValues     :: SymbolTable (ResolvedReference, Mutability, TypeVar)
+    , eExportedTypes      :: SymbolTable TypeVar
+    , eExportedExceptions :: SymbolTable TypeVar
     }

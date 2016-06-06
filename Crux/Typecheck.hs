@@ -479,6 +479,11 @@ exportType export env name typeVar = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedTypes env) SymbolTable.DisallowDuplicates name typeVar
 
+exportException :: ExportFlag -> Env -> Name -> TypeVar -> TC ()
+exportException export env name typeVar = do
+    when (export == Export) $ do
+        SymbolTable.insert (eExportedExceptions env) SymbolTable.DisallowDuplicates name typeVar
+
 checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference PatternTag TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
@@ -584,6 +589,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DException _pos name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
+        exportException export env name typeVar
         return $ DException typeVar name typeIdent
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference () Pos -> ModuleName -> TC LoadedModule
@@ -618,4 +624,5 @@ run loadedModules thisModule thisModuleName = do
     let lmModule = thisModule{ mDecls = decls }
     lmExportedValues <- HashMap.toList <$> SymbolTable.readAll (eExportedValues env)
     lmExportedTypes <- HashMap.toList <$> SymbolTable.readAll (eExportedTypes env)
+    lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
     return $ LoadedModule{..}

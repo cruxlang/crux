@@ -10,9 +10,7 @@ import           Data.HashMap.Strict (fromList)
 import qualified Data.Text           as T
 import           Test.Framework
 
-discardData expr = fmap (const ()) expr
-
--- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
+assertParseOk :: (Eq b, Show b) => Parser a -> T.Text -> b -> (a -> b) -> IO ()
 assertParseOk parser source expected f = do
     case Lex.lexSource "<>" source of
         Left err ->
@@ -23,7 +21,11 @@ assertParseOk parser source expected f = do
                 Right result -> assertEqualVerbose (T.unpack source) expected (f result)
                 Left err -> assertFailure ("Parse failed: " ++ show err)
 
-assertExprParses parser source expected = assertParseOk parser source expected discardData
+assertExprParses :: (Functor f, Eq (f ()), Show (f ())) => Parser (f a) -> T.Text -> f () -> IO ()
+assertExprParses parser source expected = assertParseOk parser source expected (fmap $ const ())
+
+assertParses :: (Eq a, Show a) => Parser a -> T.Text -> a -> IO ()
+assertParses parser source expected = assertParseOk parser source expected id
 
 test_literals = do
     assertExprParses literalExpression "5"

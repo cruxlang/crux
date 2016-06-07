@@ -553,7 +553,7 @@ noSpaceTypeIdent :: Parser TypeIdent
 noSpaceTypeIdent = asum
     [ arrayTypeIdent
     , recordTypeIdent
-    , sumIdent noSpaceTypeIdent
+    , sumIdent (fail "")
     , unitTypeIdent
     , parenthesized typeIdent
     ]

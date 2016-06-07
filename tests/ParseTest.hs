@@ -68,7 +68,17 @@ test_let_with_type_annotation = do
         (ELet () Immutable (PBinding "a") (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
-    assertParseOk typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])]) id
+    assertParses typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])])
+
+test_multi_arg_type_ident = do
+    assertParses
+        typeIdent
+        "Result String String"
+        (TypeIdent
+            (UnqualifiedReference "Result")
+            [ TypeIdent (UnqualifiedReference "String") []
+            , TypeIdent (UnqualifiedReference "String") []
+            ])
 
 test_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
@@ -86,8 +96,8 @@ test_mutable_let = do
         (ELet () Mutable (PBinding "x") Nothing (ELiteral () (LInteger 22)))
 
 test_pattern = do
-    assertParseOk (pattern RefutableContext) "Cons(a, Cons(b, Nil))"
-        (PConstructor "Cons" () [PBinding "a", PConstructor "Cons" () [PBinding "b", PConstructor "Nil" () []]]) id
+    assertParses (pattern RefutableContext) "Cons(a, Cons(b, Nil))"
+        (PConstructor "Cons" () [PBinding "a", PConstructor "Cons" () [PBinding "b", PConstructor "Nil" () []]])
 
 test_match = do
     assertExprParses matchExpression "match hoot {\n  Nil => hodor\n  Cons(a, b) => hoober\n}"

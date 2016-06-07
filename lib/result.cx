@@ -1,0 +1,6 @@
+pragma { NoBuiltin }
+
+export data Result ok err {
+    Ok(ok),
+    Err(err),
+}

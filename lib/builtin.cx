@@ -4,12 +4,17 @@ pragma { NoBuiltin }
 // sequence of imports matters here.
 import {
     boolean,
+    option,
+    result,
     array,
     mutarray,
     string,
 }
 
 export import boolean
+export import option
+export import result
+export import array
 
 export fun print(a): () {
     _unsafe_js("console").log(a)
@@ -17,12 +22,3 @@ export fun print(a): () {
 
 export let toString: (a) -> String =
     _unsafe_js("function toString(v) { return '' + v; }")
-
-// Option
-
-export data Option a {
-    Some(a),
-    None,
-}
-
-export import array

@@ -1,0 +1,6 @@
+pragma { NoBuiltin }
+
+export data Option a {
+    Some(a),
+    None,
+}

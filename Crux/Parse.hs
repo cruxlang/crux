@@ -563,7 +563,7 @@ returnTypeIdent = asum
     [ arrayTypeIdent
     , functionTypeIdent
     , nonEmptyRecord
-    , sumIdent (fail "")
+    , sumIdent (arrayTypeIdent <|> nonEmptyRecord <|> sumIdent (fail "") <|> unitTypeIdent <|> parenthesized typeIdent)
     , unitTypeIdent
     , parenthesized typeIdent
     ]

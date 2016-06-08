@@ -64,8 +64,8 @@ function _rts_new_exception(name, baseException) {
       var $5 = ($4).length;
       return $5;
     }
-    function replicate(element, len) {
-      var $6 = _unsafe_new(len);
+    function replicate(element, length) {
+      var $6 = _unsafe_new(length);
       {
         var arr = $6;
       }
@@ -74,7 +74,7 @@ function _rts_new_exception(name, baseException) {
       }
       while (true)
       {
-        var $7 = (i<len);
+        var $7 = (i<length);
         var $8 = (!$7);
         var $9;
         if ($8) {
@@ -166,6 +166,28 @@ function _rts_new_exception(name, baseException) {
     $boolean_False = False;
     $boolean_not = not;
   })();
+  var $option_Some;
+  var $option_None;
+  (function() {
+    function Some(a0) {
+      return ["Some", a0];
+    }
+    var None = ["None"];
+    $option_Some = Some;
+    $option_None = None;
+  })();
+  var $result_Ok;
+  var $result_Err;
+  (function() {
+    function Ok(a0) {
+      return ["Ok", a0];
+    }
+    function Err(a0) {
+      return ["Err", a0];
+    }
+    $result_Ok = Ok;
+    $result_Err = Err;
+  })();
   var $mutarray_append;
   var $mutarray_get;
   var $mutarray_len;
@@ -197,8 +219,8 @@ function _rts_new_exception(name, baseException) {
       var $7 = ($6).length;
       return $7;
     }
-    function replicate(element, len) {
-      var $8 = _unsafe_new(len);
+    function replicate(element, length) {
+      var $8 = _unsafe_new(length);
       {
         var arr = $8;
       }
@@ -207,7 +229,7 @@ function _rts_new_exception(name, baseException) {
       }
       while (true)
       {
-        var $9 = (i<len);
+        var $9 = (i<length);
         var $10 = (!$9);
         var $11;
         if ($10) {
@@ -361,26 +383,9 @@ function _rts_new_exception(name, baseException) {
     $string_join = join;
     $string_sliceFrom = sliceFrom;
   })();
-  var $builtin_True;
-  var $builtin_False;
-  var $builtin_not;
   var $builtin_print;
   var $builtin_toString;
-  var $builtin_Some;
-  var $builtin_None;
-  var $builtin_emptyArray;
-  var $builtin_get;
-  var $builtin_len;
-  var $builtin_replicate;
-  var $builtin_each;
-  var $builtin_map;
-  var $builtin_sliceFrom;
-  var $builtin_sliceTo;
-  var $builtin_slice;
   (function() {
-    var True = $boolean_True;
-    var False = $boolean_False;
-    var not = $boolean_not;
     function print(a) {
       var $0 = console;
       var $1 = ($0).log(a);
@@ -388,50 +393,10 @@ function _rts_new_exception(name, baseException) {
     }
     var $2 = function toString(v) { return '' + v; };
     var toString = $2;
-    function Some(a0) {
-      return ["Some", a0];
-    }
-    var None = ["None"];
-    function emptyArray() {
-      var $3 = [];
-      return $3;
-    }
-    var get = $array_get;
-    var len = $array_len;
-    var replicate = $array_replicate;
-    var each = $array_each;
-    function map(f, a) {
-      var $4 = [].map;
-      var $5 = ($4).call(a, f);
-      return $5;
-    }
-    var sliceFrom = $array_sliceFrom;
-    var sliceTo = $array_sliceTo;
-    var slice = $array_slice;
-    $builtin_True = True;
-    $builtin_False = False;
-    $builtin_not = not;
     $builtin_print = print;
     $builtin_toString = toString;
-    $builtin_Some = Some;
-    $builtin_None = None;
-    $builtin_emptyArray = emptyArray;
-    $builtin_get = get;
-    $builtin_len = len;
-    $builtin_replicate = replicate;
-    $builtin_each = each;
-    $builtin_map = map;
-    $builtin_sliceFrom = sliceFrom;
-    $builtin_sliceTo = sliceTo;
-    $builtin_slice = slice;
   })();
   (function() {
-    function Ok(a0) {
-      return ["Ok", a0];
-    }
-    function Err(a0) {
-      return ["Err", a0];
-    }
     function TimerId(a0) {
       return ["TimerId", a0];
     }
@@ -490,12 +455,12 @@ function _rts_new_exception(name, baseException) {
       var $18;
       if ($17) {
         var $19 = (rawRes).error;
-        var $20 = Err($19);
+        var $20 = $result_Err($19);
         $18 = $20;
       }
       else {
         var $21 = (rawRes).result;
-        var $22 = Ok($21);
+        var $22 = $result_Ok($21);
         $18 = $22;
       }
       return $18;
@@ -518,7 +483,7 @@ function _rts_new_exception(name, baseException) {
       return ["Compiler", a0];
     }
     function newCompiler(onresult) {
-      var $28 = Compiler({lastCompiledOptimize:$builtin_False, xhr:$builtin_None, lastCompiledSource:$builtin_None, timerId:$builtin_None, onresult:onresult});
+      var $28 = Compiler({lastCompiledOptimize:$boolean_False, xhr:$option_None, lastCompiledSource:$option_None, timerId:$option_None, onresult:onresult});
       return $28;
     }
     function compile(compiler, source, optimize) {
@@ -550,7 +515,7 @@ function _rts_new_exception(name, baseException) {
           var x = $32[1];
         }
         var $34 = (x).abort();
-        (this$).xhr = $builtin_None;
+        (this$).xhr = $option_None;
         $33 = (void 0);
       }
       else {
@@ -587,17 +552,17 @@ function _rts_new_exception(name, baseException) {
         $36 = (void 0);
       }
       var $70 = setTimeout((function() {
-        (this$).timerId = $builtin_None;
+        (this$).timerId = $option_None;
         var $42 = compileCrux(source);
         var $43;
         if (("Err"===$42[0])) {
           {
             var error = $42[1];
           }
-          var $44 = $builtin_Some(source);
+          var $44 = $option_Some(source);
           (this$).lastCompiledSource = $44;
           var $45 = ("Compile error:\n"+error);
-          var $46 = Err($45);
+          var $46 = $result_Err($45);
           var $47 = (this$).onresult($46);
           return (void 0);
         }
@@ -606,12 +571,12 @@ function _rts_new_exception(name, baseException) {
             {
               var res = $42[1];
             }
-            var $48 = $builtin_not(optimize);
+            var $48 = $boolean_not(optimize);
             var $49;
             if ($48) {
-              var $50 = $builtin_Some(source);
+              var $50 = $option_Some(source);
               (this$).lastCompiledSource = $50;
-              var $51 = Ok(res);
+              var $51 = $result_Ok(res);
               var $52 = (this$).onresult($51);
               return (void 0);
             }
@@ -630,7 +595,7 @@ function _rts_new_exception(name, baseException) {
         {
           var xhr = $53;
         }
-        var $54 = $builtin_Some(xhr);
+        var $54 = $option_Some(xhr);
         (this$).xhr = $54;
         var $55 = (xhr).open("POST", "https://crux-closure-service.herokuapp.com/compile");
         var $56 = (xhr).setRequestHeader("content-type", "application/json");
@@ -641,34 +606,34 @@ function _rts_new_exception(name, baseException) {
           var $59 = (xhr).response;
           var $60 = parseJson($59);
           {
-            var result = $60;
+            var result2 = $60;
           }
-          (this$).xhr = $builtin_None;
-          var $61 = $builtin_Some(source);
+          (this$).xhr = $option_None;
+          var $61 = $option_Some(source);
           (this$).lastCompiledSource = $61;
-          var $62 = (result).source;
-          var $63 = Ok($62);
+          var $62 = (result2).source;
+          var $63 = $result_Ok($62);
           var $64 = (this$).onresult($63);
           return $64;
         });
         (xhr).onerror = (function(e) {
-          (this$).xhr = $builtin_None;
-          (this$).lastCompiledSource = $builtin_None;
+          (this$).xhr = $option_None;
+          (this$).lastCompiledSource = $option_None;
           var $65 = ("Network error:\n"+e);
-          var $66 = Err($65);
+          var $66 = $result_Err($65);
           var $67 = (this$).onresult($66);
           return $67;
         });
         (xhr).ontimeout = (function() {
-          (this$).xhr = $builtin_None;
-          (this$).lastCompiledSource = $builtin_None;
-          var $68 = Err("Network timeout");
+          (this$).xhr = $option_None;
+          (this$).lastCompiledSource = $option_None;
+          var $68 = $result_Err("Network timeout");
           var $69 = (this$).onresult($68);
           return $69;
         });
         return (void 0);
       }), COMPILE_DELAY);
-      var $71 = $builtin_Some($70);
+      var $71 = $option_Some($70);
       (this$).timerId = $71;
       return (void 0);
     }
@@ -753,7 +718,7 @@ function _rts_new_exception(name, baseException) {
       var $89 = loadExampleSource();
       var $90 = registerCompileListener();
       var $91 = recompile();
-      (sourceTextArea).disabled = $builtin_False;
+      (sourceTextArea).disabled = $boolean_False;
       var $92 = (sourceTextArea).setSelectionRange(0, 0);
       var $93 = (sourceTextArea).focus();
       var $95 = (runButton).addEventListener("click", (function() {

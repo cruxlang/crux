@@ -1,8 +1,3 @@
-data Result errTy successTy {
-    Ok(successTy),
-    Err(errTy)
-}
-
 data TimerId {
     TimerId(Number)
 }
@@ -149,10 +144,11 @@ fun compile(compiler: Compiler, source: String, optimize) {
             xhr.send(toJson({source: result}))
 
             xhr.onload = fun() {
-                let result = parseJson(xhr.response)
+                // TODO: allow this kind of shadowing
+                let result2 = parseJson(xhr.response)
                 this.xhr = None
                 this.lastCompiledSource = Some(source)
-                this.onresult(Ok(result.source))
+                this.onresult(Ok(result2.source))
             }
 
             xhr.onerror = fun(e) {

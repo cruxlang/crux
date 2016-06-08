@@ -608,7 +608,13 @@ cruxDataDeclaration pos = do
     name <- typeName
     typeVars <- P.many typeVariableName
 
-    variants <- braced $ commaDelimited variantDefinition
+    let shorthand = do
+            args <- parenthesized $ commaDelimited typeIdent
+            return $ [Variant pos name args]
+    let expanded = do
+            braced $ commaDelimited variantDefinition
+
+    variants <- shorthand <|> expanded
     return $ DData pos name typeVars variants
 
 jsValue :: Parser JSTree.Literal

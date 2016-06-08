@@ -28,7 +28,7 @@ buildPatternEnv env pos exprType mut = \case
         return PWildcard
 
     PBinding pname -> do
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates pname (ValueReference (Local, pname) mut exprType)
+        SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates pname (ValueReference (Local, pname) mut exprType)
         return $ PBinding pname
 
     PConstructor unresolvedReference () cargs -> do
@@ -422,7 +422,7 @@ check' expectedType env = \case
         over' <- checkExpecting arrayType env over
 
         bindings' <- SymbolTable.clone (eValueBindings env)
-        SymbolTable.insert bindings' SymbolTable.DisallowDuplicates name (ValueReference (Local, name) Immutable iteratorType)
+        SymbolTable.insert bindings' pos SymbolTable.DisallowDuplicates name (ValueReference (Local, name) Immutable iteratorType)
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
@@ -469,25 +469,25 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
 
-exportValue :: ExportFlag -> Env -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
-exportValue export env name value = do
+exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
+exportValue export env pos name value = do
     when (export == Export) $ do
-        SymbolTable.insert (eExportedValues env) SymbolTable.DisallowDuplicates name value
+        SymbolTable.insert (eExportedValues env) pos SymbolTable.DisallowDuplicates name value
 
-exportType :: ExportFlag -> Env -> Name -> TypeVar -> TC ()
-exportType export env name typeVar = do
+exportType :: ExportFlag -> Env -> Pos -> Name -> TypeVar -> TC ()
+exportType export env pos name typeVar = do
     when (export == Export) $ do
-        SymbolTable.insert (eExportedTypes env) SymbolTable.DisallowDuplicates name typeVar
+        SymbolTable.insert (eExportedTypes env) pos SymbolTable.DisallowDuplicates name typeVar
 
-exportPattern :: ExportFlag -> Env -> Name -> PatternReference -> TC ()
-exportPattern export env name patternRef = do
+exportPattern :: ExportFlag -> Env -> Pos -> Name -> PatternReference -> TC ()
+exportPattern export env pos name patternRef = do
     when (export == Export) $ do
-        SymbolTable.insert (eExportedPatterns env) SymbolTable.DisallowDuplicates name patternRef
+        SymbolTable.insert (eExportedPatterns env) pos SymbolTable.DisallowDuplicates name patternRef
 
-exportException :: ExportFlag -> Env -> Name -> TypeVar -> TC ()
-exportException export env name typeVar = do
+exportException :: ExportFlag -> Env -> Pos -> Name -> TypeVar -> TC ()
+exportException export env pos name typeVar = do
     when (export == Export) $ do
-        SymbolTable.insert (eExportedExceptions env) SymbolTable.DisallowDuplicates name typeVar
+        SymbolTable.insert (eExportedExceptions env) pos SymbolTable.DisallowDuplicates name typeVar
 
 checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference PatternTag TypeVar)
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
@@ -497,12 +497,12 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     {- VALUE DEFINITIONS -}
 
-    DDeclare _pos name typeIdent -> do
+    DDeclare pos' name typeIdent -> do
         ty <- resolveTypeIdent env pos NewTypesAreQuantified typeIdent
         let resolvedRef = (Ambient, name)
         let mut = Immutable
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
-        exportValue export env name (resolvedRef, mut, ty)
+        SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
+        exportValue export env pos' name (resolvedRef, mut, ty)
         return $ DDeclare ty name typeIdent
     DLet pos' mut pat maybeAnnot expr -> do
         env' <- childEnv env
@@ -526,8 +526,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 -- TODO: warn if export
             PBinding name -> do
                 let rr = (FromModule $ eThisModule env, name)
-                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference rr mut ty)
-                exportValue export env name (rr, mut, ty)
+                SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr mut ty)
+                exportValue export env pos' name (rr, mut, ty)
                 return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
@@ -538,8 +538,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         let expr = EFun pos' fdParams fdReturnAnnot fdBody
         ty <- freshType env
         let rr = (FromModule $ eThisModule env, fdName)
-        exportValue export env fdName (rr, Immutable, ty)
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates fdName (ValueReference rr Immutable ty)
+        exportValue export env pos' fdName (rr, Immutable, ty)
+        SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates fdName (ValueReference rr Immutable ty)
         expr'@(EFun _ args' _ body') <- check env expr
         unify pos' (edata expr') ty
         quantify ty
@@ -552,18 +552,18 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     {- TYPE DEFINITIONS -}
 
-    DData _pos name typeParameters variants -> do
+    DData pos' name typeParameters variants -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
 
-        exportType export env name typeVar
+        exportType export env pos' name typeVar
 
         typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
             (Just (ValueReference rr mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
-            exportValue export env vname (rr, mut, ctorType)
+            exportValue export env pos' vname (rr, mut, ctorType)
             return $ Variant ctorType vname vparameters
 
         let def = case typeVar of
@@ -571,55 +571,55 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 TTypeFun _ (TUserType d) -> d
                 _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
         for_ variants $ \(Variant _vtype vname _typeIdent) -> do
-            exportPattern export env vname $ PatternReference def $ TagVariant vname
+            exportPattern export env pos' vname $ PatternReference def $ TagVariant vname
 
         return $ DData typeVar name typeParameters typedVariants
 
-    DJSData _pos name variants -> do
+    DJSData pos' name variants -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
 
-        exportType export env name typeVar
+        exportType export env pos' name typeVar
 
         let (TUserType def) = typeVar
 
         for_ variants $ \(JSVariant vname literal) -> do
             let rr = (FromModule $ eThisModule env, vname)
-            exportValue export env vname (rr, Immutable, typeVar)
-            exportPattern export env vname $ PatternReference def $ TagLiteral literal
+            exportValue export env pos' vname (rr, Immutable, typeVar)
+            exportPattern export env pos' vname $ PatternReference def $ TagLiteral literal
 
         return $ DJSData typeVar name variants
 
-    DTypeAlias _pos name typeVars ident -> do
+    DTypeAlias pos' name typeVars ident -> do
         -- TODO: add an internal compiler error if the name is not in bindings
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
-        exportType export env name typeVar
+        exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
 
-    DException _pos name typeIdent -> do
+    DException pos' name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
-        exportException export env name typeVar
+        exportException export env pos' name typeVar
         return $ DException typeVar name typeIdent
 
-    DExportImport _pos name -> do
+    DExportImport pos' name -> do
         SymbolTable.lookup (eValueBindings env) name >>= \case
             Just (ModuleReference mn) -> do
                 case HashMap.lookup mn (eLoadedModules env) of
                     Just loadedModule -> do
                         for_ (lmExportedValues loadedModule) $ \(name', v) -> do
-                            exportValue export env name' v
+                            exportValue export env pos' name' v
                         for_ (lmExportedTypes loadedModule) $ \(name', t) -> do
-                            exportType export env name' t
+                            exportType export env pos' name' t
                         for_ (lmExportedPatterns loadedModule) $ \(name', p) -> do
-                            exportPattern export env name' p
+                            exportPattern export env pos' name' p
                         for_ (lmExportedExceptions loadedModule) $ \(name', e) -> do
-                            exportException export env name' e
+                            exportException export env pos' name' e
                         return $ DExportImport (TPrimitive Unit) name
                     Nothing ->
                         fail "ICE: module not loaded!"

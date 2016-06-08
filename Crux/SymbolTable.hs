@@ -13,6 +13,7 @@ import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
 import Crux.Typecheck.Monad (TC, Warning(..), recordWarning, failError)
 import Crux.Error (Error(DuplicateSymbol))
+import Crux.Tokens (Pos)
 
 type Name = Text
 newtype SymbolTable v = SymbolTable (IORef (HashMap Name v))
@@ -30,8 +31,8 @@ clone (SymbolTable ref) = do
 readAll :: MonadIO m => SymbolTable value -> m (HashMap Name value)
 readAll (SymbolTable ref) = readIORef ref
 
-insert :: SymbolTable value -> InsertPolicy -> Name -> value -> TC ()
-insert (SymbolTable ref) policy key value = do
+insert :: SymbolTable value -> Pos -> InsertPolicy -> Name -> value -> TC ()
+insert (SymbolTable ref) pos policy key value = do
     hm <- readIORef ref
     case HashMap.lookup key hm of
         Nothing ->
@@ -42,7 +43,7 @@ insert (SymbolTable ref) policy key value = do
                 recordWarning Warning
                 writeIORef ref $ HashMap.insert key value hm
             DisallowDuplicates -> do
-                failError $ DuplicateSymbol key
+                failError $ DuplicateSymbol pos key
 
 lookup :: MonadIO m => SymbolTable value -> Name -> m (Maybe value)
 lookup (SymbolTable ref) key = do

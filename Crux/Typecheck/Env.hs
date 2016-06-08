@@ -149,7 +149,7 @@ resolveTypeReference env pos resolvePolicy = \case
                 tyVar <- freshType env
                 quantify tyVar
 
-                SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference tyVar)
+                SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
                 return tyVar
             Nothing -> do
                 failTypeError pos $ Error.UnboundSymbol "type" name
@@ -268,14 +268,15 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let strTy = TPrimitive String
     env <- newEnv thisModuleName loadedModules Nothing
 
-    SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates "Number" (TypeReference numTy)
-    SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates "String" (TypeReference strTy)
+    SymbolTable.insert (eTypeBindings env) undefined SymbolTable.DisallowDuplicates "Number" (TypeReference numTy)
+    SymbolTable.insert (eTypeBindings env) undefined SymbolTable.DisallowDuplicates "String" (TypeReference strTy)
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
         -- TODO: Ambient doesn't seem right here.  We should really do some kind of
         -- substitution from a + b to builtin.add(a, b)
-        SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference (Ambient, name) Immutable iType)
+        let pos = undefined -- yeesh
+        SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates name (ValueReference (Ambient, name) Immutable iType)
 
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do
@@ -285,19 +286,19 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
             -- populate types
             for_ (lmExportedTypes importedModule) $ \(name, typeVar) -> do
-                SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference typeVar)
+                SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference typeVar)
 
             -- populate values
             for_ (lmExportedValues importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
-                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
+                SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
 
             -- populate patterns
             for_ (lmExportedPatterns importedModule) $ \(name, pb) -> do
-                SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates name pb
+                SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates name pb
 
-        (_pos, QualifiedImport moduleName importName) -> do
+        (pos, QualifiedImport moduleName importName) -> do
             for_ importName $ \importName' -> do
-                SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates importName' (ModuleReference moduleName)
+                SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates importName' (ModuleReference moduleName)
 
     addThisModuleDataDeclsToEnvironment env thisModule
 
@@ -332,7 +333,7 @@ registerJSFFIDecl env = \case
     DFun {} -> return ()
 
     DData {} -> return ()
-    DJSData _pos name variants -> do
+    DJSData pos name variants -> do
         -- jsffi data never has type parameters, so we can just blast through the whole thing in one pass
         variants' <- for variants $ \(JSVariant variantName _value) -> do
             let tvParameters = []
@@ -347,11 +348,11 @@ registerJSFFIDecl env = \case
                 , tuVariants = variants'
                 }
         let userType = TUserType typeDef
-        SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference userType)
+        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference userType)
 
         for_ variants $ \(JSVariant variantName value) -> do
-            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates variantName (ValueReference (Local, variantName) Immutable userType)
-            SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates variantName (PatternReference typeDef $ TagLiteral value)
+            SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates variantName (ValueReference (Local, variantName) Immutable userType)
+            SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates variantName (PatternReference typeDef $ TagLiteral value)
         return ()
     DTypeAlias {} -> return ()
     DException {} -> return ()
@@ -369,7 +370,7 @@ registerExceptionDecl env = \case
     DTypeAlias {} -> return ()
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
-        SymbolTable.insert (eExceptionBindings env) SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
+        SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
         return ()
 
     DExportImport {} -> return ()
@@ -425,7 +426,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         let typeRef = case tyVars of
                 [] -> tyVar
                 _ -> TTypeFun tyVars tyVar
-        SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates typeName (TypeReference typeRef)
+        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates typeName (TypeReference typeRef)
 
         let qvars = zip typeVarNames tyVars
         return (pos, typeDef, tyVar, qvars, variants)
@@ -443,7 +444,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             let registeredType = case params of
                     [] -> bodyTypeVar
                     _ -> TTypeFun (fmap snd paramTypes) bodyTypeVar
-            SymbolTable.insert (eTypeBindings env) SymbolTable.DisallowDuplicates name (TypeReference registeredType)
+            SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference registeredType)
             return $ Just (pos, paramTypes, ident, bodyTypeVar)
         _ -> do
             return Nothing
@@ -452,7 +453,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ aliasDecls $ \(pos, paramTypes, ident, bodyTypeVar) -> do
         env' <- childEnv env
         for_ paramTypes $ \(tvName, tv) -> do
-            SymbolTable.insert (eTypeBindings env') SymbolTable.DisallowDuplicates tvName (TypeReference tv)
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates tvName (TypeReference tv)
         resolvedType <- resolveTypeIdent env' pos NewTypesAreErrors ident
         unify pos bodyTypeVar resolvedType
 
@@ -460,7 +461,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
         for_ qvars $ \(qvName, qvTypeVar) ->
-            SymbolTable.insert (eTypeBindings e) SymbolTable.DisallowDuplicates qvName (TypeReference qvTypeVar)
+            SymbolTable.insert (eTypeBindings e) pos SymbolTable.DisallowDuplicates qvName (TypeReference qvTypeVar)
 
         for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do
             for_ (zip typeIdents typeVars) $ \(typeIdent, typeVar) -> do
@@ -473,8 +474,8 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ variants $ \(Variant _typeVar vname vparameters) -> do
             parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
             let ctorType = computeVariantType parameterTypeVars
-            SymbolTable.insert (eValueBindings env) SymbolTable.DisallowDuplicates vname (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
-            SymbolTable.insert (ePatternBindings env) SymbolTable.DisallowDuplicates vname (PatternReference typeDef $ TagVariant vname)
+            SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates vname (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
+            SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates vname (PatternReference typeDef $ TagVariant vname)
 
     -- Phase 3.
     for_ decls $ \decl -> do

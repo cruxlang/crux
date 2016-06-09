@@ -7,12 +7,21 @@ import qualified Crux.Gen as Gen
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import qualified Data.Text as Text
-import Control.Monad.Reader (Reader, runReader, ask)
+import Control.Monad.Reader (ReaderT, runReaderT, ask)
+import Control.Monad.ST
+import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 
-type JSGen = Reader ModuleName
+type JSGen s = ReaderT (ModuleName, STRef s Int) (ST s)
 
-getModuleName :: JSGen ModuleName
-getModuleName = ask
+getModuleName :: JSGen s ModuleName
+getModuleName = fst <$> ask
+
+getUniqueCounter :: JSGen s Int
+getUniqueCounter = do
+    counter <- snd <$> ask
+    r <- lift $ readSTRef counter
+    lift $ writeSTRef counter (r + 1)
+    return r
 
 renderModuleName :: ModuleName -> Name
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
@@ -20,7 +29,7 @@ renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSe
 renderTemporary :: Int -> Text
 renderTemporary = Text.pack . ("$" <>). show
 
-renderArgument :: Pattern tagtype -> JSGen Name
+renderArgument :: Pattern tagtype -> JSGen s Name
 renderArgument = \case
     PWildcard -> return $ "$_"
     PBinding n -> return $ n
@@ -86,7 +95,7 @@ renderJSName n = if elem n jsKeywords
     then n <> "$"
     else n
 
-renderOutput :: Gen.Output -> JSTree.Expression -> JSGen JSTree.Statement
+renderOutput :: Gen.Output -> JSTree.Expression -> JSGen s JSTree.Statement
 renderOutput output input = case output of
     Gen.NewLocalBinding name -> return $ JSTree.SVar (renderJSName name) $ Just input
     Gen.ExistingLocalBinding name -> return $ JSTree.SAssign (JSTree.EIdentifier $ renderJSName name) input
@@ -96,7 +105,7 @@ renderOutput output input = case output of
         v' <- renderValue v
         return $ JSTree.SAssign (JSTree.ELookup v' name) input
 
-renderResolvedReference' :: ResolvedReference -> JSGen Text
+renderResolvedReference' :: ResolvedReference -> JSGen s Text
 renderResolvedReference' (reftype, name) = do
     moduleName <- getModuleName
     return $ case reftype of
@@ -106,10 +115,10 @@ renderResolvedReference' (reftype, name) = do
             | mn == moduleName -> renderJSName name
             | otherwise -> renderModuleName mn <> "_" <> name
 
-renderResolvedReference :: ResolvedReference -> JSGen JSTree.Expression
+renderResolvedReference :: ResolvedReference -> JSGen s JSTree.Expression
 renderResolvedReference r = JSTree.EIdentifier <$> renderResolvedReference' r
 
-renderValue :: Gen.Value -> JSGen JSTree.Expression
+renderValue :: Gen.Value -> JSGen s JSTree.Expression
 renderValue val = case val of
     Gen.LocalBinding name -> return $ JSTree.EIdentifier $ renderJSName name
     Gen.Temporary i -> return $ JSTree.EIdentifier $ renderTemporary i
@@ -135,7 +144,7 @@ renderValue val = case val of
         value' <- renderValue value
         return $ generateMatchCond value' tag
 
-renderInstruction :: Gen.Instruction -> JSGen JSTree.Statement
+renderInstruction :: Gen.Instruction -> JSGen s JSTree.Statement
 renderInstruction = \case
     Gen.EmptyLocalBinding name -> return $ JSTree.SVar (renderJSName name) Nothing
     Gen.EmptyTemporary i -> return $ JSTree.SVar (renderTemporary i) Nothing
@@ -274,7 +283,7 @@ renderJSVariant :: JSVariant -> JSTree.Statement
 renderJSVariant (JSVariant name value) =
     JSTree.SVar name $ Just $ JSTree.ELiteral value
 
-renderDeclaration :: Gen.Declaration -> JSGen [JSTree.Statement]
+renderDeclaration :: Gen.Declaration -> JSGen s [JSTree.Statement]
 renderDeclaration (Gen.Declaration _export decl) = case decl of
     Gen.DData _name variants ->
         return $ map renderVariant variants
@@ -310,24 +319,27 @@ getExportedValues (Gen.Declaration Export decl) = case decl of
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body = JSTree.SExpression $ JSTree.iife body
 
-generateModule' :: Gen.Module -> JSGen [JSTree.Statement]
+generateModule' :: Gen.Module -> JSGen s [JSTree.Statement]
 generateModule' decls = concat <$> for decls renderDeclaration
 
 generateModule :: ModuleName -> Gen.Module -> [JSTree.Statement]
-generateModule moduleName decls = runReader (generateModule' decls) moduleName
+generateModule moduleName decls = runST $ do
+    counter <- newSTRef 0
+    runReaderT (generateModule' decls) (moduleName, counter)
 
 renderExportName :: ModuleName -> Text -> Text
 renderExportName mn n = renderModuleName mn <> "_" <> n
 
 generateJS :: Text -> Gen.Program -> Text
-generateJS rtsSource modules =
-    let allStatements = (flip map) modules $ \(moduleName, decls) ->
-            let exportedValueNames = mconcat $ fmap getExportedValues decls
-                declareExports = [JSTree.SVar (renderExportName moduleName n) Nothing | n <- exportedValueNames]
-                body = runReader (generateModule' decls) moduleName
-                setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName n) | n <- exportedValueNames]
-            in declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
+generateJS rtsSource modules = runST $ do
+    counter <- newSTRef 0
+    allStatements <- for modules $ \(moduleName, decls) -> do
+        let exportedValueNames = mconcat $ fmap getExportedValues decls
+        let declareExports = [JSTree.SVar (renderExportName moduleName n) Nothing | n <- exportedValueNames]
+        body <- runReaderT (generateModule' decls) (moduleName, counter)
+        let setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName n) | n <- exportedValueNames]
+        return $ declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
 
     -- TODO: introduce an SRaw
-    in JSTree.renderDocument
+    return $ JSTree.renderDocument
         [wrapInModule $ (JSTree.SExpression $ JSTree.ERaw rtsSource) : mconcat allStatements]

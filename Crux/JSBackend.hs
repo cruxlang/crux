@@ -31,10 +31,13 @@ renderTemporary = Text.pack . ("$" <>). show
 
 renderArgument :: Pattern tagtype -> JSGen s Name
 renderArgument = \case
-    PWildcard -> return $ "$_"
-    PBinding n -> return $ n
-    PConstructor _ref _tag _subpatterns -> fail "TODO"
-    --    getUnresolvedReferenceLeaf ref <> "(" <> intercalate "," (map renderArgument subpatterns) <> ")"
+    PWildcard -> do
+        c <- getUniqueCounter
+        return $ "$_" <> Text.pack (show c)
+    PBinding n -> do
+        return n
+    PConstructor _ref _tag _subpatterns -> do
+        fail "TODO"
 
 -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
 jsKeywords :: [Text]
@@ -317,7 +320,9 @@ getExportedValues (Gen.Declaration Export decl) = case decl of
     Gen.DException name -> [name <> "$"]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
-wrapInModule body = JSTree.SExpression $ JSTree.iife body
+wrapInModule body =
+    let prefix = (JSTree.SExpression $ JSTree.ELiteral $ JSTree.LString "use strict")
+    in JSTree.SExpression $ JSTree.iife $ prefix : body
 
 generateModule' :: Gen.Module -> JSGen s [JSTree.Statement]
 generateModule' decls = concat <$> for decls renderDeclaration

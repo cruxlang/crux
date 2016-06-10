@@ -1,16 +1,12 @@
-data TimerId {
-    TimerId(Number)
-}
+data TimerId(Number)
 
-fun unTimerId(tid) {
-    match tid {
-        TimerId(t) => t
-    }
+fun unTimerId(TimerId(t)) {
+    t
 }
 
 let COMPILE_DELAY = 1000 // milliseconds
 
-fun as_bool(a: a): Boolean {
+forall { a } fun as_bool(a: a): Boolean {
     let to_bool = _unsafe_js("function (x) { return !!x; }");
     to_bool(_unsafe_coerce(a))
 }

@@ -1,4 +1,5 @@
 (function() {
+  "use strict";
   var _rts_current_exception = null;
 
 function _rts_set_exception(e) {
@@ -385,6 +386,7 @@ function _rts_new_exception(name, baseException) {
   })();
   var $builtin_print;
   var $builtin_toString;
+  var $builtin_emptyArray;
   (function() {
     function print(a) {
       var $0 = console;
@@ -393,340 +395,337 @@ function _rts_new_exception(name, baseException) {
     }
     var $2 = function toString(v) { return '' + v; };
     var toString = $2;
+    function emptyArray() {
+      var $3 = [];
+      return $3;
+    }
     $builtin_print = print;
     $builtin_toString = toString;
+    $builtin_emptyArray = emptyArray;
   })();
   (function() {
     function TimerId(a0) {
       return ["TimerId", a0];
     }
-    function unTimerId(tid) {
-      var $0;
-      if (("TimerId"===tid[0])) {
-        {
-          var t = tid[1];
-        }
-        $0 = t;
-      }
-      else {
-      }
-      return $0;
+    function unTimerId($_0) {
+      var t = $_0[1];
+      return t;
     }
     var COMPILE_DELAY = 1000;
     function as_bool(a) {
-      var $1 = function (x) { return !!x; };
+      var $0 = function (x) { return !!x; };
       {
-        var to_bool = $1;
+        var to_bool = $0;
       }
-      var $2 = a;
-      var $3 = to_bool($2);
-      return $3;
+      var $1 = a;
+      var $2 = to_bool($1);
+      return $2;
     }
     function querySelector(sel) {
-      var $4 = document;
-      var $5 = ($4).querySelector(sel);
-      return $5;
+      var $3 = document;
+      var $4 = ($3).querySelector(sel);
+      return $4;
     }
     function getElementById(id) {
-      var $6 = document;
-      var $7 = ($6).getElementById(id);
-      return $7;
+      var $5 = document;
+      var $6 = ($5).getElementById(id);
+      return $6;
     }
     function setTimeout(f, delay) {
-      var $8 = window;
-      var $9 = ($8).setTimeout(f, delay);
-      var $10 = TimerId($9);
-      return $10;
+      var $7 = window;
+      var $8 = ($7).setTimeout(f, delay);
+      var $9 = TimerId($8);
+      return $9;
     }
     function clearTimeout(tid) {
-      var $11 = window;
-      var $12 = unTimerId(tid);
-      var $13 = ($11).clearTimeout($12);
-      return $13;
+      var $10 = window;
+      var $11 = unTimerId(tid);
+      var $12 = ($10).clearTimeout($11);
+      return $12;
     }
     function compileCrux(source) {
-      var $14 = window;
-      var $15 = ($14).compileCrux(source);
+      var $13 = window;
+      var $14 = ($13).compileCrux(source);
       {
-        var rawRes = $15;
+        var rawRes = $14;
       }
-      var $16 = (rawRes).error;
-      var $17 = as_bool($16);
-      var $18;
-      if ($17) {
-        var $19 = (rawRes).error;
-        var $20 = $result_Err($19);
-        $18 = $20;
+      var $15 = (rawRes).error;
+      var $16 = as_bool($15);
+      var $17;
+      if ($16) {
+        var $18 = (rawRes).error;
+        var $19 = $result_Err($18);
+        $17 = $19;
       }
       else {
-        var $21 = (rawRes).result;
-        var $22 = $result_Ok($21);
-        $18 = $22;
+        var $20 = (rawRes).result;
+        var $21 = $result_Ok($20);
+        $17 = $21;
       }
-      return $18;
+      return $17;
     }
     function newXmlHttpRequest() {
-      var $23 = new XMLHttpRequest;
-      return $23;
+      var $22 = new XMLHttpRequest;
+      return $22;
     }
     function toJson(o) {
-      var $24 = JSON.stringify;
-      var $25 = $24(o);
-      return $25;
+      var $23 = JSON.stringify;
+      var $24 = $23(o);
+      return $24;
     }
     function parseJson(s) {
-      var $26 = JSON.parse;
-      var $27 = $26(s);
-      return $27;
+      var $25 = JSON.parse;
+      var $26 = $25(s);
+      return $26;
     }
     function Compiler(a0) {
       return ["Compiler", a0];
     }
     function newCompiler(onresult) {
-      var $28 = Compiler({lastCompiledOptimize:$boolean_False, xhr:$option_None, lastCompiledSource:$option_None, timerId:$option_None, onresult:onresult});
-      return $28;
+      var $27 = Compiler({lastCompiledOptimize:$boolean_False, xhr:$option_None, lastCompiledSource:$option_None, timerId:$option_None, onresult:onresult});
+      return $27;
     }
     function compile(compiler, source, optimize) {
       {
         var this$ = compiler[1];
       }
-      var $29 = (this$).timerId;
-      var $30;
-      if (("Some"===$29[0])) {
+      var $28 = (this$).timerId;
+      var $29;
+      if (("Some"===$28[0])) {
         {
-          var tid = $29[1];
+          var tid = $28[1];
         }
-        var $31 = clearTimeout(tid);
-        $30 = $31;
+        var $30 = clearTimeout(tid);
+        $29 = $30;
       }
       else {
-        if (("None"===$29[0])) {
+        if (("None"===$28[0])) {
           {
           }
-          $30 = (void 0);
+          $29 = (void 0);
         }
         else {
         }
       }
-      var $32 = (this$).xhr;
-      var $33;
-      if (("Some"===$32[0])) {
+      var $31 = (this$).xhr;
+      var $32;
+      if (("Some"===$31[0])) {
         {
-          var x = $32[1];
+          var x = $31[1];
         }
-        var $34 = (x).abort();
+        var $33 = (x).abort();
         (this$).xhr = $option_None;
-        $33 = (void 0);
+        $32 = (void 0);
       }
       else {
-        if (("None"===$32[0])) {
+        if (("None"===$31[0])) {
           {
           }
-          $33 = (void 0);
+          $32 = (void 0);
         }
         else {
         }
       }
-      var $35 = (this$).lastCompiledSource;
-      var $36;
-      if (("Some"===$35[0])) {
+      var $34 = (this$).lastCompiledSource;
+      var $35;
+      if (("Some"===$34[0])) {
         {
-          var lcs = $35[1];
+          var lcs = $34[1];
         }
-        var $37 = (lcs===source);
-        var $38 = (this$).lastCompiledOptimize;
-        var $39 = (optimize===$38);
-        var $40 = ($37&&$39);
-        var $41;
-        if ($40) {
+        var $36 = (lcs===source);
+        var $37 = (this$).lastCompiledOptimize;
+        var $38 = (optimize===$37);
+        var $39 = ($36&&$38);
+        var $40;
+        if ($39) {
           return (void 0);
         }
         else {
-          $41 = (void 0);
+          $40 = (void 0);
         }
-        $36 = $41;
+        $35 = $40;
       }
       else {
         {
         }
-        $36 = (void 0);
+        $35 = (void 0);
       }
-      var $70 = setTimeout((function() {
+      var $69 = setTimeout((function() {
         (this$).timerId = $option_None;
-        var $42 = compileCrux(source);
-        var $43;
-        if (("Err"===$42[0])) {
+        var $41 = compileCrux(source);
+        var $42;
+        if (("Err"===$41[0])) {
           {
-            var error = $42[1];
+            var error = $41[1];
           }
-          var $44 = $option_Some(source);
-          (this$).lastCompiledSource = $44;
-          var $45 = ("Compile error:\n"+error);
-          var $46 = $result_Err($45);
-          var $47 = (this$).onresult($46);
+          var $43 = $option_Some(source);
+          (this$).lastCompiledSource = $43;
+          var $44 = ("Compile error:\n"+error);
+          var $45 = $result_Err($44);
+          var $46 = (this$).onresult($45);
           return (void 0);
         }
         else {
-          if (("Ok"===$42[0])) {
+          if (("Ok"===$41[0])) {
             {
-              var res = $42[1];
+              var res = $41[1];
             }
-            var $48 = $boolean_not(optimize);
-            var $49;
-            if ($48) {
-              var $50 = $option_Some(source);
-              (this$).lastCompiledSource = $50;
-              var $51 = $result_Ok(res);
-              var $52 = (this$).onresult($51);
+            var $47 = $boolean_not(optimize);
+            var $48;
+            if ($47) {
+              var $49 = $option_Some(source);
+              (this$).lastCompiledSource = $49;
+              var $50 = $result_Ok(res);
+              var $51 = (this$).onresult($50);
               return (void 0);
             }
             else {
-              $49 = res;
+              $48 = res;
             }
-            $43 = $49;
+            $42 = $48;
           }
           else {
           }
         }
         {
-          var result = $43;
+          var result = $42;
         }
-        var $53 = newXmlHttpRequest();
+        var $52 = newXmlHttpRequest();
         {
-          var xhr = $53;
+          var xhr = $52;
         }
-        var $54 = $option_Some(xhr);
-        (this$).xhr = $54;
-        var $55 = (xhr).open("POST", "https://crux-closure-service.herokuapp.com/compile");
-        var $56 = (xhr).setRequestHeader("content-type", "application/json");
+        var $53 = $option_Some(xhr);
+        (this$).xhr = $53;
+        var $54 = (xhr).open("POST", "https://crux-closure-service.herokuapp.com/compile");
+        var $55 = (xhr).setRequestHeader("content-type", "application/json");
         (xhr).timeout = 15000;
-        var $57 = toJson({source:result});
-        var $58 = (xhr).send($57);
+        var $56 = toJson({source:result});
+        var $57 = (xhr).send($56);
         (xhr).onload = (function() {
-          var $59 = (xhr).response;
-          var $60 = parseJson($59);
+          var $58 = (xhr).response;
+          var $59 = parseJson($58);
           {
-            var result2 = $60;
+            var result2 = $59;
           }
           (this$).xhr = $option_None;
-          var $61 = $option_Some(source);
-          (this$).lastCompiledSource = $61;
-          var $62 = (result2).source;
-          var $63 = $result_Ok($62);
-          var $64 = (this$).onresult($63);
-          return $64;
+          var $60 = $option_Some(source);
+          (this$).lastCompiledSource = $60;
+          var $61 = (result2).source;
+          var $62 = $result_Ok($61);
+          var $63 = (this$).onresult($62);
+          return $63;
         });
         (xhr).onerror = (function(e) {
           (this$).xhr = $option_None;
           (this$).lastCompiledSource = $option_None;
-          var $65 = ("Network error:\n"+e);
-          var $66 = $result_Err($65);
-          var $67 = (this$).onresult($66);
-          return $67;
+          var $64 = ("Network error:\n"+e);
+          var $65 = $result_Err($64);
+          var $66 = (this$).onresult($65);
+          return $66;
         });
         (xhr).ontimeout = (function() {
           (this$).xhr = $option_None;
           (this$).lastCompiledSource = $option_None;
-          var $68 = $result_Err("Network timeout");
-          var $69 = (this$).onresult($68);
-          return $69;
+          var $67 = $result_Err("Network timeout");
+          var $68 = (this$).onresult($67);
+          return $68;
         });
         return (void 0);
       }), COMPILE_DELAY);
-      var $71 = $option_Some($70);
-      (this$).timerId = $71;
+      var $70 = $option_Some($69);
+      (this$).timerId = $70;
       return (void 0);
     }
     function main() {
-      var $72 = querySelector(".crux-playground .source");
+      var $71 = querySelector(".crux-playground .source");
       {
-        var sourceTextArea = $72;
+        var sourceTextArea = $71;
       }
-      var $73 = querySelector(".crux-playground .output");
+      var $72 = querySelector(".crux-playground .output");
       {
-        var outputTextArea = $73;
+        var outputTextArea = $72;
       }
-      var $74 = querySelector(".crux-playground .optimize");
+      var $73 = querySelector(".crux-playground .optimize");
       {
-        var optimizeCheckbox = $74;
+        var optimizeCheckbox = $73;
       }
-      var $75 = querySelector(".crux-playground .run");
+      var $74 = querySelector(".crux-playground .run");
       {
-        var runButton = $75;
+        var runButton = $74;
       }
       {
         var loadExampleSource = (function() {
-          var $76 = getElementById("initial_example");
-          var $77 = ($76).text;
+          var $75 = getElementById("initial_example");
+          var $76 = ($75).text;
           {
-            var source = $77;
+            var source = $76;
           }
           (sourceTextArea).value = source;
           return (void 0);
         });
       }
-      var $83 = newCompiler((function(result) {
-        var $78;
+      var $82 = newCompiler((function(result) {
+        var $77;
         if (("Ok"===result[0])) {
           {
             var res = result[1];
           }
-          var $79 = (outputTextArea).classList;
-          var $80 = ($79).remove("has-errors");
+          var $78 = (outputTextArea).classList;
+          var $79 = ($78).remove("has-errors");
           (outputTextArea).value = res;
-          $78 = (void 0);
+          $77 = (void 0);
         }
         else {
           if (("Err"===result[0])) {
             {
               var err = result[1];
             }
-            var $81 = (outputTextArea).classList;
-            var $82 = ($81).add("has-errors");
+            var $80 = (outputTextArea).classList;
+            var $81 = ($80).add("has-errors");
             (outputTextArea).value = err;
-            $78 = (void 0);
+            $77 = (void 0);
           }
           else {
           }
         }
-        return $78;
+        return $77;
       }));
       {
-        var compiler = $83;
+        var compiler = $82;
       }
       {
         var recompile = (function() {
-          var $84 = (sourceTextArea).value;
+          var $83 = (sourceTextArea).value;
           {
-            var content = $84;
+            var content = $83;
           }
-          var $85 = (optimizeCheckbox).checked;
+          var $84 = (optimizeCheckbox).checked;
           {
-            var optimize = $85;
+            var optimize = $84;
           }
-          var $86 = compile(compiler, content, optimize);
-          return $86;
+          var $85 = compile(compiler, content, optimize);
+          return $85;
         });
       }
       {
         var registerCompileListener = (function() {
-          var $87 = (sourceTextArea).addEventListener("input", recompile);
-          var $88 = (optimizeCheckbox).addEventListener("change", recompile);
-          return $88;
+          var $86 = (sourceTextArea).addEventListener("input", recompile);
+          var $87 = (optimizeCheckbox).addEventListener("change", recompile);
+          return $87;
         });
       }
-      var $89 = loadExampleSource();
-      var $90 = registerCompileListener();
-      var $91 = recompile();
+      var $88 = loadExampleSource();
+      var $89 = registerCompileListener();
+      var $90 = recompile();
       (sourceTextArea).disabled = $boolean_False;
-      var $92 = (sourceTextArea).setSelectionRange(0, 0);
-      var $93 = (sourceTextArea).focus();
-      var $95 = (runButton).addEventListener("click", (function() {
-        var $94 = $builtin_print("run button temporarily disabled");
-        return $94;
+      var $91 = (sourceTextArea).setSelectionRange(0, 0);
+      var $92 = (sourceTextArea).focus();
+      var $94 = (runButton).addEventListener("click", (function() {
+        var $93 = $builtin_print("run button temporarily disabled");
+        return $93;
       }));
-      return $95;
+      return $94;
     }
-    var $96 = main();
+    var $95 = main();
   })();
 })();

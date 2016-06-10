@@ -8,15 +8,15 @@ let _unsafe_new: (Number) -> [a] =
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun get(a: [a], idx: number) {
+export forall {t} fun get(a: [t], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-export fun len(a: [a]): Number {
+export forall {a} fun len(a: [a]): Number {
     _unsafe_coerce(a).length
 }
 
-export fun replicate(element: a, length: Number): [a] {
+export forall {a} fun replicate(element: a, length: Number): [a] {
     let arr = _unsafe_new(length);
 
     let mutable i = 0;
@@ -28,7 +28,7 @@ export fun replicate(element: a, length: Number): [a] {
     arr
 }
 
-export fun each(arr: [a], f: (a) -> b): () {
+export forall {a, b} fun each(arr: [a], f: (a) -> b): () {
     let mutable i = 0
     let length = len(arr)
     while i < length {
@@ -37,14 +37,14 @@ export fun each(arr: [a], f: (a) -> b): () {
     }
 }
 
-export fun sliceFrom(arr: [a], start: Number): [a] {
+export forall {a} fun sliceFrom(arr: [a], start: Number): [a] {
     _unsafe_coerce(arr).slice(start)
 }
 
-export fun sliceTo(arr: [a], end: Number): [a] {
+export forall {a} fun sliceTo(arr: [a], end: Number): [a] {
     _unsafe_coerce(arr).slice(0, end)
 }
 
-export fun slice(arr: [a], start: Number, end: Number): [a] {
+export forall {a} fun slice(arr: [a], start: Number, end: Number): [a] {
     _unsafe_coerce(arr).slice(start, end)
 }

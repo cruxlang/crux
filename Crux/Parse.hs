@@ -274,13 +274,17 @@ identifierExpression = do
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
+    maybeForall <- P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
-    args <- parenthesized $ commaDelimited funArgument
-    returnAnn <- P.optionMaybe $ do
+
+    let (fdForall, pos) = fromMaybe ([], tokenData tfun) maybeForall
+
+    fdParams <- parenthesized $ commaDelimited funArgument
+    fdReturnAnnot <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
-    body <- blockExpression
-    return $ EFun (tokenData tfun) args returnAnn body
+    fdBody <- blockExpression
+    return $ EFun pos FunctionDecl{..}
 
 wildcardPattern :: Parser (Pattern ())
 wildcardPattern = token TWildcard *> return PWildcard
@@ -682,18 +686,29 @@ blockExpression = do
         -- of all ESemi is wrong
         _ -> foldl1 (ESemi (tokenData br)) body
 
+forallQualifier :: Parser ([Name], Pos)
+forallQualifier = do
+    tforall <- token Tokens.TForall
+    (, tokenData tforall) <$> (braced $ commaDelimited typeVarName)
+  where
+    typeVarName = anyIdentifier
+
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
+    maybeForall <- P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
+
+    let (fdForall, pos) = fromMaybe ([], tokenData tfun) maybeForall
+
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
-        params <- parenthesized $ commaDelimited funArgument
-        returnAnn <- P.optionMaybe $ do
+        fdParams <- parenthesized $ commaDelimited funArgument
+        fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon
             returnTypeIdent
 
-        body <- blockExpression
-        return $ DFun (tokenData tfun) $ FunctionDecl name params returnAnn body
+        fdBody <- blockExpression
+        return $ DFun pos name FunctionDecl{..}
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

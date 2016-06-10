@@ -3,7 +3,7 @@
 'fileTypes': ['cx']
 'patterns': [
   {
-    'match': '\\b(data|type|let|mutable|export|import|while|fun|for|in|if|return|match)\\b',
+    'match': '\\b(data|type|let|mutable|export|import|while|fun|for|in|if|return|match|forall|pragma)\\b',
     'name': 'keyword.crux'
   },
   {

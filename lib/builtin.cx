@@ -22,3 +22,9 @@ export fun print(a): () {
 
 export let toString: (a) -> String =
     _unsafe_js("function toString(v) { return '' + v; }")
+
+// Arrays have unspecified representation here. They are represented as JS arrays.
+
+export forall {a} fun emptyArray(): [a] {
+    _unsafe_js("[]")
+}

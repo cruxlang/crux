@@ -157,7 +157,7 @@ weaken level e = do
 
 check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 check' expectedType env = \case
-    EFun pos params retAnn body -> do
+    EFun pos FunctionDecl{..} -> do --  params retAnn body
         valueBindings' <- SymbolTable.clone (eValueBindings env)
 
         -- If we know the expected function type, then use its type variables
@@ -166,34 +166,44 @@ check' expectedType env = \case
             TFun paramTypes returnType -> do
                 return (paramTypes, returnType)
             _ -> do
-                paramTypes <- for params $ \_ -> do
+                paramTypes <- for fdParams $ \_ -> do
                     freshType env
                 returnType <- freshType env
                 return (paramTypes, returnType)
 
-        let env' = env
-                { eValueBindings=valueBindings'
-                , eReturnType=Just returnType
-                , eInLoop=False
-                }
+        env' <- childEnv env >>= \x -> return x
+            { eValueBindings=valueBindings'
+            , eReturnType=Just returnType
+            , eInLoop=False
+            }
 
-        params' <- for (zip params paramTypes) $ \((p, pAnn), pt) -> do
+        for_ fdForall $ \name -> do
+            tv <- freshQuantized env'
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates name (TypeReference tv)
+
+        params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
+                annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
                 unify pos pt annTy
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)
 
-        for_ retAnn $ \ann -> do
-            annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
+        for_ fdReturnAnnot $ \ann -> do
+            annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
+            -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
             unify pos returnType annTy
 
-        body' <- check env' body
+        body' <- check env' fdBody
         unify pos returnType $ edata body'
 
         let ty = TFun paramTypes returnType
-        return $ EFun ty params' retAnn body'
+        return $ EFun ty FunctionDecl
+            { fdParams=params'
+            , fdReturnAnnot
+            , fdForall
+            , fdBody=body'
+            }
 
     -- Compiler intrinsics
     EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
@@ -534,19 +544,20 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         return $ DLet (edata expr'') mut pat' maybeAnnot expr''
-    DFun pos' FunctionDecl{..} -> do
-        let expr = EFun pos' fdParams fdReturnAnnot fdBody
+    DFun pos' name fd -> do
+        let expr = EFun pos' fd
         ty <- freshType env
-        let rr = (FromModule $ eThisModule env, fdName)
-        exportValue export env pos' fdName (rr, Immutable, ty)
-        SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates fdName (ValueReference rr Immutable ty)
-        expr'@(EFun _ args' _ body') <- check env expr
+        let rr = (FromModule $ eThisModule env, name)
+        exportValue export env pos' name (rr, Immutable, ty)
+        SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
+        expr'@(EFun _ fd') <- check env expr
+        let FunctionDecl{fdBody=body', fdParams=args'} = fd'
         unify pos' (edata expr') ty
         quantify ty
-        return $ DFun (edata expr') FunctionDecl
-            { fdName
-            , fdParams = args'
-            , fdReturnAnnot
+        return $ DFun (edata expr') name FunctionDecl
+            { fdParams = args'
+            , fdReturnAnnot = fdReturnAnnot fd
+            , fdForall = fdForall fd
             , fdBody = body'
             }
 

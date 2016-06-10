@@ -159,9 +159,9 @@ generate env expr = case expr of
             writeInstruction $ BindPattern v'' pat
             return $ Literal AST.LUnit
 
-    AST.EFun _ params _retAnn body -> do
-        body' <- subBlockWithReturn env body
-        return $ Just $ FunctionLiteral (map fst params) body'
+    AST.EFun _ AST.FunctionDecl{..} -> do
+        body' <- subBlockWithReturn env fdBody
+        return $ Just $ FunctionLiteral (map fst fdParams) body'
 
     AST.ELookup _ value propertyName -> do
         v <- generate env value
@@ -356,10 +356,10 @@ generateDecl env (AST.Declaration export _pos decl) = do
             writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
         AST.DJSData _ name variants -> do
             writeDeclaration $ Declaration export $ DJSData name variants
-        AST.DFun _ funDecl -> do -- name params _retAnn body -> do
+        AST.DFun _ name funDecl -> do -- name params _retAnn body -> do
             let AST.FunctionDecl{..} = funDecl
             body' <- subBlockWithReturn env fdBody
-            writeDeclaration $ Declaration export $ DFun fdName (map fst fdParams) body'
+            writeDeclaration $ Declaration export $ DFun name (map fst fdParams) body'
         AST.DLet _ _mut pat _ defn -> do
             defn' <- case pat of
                 AST.PWildcard -> subBlock env defn

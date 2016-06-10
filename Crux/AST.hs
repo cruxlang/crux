@@ -38,10 +38,10 @@ instance IsString (Pattern tagtype) where
     fromString = PBinding . fromString
 
 data FunctionDecl idtype tagtype edata = FunctionDecl
-    { fdName        :: !Name
-    , fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
+    { fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
     , fdReturnAnnot :: !(Maybe TypeIdent)
     , fdBody        :: !(Expression idtype tagtype edata)
+    , fdForall      :: [Name]
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
@@ -51,8 +51,8 @@ data DeclarationType idtype tagtype edata
     = DExportImport edata Name
     -- Values
     | DDeclare edata Name TypeIdent
-    | DLet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
-    | DFun edata !(FunctionDecl idtype tagtype edata)
+    | DLet !edata !Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | DFun !edata !Name !(FunctionDecl idtype tagtype edata)
     -- Types
     | DData edata Name [Text] [Variant edata]
     | DJSData edata Name [JSVariant]
@@ -202,7 +202,7 @@ data Expression idtype tagtype edata
     | EMethodApp edata (Expression idtype tagtype edata) Name [Expression idtype tagtype edata]
 
     -- literals
-    | EFun edata [(Pattern tagtype, Maybe TypeIdent)] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | EFun edata (FunctionDecl idtype tagtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype tagtype edata))
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ELiteral edata Literal
@@ -224,7 +224,7 @@ data Expression idtype tagtype edata
 edata :: Expression idtype tagtype edata -> edata
 edata expr = case expr of
     ELet ed _ _ _ _ -> ed
-    EFun ed _ _ _ -> ed
+    EFun ed _ -> ed
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
     EMatch ed _ _ -> ed
@@ -248,7 +248,7 @@ edata expr = case expr of
 setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
     ELet _ a b c d        -> ELet e a b c d
-    EFun _ a b c          -> EFun e a b c
+    EFun _ a              -> EFun e a
     ELookup _ a b         -> ELookup e a b
     EApp _ a b            -> EApp e a b
     EMatch _ a b          -> EMatch e a b
@@ -277,3 +277,6 @@ data TypeIdent
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
     deriving (Show, Eq)
+
+data TypeConstraint
+    = Unconstrained Name

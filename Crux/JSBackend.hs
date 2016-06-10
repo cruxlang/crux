@@ -23,21 +23,60 @@ getUniqueCounter = do
     lift $ writeSTRef counter (r + 1)
     return r
 
+getUniqueName :: JSGen s Name
+getUniqueName = do
+    c <- getUniqueCounter
+    return $ "$_" <> Text.pack (show c)
+
 renderModuleName :: ModuleName -> Name
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
 
 renderTemporary :: Int -> Text
 renderTemporary = Text.pack . ("$" <>). show
 
-renderArgument :: Pattern tagtype -> JSGen s Name
+renderArgument :: Pattern tagtype -> JSGen s (Name, [JSTree.Statement])
 renderArgument = \case
     PWildcard -> do
-        c <- getUniqueCounter
-        return $ "$_" <> Text.pack (show c)
+        n <- getUniqueName
+        return (n, [])
     PBinding n -> do
-        return n
-    PConstructor _ref _tag _subpatterns -> do
-        fail "TODO"
+        return (n, [])
+    PConstructor _ref _tag subpatterns -> do
+        -- we've already proven this pattern is exhaustive and thus don't need
+        -- to check the tag.  all we need to do is extract each subpattern.
+        n <- getUniqueName
+        let matchVar = JSTree.EIdentifier n
+        prefixes <- for (zip [(0 :: Integer)..] subpatterns) $ \(index, subpattern) -> do
+            (_argName, argPrefixes) <- renderArgument subpattern
+            let stmts = generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subpattern
+            return $ stmts ++ argPrefixes
+        return (n, mconcat prefixes)
+
+-- | Generate an expression which produces the boolean "true" if the variable "matchVar"
+-- matches the pattern "patt"
+generateMatchCond :: JSTree.Expression -> Gen.Tag -> JSTree.Expression
+generateMatchCond matchVar = \case
+    Gen.TagVariant name subtags -> do
+        let testIt = JSTree.EBinOp "==="
+                (JSTree.ELiteral $ JSTree.LString name)
+                (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
+        let buildTestCascade acc (index, subtag) =
+                let cond = generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger (index + 1)))) subtag
+                in JSTree.EBinOp "&&" acc cond
+        foldl' buildTestCascade testIt subtags
+    Gen.TagLiteral literal -> do
+        JSTree.EBinOp "===" (JSTree.ELiteral literal) matchVar
+
+generateMatchVars :: JSTree.Expression -> Pattern tagtype -> [JSTree.Statement]
+generateMatchVars matchVar = \case
+    PWildcard -> []
+    PBinding name ->
+        [ JSTree.SVar (renderJSName name) $ Just matchVar ]
+    PConstructor _ _tag subpatterns ->
+        concat
+            [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
+            | (index, subPattern) <- zip [1..] subpatterns
+            ]
 
 -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
 jsKeywords :: [Text]
@@ -135,8 +174,10 @@ renderValue val = case val of
         LUnit -> JSTree.ELiteral $ JSTree.LUndefined
     Gen.FunctionLiteral args body -> do
         args' <- for args renderArgument
+        let argNames = fmap fst args'
+        let argStatements = fmap snd args'
         body' <- for body renderInstruction
-        return $ JSTree.EFunction args' body'
+        return $ JSTree.EFunction argNames $ mconcat argStatements ++ body'
     Gen.ArrayLiteral elements -> do
         elements' <- for elements renderValue
         return $ JSTree.EArray elements'
@@ -230,8 +271,8 @@ renderInstruction = \case
             [body', JSTree.ENew (JSTree.EIdentifier "Error") Nothing]
 
     Gen.TryCatch tryInstrs exceptionName exceptionBinding catchInstrs -> do
-        jsarg <- renderArgument exceptionBinding
-        let jsident = JSTree.EIdentifier jsarg
+        (jsargName, jsargPrefix) <- renderArgument exceptionBinding
+        let jsident = JSTree.EIdentifier jsargName
         exceptionName' <- renderResolvedReference' exceptionName
         let excident = JSTree.EIdentifier $ exceptionName' <> "$"
         -- TODO: instanceof may not be right if we want customized tag checks later
@@ -242,34 +283,8 @@ renderInstruction = \case
         catchInstrs' <- for catchInstrs renderInstruction
         return $ JSTree.STryCatch
             tryInstrs'
-            jsarg
-            (guard : catchInstrs')
-
--- | Generate an expression which produces the boolean "true" if the variable "matchVar"
--- matches the pattern "patt"
-generateMatchCond :: JSTree.Expression -> Gen.Tag -> JSTree.Expression
-generateMatchCond matchVar = \case
-    Gen.TagVariant name subtags -> do
-        let testIt = JSTree.EBinOp "==="
-                (JSTree.ELiteral $ JSTree.LString name)
-                (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
-        let buildTestCascade acc (index, subtag) =
-                let cond = generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger (index + 1)))) subtag
-                in JSTree.EBinOp "&&" acc cond
-        foldl' buildTestCascade testIt subtags
-    Gen.TagLiteral literal -> do
-        JSTree.EBinOp "===" (JSTree.ELiteral literal) matchVar
-
-generateMatchVars :: JSTree.Expression -> Pattern tagtype -> [JSTree.Statement]
-generateMatchVars matchVar = \case
-    PWildcard -> []
-    PBinding name ->
-        [ JSTree.SVar (renderJSName name) $ Just matchVar ]
-    PConstructor _ _tag subpatterns ->
-        concat
-            [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
-            | (index, subPattern) <- zip [1..] subpatterns
-            ]
+            jsargName
+            (jsargPrefix ++ guard : catchInstrs')
 
 renderVariant :: Variant () -> JSTree.Statement
 renderVariant (Variant () vname vparameters) = case vparameters of
@@ -294,8 +309,10 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
         return $ map renderJSVariant variants
     Gen.DFun name args body -> do
         args' <- for args renderArgument
+        let argNames = fmap fst args'
+        let argPrefixes = fmap snd args'
         body' <- for body renderInstruction
-        return [JSTree.SFunction (renderJSName name) args' body']
+        return [JSTree.SFunction (renderJSName name) argNames $ mconcat argPrefixes ++ body']
     Gen.DLet pat defn -> case pat of
         PWildcard -> do
             for defn renderInstruction

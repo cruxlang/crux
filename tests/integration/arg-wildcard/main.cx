@@ -1,0 +1,5 @@
+fun f(_, _) {
+  "two wildcards"
+}
+
+let _ = print(f(1, "foo"))

@@ -9,9 +9,9 @@ module Crux.Typecheck.Types
     ) where
 
 import Crux.AST (ModuleName, Mutability, ResolvedReference)
-import Crux.Module.Types (LoadedModule, PatternTag (..))
+import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
 import Crux.Prelude
-import Crux.TypeVar (TUserTypeDef (..), TypeLevel (..), TypeVar (..))
+import Crux.TypeVar (TypeLevel (..), TypeVar (..))
 import Crux.SymbolTable (SymbolTable)
 
 data ValueReference
@@ -22,20 +22,20 @@ data TypeReference = TypeReference TypeVar
 
 data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 
-data PatternReference = PatternReference (TUserTypeDef TypeVar) PatternTag
-
 data Env = Env
-    { eThisModule        :: ModuleName
-    , eLoadedModules     :: HashMap ModuleName LoadedModule
-    , eNextTypeIndex     :: IORef Int
-    , eValueBindings     :: SymbolTable ValueReference
-    , eTypeBindings      :: SymbolTable TypeReference
-    , ePatternBindings   :: SymbolTable PatternReference
-    , eExceptionBindings :: SymbolTable ExceptionReference
-    , eReturnType        :: Maybe TypeVar -- Nothing if top-level expression
-    , eInLoop            :: !Bool
-    , eLevel             :: !TypeLevel
+    { eThisModule         :: ModuleName
+    , eLoadedModules      :: HashMap ModuleName LoadedModule
+    , eNextTypeIndex      :: IORef Int
+    , eValueBindings      :: SymbolTable ValueReference
+    , eTypeBindings       :: SymbolTable TypeReference
+    , ePatternBindings    :: SymbolTable PatternReference
+    , eExceptionBindings  :: SymbolTable ExceptionReference
+    , eReturnType         :: Maybe TypeVar -- Nothing if top-level expression
+    , eInLoop             :: !Bool
+    , eLevel              :: !TypeLevel
 
-    , eExportedValues    :: SymbolTable (ResolvedReference, Mutability, TypeVar)
-    , eExportedTypes     :: SymbolTable TypeVar
+    , eExportedValues     :: SymbolTable (ResolvedReference, Mutability, TypeVar)
+    , eExportedTypes      :: SymbolTable TypeVar
+    , eExportedPatterns   :: SymbolTable PatternReference
+    , eExportedExceptions :: SymbolTable TypeVar
     }

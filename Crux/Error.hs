@@ -46,7 +46,7 @@ data Error
     | CircularImport AST.ModuleName
     | InternalCompilerError InternalCompilerError
     | TypeError Tokens.Pos TypeError
-    | DuplicateSymbol Text
+    | DuplicateSymbol Tokens.Pos Text
     deriving (Eq, Show)
 
 renderError :: AST.ModuleName -> Error -> IO String
@@ -66,8 +66,8 @@ renderError' = \case
     TypeError pos ue -> do
         te <- typeErrorToString ue
         return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
-    DuplicateSymbol name -> do
-        return $ "Duplicate symbol: " ++ Text.unpack name
+    DuplicateSymbol pos name -> do
+        return $ "Duplicate symbol at " ++ formatPos pos ++ ": " ++ Text.unpack name
 
 formatPos :: Tokens.Pos -> String
 formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
@@ -80,7 +80,7 @@ getErrorName = \case
     CircularImport _ -> "circular-import"
     InternalCompilerError _ -> "internal"
     TypeError _ _ -> "type"
-    DuplicateSymbol _ -> "duplicate-symbol"
+    DuplicateSymbol _ _ -> "duplicate-symbol"
 
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case

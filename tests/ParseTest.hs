@@ -10,9 +10,7 @@ import           Data.HashMap.Strict (fromList)
 import qualified Data.Text           as T
 import           Test.Framework
 
-discardData expr = fmap (const ()) expr
-
--- assertParseOk :: (Show a, Eq a) => Parser (Expression a) -> T.Text -> (Expression a) -> IO ()
+assertParseOk :: (Eq b, Show b) => Parser a -> T.Text -> b -> (a -> b) -> IO ()
 assertParseOk parser source expected f = do
     case Lex.lexSource "<>" source of
         Left err ->
@@ -23,7 +21,11 @@ assertParseOk parser source expected f = do
                 Right result -> assertEqualVerbose (T.unpack source) expected (f result)
                 Left err -> assertFailure ("Parse failed: " ++ show err)
 
-assertExprParses parser source expected = assertParseOk parser source expected discardData
+assertExprParses :: (Functor f, Eq (f ()), Show (f ())) => Parser (f a) -> T.Text -> f () -> IO ()
+assertExprParses parser source expected = assertParseOk parser source expected (fmap $ const ())
+
+assertParses :: (Eq a, Show a) => Parser a -> T.Text -> a -> IO ()
+assertParses parser source expected = assertParseOk parser source expected id
 
 test_literals = do
     assertExprParses literalExpression "5"
@@ -66,7 +68,17 @@ test_let_with_type_annotation = do
         (ELet () Immutable (PBinding "a") (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
-    assertParseOk typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])]) id
+    assertParses typeIdent "{x:Number,}" (RecordIdent [("x", Nothing, TypeIdent "Number" [])])
+
+test_multi_arg_type_ident = do
+    assertParses
+        typeIdent
+        "Result String String"
+        (TypeIdent
+            (UnqualifiedReference "Result")
+            [ TypeIdent (UnqualifiedReference "String") []
+            , TypeIdent (UnqualifiedReference "String") []
+            ])
 
 test_let_with_record_annotation = do
     assertExprParses letExpression "let a : {x:Number, y:Number} = ()"
@@ -84,8 +96,8 @@ test_mutable_let = do
         (ELet () Mutable (PBinding "x") Nothing (ELiteral () (LInteger 22)))
 
 test_pattern = do
-    assertParseOk (pattern RefutableContext) "Cons(a, Cons(b, Nil))"
-        (PConstructor "Cons" () [PBinding "a", PConstructor "Cons" () [PBinding "b", PConstructor "Nil" () []]]) id
+    assertParses (pattern RefutableContext) "Cons(a, Cons(b, Nil))"
+        (PConstructor "Cons" () [PBinding "a", PConstructor "Cons" () [PBinding "b", PConstructor "Nil" () []]])
 
 test_match = do
     assertExprParses matchExpression "match hoot {\n  Nil => hodor\n  Cons(a, b) => hoober\n}"

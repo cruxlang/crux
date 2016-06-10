@@ -1,5 +1,6 @@
 module Crux.Module.Types
     ( PatternTag(..)
+    , PatternReference(..)
     , LoadedModule(..)
     , Program(..)
     ) where
@@ -7,7 +8,7 @@ module Crux.Module.Types
 import Crux.AST (Module, ModuleName, Mutability, ResolvedReference)
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
-import Crux.TypeVar (TypeVar)
+import Crux.TypeVar (TypeVar, TUserTypeDef)
 
 type Name = Text
 
@@ -16,12 +17,15 @@ data PatternTag
     | TagLiteral JSTree.Literal
     deriving (Eq, Show)
 
+data PatternReference = PatternReference (TUserTypeDef TypeVar) PatternTag
+    deriving (Eq)
+
 data LoadedModule = LoadedModule
     { lmModule :: Module ResolvedReference PatternTag TypeVar
     , lmExportedValues :: [(Name, (ResolvedReference, Mutability, TypeVar))]
     , lmExportedTypes :: [(Name, TypeVar)]
-    --, lmExportedPatterns :: [Name]
-    --, lmExportedExceptions :: [(Name, TypeVar)]
+    , lmExportedPatterns :: [(Name, PatternReference)]
+    , lmExportedExceptions :: [(Name, TypeVar)]
     } deriving (Eq)
 
 --type CheckedModule = Module ResolvedReference PatternTag TypeVar

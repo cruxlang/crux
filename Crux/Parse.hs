@@ -4,7 +4,6 @@
 module Crux.Parse where
 
 import Control.Applicative ((<|>))
-import Data.Foldable (asum)
 import Control.Monad.Reader.Class (MonadReader, ask, local)
 import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
@@ -555,7 +554,7 @@ noSpaceTypeIdent :: Parser TypeIdent
 noSpaceTypeIdent = asum
     [ arrayTypeIdent
     , recordTypeIdent
-    , sumIdent noSpaceTypeIdent
+    , sumIdent (fail "")
     , unitTypeIdent
     , parenthesized typeIdent
     ]
@@ -565,7 +564,7 @@ returnTypeIdent = asum
     [ arrayTypeIdent
     , functionTypeIdent
     , nonEmptyRecord
-    , sumIdent returnTypeIdent
+    , sumIdent (arrayTypeIdent <|> nonEmptyRecord <|> sumIdent (fail "") <|> unitTypeIdent <|> parenthesized typeIdent)
     , unitTypeIdent
     , parenthesized typeIdent
     ]
@@ -610,7 +609,13 @@ cruxDataDeclaration pos = do
     name <- typeName
     typeVars <- P.many typeVariableName
 
-    variants <- braced $ commaDelimited variantDefinition
+    let shorthand = do
+            args <- parenthesized $ commaDelimited typeIdent
+            return $ [Variant pos name args]
+    let expanded = do
+            braced $ commaDelimited variantDefinition
+
+    variants <- shorthand <|> expanded
     return $ DData pos name typeVars variants
 
 jsValue :: Parser JSTree.Literal
@@ -707,6 +712,13 @@ exceptionDeclaration = do
         ti <- typeIdent
         return $ DException (tokenData texc) name ti
 
+exportImportDeclaration :: Parser ParseDeclaration
+exportImportDeclaration = do
+    importToken <- token Tokens.TImport
+    withIndentation (IRDeeper importToken) $ do
+        name <- anyIdentifier
+        return $ DExportImport (tokenData importToken) name
+
 declaration :: Parser (Declaration UnresolvedReference () ParseData)
 declaration = do
     pos <- tokenData <$> P.lookAhead P.anyToken
@@ -716,12 +728,18 @@ declaration = do
             Just _ -> Export
             Nothing -> NoExport
 
-    declType <- declareDeclaration
-            <|> dataDeclaration
-            <|> aliasDeclaration
-            <|> funDeclaration
-            <|> letDeclaration
-            <|> exceptionDeclaration
+    let extra :: [Parser ParseDeclaration]
+        extra = if exportFlag == Export
+            then [exportImportDeclaration]
+            else []
+    declType <- asum $
+        [ declareDeclaration
+        , dataDeclaration
+        , aliasDeclaration
+        , funDeclaration
+        , letDeclaration
+        , exceptionDeclaration
+        ] ++ extra
     return $ Declaration exportFlag pos declType
 
 importDecl :: Parser (Pos, Import)

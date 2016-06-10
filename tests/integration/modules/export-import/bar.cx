@@ -1,0 +1,7 @@
+export data Foo {
+    Foo
+}
+
+export fun output(v: Foo) {
+    print("Foo")
+}

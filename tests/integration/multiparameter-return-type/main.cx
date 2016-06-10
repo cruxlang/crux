@@ -1,0 +1,15 @@
+type P = Result String String
+
+fun f(a: Result String String): Result String String {
+  return a
+}
+
+fun main() {
+  let v: P = Ok("hi")
+  match f(v) {
+    Ok(p) => print("Good: " + p)
+    Err(q) => print("Bad: " + q)
+  }
+}
+
+let _ = main()

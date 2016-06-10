@@ -4,16 +4,17 @@ pragma { NoBuiltin }
 // sequence of imports matters here.
 import {
     boolean,
+    option,
+    result,
     array,
     mutarray,
     string,
 }
 
-// TODO: implement support for export { ... } syntax
-export type Boolean = boolean.Boolean
-export let True = boolean.True
-export let False = boolean.False
-export let not = boolean.not
+export import boolean
+export import option
+export import result
+export import array
 
 export fun print(a): () {
     _unsafe_js("console").log(a)
@@ -22,30 +23,8 @@ export fun print(a): () {
 export let toString: (a) -> String =
     _unsafe_js("function toString(v) { return '' + v; }")
 
-// Option
-
-export data Option a {
-    Some(a),
-    None,
-}
-
 // Arrays have unspecified representation here. They are represented as JS arrays.
-export type Array a = [a]
 
 export forall {a} fun emptyArray(): [a] {
     _unsafe_js("[]")
 }
-
-// TODO: implement support for export { ... } syntax
-export let get = array.get
-export let len = array.len
-export let replicate = array.replicate
-export let each = array.each
-
-export forall {a, b} fun map(f: (a) -> b, a: [a]): [b] {
-    _unsafe_js("[].map").call(a, f)
-}
-
-export let sliceFrom = array.sliceFrom
-export let sliceTo = array.sliceTo
-export let slice = array.slice

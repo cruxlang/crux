@@ -371,6 +371,8 @@ generateDecl env (AST.Declaration export _pos decl) = do
             return ()
         AST.DException _ name _ -> do
             writeDeclaration $ Declaration export $ DException name
+        AST.DExportImport _ _ -> do
+            return ()
 
 generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
 generateModule moduleName AST.Module{..} = do

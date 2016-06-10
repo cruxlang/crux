@@ -27,6 +27,11 @@ freshWeakQVar env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Weak (eLevel env) index
 
+freshQuantized :: MonadIO m => Env -> m TypeVar
+freshQuantized env = do
+    index <- freshTypeIndex env
+    return $ TQuant index
+
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
     RowVariable <$> freshTypeIndex env

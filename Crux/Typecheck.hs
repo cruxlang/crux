@@ -178,13 +178,12 @@ check' expectedType env = \case
             }
 
         for_ fdForall $ \name -> do
-            tv <- freshType env'
+            tv <- freshQuantized env'
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates name (TypeReference tv)
 
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
-                -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
                 unify pos pt annTy
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p

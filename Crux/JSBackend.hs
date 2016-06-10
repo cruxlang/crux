@@ -46,10 +46,9 @@ renderArgument = \case
         -- to check the tag.  all we need to do is extract each subpattern.
         n <- getUniqueName
         let matchVar = JSTree.EIdentifier n
-        prefixes <- for (zip [(0 :: Integer)..] subpatterns) $ \(index, subpattern) -> do
-            (_argName, argPrefixes) <- renderArgument subpattern
+        prefixes <- for (zip [(1 :: Integer)..] subpatterns) $ \(index, subpattern) -> do
             let stmts = generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subpattern
-            return $ stmts ++ argPrefixes
+            return stmts
         return (n, mconcat prefixes)
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"

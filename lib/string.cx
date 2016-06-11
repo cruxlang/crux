@@ -39,3 +39,7 @@ export fun join(sep: String, elements: [String]): String {
 export fun sliceFrom(s: String, start: Number) {
     return _unsafe_coerce(s).slice(start)
 }
+
+export fun trim(s: String) {
+    _unsafe_coerce(s).trim()
+}

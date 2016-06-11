@@ -17,3 +17,7 @@ let _ = test("endsWith", fun() {
     assert.false("foo"->endsWith("boo"))
     assert.true("foo"->endsWith(""))
 })
+
+let _ = test("trim", fun() {
+    assert.equal("foo", " \nfoo\n\r\t "->trim())
+})

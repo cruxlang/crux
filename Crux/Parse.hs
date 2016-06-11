@@ -202,7 +202,9 @@ forExpression = do
 returnExpression :: Parser ParseExpression
 returnExpression = do
     pr <- token TReturn
-    rv <- noSemiExpression
+    rv <- P.optionMaybe noSemiExpression >>= \case
+        Just a -> return a
+        _      -> return $ ELiteral (tokenData pr) LUnit
     return $ EReturn (tokenData pr) rv
 
 unitLiteralExpression :: Parser ParseExpression

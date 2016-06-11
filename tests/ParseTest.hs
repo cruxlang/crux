@@ -126,6 +126,10 @@ test_fun_with_return = do
     assertExprParses funDeclaration "fun f() { return 1 }"
         (DFun () "f" FunctionDecl { fdParams=[], fdReturnAnnot=Nothing, fdBody=EReturn () $ ELiteral () $ LInteger 1, fdForall=[]})
 
+test_return_unit = do
+    assertExprParses funDeclaration "fun f() { return }"
+        (DFun () "f" FunctionDecl { fdParams=[], fdReturnAnnot=Nothing, fdBody=EReturn () $ ELiteral () LUnit, fdForall=[]})
+
 test_fun_with_argument_annotations = do
     assertExprParses funDeclaration "fun f(x: Number) { 1 }"
         (DFun () "f" FunctionDecl { fdParams=[("x", Just $ TypeIdent "Number" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () $ LInteger 1, fdForall=[]})

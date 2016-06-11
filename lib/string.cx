@@ -41,5 +41,6 @@ export fun sliceFrom(s: String, start: Number) {
 }
 
 export fun trim(s: String) {
+    // TODO: tests for full unicode whitespace support
     _unsafe_coerce(s).trim()
 }

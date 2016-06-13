@@ -125,7 +125,7 @@ fun compile(Compiler(this), source, optimize) {
         let xhr = newXmlHttpRequest()
         xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
         xhr.setRequestHeader("content-type", "application/json")
-        xhr.timeout = 15000 // 15s
+        xhr.timeout = 60000 // 60s
         xhr.send(toJson({source: result}))
         this.state = Optimizing(xhr)
 

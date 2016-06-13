@@ -61,105 +61,92 @@ type XHR = {
 }
 
 data CompilerState {
+    Idle,
+    Waiting(TimerId),
+    Optimizing(XHR),
 }
 
-data Compiler {
-    Compiler({
-        onresult: (Result String String) -> (),
-        mutable lastCompiledOptimize: Boolean,
-        mutable xhr: Option XHR,
-        mutable lastCompiledSource: Option String,
-        mutable timerId: Option TimerId,
-    })
-}
+data LastCompile(String, Boolean)
 
-fun newCompiler(onresult): Compiler {
+data Compiler({
+    onresult: (Result String String) -> (),
+    mutable state: CompilerState,
+    mutable lastCompile: Option LastCompile,
+})
+
+fun newCompiler(onresult) {
     return Compiler({
         onresult: onresult,
-        lastCompiledSource: None,
-        lastCompiledOptimize: False,
-
-        timerId: None,
-        xhr: None
+        state: Idle,
+        lastCompile: None,
     })
 }
 
-fun compile(compiler: Compiler, source: String, optimize) {
-    let Compiler(this) = compiler
-    match this.timerId {
-        Some(tid) => {
+fun compile(Compiler(this), source, optimize) {
+    match this.state {
+        Idle => {
+        }
+        Waiting(tid) => {
             clearTimeout(tid)
         }
-        None => {}
-    }
-
-    match this.xhr {
-        Some(x) => {
-            x.abort()
-            this.xhr = None
+        Optimizing(xhr) => {
+            xhr.abort()
         }
-        None => {}
     }
 
-    match this.lastCompiledSource {
-        Some(lcs) => {
-            if lcs == source && optimize == this.lastCompiledOptimize {
+    this.state = Idle
+
+    if this.lastCompile->eq(Some(LastCompile(source, optimize))) {
+        return ()
+    }
+
+    this.state = Waiting(setTimeout(fun() {
+        // TODO: set timer to null
+
+        let result = match compileCrux(source) {
+            Err(error) => {
+                this.state = Idle;
+                this.lastCompile = Some(LastCompile(source, optimize))
+                this.onresult(Err("Compile error:\n" + error))
                 return ()
             }
-        }
-        _ => {
-        }
-    }
-
-    this.timerId = Some(setTimeout(
-        fun() {
-            this.timerId = None
-
-            let result = match compileCrux(source) {
-                Err(error) => {
-                    this.lastCompiledSource = Some(source)
-                    this.onresult(Err("Compile error:\n" + error))
+            Ok(res) => {
+                if not(optimize) {
+                    this.state = Idle;
+                    this.lastCompile = Some(LastCompile(source, optimize))
+                    this.onresult(Ok(res))
                     return ()
-                }
-                Ok(res) => {
-                    if not(optimize) {
-                        this.lastCompiledSource = Some(source)
-                        this.onresult(Ok(res))
-                        return ()
-                    } else {
-                        res
-                    }
+                } else {
+                    res
                 }
             }
+        }
 
-            let xhr = newXmlHttpRequest()
-            this.xhr = Some(xhr)
-            xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
-            xhr.setRequestHeader("content-type", "application/json")
-            xhr.timeout = 15000 // 15s
-            xhr.send(toJson({source: result}))
+        let xhr = newXmlHttpRequest()
+        xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
+        xhr.setRequestHeader("content-type", "application/json")
+        xhr.timeout = 15000 // 15s
+        xhr.send(toJson({source: result}))
+        this.state = Optimizing(xhr)
 
-            xhr.onload = fun() {
-                // TODO: allow this kind of shadowing
-                let result2 = parseJson(xhr.response)
-                this.xhr = None
-                this.lastCompiledSource = Some(source)
-                this.onresult(Ok(result2.source))
-            }
+        xhr.onload = fun() {
+            // TODO: allow this kind of shadowing
+            let result2 = parseJson(xhr.response)
+            this.state = Idle
+            this.lastCompile = Some(LastCompile(source, optimize))
+            this.onresult(Ok(result2.source))
+        }
 
-            xhr.onerror = fun(e) {
-                this.xhr = None
-                this.lastCompiledSource = None
-                this.onresult(Err("Network error:\n" + e))
-            }
+        xhr.onerror = fun(e) {
+            this.lastCompile = None
+            this.onresult(Err("Network error:\n" + e))
+        }
 
-            xhr.ontimeout = fun() {
-                this.xhr = None
-                this.lastCompiledSource = None
-                this.onresult(Err("Network timeout"))
-            }
-        }, COMPILE_DELAY
-    ))
+        xhr.ontimeout = fun() {
+            this.lastCompile = None
+            this.onresult(Err("Network timeout"))
+        }
+    }, COMPILE_DELAY))
 }
 
 fun main() {
@@ -169,25 +156,23 @@ fun main() {
     let runButton = querySelector(".crux-playground .run")
 
     let loadExampleSource = fun() {
-        let source = getElementById("initial_example").text
-        // source = source.replace(/^\s+/, "") // trim leading whitespace
+        let mutable source: String = getElementById("initial_example").text
+        source = source->trim()
         sourceTextArea.value = source
     }
 
-    let compiler = newCompiler(
-        fun (result) {
-            match result {
-                Ok(res) => {
-                    outputTextArea.classList.remove("has-errors")
-                    outputTextArea.value = res
-                }
-                Err(err) => {
-                    outputTextArea.classList.add("has-errors")
-                    outputTextArea.value = err
-                }
+    let compiler = newCompiler(fun(result) {
+        match result {
+            Ok(res) => {
+                outputTextArea.classList.remove("has-errors")
+                outputTextArea.value = res
+            }
+            Err(err) => {
+                outputTextArea.classList.add("has-errors")
+                outputTextArea.value = err
             }
         }
-    )
+    })
 
     let recompile = fun() {
         let content = sourceTextArea.value

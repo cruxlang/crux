@@ -32,6 +32,7 @@ data TokenType
     | TCloseParen
     | TOpenBracket
     | TCloseBracket
+    | TQuestionMark
     | TSemicolon
     | TColon
     | TComma

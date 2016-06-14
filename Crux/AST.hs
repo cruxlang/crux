@@ -276,6 +276,7 @@ data TypeIdent
     | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
+    | OptionIdent TypeIdent
     deriving (Show, Eq)
 
 data TypeConstraint

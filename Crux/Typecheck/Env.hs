@@ -131,6 +131,12 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         unify pos elementType' elementType''
         return arrayType
 
+    go (OptionIdent elementType) = do
+        elementType' <- go elementType
+        (optionType, elementType'') <- resolveOptionType env pos
+        unify pos elementType' elementType''
+        return optionType
+
 resolveImportName :: Env -> Pos -> Name -> TC ModuleName
 resolveImportName env pos importName = do
     SymbolTable.lookup (eValueBindings env) importName >>= \case
@@ -232,6 +238,18 @@ resolveArrayType env pos mutability = do
             let newArrayType = TUserType td{ tuParameters=[elementType] }
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
+
+resolveOptionType :: Env -> Pos -> TC (TypeVar, TypeVar)
+resolveOptionType env pos = do
+    elementType <- freshType env
+
+    let typeReference = KnownReference "option" "Option"
+    optionType <- resolveTypeReference env pos NewTypesAreErrors typeReference
+    followTypeVar optionType >>= \case
+        TTypeFun [_argType] (TUserType td) -> do
+            let newOptionType = TUserType td{ tuParameters=[elementType] }
+            return (newOptionType, elementType)
+        _ -> fail "Unexpected Option type"
 
 resolveBooleanType :: Env -> Pos -> TC TypeVar
 resolveBooleanType env pos = do

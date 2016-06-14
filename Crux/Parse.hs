@@ -545,9 +545,17 @@ arrayTypeIdent = do
     ti <- bracketed typeIdent
     return $ ArrayIdent mutability ti
 
+optionTypeIdent :: Parser TypeIdent -> Parser TypeIdent
+optionTypeIdent innerTypeIdent = do
+    _ <- token TQuestionMark
+    ti <- innerTypeIdent
+    return $ OptionIdent ti
+
+
 typeIdent :: Parser TypeIdent
 typeIdent = asum
     [ arrayTypeIdent
+    , optionTypeIdent noSpaceTypeIdent
     , functionTypeIdent
     , recordTypeIdent
     , sumIdent noSpaceTypeIdent
@@ -558,6 +566,7 @@ typeIdent = asum
 noSpaceTypeIdent :: Parser TypeIdent
 noSpaceTypeIdent = asum
     [ arrayTypeIdent
+    , optionTypeIdent noSpaceTypeIdent
     , recordTypeIdent
     , sumIdent (fail "")
     , unitTypeIdent
@@ -567,9 +576,10 @@ noSpaceTypeIdent = asum
 returnTypeIdent :: Parser TypeIdent
 returnTypeIdent = asum
     [ arrayTypeIdent
+    , optionTypeIdent noSpaceTypeIdent
     , functionTypeIdent
     , nonEmptyRecord
-    , sumIdent (arrayTypeIdent <|> nonEmptyRecord <|> sumIdent (fail "") <|> unitTypeIdent <|> parenthesized typeIdent)
+    , sumIdent (arrayTypeIdent <|> optionTypeIdent (fail "") <|> nonEmptyRecord <|> sumIdent (fail "") <|> unitTypeIdent <|> parenthesized typeIdent)
     , unitTypeIdent
     , parenthesized typeIdent
     ]

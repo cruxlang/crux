@@ -1,0 +1,14 @@
+let a: ?String = Some("some")
+
+fun f(): ?String {
+  a
+}
+
+fun main() {
+  match f() {
+    Some(p) => print(p)
+    None => print("none")
+  }
+}
+
+let _ = main()

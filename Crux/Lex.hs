@@ -172,6 +172,7 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym2 '>' '=' TGreaterEqual
      <|> sym2 '&' '&' TAndAnd
      <|> sym2 '|' '|' TOrOr
+     <|> sym '?' TQuestionMark
      <|> sym ';' TSemicolon
      <|> sym ':' TColon
      <|> sym '.' TDot

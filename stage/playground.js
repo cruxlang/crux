@@ -641,7 +641,7 @@ function _rts_new_exception(name, baseException) {
         }
         var $51 = (xhr).open("POST", "https://crux-closure-service.herokuapp.com/compile");
         var $52 = (xhr).setRequestHeader("content-type", "application/json");
-        (xhr).timeout = 15000;
+        (xhr).timeout = 60000;
         var $53 = toJson({source:result});
         var $54 = (xhr).send($53);
         var $55 = Optimizing(xhr);

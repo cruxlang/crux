@@ -1,6 +1,28 @@
 pragma { NoBuiltin }
 
+import {
+    boolean(...)
+}
+
 export data Option a {
     Some(a),
     None,
+}
+
+// this is 100 kinds of terrible
+export fun eq(lhs, rhs) {
+    match lhs {
+        Some(a) => {
+            match rhs {
+                Some(b) => a == b
+                _ => False
+            }
+        }
+        None => {
+            match rhs {
+                Some(_) => False
+                None => True
+            }
+        }
+    }
 }

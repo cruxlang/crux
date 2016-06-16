@@ -1,0 +1,25 @@
+import {
+  test(...),
+  assert,
+  flux.dispatcher,
+}
+
+data ActionType {
+  Test1,
+  Test2,
+}
+
+let _ = test("actions are dispatched to registered callbacks", fun() {
+  let actions = mutable []
+
+  let d = dispatcher.new()
+  let _ = d->register(fun(action) {
+    actions->append(action)
+  })
+
+  d->dispatch(Test1)
+  d->dispatch(Test2)
+
+  // need traits, then enable this
+  // assert.equal([Test1, Test2], actions->freeze())
+})

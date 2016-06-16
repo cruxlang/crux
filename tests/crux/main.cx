@@ -5,6 +5,7 @@ import {
     numbertest as _,
     stringtest as _,
     pathtest as _,
+    flux.dispatchertest as _,
 }
 
 let _ = test.run()

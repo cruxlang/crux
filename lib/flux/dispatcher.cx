@@ -1,0 +1,30 @@
+export data Dispatcher action ({
+  mutable currentToken: Number,
+  callbacks: mutable [(action) -> ()],
+})
+
+data DispatchToken(Number)
+
+export forall{a} fun new(): Dispatcher a {
+  return Dispatcher({
+    currentToken: 0,
+    callbacks: mutable [],
+  })
+}
+
+export forall{a} fun register(Dispatcher(self), callback: (a) -> ()): DispatchToken {
+  self.callbacks->append(callback)
+
+  self.currentToken = self.currentToken + 1
+  return DispatchToken(self.currentToken)
+}
+
+forall{a} fun unregister(Dispatcher(self), token: DispatchToken) {
+  
+}
+
+export forall{action} fun dispatch(Dispatcher(self), action: action) {
+  for cb in self.callbacks->freeze() {
+    cb(action)
+  }
+}

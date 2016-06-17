@@ -681,22 +681,28 @@ funArgument = do
         typeIdent
     return (n, ann)
 
-blockExpression :: Parser ParseExpression
-blockExpression = do
-    -- TODO: use braced, which needs to return the start pos
+bracedLines :: Parser (Pos, a) -> Parser (Pos, [a])
+bracedLines lineParser = do
     br <- token TOpenBrace
-    body <- withIndentation (IRDeeper br) $ P.optionMaybe semiExpression >>= \case
-        Nothing -> return []
-        Just first -> withIndentation (IRAtColumn $ edata first) $ do
-            rest <- P.many semiExpression
-            return $ first : rest
+    body <- withIndentation (IRDeeper br) $ P.optionMaybe lineParser >>= \case
+      Nothing -> return []
+      Just (linePos, first) -> withIndentation (IRAtColumn $ linePos) $ do
+          rest <- P.many lineParser
+          return $ first : fmap snd rest
     withIndentation (IRAtOrDeeper br) $ do
         void $ token TCloseBrace
+    return (tokenData br, body)
+
+blockExpression :: Parser ParseExpression
+blockExpression = do
+    (brPos, body) <- bracedLines $ do
+        expr <- semiExpression
+        return (edata expr, expr)
     return $ case body of
-        [] -> ELiteral (tokenData br) LUnit
+        [] -> ELiteral brPos LUnit
         -- TODO: I think using the open brace's position for the position
         -- of all ESemi is wrong
-        _ -> foldl1 (ESemi (tokenData br)) body
+        _ -> foldl1 (ESemi brPos) body
 
 forallQualifier :: Parser ([Name], Pos)
 forallQualifier = do

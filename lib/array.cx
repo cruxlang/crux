@@ -2,7 +2,7 @@ pragma { NoBuiltin }
 
 export data Array a {}
 
-let _unsafe_new: (Number) -> [a] =
+let _unsafe_new: fun(Number) -> [a] =
     _unsafe_js("function (len) { return new Array(len); }")
 
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
@@ -28,7 +28,7 @@ export forall {a} fun replicate(element: a, length: Number): [a] {
     arr
 }
 
-export forall {a, b} fun each(arr: [a], f: (a) -> b): () {
+export forall {a, b} fun each(arr: [a], f: fun(a) -> b): () {
     let mutable i = 0
     let length = len(arr)
     while i < length {

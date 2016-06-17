@@ -88,7 +88,7 @@ test_let_with_record_annotation = do
             ])) (ELiteral () LUnit))
 
 test_let_with_function_annotation = do
-    assertExprParses letExpression "let a : (Number) -> Unit = _unsafe_js(\"console.log\")"
+    assertExprParses letExpression "let a : fun(Number) -> Unit = _unsafe_js(\"console.log\")"
         (ELet () Immutable (PBinding "a") (Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "Unit" []))) (EApp () (EIdentifier () "_unsafe_js") [ELiteral () (LString "console.log")]))
 
 test_mutable_let = do
@@ -139,7 +139,7 @@ test_fun_with_forall = do
         (DFun () "f" FunctionDecl { fdParams=[("x", Just $ TypeIdent "T" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit, fdForall=["T"]})
 
 test_fun_that_takes_function = do
-    assertExprParses funDeclaration "fun f(x: (Number) -> String) { x(1) }"
+    assertExprParses funDeclaration "fun f(x: fun(Number) -> String) { x(1) }"
         (DFun () "f" FunctionDecl { fdParams=[("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))], fdReturnAnnot=Nothing, fdBody=EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1], fdForall=[]})
 
 test_fun_with_return_annotation = do

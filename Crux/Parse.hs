@@ -511,10 +511,9 @@ recordTypeIdent =
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do
-    argTypes <- P.try $ do
-        argTypes <- parenthesized $ commaDelimited typeIdent
-        _ <- token TRightArrow
-        return argTypes
+    _ <- token TFun
+    argTypes <- parenthesized $ commaDelimited typeIdent
+    _ <- token TRightArrow
     retType <- typeIdent
     return $ FunctionIdent argTypes retType
 

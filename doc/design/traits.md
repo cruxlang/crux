@@ -4,14 +4,37 @@ TRAITS
 
 ```
 trait ToString ty {
-    toString: fun(ty) -> String
+    fun toString(ty): String
 }
 
 trait Bounded ty {
-    minBound : ty
-    maxBound : ty
+    let minBound: ty
+    let maxBound: ty
 }
 ```
+
+Note that the `fun` form does not name its parameters.  This is a one-off grammar production.
+
+```
+impl ToString Number {
+    fun toString(n) { ... }
+}
+```
+
+```
+forall { t : ToString }
+    fun join(delimiter : String, elements : Array t) { ... }
+    
+// or maybe
+
+forall { ToString t }
+    fun join(delimiter : String, elements : Array t) { ... }
+
+```
+
+# Associated Types
+
+???
 
 # Instance Selection
 

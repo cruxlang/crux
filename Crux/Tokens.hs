@@ -81,6 +81,8 @@ data TokenType
     | TConst
     | TMutable
     | TForall
+    | TTrait
+    | TImpl
     deriving (Show, Eq)
 
 data Token tdata = Token tdata TokenType

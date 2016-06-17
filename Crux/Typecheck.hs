@@ -505,6 +505,24 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
   g :: DeclarationType UnresolvedReference () Pos -> TC (DeclarationType ResolvedReference PatternTag TypeVar)
   g = \case
 
+    DExportImport pos' name -> do
+        SymbolTable.lookup (eValueBindings env) name >>= \case
+            Just (ModuleReference mn) -> do
+                case HashMap.lookup mn (eLoadedModules env) of
+                    Just loadedModule -> do
+                        for_ (lmExportedValues loadedModule) $ \(name', v) -> do
+                            exportValue export env pos' name' v
+                        for_ (lmExportedTypes loadedModule) $ \(name', t) -> do
+                            exportType export env pos' name' t
+                        for_ (lmExportedPatterns loadedModule) $ \(name', p) -> do
+                            exportPattern export env pos' name' p
+                        for_ (lmExportedExceptions loadedModule) $ \(name', e) -> do
+                            exportException export env pos' name' e
+                        return $ DExportImport (TPrimitive Unit) name
+                    Nothing ->
+                        fail "ICE: module not loaded!"
+            _ -> fail "Export import is not a module reference"
+
     {- VALUE DEFINITIONS -}
 
     DDeclare pos' name typeIdent -> do
@@ -612,29 +630,17 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
         exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
+        
+    DTrait _ _ _ _ -> do
+        fail "found trait"
+        
+    DImpl _ _ _ -> do
+        fail "found impl"
 
     DException pos' name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
         exportException export env pos' name typeVar
         return $ DException typeVar name typeIdent
-
-    DExportImport pos' name -> do
-        SymbolTable.lookup (eValueBindings env) name >>= \case
-            Just (ModuleReference mn) -> do
-                case HashMap.lookup mn (eLoadedModules env) of
-                    Just loadedModule -> do
-                        for_ (lmExportedValues loadedModule) $ \(name', v) -> do
-                            exportValue export env pos' name' v
-                        for_ (lmExportedTypes loadedModule) $ \(name', t) -> do
-                            exportType export env pos' name' t
-                        for_ (lmExportedPatterns loadedModule) $ \(name', p) -> do
-                            exportPattern export env pos' name' p
-                        for_ (lmExportedExceptions loadedModule) $ \(name', e) -> do
-                            exportException export env pos' name' e
-                        return $ DExportImport (TPrimitive Unit) name
-                    Nothing ->
-                        fail "ICE: module not loaded!"
-            _ -> fail "Export import is not a module reference"
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference () Pos -> ModuleName -> TC LoadedModule
 run loadedModules thisModule thisModuleName = do

@@ -160,6 +160,8 @@ keyword = P.try $ do
         "const" -> return TConst
         "mutable" -> return TMutable
         "forall" -> return TForall
+        "trait" -> return TTrait
+        "impl" -> return TImpl
         _ -> fail ""
 
 symbol :: Parser (Token Pos)

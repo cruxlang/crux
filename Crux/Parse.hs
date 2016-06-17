@@ -23,6 +23,7 @@ data IndentReq
     = IRLeftMost
     -- TODO: we can kill this if the appropriate parsers always returned the initial token
     | IRAtColumn Pos
+    | IRNextLineAtColumn Pos
     | IRDeeper (Token Pos)
     | IRAtOrDeeper (Token Pos)
     deriving (Show)
@@ -37,11 +38,14 @@ indentationPredicate p = \case
     IRLeftMost -> if 1 == posLineStart p
         then IndentOK
         else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
-    IRAtColumn indent -> if posLine p == posLine indent || posLineStart p == posLineStart indent
+    IRAtColumn indent -> if posLine p /= posLine indent && posLineStart p == posLineStart indent
         then IndentOK
         else if posCol p > posLineStart indent
             then UnexpectedIndent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
             else UnexpectedDedent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
+    IRNextLineAtColumn indent -> if posLine p > posLine indent && posLineStart p == posLineStart indent
+        then IndentOK
+        else UnexpectedIndent $ "Must be on subsequent line but at same column"
     IRDeeper t -> let tPos = tokenData t in
         if posLine tPos == posLine p || posCol p > posLineStart tPos
             then IndentOK
@@ -99,13 +103,12 @@ tokenBy :: (TokenType -> Maybe a) -> Parser (a, Token Pos)
 tokenBy predicate = do
     indentReq <- readIndentReq
     let testTok tok@(Token pos ttype) = case predicate ttype of
-          Just r -> Just (r, tok, indentationPredicate pos indentReq)
+          Just r ->
+            case indentationPredicate pos indentReq of
+                IndentOK -> return (r, tok)
+                _ -> Nothing -- TODO: this is really bad, we lose all error message information here
           Nothing -> Nothing
-    (r, tok, indentMatch) <- getToken testTok
-    case indentMatch of
-        IndentOK -> return (r, tok)
-        UnexpectedIndent msg -> fail $ "Unexpected indent: " ++ msg
-        UnexpectedDedent msg -> fail $ "Unexpected dedent: " ++ msg
+    getToken testTok
 
 token :: TokenType -> Parser (Token Pos)
 token expected = do
@@ -513,8 +516,8 @@ functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do
     _ <- token TFun
     argTypes <- parenthesized $ commaDelimited typeIdent
-    _ <- token TRightArrow
-    retType <- typeIdent
+    rightArrowToken <- token TRightArrow
+    retType <- withIndentation (IRDeeper rightArrowToken) $ typeIdent
     return $ FunctionIdent argTypes retType
 
 unresolvedReference :: Parser UnresolvedReference
@@ -683,11 +686,20 @@ funArgument = do
 bracedLines :: Parser (Pos, a) -> Parser (Pos, [a])
 bracedLines lineParser = do
     br <- token TOpenBrace
-    body <- withIndentation (IRDeeper br) $ P.optionMaybe lineParser >>= \case
+    firstLine <- withIndentation (IRDeeper br) $ P.optionMaybe lineParser
+    body <- case firstLine of
       Nothing -> return []
-      Just (linePos, first) -> withIndentation (IRAtColumn $ linePos) $ do
-          rest <- P.many lineParser
-          return $ first : fmap snd rest
+      Just (linePos, first) -> do
+          loop linePos [first]
+        where loop previousPos acc = do
+                parseResult <- withIndentation (IRNextLineAtColumn previousPos) $ do
+                  P.optionMaybe lineParser
+                case parseResult of
+                  Nothing -> do
+                    return acc
+                  Just (thisPos, thisLine) -> do
+                    -- a snoc would make this linear rather than quadratic
+                    loop thisPos (acc <> [thisLine])
     withIndentation (IRAtOrDeeper br) $ do
         void $ token TCloseBrace
     return (tokenData br, body)
@@ -727,6 +739,24 @@ funDeclaration = do
         fdBody <- blockExpression
         return $ DFun pos name FunctionDecl{..}
 
+traitDeclaration :: Parser ParseDeclaration
+traitDeclaration = do
+    ttrait <- token Tokens.TTrait
+    name <- anyIdentifier
+    typeVar <- anyIdentifier
+    (_, decls) <- bracedLines $ do
+        (pos, mname) <- anyIdentifierWithPos
+        tcolon <- token Tokens.TColon
+        mident <- withIndentation (IRDeeper tcolon) typeIdent
+        return (pos, (mname, mident))
+
+    return $ DTrait (tokenData ttrait) name typeVar decls
+
+implDeclaration :: Parser ParseDeclaration
+implDeclaration = do
+    _timpl <- token Tokens.TImpl
+    fail "impl"
+
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do
     texc <- token Tokens.TException
@@ -761,6 +791,8 @@ declaration = do
         , aliasDeclaration
         , funDeclaration
         , letDeclaration
+        , traitDeclaration
+        , implDeclaration
         , exceptionDeclaration
         ] ++ extra
     return $ Declaration exportFlag pos declType

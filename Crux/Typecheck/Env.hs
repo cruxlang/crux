@@ -346,6 +346,8 @@ findExportedPatternByName = findExportByName lmExportedPatterns
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerJSFFIDecl env = \case
+    DExportImport {} -> return ()
+
     DDeclare {} -> return ()
     DLet {} -> return ()
     DFun {} -> return ()
@@ -373,12 +375,16 @@ registerJSFFIDecl env = \case
             SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates variantName (PatternReference typeDef $ TagLiteral value)
         return ()
     DTypeAlias {} -> return ()
-    DException {} -> return ()
 
-    DExportImport {} -> return ()
+    DTrait {} -> return ()
+    DImpl {} -> return ()
+
+    DException {} -> return ()
 
 registerExceptionDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerExceptionDecl env = \case
+    DExportImport {} -> return ()
+
     DDeclare {} -> return ()
     DLet {} -> return ()
     DFun {} -> return ()
@@ -386,12 +392,14 @@ registerExceptionDecl env = \case
     DData {} -> return ()
     DJSData {} -> return ()
     DTypeAlias {} -> return ()
+
+    DTrait {} -> return ()
+    DImpl {} -> return ()
+
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
         SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
         return ()
-
-    DExportImport {} -> return ()
 
 addThisModuleDataDeclsToEnvironment
     :: Env

@@ -57,6 +57,9 @@ data DeclarationType idtype tagtype edata
     | DData edata Name [Text] [Variant edata]
     | DJSData edata Name [JSVariant]
     | DTypeAlias edata Name [Name] TypeIdent
+    -- Traits
+    | DTrait edata Name {-typevar-}Name [(Name, TypeIdent)]
+    | DImpl edata Name Name
     -- Exceptions
     | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

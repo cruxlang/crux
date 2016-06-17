@@ -347,32 +347,40 @@ subBlockWithOutput env output expr = do
         Nothing -> instrs
 
 generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag t -> DeclarationWriter ()
-generateDecl env (AST.Declaration export _pos decl) = do
-    case decl of
-        AST.DDeclare _ _ _ -> do
-            -- declarations are not reflected into the IR
-            return ()
-        AST.DData _ name _ variants -> do
-            writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
-        AST.DJSData _ name variants -> do
-            writeDeclaration $ Declaration export $ DJSData name variants
-        AST.DFun _ name funDecl -> do -- name params _retAnn body -> do
-            let AST.FunctionDecl{..} = funDecl
-            body' <- subBlockWithReturn env fdBody
-            writeDeclaration $ Declaration export $ DFun name (map fst fdParams) body'
-        AST.DLet _ _mut pat _ defn -> do
-            defn' <- case pat of
-                AST.PWildcard -> subBlock env defn
-                AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
-                AST.PConstructor {} -> error "Gen: Top-level pattern matches are not yet supported"
-            writeDeclaration $ Declaration export $ DLet pat defn'
-        AST.DTypeAlias {} -> do
-            -- type aliases are not reflected into the IR
-            return ()
-        AST.DException _ name _ -> do
-            writeDeclaration $ Declaration export $ DException name
-        AST.DExportImport _ _ -> do
-            return ()
+generateDecl env (AST.Declaration export _pos decl) = case decl of
+    AST.DExportImport _ _ -> do
+        return ()
+
+    AST.DDeclare _ _ _ -> do
+        -- declarations are not reflected into the IR
+        return ()
+    AST.DData _ name _ variants -> do
+        writeDeclaration $ Declaration export $ DData name $ fmap (fmap $ const ()) variants
+    AST.DJSData _ name variants -> do
+        writeDeclaration $ Declaration export $ DJSData name variants
+
+    AST.DFun _ name funDecl -> do -- name params _retAnn body -> do
+        let AST.FunctionDecl{..} = funDecl
+        body' <- subBlockWithReturn env fdBody
+        writeDeclaration $ Declaration export $ DFun name (map fst fdParams) body'
+    AST.DLet _ _mut pat _ defn -> do
+        defn' <- case pat of
+            AST.PWildcard -> subBlock env defn
+            AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
+            AST.PConstructor {} -> error "Gen: Top-level pattern matches are not yet supported"
+        writeDeclaration $ Declaration export $ DLet pat defn'
+    AST.DTypeAlias {} -> do
+        -- type aliases are not reflected into the IR
+        return ()
+
+    AST.DTrait _ _ _ _ -> do
+        return ()
+        
+    AST.DImpl _ _ _ -> do
+        return ()
+
+    AST.DException _ name _ -> do
+        writeDeclaration $ Declaration export $ DException name
 
 generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
 generateModule moduleName AST.Module{..} = do

@@ -4,12 +4,12 @@ TRAITS
 
 ```
 trait ToString ty {
-    fun toString(self : ty)
+    toString: fun(ty) -> String
 }
 
 trait Bounded ty {
-    let minBound : ty
-    let maxBound : ty
+    minBound : ty
+    maxBound : ty
 }
 ```
 

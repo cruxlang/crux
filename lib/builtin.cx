@@ -3,12 +3,12 @@ pragma { NoBuiltin }
 // because the typechecker relies on certain modules being loaded, the
 // sequence of imports matters here.
 import {
-    boolean,
-    option,
-    result,
-    array,
-    mutarray,
-    string,
+    boolean
+    option
+    result
+    array
+    mutarray
+    string
 }
 
 export import boolean

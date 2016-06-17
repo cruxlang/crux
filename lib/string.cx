@@ -1,8 +1,8 @@
 pragma { NoBuiltin }
 
 import {
-    boolean(...),
-    array,
+    boolean(...)
+    array
 }
 
 // TODO: add a length trait

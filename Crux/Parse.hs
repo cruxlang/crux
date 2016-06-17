@@ -766,6 +766,17 @@ declaration = do
         ] ++ extra
     return $ Declaration exportFlag pos declType
 
+pragma :: Parser (Pos, Pragma)
+pragma = do
+    p <- identifier "NoBuiltin"
+    return (tokenData p, PNoBuiltin)
+
+pragmas :: Parser [Pragma]
+pragmas = do
+    pragmaToken <- token TPragma
+    withIndentation (IRDeeper pragmaToken) $ do
+        snd <$> bracedLines pragma
+
 importDecl :: Parser (Pos, Import)
 importDecl = do
     segments' <- P.sepBy1 anyIdentifierWithPos (token TDot)
@@ -782,22 +793,14 @@ importDecl = do
         Just _ -> do
             return (pos, UnqualifiedImport moduleName)
 
-pragma :: Parser Pragma
-pragma = do
-    _ <- identifier "NoBuiltin"
-    return PNoBuiltin
-
-pragmas :: Parser [Pragma]
-pragmas = do
-    pragmaToken <- token TPragma
-    withIndentation (IRDeeper pragmaToken) $ do
-        braced $ commaDelimited pragma
-
 imports :: Parser [(Pos, Import)]
 imports = do
     importToken <- token TImport
     withIndentation (IRDeeper importToken) $ do
-        braced $ commaDelimited importDecl
+        (_, importDecls) <- bracedLines $ do
+            (pos, i) <- importDecl
+            return (pos, (pos, i))
+        return importDecls
 
 parseModule :: Parser ParsedModule
 parseModule = do

@@ -631,8 +631,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
         
-    DTrait _ _ _ _ -> do
-        fail "found trait"
+    DTrait _ traitName typeName contents -> do
+        env' <- childEnv env
+        _ <- newQuantifiedTypeVar env' pos typeName
+        contents' <- for contents $ \(name, pos', typeIdent) -> do
+            tv <- resolveTypeIdent env' pos' NewTypesAreErrors typeIdent
+            return (name, tv, typeIdent)
+        return $ DTrait (TPrimitive Unit) traitName typeName contents'
         
     DImpl _ _ _ -> do
         fail "found impl"

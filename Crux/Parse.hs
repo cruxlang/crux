@@ -748,7 +748,7 @@ traitDeclaration = do
         (pos, mname) <- anyIdentifierWithPos
         tcolon <- token Tokens.TColon
         mident <- withIndentation (IRDeeper tcolon) typeIdent
-        return (pos, (mname, mident))
+        return (pos, (mname, pos, mident))
 
     return $ DTrait (tokenData ttrait) name typeVar decls
 

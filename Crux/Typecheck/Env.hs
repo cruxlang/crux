@@ -5,6 +5,7 @@ module Crux.Typecheck.Env
     , newEnv
     , childEnv
     , buildTypeEnvironment
+    , newQuantifiedTypeVar
     , resolveTypeIdent
     , exportedDecls
     , findExportedPatternByName
@@ -145,6 +146,14 @@ resolveImportName env pos importName = do
         Just _ -> failTypeError pos $ Error.UnboundSymbol "import" importName
         _ -> failTypeError pos $ Error.UnboundSymbol "import" importName
 
+newQuantifiedTypeVar :: Env -> Pos -> Name -> TC TypeVar
+newQuantifiedTypeVar env pos name = do
+    tyVar <- freshType env
+    quantify tyVar
+
+    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
+    return tyVar
+
 resolveTypeReference :: Env -> Pos -> ResolvePolicy -> UnresolvedReference -> TC TypeVar
 resolveTypeReference env pos resolvePolicy = \case
     UnqualifiedReference name -> do
@@ -152,11 +161,7 @@ resolveTypeReference env pos resolvePolicy = \case
             Just (TypeReference t) -> do
                 return t
             Nothing | NewTypesAreQuantified == resolvePolicy && not (isCapitalized name) -> do
-                tyVar <- freshType env
-                quantify tyVar
-
-                SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
-                return tyVar
+                newQuantifiedTypeVar env pos name
             Nothing -> do
                 failTypeError pos $ Error.UnboundSymbol "type" name
     QualifiedReference importName name -> do

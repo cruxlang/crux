@@ -1,6 +1,6 @@
 import {
-    test(...),
-    assert,
+    test(...)
+    assert
 }
 
 let _ = test("numbers add", fun() {

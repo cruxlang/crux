@@ -1,8 +1,8 @@
 import {
-    test(...),
-    assert,
+    test(...)
+    assert
 
-    path,
+    path
 }
 
 let _ = test("paths combine", fun() {

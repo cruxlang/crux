@@ -1,6 +1,6 @@
 type Test = {
   name: String,
-  fn: () -> ()
+  fn: fun() -> ()
 }
 
 // TODO: we are not sound under mutability yet, so add an

@@ -1,7 +1,7 @@
 import {
-  test(...),
-  assert,
-  flux.dispatcher,
+  test(...)
+  assert
+  flux.dispatcher
 }
 
 data ActionType {

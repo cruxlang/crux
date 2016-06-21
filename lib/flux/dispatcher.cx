@@ -1,6 +1,6 @@
 export data Dispatcher action ({
   mutable currentToken: Number,
-  callbacks: mutable [(action) -> ()],
+  callbacks: mutable [fun(action) -> ()],
 })
 
 data DispatchToken(Number)
@@ -12,7 +12,7 @@ export forall{a} fun new(): Dispatcher a {
   })
 }
 
-export forall{a} fun register(Dispatcher(self), callback: (a) -> ()): DispatchToken {
+export forall{a} fun register(Dispatcher(self), callback: fun(a) -> ()): DispatchToken {
   self.callbacks->append(callback)
 
   self.currentToken = self.currentToken + 1

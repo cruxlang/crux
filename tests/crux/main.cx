@@ -1,11 +1,11 @@
 import {
-    test,
+    test
 
-    booltest as _,
-    numbertest as _,
-    stringtest as _,
-    pathtest as _,
-    flux.dispatchertest as _,
+    booltest as _
+    numbertest as _
+    stringtest as _
+    pathtest as _
+    flux.dispatchertest as _
 }
 
 let _ = test.run()

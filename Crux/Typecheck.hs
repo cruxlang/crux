@@ -116,9 +116,9 @@ weaken level e = do
     weaken' t = case t of
         TypeVar ref ->
             readIORef ref >>= \case
-                TUnbound Strong lvl tn
+                TUnbound Strong lvl constraints tn
                     | level <= lvl -> do
-                        writeIORef ref $ TUnbound Weak lvl tn
+                        writeIORef ref $ TUnbound Weak lvl constraints tn
                         return t
                 TUnbound {} ->
                     return t

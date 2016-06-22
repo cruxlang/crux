@@ -10,6 +10,7 @@ module Crux.TypeVar
     , TVariant(..)
     , TDataTypeIdentity
     , TDataTypeDef(..)
+    , TraitNumber(..)
     , Strength (..)
     , TypeVar(..)
     , TypeState(..)
@@ -112,6 +113,9 @@ followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
+newtype TraitNumber = TraitNumber Int
+    deriving (Eq, Ord, Show)
+
 type TypeNumber = Int
 
 data Strength = Strong | Weak
@@ -120,7 +124,7 @@ data Strength = Strong | Weak
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant TypeNumber
+    | TQuant (Set TraitNumber) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -134,14 +138,14 @@ unsafeShowRef ref = show $ unsafePerformIO $ readIORef ref
 -- TODO: showsPrec
 instance Show TypeVar where
     show (TypeVar r) = "(TypeVar " ++ unsafeShowRef r ++ ")"
-    show (TQuant tn) = "(TQuant " ++ show tn ++ ")"
+    show (TQuant constraints tn) = "(TQuant " ++ show constraints ++ " " ++ show tn ++ ")"
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
     show (TDataType def) = "(TDataType " ++ show def ++ ")"
     show (TRecord _) = "(TRecord ???)" -- TODO
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 data TypeState
-    = TUnbound Strength TypeLevel TypeNumber
+    = TUnbound Strength TypeLevel (Set TraitNumber) TypeNumber
     | TBound TypeVar
     deriving (Eq, Show)
 
@@ -192,17 +196,17 @@ showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
 showTypeVarIO' :: MonadIO m => Bool -> TypeVar -> m String
 showTypeVarIO' showBound = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound str _level i -> do
+        TUnbound str _level constraints i -> do
             let strstr | str == Strong = ""
                        | otherwise = "Weak "
-            return $ "(TUnbound " ++ strstr ++ show i ++ ")"
+            return $ "(TUnbound " ++ strstr ++ show constraints ++ " " ++ show i ++ ")"
         TBound tv -> do
             inner <- showTypeVarIO' showBound tv
             if showBound
                 then return $ "(TBound " ++ inner ++ ")"
                 else return inner
-    TQuant i -> do
-        return $ "TQuant " ++ show i
+    TQuant constraints i -> do
+        return $ "TQuant " ++ show constraints ++ " " ++ show i
     TFun args ret -> do
         as <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret

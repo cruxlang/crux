@@ -20,17 +20,22 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: MonadIO m => Env -> m TypeVar
 freshType env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound Strong (eLevel env) index
+    newTypeVar $ TUnbound Strong (eLevel env) mempty index
+
+freshTypeConstrained :: MonadIO m => Env -> Set TraitNumber -> m TypeVar
+freshTypeConstrained env constraints = do
+    index <- freshTypeIndex env
+    newTypeVar $ TUnbound Strong (eLevel env) constraints index
 
 freshWeakQVar :: MonadIO m => Env -> m TypeVar
 freshWeakQVar env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound Weak (eLevel env) index
+    newTypeVar $ TUnbound Weak (eLevel env) mempty index
 
 freshQuantized :: MonadIO m => Env -> m TypeVar
 freshQuantized env = do
     index <- freshTypeIndex env
-    return $ TQuant index
+    return $ TQuant mempty index
 
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
@@ -89,12 +94,12 @@ instantiate' subst recordSubst env ty = case ty of
                 return ty
             TBound tv' -> do
                 instantiate' subst recordSubst env tv'
-    TQuant name -> do
+    TQuant constraints name -> do
         HashTable.lookup name subst >>= \case
             Just v ->
                 return v
             Nothing -> do
-                tv <- freshType env
+                tv <- freshTypeConstrained env constraints
                 HashTable.insert name tv subst
                 return tv
     TFun param ret -> do
@@ -128,9 +133,9 @@ quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
-            TUnbound Strong _ i -> do
-                writeIORef ref $ TBound $ TQuant i
-            TUnbound Weak _ _ -> do
+            TUnbound Strong _ constraints i -> do
+                writeIORef ref $ TBound $ TQuant constraints i
+            TUnbound Weak _ _ _ -> do
                 return ()
             TBound t -> do
                 quantify t
@@ -170,7 +175,7 @@ typeError pos = failError . TypeError pos
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound _ _ q | tvn == q -> do
+        TUnbound _ _ _ q | tvn == q -> do
             typeError pos OccursCheckFailed
         TUnbound {} -> do
             return ()
@@ -314,17 +319,17 @@ unify pos av' bv' = do
     else case (av, bv) of
         -- thanks to followTypeVar, the only TypeVar case here is TUnbound
         (TypeVar aref, TypeVar bref) -> do
-            (TUnbound _ _ a') <- readIORef aref
-            (TUnbound _ _ b') <- readIORef bref
-            when (a' /= b') $ do
+            (TUnbound _ _ constraintsA a') <- readIORef aref
+            (TUnbound _ _ constraintsB b') <- readIORef bref
+            when ((constraintsA, a') /= (constraintsB, b')) $ do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
         (TypeVar aref, _) -> do
-            (TUnbound _ _ a') <- readIORef aref
+            (TUnbound _ _ _ a') <- readIORef aref
             occurs pos a' bv
             writeIORef aref $ TBound bv
         (_, TypeVar bref) -> do
-            (TUnbound _ _ b') <- readIORef bref
+            (TUnbound _ _ _ b') <- readIORef bref
             occurs pos b' av
             writeIORef bref $ TBound av
 
@@ -345,7 +350,7 @@ unify pos av' bv' = do
             for_ (zip aa ba) $ uncurry $ unify pos
             unify pos ar br
 
-        (TQuant i, TQuant j) | i == j ->
+        (TQuant cI i, TQuant cJ j) | (cI, i) == (cJ, j) ->
             return ()
 
         _ ->

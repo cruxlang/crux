@@ -31,6 +31,7 @@ import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
 import Crux.TypeVar
 import Crux.Util
+import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
@@ -42,13 +43,16 @@ data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
 newEnv :: MonadIO m => ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> m Env
 newEnv eThisModule eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
+    eNextTraitIndex <- newIORef 0
     eValueBindings <- SymbolTable.new
     eTypeBindings <- SymbolTable.new
     ePatternBindings <- SymbolTable.new
+    eTraitBindings <- SymbolTable.new
     eExceptionBindings <- SymbolTable.new
     eExportedValues <- SymbolTable.new
     eExportedTypes <- SymbolTable.new
     eExportedPatterns <- SymbolTable.new
+    eExportedTraits <- SymbolTable.new
     eExportedExceptions <- SymbolTable.new
     return Env
         { eInLoop = False
@@ -69,6 +73,12 @@ childEnv env@Env{..} = do
         , eExceptionBindings = exceptionBindings
         , eLevel = eLevel + 1
         }
+
+getNextTraitNumber :: MonadIO m => Env -> m TraitNumber
+getNextTraitNumber env = do
+    tn <- readIORef (eNextTraitIndex env)
+    writeIORef (eNextTraitIndex env) (tn + 1)
+    return $ TraitNumber tn
 
 exportedDecls :: [Declaration a b c] -> [DeclarationType a b c]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
@@ -419,13 +429,15 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         a. register all jsffi types (both data constructors and patterns)
         b. register all data types (and only the types)
         c. register all type aliases
-        d. register all data type constructors and patterns (using same qvars from before)
+        d. register traits (but not their bodies)
+        e. register all data type constructors and patterns (using same qvars from before)
 
     phase 3:
         register all exceptions
 
     phase 4:
-        type check all values in order
+        a. register all trait definitions
+        b. type check all values in order
     -}
 
     let decls = [decl | Declaration _ _ decl <- mDecls thisModule]
@@ -483,6 +495,18 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         unify pos bodyTypeVar resolvedType
 
     -- Phase 2d.
+    traitDecls <- fmap catMaybes $ for decls $ \case
+        DTrait pos name typeVarName defns -> do
+            tn <- getNextTraitNumber env
+            env' <- childEnv env
+            typeIndex <- freshTypeIndex env'
+            let typeVar = TQuant (Set.singleton tn) typeIndex
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName $ TypeReference typeVar
+            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name tn
+            return $ Just (env', defns)
+        _ -> return Nothing
+
+    -- Phase 2e.
     for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
         for_ qvars $ \(qvName, qvTypeVar) ->
@@ -505,3 +529,9 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     -- Phase 3.
     for_ decls $ \decl -> do
         registerExceptionDecl env decl
+
+    -- Phase 4a.
+    for_ traitDecls $ \(env', defns) -> do
+        for_ defns $ \(defName, defPos, defTypeIdent) -> do
+            typeVar <- resolveTypeIdent env' defPos NewTypesAreErrors defTypeIdent
+            SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable typeVar

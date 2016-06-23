@@ -13,10 +13,8 @@ library
                    , Crux.Error
                    , Crux.Gen
                    , Crux.HashTable
-                   , Crux.Intrinsic
                    , Crux.IORef
                    , Crux.JSBackend
-                   , Crux.JSGen.Types
                    , Crux.JSTree
                    , Crux.Lex
                    , Crux.Main

@@ -21,8 +21,6 @@ module Crux.Typecheck.Env
 
 import Crux.AST
 import qualified Crux.Error as Error
-import Crux.Intrinsic (Intrinsic (..))
-import qualified Crux.Intrinsic as Intrinsic
 import Crux.Module.Types
 import Crux.Prelude
 import Crux.Text (isCapitalized)
@@ -296,13 +294,6 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     env <- newEnv thisModuleName loadedModules Nothing
 
     SymbolTable.insert (eTypeBindings env) undefined SymbolTable.DisallowDuplicates "Number" (TypeReference numTy)
-
-    for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
-        let Intrinsic{..} = intrin
-        -- TODO: Ambient doesn't seem right here.  We should really do some kind of
-        -- substitution from a + b to builtin.add(a, b)
-        let pos = undefined -- yeesh
-        SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates name (ValueReference (Ambient, name) Immutable iType)
 
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do

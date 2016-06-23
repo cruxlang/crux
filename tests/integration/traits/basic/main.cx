@@ -3,10 +3,8 @@ trait Trait a {
   display: fun(a) -> String
 }
 
-data Sum(Number)
-
 fun main() {
-  print(display(method(Sum(10), Sum(5))))
+  print(display(method(10, 5)))
 }
 
 let _ = main()

@@ -5,6 +5,8 @@ import {
     array
 }
 
+export data String {}
+
 // TODO: add a length trait
 export fun length(s: String): Number {
     _unsafe_coerce(s).length

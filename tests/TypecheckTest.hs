@@ -37,4 +37,4 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- SymbolTable.readAll (eTypeBindings env)
-    assertEqual ["Number", "String"] $ sort $ HashMap.keys types
+    assertEqual ["Number"] $ sort $ HashMap.keys types

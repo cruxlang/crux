@@ -13,6 +13,7 @@ module Crux.Typecheck.Env
     , resolveValueReference
     , resolveTypeReference
     , resolveBooleanType
+    , resolveStringType
     , resolveArrayType
     , resolvePatternReference
     , resolveExceptionReference
@@ -88,7 +89,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     return ty
                 | otherwise -> do
                     failTypeError pos $ Error.IllegalTypeApplication (primitiveTypeName pt)
-            TUserType TUserTypeDef{tuName}
+            TDataType TUserTypeDef{tuName}
                 | [] == typeParameters -> do
                     return ty
                 | otherwise -> do
@@ -239,8 +240,8 @@ resolveArrayType env pos mutability = do
             Mutable -> KnownReference "mutarray" "MutableArray"
     arrayType <- resolveTypeReference env pos NewTypesAreErrors typeReference
     followTypeVar arrayType >>= \case
-        TTypeFun [_argType] (TUserType td) -> do
-            let newArrayType = TUserType td{ tuParameters=[elementType] }
+        TTypeFun [_argType] (TDataType td) -> do
+            let newArrayType = TDataType td{ tuParameters=[elementType] }
             return (newArrayType, elementType)
         _ -> fail "Unexpected Array type"
 
@@ -251,14 +252,18 @@ resolveOptionType env pos = do
     let typeReference = KnownReference "option" "Option"
     optionType <- resolveTypeReference env pos NewTypesAreErrors typeReference
     followTypeVar optionType >>= \case
-        TTypeFun [_argType] (TUserType td) -> do
-            let newOptionType = TUserType td{ tuParameters=[elementType] }
+        TTypeFun [_argType] (TDataType td) -> do
+            let newOptionType = TDataType td{ tuParameters=[elementType] }
             return (newOptionType, elementType)
         _ -> fail "Unexpected Option type"
 
 resolveBooleanType :: Env -> Pos -> TC TypeVar
 resolveBooleanType env pos = do
     resolveTypeReference env pos NewTypesAreErrors (KnownReference "boolean" "Boolean")
+
+resolveStringType :: Env -> Pos -> TC TypeVar
+resolveStringType env pos = do
+    resolveTypeReference env pos NewTypesAreErrors (KnownReference "string" "String")
 
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env
@@ -288,11 +293,9 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
     -- built-in types. would be nice to move into the prelude somehow.
     let numTy = TPrimitive Number
-    let strTy = TPrimitive String
     env <- newEnv thisModuleName loadedModules Nothing
 
     SymbolTable.insert (eTypeBindings env) undefined SymbolTable.DisallowDuplicates "Number" (TypeReference numTy)
-    SymbolTable.insert (eTypeBindings env) undefined SymbolTable.DisallowDuplicates "String" (TypeReference strTy)
 
     for_ (HashMap.toList Intrinsic.intrinsics) $ \(name, intrin) -> do
         let Intrinsic{..} = intrin
@@ -372,7 +375,7 @@ registerJSFFIDecl env = \case
                 , tuParameters = []
                 , tuVariants = variants'
                 }
-        let userType = TUserType typeDef
+        let userType = TDataType typeDef
         SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference userType)
 
         for_ variants $ \(JSVariant variantName value) -> do
@@ -453,7 +456,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
 
         typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
-        let tyVar = TUserType typeDef
+        let tyVar = TDataType typeDef
         let typeRef = case tyVars of
                 [] -> tyVar
                 _ -> TTypeFun tyVars tyVar

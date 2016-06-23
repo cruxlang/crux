@@ -1,6 +1,9 @@
 pragma { NoBuiltin }
 
-import { array }
+import {
+    array
+    string
+}
 
 export data MutableArray a {}
 
@@ -60,6 +63,6 @@ export forall{a} fun freeze(arr: mutable [a]): [a] {
 }
 
 // TODO: add comparator support
-export fun sort(arr: mutable [String]) {
+export fun sort(arr: mutable [string.String]) {
     _unsafe_coerce(arr).sort()
 }

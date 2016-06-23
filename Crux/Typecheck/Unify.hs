@@ -101,9 +101,9 @@ instantiate' subst recordSubst env ty = case ty of
         ty1 <- for param $ instantiate' subst recordSubst env
         ty2 <- instantiate' subst recordSubst env ret
         return $ TFun ty1 ty2
-    TUserType def -> do
+    TDataType def -> do
         typeVars' <- for (tuParameters def) $ instantiate' subst recordSubst env
-        return $ TUserType def{ tuParameters = typeVars' }
+        return $ TDataType def{ tuParameters = typeVars' }
     TRecord ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
         let rv = case open of
                 RecordFree r -> Just r
@@ -140,7 +140,7 @@ quantify ty = case ty of
     TFun param ret -> do
         for_ param quantify
         quantify ret
-    TUserType def ->
+    TDataType def ->
         for_ (tuParameters def) quantify
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType open rows) -> do
         for_ rows $ \TypeRow{..} -> do
@@ -182,7 +182,7 @@ occurs pos tvn = \case
     TFun arg ret -> do
         for_ arg $ occurs pos tvn
         occurs pos tvn ret
-    TUserType def -> do
+    TDataType def -> do
         for_ (tuParameters def) $ occurs pos tvn
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
         for_ rows $ \TypeRow{..} ->
@@ -339,7 +339,7 @@ unify pos av' bv' = do
             | otherwise -> do
                 unificationError pos "" av bv
 
-        (TUserType ad, TUserType bd)
+        (TDataType ad, TDataType bd)
             | userTypeIdentity ad == userTypeIdentity bd -> do
                 -- TODO: assert the two lists have the same length
                 for_ (zip (tuParameters ad) (tuParameters bd)) $ uncurry $ unify pos

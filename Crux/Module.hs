@@ -214,6 +214,9 @@ loadProgram loader main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
+    -- any module that uses a string literal depends on 'string' being loaded
+    _ <- EitherT $ loadModule loader loadedModules loadingModules "string"
+
     mainModule <- EitherT $ loadModule loader loadedModules loadingModules main
 
     otherModules <- readIORef loadedModules

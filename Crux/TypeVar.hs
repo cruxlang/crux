@@ -41,13 +41,11 @@ instance Show TypeLevel where
 
 data PrimitiveType
     = Number
-    | String
     | Unit
     deriving (Show, Eq)
 
 primitiveTypeName :: PrimitiveType -> Text
 primitiveTypeName Number = "Number"
-primitiveTypeName String = "String"
 primitiveTypeName Unit = "()"
 
 data TVariant typevar = TVariant
@@ -138,7 +136,7 @@ data TypeVar
     = TypeVar (IORef TypeState)
     | TQuant TypeNumber
     | TFun [TypeVar] TypeVar
-    | TUserType (TUserTypeDef TypeVar)
+    | TDataType (TUserTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
     | TPrimitive PrimitiveType
     | TTypeFun [TypeVar] TypeVar
@@ -153,7 +151,7 @@ instance Show TypeVar where
     show (TypeVar r) = "(TypeVar " ++ unsafeShowRef r ++ ")"
     show (TQuant tn) = "(TQuant " ++ show tn ++ ")"
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
-    show (TUserType def) = "(TUserType " ++ show def ++ ")"
+    show (TDataType def) = "(TDataType " ++ show def ++ ")"
     show (TRecord _) = "(TRecord ???)" -- TODO
     show (TPrimitive pt) = "(TPrimitive " ++ show pt ++ ")"
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
@@ -225,9 +223,9 @@ showTypeVarIO' showBound = \case
         as <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret
         return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
-    TUserType def -> do
+    TDataType def -> do
         tvs <- for (tuParameters def) $ showTypeVarIO' showBound
-        return $ (Text.unpack $ tuName def) ++ " " ++ (intercalate " " tvs)
+        return $ (Text.unpack $ tuName def) ++ if tvs /= [] then " " ++ (intercalate " " tvs) else ""
     TRecord rtv -> do
         showRecordTypeVarIO' showBound rtv
     TPrimitive ty ->

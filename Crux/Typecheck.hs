@@ -39,7 +39,7 @@ buildPatternEnv env pos exprType mut = \case
         def' <- instantiateUserTypeDef env typeDef
 
         let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
-        unify pos exprType $ TUserType def'
+        unify pos exprType $ TDataType def'
 
         when (length thisVariantParameters /= length cargs) $
             fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
@@ -133,9 +133,9 @@ weaken level e = do
             args' <- for args weaken'
             ret' <- weaken' ret
             return $ TFun args' ret'
-        TUserType typeDef -> do
+        TDataType typeDef -> do
             tyvars' <- for (tuParameters typeDef) weaken'
-            return $ TUserType typeDef{ tuParameters=tyvars' }
+            return $ TDataType typeDef{ tuParameters=tyvars' }
         TRecord rtv -> do
             weakenRecord rtv
             return t
@@ -309,11 +309,11 @@ check' expectedType env = \case
 
         return $ EAssign unitType lhs' rhs'
 
-    ELiteral _ lit -> do
-        let litType = case lit of
-                LInteger _ -> TPrimitive Number
-                LString _ -> TPrimitive String
-                LUnit -> TPrimitive Unit
+    ELiteral pos lit -> do
+        litType <- case lit of
+            LInteger _ -> return $ TPrimitive Number
+            LString _ -> resolveStringType env pos
+            LUnit -> return $ TPrimitive Unit
         return $ ELiteral litType lit
 
     EArrayLiteral pos mutability elements -> do
@@ -363,12 +363,11 @@ check' expectedType env = \case
         -- the location of that type.
         lhs' <- check env lhs
         moduleName <- followTypeVar (edata lhs') >>= \case
-            TUserType TUserTypeDef{..} -> do
+            TDataType TUserTypeDef{..} -> do
                 return tuModuleName
             TPrimitive ptype -> return $ case ptype of
                 Unit -> "builtin"
                 Number -> "builtin"
-                String -> "string"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
                 resumableTypeError pos $ TdnrLhsTypeUnknown ts
@@ -596,8 +595,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             return $ Variant ctorType vname vparameters
 
         let def = case typeVar of
-                TUserType d -> d
-                TTypeFun _ (TUserType d) -> d
+                TDataType d -> d
+                TTypeFun _ (TDataType d) -> d
                 _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
         for_ variants $ \(Variant _vtype vname _typeIdent) -> do
             exportPattern export env pos' vname $ PatternReference def $ TagVariant vname
@@ -613,7 +612,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         exportType export env pos' name typeVar
 
-        let (TUserType def) = typeVar
+        let (TDataType def) = typeVar
 
         for_ variants $ \(JSVariant vname literal) -> do
             let rr = (FromModule $ eThisModule env, vname)

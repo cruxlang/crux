@@ -1,8 +1,7 @@
 {-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveTraversable #-}
 
 module Crux.TypeVar
-    ( PrimitiveType(..)
-    , RecordOpen(..)
+    ( RecordOpen(..)
     , RecordType(..)
     , RecordTypeVar(..)
     , TypeRow(..)
@@ -14,7 +13,6 @@ module Crux.TypeVar
     , TypeVar(..)
     , TypeState(..)
     , TypeLevel(..)
-    , primitiveTypeName
     , newTypeVar
     , followRecordTypeVar'
     , followRecordTypeVar
@@ -37,13 +35,6 @@ newtype TypeLevel = TypeLevel { unTypeLevel :: Int }
 
 instance Show TypeLevel where
     show (TypeLevel i) = show i
-
-data PrimitiveType
-    = Unit
-    deriving (Show, Eq)
-
-primitiveTypeName :: PrimitiveType -> Text
-primitiveTypeName Unit = "()"
 
 data TVariant typevar = TVariant
     { tvName       :: Name
@@ -129,7 +120,6 @@ data TypeVar
     | TFun [TypeVar] TypeVar
     | TDataType (TUserTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
-    | TPrimitive PrimitiveType
     | TTypeFun [TypeVar] TypeVar
     deriving (Eq)
 
@@ -144,7 +134,6 @@ instance Show TypeVar where
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
     show (TDataType def) = "(TDataType " ++ show def ++ ")"
     show (TRecord _) = "(TRecord ???)" -- TODO
-    show (TPrimitive pt) = "(TPrimitive " ++ show pt ++ ")"
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 data TypeState
@@ -219,8 +208,6 @@ showTypeVarIO' showBound = \case
         return $ (Text.unpack $ tuName def) ++ if tvs /= [] then " " ++ (intercalate " " tvs) else ""
     TRecord rtv -> do
         showRecordTypeVarIO' showBound rtv
-    TPrimitive ty ->
-        return $ show ty
     TTypeFun args ret -> do
         args' <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret

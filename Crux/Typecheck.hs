@@ -139,8 +139,6 @@ weaken level e = do
         TRecord rtv -> do
             weakenRecord rtv
             return t
-        TPrimitive {} ->
-            return t
         TTypeFun a b -> do
             b' <- weaken' b
             return $ TTypeFun a b'
@@ -293,7 +291,8 @@ check' expectedType env = \case
             annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
             unify pos ty annotTy
 
-        return $ ELet (TPrimitive Unit) mut pat' maybeAnnot expr'''
+        unitType <- resolveVoidType env pos
+        return $ ELet unitType mut pat' maybeAnnot expr'''
 
     EAssign pos lhs rhs -> do
         lhs' <- check env lhs
@@ -305,15 +304,14 @@ check' expectedType env = \case
         when (not islvalue) $ do
             resumableTypeError pos $ NotAnLVar $ show lhs
 
-        let unitType = TPrimitive Unit
-
+        unitType <- resolveVoidType env pos
         return $ EAssign unitType lhs' rhs'
 
     ELiteral pos lit -> do
         litType <- case lit of
             LInteger _ -> resolveNumberType env pos
             LString _ -> resolveStringType env pos
-            LUnit -> return $ TPrimitive Unit
+            LUnit -> resolveVoidType env pos
         return $ ELiteral litType lit
 
     EArrayLiteral pos mutability elements -> do
@@ -365,8 +363,6 @@ check' expectedType env = \case
         moduleName <- followTypeVar (edata lhs') >>= \case
             TDataType TUserTypeDef{..} -> do
                 return tuModuleName
-            TPrimitive ptype -> return $ case ptype of
-                Unit -> "builtin"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
                 resumableTypeError pos $ TdnrLhsTypeUnknown ts
@@ -412,7 +408,7 @@ check' expectedType env = \case
 
     EWhile pos cond body -> do
         booleanType <- resolveBooleanType env pos
-        let unitType = TPrimitive Unit
+        unitType <- resolveVoidType env pos
 
         condition' <- check env cond
         unify pos booleanType (edata condition')
@@ -424,7 +420,7 @@ check' expectedType env = \case
         return $ EWhile unitType condition' body'
 
     EFor pos name over body -> do
-        let unitType = TPrimitive Unit
+        unitType <- resolveVoidType env pos
 
         (arrayType, iteratorType) <- resolveArrayType env pos Immutable
         over' <- checkExpecting arrayType env over
@@ -516,7 +512,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                             exportPattern export env pos' name' p
                         for_ (lmExportedExceptions loadedModule) $ \(name', e) -> do
                             exportException export env pos' name' e
-                        return $ DExportImport (TPrimitive Unit) name
+                        -- TODO: introduce some dummy type? we don't need a type here
+                        unitType <- resolveVoidType env pos
+                        return $ DExportImport unitType name
                     Nothing ->
                         fail "ICE: module not loaded!"
             _ -> fail "Export import is not a module reference"
@@ -635,7 +633,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         contents' <- for contents $ \(name, pos', typeIdent) -> do
             tv <- resolveTypeIdent env' pos' NewTypesAreErrors typeIdent
             return (name, tv, typeIdent)
-        return $ DTrait (TPrimitive Unit) traitName typeName contents'
+        -- TODO: introduce some dummy type? we don't need a type here
+        unitType <- resolveVoidType env pos
+        return $ DTrait unitType traitName typeName contents'
         
     DImpl _ _ _ -> do
         fail "found impl"

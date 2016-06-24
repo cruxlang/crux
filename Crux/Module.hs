@@ -214,6 +214,8 @@ loadProgram loader main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
+    -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
+    _ <- EitherT $ loadModule loader loadedModules loadingModules "void"
     -- any module that uses a string literal depends on 'string' being loaded
     _ <- EitherT $ loadModule loader loadedModules loadingModules "string"
     -- any module that uses a number literal depends on 'number' being loaded

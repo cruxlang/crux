@@ -16,6 +16,7 @@ module Crux.Typecheck.Env
     , resolveStringType
     , resolveArrayType
     , resolveNumberType
+    , resolveVoidType
     , resolvePatternReference
     , resolveExceptionReference
     ) where
@@ -78,16 +79,11 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
   where
     go :: TypeIdent -> TC TypeVar
     go UnitTypeIdent = do
-        return $ TPrimitive Unit
+        resolveVoidType env pos
 
     go (TypeIdent typeName typeParameters) = do
         ty <- resolveTypeReference env pos resolvePolicy typeName >>= followTypeVar
         case ty of
-            TPrimitive pt
-                | [] == typeParameters -> do
-                    return ty
-                | otherwise -> do
-                    failTypeError pos $ Error.IllegalTypeApplication (primitiveTypeName pt)
             TDataType TUserTypeDef{tuName}
                 | [] == typeParameters -> do
                     return ty
@@ -267,6 +263,10 @@ resolveNumberType env pos = do
 resolveStringType :: Env -> Pos -> TC TypeVar
 resolveStringType env pos = do
     resolveTypeReference env pos NewTypesAreErrors (KnownReference "string" "String")
+
+resolveVoidType :: Env -> Pos -> TC TypeVar
+resolveVoidType env pos = do
+    resolveTypeReference env pos NewTypesAreErrors (KnownReference "void" "Void")
 
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env

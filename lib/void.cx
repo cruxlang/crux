@@ -1,0 +1,4 @@
+pragma { NoBuiltin }
+
+// TODO: allow () as a type name
+export data Void {}

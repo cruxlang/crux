@@ -119,7 +119,6 @@ instantiate' subst recordSubst env ty = case ty of
                         return tr
             Nothing ->
                 instantiateRecord subst recordSubst env rows open
-    TPrimitive {} -> return ty
     TTypeFun args rv -> do
         args' <- for args $ instantiate' subst recordSubst env
         rv' <- instantiate' subst recordSubst env rv
@@ -149,8 +148,6 @@ quantify ty = case ty of
             RecordFree ti -> do
                 writeIORef ref $ RRecord $ RecordType (RecordQuantified ti) rows
             _ -> return ()
-    TPrimitive {} ->
-        return ()
     TTypeFun args rv -> do
         for_ args quantify
         quantify rv
@@ -187,8 +184,6 @@ occurs pos tvn = \case
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
         for_ rows $ \TypeRow{..} ->
             occurs pos tvn trTyVar
-    TPrimitive {} ->
-        return ()
     TQuant {} ->
         return ()
     TTypeFun args rv -> do
@@ -332,12 +327,6 @@ unify pos av' bv' = do
             (TUnbound _ _ b') <- readIORef bref
             occurs pos b' av
             writeIORef bref $ TBound av
-
-        (TPrimitive aType, TPrimitive bType)
-            | aType == bType ->
-                return ()
-            | otherwise -> do
-                unificationError pos "" av bv
 
         (TDataType ad, TDataType bd)
             | userTypeIdentity ad == userTypeIdentity bd -> do

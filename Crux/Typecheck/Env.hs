@@ -279,7 +279,6 @@ createUserTypeDef env name moduleName typeVars variants = do
 
     return $ TUserTypeDef
         { tuName = name
-        , tuType = TDNormal
         , tuModuleName = moduleName
         , tuParameters = typeVars
         , tuVariants = variants'
@@ -361,7 +360,6 @@ registerJSFFIDecl env = \case
 
         let typeDef = TUserTypeDef
                 { tuName = name
-                , tuType = TDFfi
                 , tuModuleName = eThisModule env
                 , tuParameters = []
                 , tuVariants = variants'

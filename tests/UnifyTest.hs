@@ -17,7 +17,7 @@ import           Test.Framework
 test_function_taking_record = do
     env <- newEnv "main" HashMap.empty Nothing
 
-    let numTy = TDataType $ TUserTypeDef
+    let numTy = TDataType $ TDataTypeDef
             { tuName = "Number"
             , tuModuleName = "number"
             , tuParameters = []

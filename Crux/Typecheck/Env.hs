@@ -84,7 +84,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
     go (TypeIdent typeName typeParameters) = do
         ty <- resolveTypeReference env pos resolvePolicy typeName >>= followTypeVar
         case ty of
-            TDataType TUserTypeDef{tuName}
+            TDataType TDataTypeDef{tuName}
                 | [] == typeParameters -> do
                     return ty
                 | otherwise -> do
@@ -274,7 +274,7 @@ createUserTypeDef :: Env
                   -> ModuleName
                   -> [TypeVar]
                   -> [Variant _edata]
-                  -> TC (TUserTypeDef TypeVar)
+                  -> TC (TDataTypeDef TypeVar)
 createUserTypeDef env name moduleName typeVars variants = do
     variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
         -- the variant parameters are unified with the corresponding typeidents later
@@ -282,7 +282,7 @@ createUserTypeDef env name moduleName typeVars variants = do
         let tvName = vname
         return TVariant {..}
 
-    return $ TUserTypeDef
+    return $ TDataTypeDef
         { tuName = name
         , tuModuleName = moduleName
         , tuParameters = typeVars
@@ -360,7 +360,7 @@ registerJSFFIDecl env = \case
             let tvName = variantName
             return TVariant{..}
 
-        let typeDef = TUserTypeDef
+        let typeDef = TDataTypeDef
                 { tuName = name
                 , tuModuleName = eThisModule env
                 , tuParameters = []

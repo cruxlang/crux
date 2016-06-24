@@ -8,7 +8,8 @@ module Crux.TypeVar
     , RowMutability(..)
     , RowVariable(..)
     , TVariant(..)
-    , TUserTypeDef(..)
+    , TDataTypeIdentity
+    , TDataTypeDef(..)
     , Strength (..)
     , TypeVar(..)
     , TypeState(..)
@@ -19,7 +20,7 @@ module Crux.TypeVar
     , followTypeVar
     , showTypeVarIO
     , renderTypeVarIO
-    , userTypeIdentity
+    , dataTypeIdentity
     ) where
 
 import Crux.AST (ModuleName)
@@ -41,15 +42,18 @@ data TVariant typevar = TVariant
     , tvParameters :: [typevar]
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
-data TUserTypeDef typevar = TUserTypeDef
+data TDataTypeDef typevar = TDataTypeDef
     { tuName       :: !Name
     , tuModuleName :: !ModuleName
     , tuParameters :: ![typevar]
     , tuVariants   :: ![TVariant typevar]
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
-userTypeIdentity :: TUserTypeDef a -> (Name, ModuleName)
-userTypeIdentity ut = (tuName ut, tuModuleName ut)
+data TDataTypeIdentity = TDataTypeIdentity Name ModuleName
+    deriving (Show, Eq)
+    
+dataTypeIdentity :: TDataTypeDef a -> TDataTypeIdentity
+dataTypeIdentity ut = TDataTypeIdentity (tuName ut) (tuModuleName ut)
 
 data RowMutability
     = RMutable
@@ -118,7 +122,7 @@ data TypeVar
     = TypeVar (IORef TypeState)
     | TQuant TypeNumber
     | TFun [TypeVar] TypeVar
-    | TDataType (TUserTypeDef TypeVar)
+    | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
     | TTypeFun [TypeVar] TypeVar
     deriving (Eq)

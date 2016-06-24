@@ -41,15 +41,15 @@ data RecordSubst
     | SQuant RowVariable
     | SRows [TypeRow TypeVar]
 
-instantiateUserTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TUserTypeDef TypeVar -> m (TUserTypeDef TypeVar)
-instantiateUserTypeDef' subst recordSubst env def = do
+instantiateDataTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TDataTypeDef TypeVar -> m (TDataTypeDef TypeVar)
+instantiateDataTypeDef' subst recordSubst env def = do
     for def $ instantiate' subst recordSubst env
 
-instantiateUserTypeDef :: MonadIO m => Env -> TUserTypeDef TypeVar -> m (TUserTypeDef TypeVar)
-instantiateUserTypeDef env def = do
+instantiateDataTypeDef :: MonadIO m => Env -> TDataTypeDef TypeVar -> m (TDataTypeDef TypeVar)
+instantiateDataTypeDef env def = do
     subst <- HashTable.new
     recordSubst <- HashTable.new
-    instantiateUserTypeDef' subst recordSubst env def
+    instantiateDataTypeDef' subst recordSubst env def
 
 instantiateRecord
     :: MonadIO m
@@ -329,7 +329,7 @@ unify pos av' bv' = do
             writeIORef bref $ TBound av
 
         (TDataType ad, TDataType bd)
-            | userTypeIdentity ad == userTypeIdentity bd -> do
+            | dataTypeIdentity ad == dataTypeIdentity bd -> do
                 -- TODO: assert the two lists have the same length
                 for_ (zip (tuParameters ad) (tuParameters bd)) $ uncurry $ unify pos
             | otherwise -> do

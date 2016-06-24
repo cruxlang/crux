@@ -36,7 +36,7 @@ buildPatternEnv env pos exprType mut = \case
         let cname = getUnresolvedReferenceLeaf unresolvedReference
 
         let (PatternReference typeDef patternTag) = ref
-        def' <- instantiateUserTypeDef env typeDef
+        def' <- instantiateDataTypeDef env typeDef
 
         let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
         unify pos exprType $ TDataType def'
@@ -361,7 +361,7 @@ check' expectedType env = \case
         -- the location of that type.
         lhs' <- check env lhs
         moduleName <- followTypeVar (edata lhs') >>= \case
-            TDataType TUserTypeDef{..} -> do
+            TDataType TDataTypeDef{..} -> do
                 return tuModuleName
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'

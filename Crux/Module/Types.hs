@@ -8,7 +8,7 @@ module Crux.Module.Types
 import Crux.AST (Module, ModuleName, Mutability, ResolvedReference)
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, TUserTypeDef)
+import Crux.TypeVar (TypeVar, TDataTypeDef)
 
 type Name = Text
 
@@ -17,7 +17,7 @@ data PatternTag
     | TagLiteral JSTree.Literal
     deriving (Eq, Show)
 
-data PatternReference = PatternReference (TUserTypeDef TypeVar) PatternTag
+data PatternReference = PatternReference (TDataTypeDef TypeVar) PatternTag
     deriving (Eq)
 
 data LoadedModule = LoadedModule

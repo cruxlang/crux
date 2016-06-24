@@ -325,11 +325,11 @@ unify pos av' bv' = do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
         (TypeVar aref, _) -> do
-            (TUnbound _ _ _ a') <- readIORef aref
+            (TUnbound _ _ constraintsA a') <- readIORef aref
             occurs pos a' bv
             writeIORef aref $ TBound bv
         (_, TypeVar bref) -> do
-            (TUnbound _ _ _ b') <- readIORef bref
+            (TUnbound _ _ constraintsB b') <- readIORef bref
             occurs pos b' av
             writeIORef bref $ TBound av
 

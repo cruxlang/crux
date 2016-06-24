@@ -1,3 +1,9 @@
-let _ = for i in [1, 2, 3] {
-    i->print()
+data N(Number)
+
+fun p(N(i)) {
+    print(i)
+}
+
+let _ = for i in [N(1), N(2), N(3)] {
+    i->p()
 }

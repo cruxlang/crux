@@ -311,7 +311,7 @@ check' expectedType env = \case
 
     ELiteral pos lit -> do
         litType <- case lit of
-            LInteger _ -> return $ TPrimitive Number
+            LInteger _ -> resolveNumberType env pos
             LString _ -> resolveStringType env pos
             LUnit -> return $ TPrimitive Unit
         return $ ELiteral litType lit
@@ -367,7 +367,6 @@ check' expectedType env = \case
                 return tuModuleName
             TPrimitive ptype -> return $ case ptype of
                 Unit -> "builtin"
-                Number -> "builtin"
             _ -> do
                 ts <- showTypeVarIO $ edata lhs'
                 resumableTypeError pos $ TdnrLhsTypeUnknown ts

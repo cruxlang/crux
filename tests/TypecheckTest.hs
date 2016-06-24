@@ -9,7 +9,6 @@ import qualified Crux.Typecheck.Env   as Env
 import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types
 import qualified Data.HashMap.Strict  as HashMap
-import           Data.List            (sort)
 import qualified Crux.SymbolTable as SymbolTable
 import           Test.Framework
 
@@ -37,4 +36,4 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- SymbolTable.readAll (eTypeBindings env)
-    assertEqual ["Number"] $ sort $ HashMap.keys types
+    assertEqual [] $ HashMap.keys types

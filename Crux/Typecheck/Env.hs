@@ -15,6 +15,7 @@ module Crux.Typecheck.Env
     , resolveBooleanType
     , resolveStringType
     , resolveArrayType
+    , resolveNumberType
     , resolvePatternReference
     , resolveExceptionReference
     ) where
@@ -259,6 +260,10 @@ resolveBooleanType :: Env -> Pos -> TC TypeVar
 resolveBooleanType env pos = do
     resolveTypeReference env pos NewTypesAreErrors (KnownReference "boolean" "Boolean")
 
+resolveNumberType :: Env -> Pos -> TC TypeVar
+resolveNumberType env pos = do
+    resolveTypeReference env pos NewTypesAreErrors (KnownReference "number" "Number")
+
 resolveStringType :: Env -> Pos -> TC TypeVar
 resolveStringType env pos = do
     resolveTypeReference env pos NewTypesAreErrors (KnownReference "string" "String")
@@ -289,10 +294,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     let imports = mImports thisModule
 
     -- built-in types. would be nice to move into the prelude somehow.
-    let numTy = TPrimitive Number
     env <- newEnv thisModuleName loadedModules Nothing
-
-    SymbolTable.insert (eTypeBindings env) undefined SymbolTable.DisallowDuplicates "Number" (TypeReference numTy)
 
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do

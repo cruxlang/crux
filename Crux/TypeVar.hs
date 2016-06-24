@@ -39,12 +39,10 @@ instance Show TypeLevel where
     show (TypeLevel i) = show i
 
 data PrimitiveType
-    = Number
-    | Unit
+    = Unit
     deriving (Show, Eq)
 
 primitiveTypeName :: PrimitiveType -> Text
-primitiveTypeName Number = "Number"
 primitiveTypeName Unit = "()"
 
 data TVariant typevar = TVariant

@@ -1,5 +1,12 @@
 pragma { NoBuiltin }
 
+import {
+    number
+}
+
+// TODO: implement selective import
+type Number = number.Number
+
 export data Array a {}
 
 let _unsafe_new: fun(Number) -> [a] =

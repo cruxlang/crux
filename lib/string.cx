@@ -3,7 +3,11 @@ pragma { NoBuiltin }
 import {
     boolean(...)
     array
+    number
 }
+
+// TODO: implement selective import
+type Number = number.Number
 
 export data String {}
 

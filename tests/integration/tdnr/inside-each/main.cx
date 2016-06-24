@@ -1,3 +1,9 @@
-let _ = [1, 2, 3]->each(fun(i) {
-    i->print()
+data N(Number)
+
+fun p(N(i)) {
+  print(i)
+}
+
+let _ = [N(1), N(2), N(3)]->each(fun(n) {
+    n->p()
 })

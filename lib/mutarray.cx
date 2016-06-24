@@ -3,7 +3,11 @@ pragma { NoBuiltin }
 import {
     array
     string
+    number
 }
+
+// TODO: implement selective import
+type Number = number.Number
 
 export data MutableArray a {}
 

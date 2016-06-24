@@ -9,6 +9,7 @@ import {
     array
     mutarray
     string
+    number
 }
 
 export import boolean
@@ -16,6 +17,7 @@ export import option
 export import result
 export import array
 export type String = string.String
+export import number
 
 export fun print(a): () {
     _unsafe_js("console").log(a)

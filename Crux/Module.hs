@@ -216,6 +216,8 @@ loadProgram loader main = runEitherT $ do
 
     -- any module that uses a string literal depends on 'string' being loaded
     _ <- EitherT $ loadModule loader loadedModules loadingModules "string"
+    -- any module that uses a number literal depends on 'number' being loaded
+    _ <- EitherT $ loadModule loader loadedModules loadingModules "number"
 
     mainModule <- EitherT $ loadModule loader loadedModules loadingModules main
 

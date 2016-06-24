@@ -6,7 +6,6 @@
 module UnifyTest (htf_thisModulesTests) where
 
 import           Crux.AST             (Pos (..))
-import           Crux.Error
 import           Crux.IORef
 import           Crux.Typecheck.Env   (newEnv)
 import           Crux.Typecheck.Monad
@@ -15,17 +14,15 @@ import           Crux.TypeVar
 import qualified Data.HashMap.Strict  as HashMap
 import           Test.Framework
 
-test_quantified_with_number = do
-    let lhs = TPrimitive $ Number
-    let rhs = TQuant 10
-    bridgeTC (unify (Pos 0 0 0) lhs rhs) >>= \a -> case a of
-        Left (TypeError _ UnificationError{}) -> return ()
-        _ -> assertFailure ("BLAH " ++ show a)
-
 test_function_taking_record = do
     env <- newEnv "main" HashMap.empty Nothing
 
-    let numTy = TPrimitive Number
+    let numTy = TDataType $ TUserTypeDef
+            { tuName = "Number"
+            , tuModuleName = "number"
+            , tuParameters = []
+            , tuVariants = []
+            }
     rect <- newIORef $ RRecord $ RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy]
     let argType = TRecord $ rect
     bref <- newIORef $ TBound argType

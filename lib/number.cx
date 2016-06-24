@@ -1,0 +1,3 @@
+pragma { NoBuiltin }
+
+export data Number {}

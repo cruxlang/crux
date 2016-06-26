@@ -19,6 +19,7 @@ An unordered set of interesting language design resources.
 ## Parsing
 
 * [Packrat Parsing and PEGs](http://bford.info/packrat/)
+* Good comment thread on HN.  [On the complexity of parsing with derivatives](https://news.ycombinator.com/item?id=11976769)
 
 ## Types
 

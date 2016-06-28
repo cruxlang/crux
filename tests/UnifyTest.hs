@@ -35,7 +35,7 @@ test_function_taking_record = do
 
     rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
     let recordLiteralType = TRecord rect2
-    (Right ()) <- bridgeTC $ unify (Pos 0 0 0) argTypei recordLiteralType
+    (Right ()) <- bridgeTC $ unify env (Pos 0 0 0) argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei
     assertEqual "({x: Number}) -> {x: Number}" s

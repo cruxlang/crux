@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveTraversable, DeriveGeneric #-}
 
 module Crux.TypeVar
     ( RecordOpen(..)
@@ -51,7 +51,9 @@ data TDataTypeDef typevar = TDataTypeDef
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TDataTypeIdentity = TDataTypeIdentity Name ModuleName
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance Hashable TDataTypeIdentity
     
 dataTypeIdentity :: TDataTypeDef a -> TDataTypeIdentity
 dataTypeIdentity ut = TDataTypeIdentity (tuName ut) (tuModuleName ut)
@@ -113,8 +115,12 @@ followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
 data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
+data TraitDesc = TraitDesc
+    { 
+    }
+
 newtype TraitNumber = TraitNumber Int
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Hashable)
 
 type TypeNumber = Int
 

@@ -3,6 +3,8 @@ module Crux.HashTable where
 import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
 
+type HashTable k v = IORef (HashMap k v)
+
 new :: MonadIO m => m (IORef (HashMap key value))
 new = newIORef HashMap.empty
 

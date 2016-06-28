@@ -36,6 +36,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
 import qualified Crux.SymbolTable as SymbolTable
+import qualified Crux.HashTable as HashTable
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
@@ -54,6 +55,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eExportedPatterns <- SymbolTable.new
     eExportedTraits <- SymbolTable.new
     eExportedExceptions <- SymbolTable.new
+    eKnownInstances <- HashTable.new
     return Env
         { eInLoop = False
         , eLevel = 1
@@ -106,7 +108,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                     (TTypeFun tuParameters' rt') <- instantiate env ty
                     for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
                         b' <- resolveTypeIdent env pos NewTypesAreQuantified b
-                        unify pos a b'
+                        unify env pos a b'
                     return rt'
                 | otherwise -> do
                     failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeName) (length tuParameters) (length typeParameters)
@@ -135,13 +137,13 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
     go (ArrayIdent mutability elementType) = do
         elementType' <- go elementType
         (arrayType, elementType'') <- resolveArrayType env pos mutability
-        unify pos elementType' elementType''
+        unify env pos elementType' elementType''
         return arrayType
 
     go (OptionIdent elementType) = do
         elementType' <- go elementType
         (optionType, elementType'') <- resolveOptionType env pos
-        unify pos elementType' elementType''
+        unify env pos elementType' elementType''
         return optionType
 
 resolveImportName :: Env -> Pos -> Name -> TC ModuleName
@@ -492,7 +494,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ paramTypes $ \(tvName, tv) -> do
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates tvName (TypeReference tv)
         resolvedType <- resolveTypeIdent env' pos NewTypesAreErrors ident
-        unify pos bodyTypeVar resolvedType
+        unify env pos bodyTypeVar resolvedType
 
     -- Phase 2d.
     traitDecls <- fmap catMaybes $ for decls $ \case
@@ -515,7 +517,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do
             for_ (zip typeIdents typeVars) $ \(typeIdent, typeVar) -> do
                 tv' <- resolveTypeIdent e vpos NewTypesAreErrors typeIdent
-                unify vpos typeVar tv'
+                unify env vpos typeVar tv'
 
         let computeVariantType [] = tyVar
             computeVariantType argTypeIdents = TFun argTypeIdents tyVar

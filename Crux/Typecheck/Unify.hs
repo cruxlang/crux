@@ -10,6 +10,7 @@ import Crux.Typecheck.Monad
 import Crux.Typecheck.Types
 import Crux.TypeVar
 import Data.List (sort)
+import qualified Data.Set as Set
 import Text.Printf (printf)
 
 freshTypeIndex :: MonadIO m => Env -> m Int
@@ -206,8 +207,8 @@ lookupTypeRow name = \case
         | trName == name -> Just (trMut, trTyVar)
         | otherwise -> lookupTypeRow name rest
 
-unifyRecord :: Pos -> TypeVar -> TypeVar -> TC ()
-unifyRecord pos av bv = do
+unifyRecord :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
+unifyRecord env pos av bv = do
     -- do
     --     putStrLn " -- unifyRecord --"
     --     putStr "\t" >> showTypeVarIO av >>= putStrLn
@@ -229,7 +230,7 @@ unifyRecord pos av bv = do
         case unifyRecordMutability (trMut lhs) (trMut rhs) of
             Left err -> typeError pos $ RecordMutabilityUnificationError (trName lhs) err
             Right mut -> do
-                unify pos (trTyVar lhs) (trTyVar rhs)
+                unify env pos (trTyVar lhs) (trTyVar rhs)
                 return TypeRow
                     { trName = trName lhs
                     , trMut = mut
@@ -310,8 +311,29 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-unify :: Pos -> TypeVar -> TypeVar -> TC ()
-unify pos av' bv' = do
+validateConstraint :: Env -> Pos -> TypeVar -> TraitNumber -> TC ()
+validateConstraint env _pos typeVar trait = case typeVar of
+    TypeVar _ -> do
+        fail "Internal Error: we already handled this case"
+    TQuant constraints _ -> do
+        when (not $ Set.member trait constraints) $ do
+            fail "Does not implement trait"
+    TFun _ _ -> do
+        fail "Functions do not implement traits"
+    TDataType def -> do
+        let key = (trait, dataTypeIdentity def)
+        HashTable.lookup key (eKnownInstances env) >>= \case
+            Just _ -> return ()
+            Nothing -> do
+                fail "Type doesn't implement the trait"
+        -- check in Env
+    TRecord _ -> do
+        fail "Records do not implement traits"
+    TTypeFun _ _ -> do
+        fail "Wat? Type functions definitely don't implement constraints"
+
+unify :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
+unify env pos av' bv' = do
     av <- followTypeVar av'
     bv <- followTypeVar bv'
     if av == bv then
@@ -321,34 +343,37 @@ unify pos av' bv' = do
         (TypeVar aref, TypeVar bref) -> do
             (TUnbound _ _ constraintsA a') <- readIORef aref
             (TUnbound _ _ constraintsB b') <- readIORef bref
+            -- TODO: merge the constraints
             when ((constraintsA, a') /= (constraintsB, b')) $ do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
-        (TypeVar aref, _) -> do
-            (TUnbound _ _ constraintsA a') <- readIORef aref
-            occurs pos a' bv
-            writeIORef aref $ TBound bv
+        (TypeVar _, _) -> do
+            -- flip around so we only have to handle one case
+            -- TODO: fix the error messages
+            unify env pos bv av
         (_, TypeVar bref) -> do
             (TUnbound _ _ constraintsB b') <- readIORef bref
+            for_ (Set.toList constraintsB) $ \constraint -> do
+                validateConstraint env pos av constraint
             occurs pos b' av
             writeIORef bref $ TBound av
 
         (TDataType ad, TDataType bd)
             | dataTypeIdentity ad == dataTypeIdentity bd -> do
                 -- TODO: assert the two lists have the same length
-                for_ (zip (tuParameters ad) (tuParameters bd)) $ uncurry $ unify pos
+                for_ (zip (tuParameters ad) (tuParameters bd)) $ uncurry $ unify env pos
             | otherwise -> do
                 unificationError pos "" av bv
 
         (TRecord {}, TRecord {}) ->
-            unifyRecord pos av bv
+            unifyRecord env pos av bv
 
         (TFun aa ar, TFun ba br) -> do
             when (length aa /= length ba) $
                 unificationError pos "" av bv
 
-            for_ (zip aa ba) $ uncurry $ unify pos
-            unify pos ar br
+            for_ (zip aa ba) $ uncurry $ unify env pos
+            unify env pos ar br
 
         (TQuant cI i, TQuant cJ j) | (cI, i) == (cJ, j) ->
             return ()

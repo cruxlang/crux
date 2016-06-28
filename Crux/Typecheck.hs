@@ -39,7 +39,7 @@ buildPatternEnv env pos exprType mut = \case
         def' <- instantiateDataTypeDef env typeDef
 
         let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
-        unify pos exprType $ TDataType def'
+        unify env pos exprType $ TDataType def'
 
         when (length thisVariantParameters /= length cargs) $
             fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
@@ -101,7 +101,7 @@ check env expr = do
 checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
 checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
-    unify (edata expr) (edata e) expectedType
+    unify env (edata expr) (edata e) expectedType
     return e
 
 -- We could have this return a poison type.
@@ -182,7 +182,7 @@ check' expectedType env = \case
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
-                unify pos pt annTy
+                unify env pos pt annTy
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)
@@ -190,10 +190,10 @@ check' expectedType env = \case
         for_ fdReturnAnnot $ \ann -> do
             annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
             -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
-            unify pos returnType annTy
+            unify env pos returnType annTy
 
         body' <- check env' fdBody
-        unify pos returnType $ edata body'
+        unify env pos returnType $ edata body'
 
         let ty = TFun paramTypes returnType
         return $ EFun ty FunctionDecl
@@ -232,14 +232,14 @@ check' expectedType env = \case
                     checkExpecting argType env arg
 
                 let appTy = TFun (map edata args') resultType
-                unify pos (edata fn') appTy
+                unify env pos (edata fn') appTy
 
                 return $ EApp resultType fn' args'
             _ -> do
                 args' <- for args $ check env
                 result <- freshType env
                 let ty = TFun (map edata args') result
-                unify pos (edata fn') ty
+                unify env pos (edata fn') ty
                 return $ EApp result fn' args'
 
     EIntrinsic {} -> do
@@ -253,7 +253,7 @@ check' expectedType env = \case
                 ty <- freshType env
                 row <- freshRowVariable env
                 rec <- newIORef $ RRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
-                unify pos (edata lhs') $ TRecord rec
+                unify env pos (edata lhs') $ TRecord rec
                 return $ ELookup ty lhs' propName
         case lhs of
             EIdentifier pos' (UnqualifiedReference name) -> do
@@ -272,7 +272,7 @@ check' expectedType env = \case
             env' <- childEnv env
             patt' <- buildPatternEnv env' pos (edata matchExpr') Immutable patt
             caseExpr' <- check env' caseExpr
-            unify pos resultType (edata caseExpr')
+            unify env pos resultType (edata caseExpr')
             return $ Case patt' caseExpr'
 
         return $ EMatch resultType matchExpr' cases'
@@ -286,10 +286,10 @@ check' expectedType env = \case
             Immutable -> return expr''
         -- TODO: exhaustiveness check on this pattern
         pat' <- buildPatternEnv env pos ty mut pat
-        unify pos ty (edata expr''')
+        unify env pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
-            unify pos ty annotTy
+            unify env pos ty annotTy
 
         unitType <- resolveVoidType env pos
         return $ ELet unitType mut pat' maybeAnnot expr'''
@@ -298,7 +298,7 @@ check' expectedType env = \case
         lhs' <- check env lhs
         rhs' <- check env rhs
 
-        unify pos (edata lhs') (edata rhs')
+        unify env pos (edata lhs') (edata rhs')
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
@@ -318,7 +318,7 @@ check' expectedType env = \case
         (arrayType, elementType) <- resolveArrayType env pos mutability
         elements' <- for elements $ \element -> do
             elementExpr <- check env element
-            unify pos elementType (edata elementExpr)
+            unify env pos elementType (edata elementExpr)
             return elementExpr
         return $ EArrayLiteral arrayType mutability elements'
 
@@ -327,7 +327,7 @@ check' expectedType env = \case
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
             ty <- freshType env'
             fieldExpr' <- check env' fieldExpr >>= weaken (eLevel env')
-            unify pos ty (edata fieldExpr')
+            unify env pos ty (edata fieldExpr')
             return (name, fieldExpr')
 
         let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
@@ -380,16 +380,16 @@ check' expectedType env = \case
         rhs' <- check env rhs
 
         if | isArithmeticOp bi -> do
-                unify pos (edata lhs') (edata rhs')
+                unify env pos (edata lhs') (edata rhs')
                 return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
            | isRelationalOp bi -> do
-                unify pos (edata lhs') (edata rhs')
+                unify env pos (edata lhs') (edata rhs')
                 booleanType <- resolveBooleanType env pos
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | isBooleanOp bi -> do
                 booleanType <- resolveBooleanType env (edata lhs)
-                unify pos (edata lhs') booleanType
-                unify pos (edata rhs') booleanType
+                unify env pos (edata lhs') booleanType
+                unify env pos (edata rhs') booleanType
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | otherwise ->
                 error "This should be impossible: Check EBinIntrinsic"
@@ -398,11 +398,11 @@ check' expectedType env = \case
         booleanType <- resolveBooleanType env pos
 
         condition' <- check env condition
-        unify pos booleanType (edata condition')
+        unify env pos booleanType (edata condition')
         ifTrue' <- check env ifTrue
         ifFalse' <- check env ifFalse
 
-        unify pos (edata ifTrue') (edata ifFalse')
+        unify env pos (edata ifTrue') (edata ifFalse')
 
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
@@ -411,11 +411,11 @@ check' expectedType env = \case
         unitType <- resolveVoidType env pos
 
         condition' <- check env cond
-        unify pos booleanType (edata condition')
+        unify env pos booleanType (edata condition')
 
         let env' = env { eInLoop = True }
         body' <- check env' body
-        unify pos unitType (edata body')
+        unify env pos unitType (edata body')
 
         return $ EWhile unitType condition' body'
 
@@ -430,7 +430,7 @@ check' expectedType env = \case
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
-        unify pos unitType (edata body')
+        unify env pos unitType (edata body')
 
         return $ EFor unitType name over' body'
 
@@ -440,7 +440,7 @@ check' expectedType env = \case
             Nothing ->
                 error "Cannot return outside of functions"
             Just rt -> do
-                unify pos rt $ edata rv'
+                unify env pos rt $ edata rv'
                 retTy <- freshType env
                 return $ EReturn retTy rv'
 
@@ -533,10 +533,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         ty <- freshType env'
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env' pos NewTypesAreQuantified annotation
-            unify pos' ty annotTy
+            unify env pos' ty annotTy
 
         expr' <- check env' expr
-        unify pos' ty (edata expr')
+        unify env pos' ty (edata expr')
 
         expr'' <- case mut of
             Mutable -> weaken (eLevel env') expr'
@@ -566,7 +566,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
         expr'@(EFun _ fd') <- check env expr
         let FunctionDecl{fdBody=body', fdParams=args'} = fd'
-        unify pos' (edata expr') ty
+        unify env pos' (edata expr') ty
         quantify ty
         return $ DFun (edata expr') name FunctionDecl
             { fdParams = args'

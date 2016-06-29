@@ -27,6 +27,7 @@ data InternalCompilerError
 
 data TypeError
     = UnificationError String TypeVar TypeVar
+    | NoTraitOnType TypeVar Name AST.ModuleName
     | RecordMutabilityUnificationError Name String
     | UnboundSymbol String Name
     | OccursCheckFailed
@@ -85,6 +86,7 @@ getErrorName = \case
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case
     UnificationError{} -> "unification"
+    NoTraitOnType{} -> "no-trait-on-type"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
     UnboundSymbol t _ -> "unbound-" <> Text.pack t
     OccursCheckFailed{} -> "occurs-check"
@@ -104,6 +106,9 @@ typeErrorToString (UnificationError message at bt) = do
             | null message = ""
             | otherwise = "\n" ++ message
     return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
+typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
+    ts <- showTypeVarIO typeVar
+    return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
 typeErrorToString (UnboundSymbol type_ name) =

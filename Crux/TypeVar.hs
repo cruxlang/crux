@@ -10,6 +10,7 @@ module Crux.TypeVar
     , TVariant(..)
     , TDataTypeIdentity
     , TDataTypeDef(..)
+    , TraitDesc(..)
     , TraitNumber(..)
     , Strength (..)
     , TypeVar(..)
@@ -116,8 +117,10 @@ data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TraitDesc = TraitDesc
-    { 
+    { tdName :: Name
+    , tdModule :: ModuleName
     }
+    deriving (Eq, Show)
 
 newtype TraitNumber = TraitNumber Int
     deriving (Eq, Ord, Show, Hashable)
@@ -130,7 +133,7 @@ data Strength = Strong | Weak
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant (Set TraitNumber) TypeNumber
+    | TQuant (HashMap TraitNumber TraitDesc) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -151,7 +154,7 @@ instance Show TypeVar where
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 data TypeState
-    = TUnbound Strength TypeLevel (Set TraitNumber) TypeNumber
+    = TUnbound Strength TypeLevel (HashMap TraitNumber TraitDesc) TypeNumber
     | TBound TypeVar
     deriving (Eq, Show)
 

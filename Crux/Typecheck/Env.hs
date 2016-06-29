@@ -31,7 +31,6 @@ import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
 import Crux.TypeVar
 import Crux.Util
-import qualified Data.Set as Set
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
@@ -502,9 +501,13 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             tn <- getNextTraitNumber env
             env' <- childEnv env
             typeIndex <- freshTypeIndex env'
-            let typeVar = TQuant (Set.singleton tn) typeIndex
+            let desc = TraitDesc
+                    { tdName = name
+                    , tdModule = eThisModule env
+                    }
+            let typeVar = TQuant (HashMap.singleton tn desc) typeIndex
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName $ TypeReference typeVar
-            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name tn
+            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name $ TraitReference tn desc
             return $ Just (env', defns)
         _ -> return Nothing
 

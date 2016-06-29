@@ -4,6 +4,7 @@ module Crux.Typecheck.Types
     , PatternTag(..)
     , PatternReference(..)
     , TraitNumber(..)
+    , TraitReference(..)
     , ExceptionReference(..)
     , Env(..)
     , TypeLevel(..)
@@ -12,7 +13,7 @@ module Crux.Typecheck.Types
 import Crux.AST (ModuleName, Mutability, ResolvedReference)
 import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
 import Crux.Prelude
-import Crux.TypeVar (TDataTypeIdentity, TraitNumber(..), TypeLevel(..), TypeVar(..))
+import Crux.TypeVar (TDataTypeIdentity, TraitDesc(..), TraitNumber(..), TypeLevel(..), TypeVar(..))
 import Crux.SymbolTable (SymbolTable)
 import Crux.HashTable (HashTable)
 

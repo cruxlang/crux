@@ -10,7 +10,7 @@ import Crux.Typecheck.Monad
 import Crux.Typecheck.Types
 import Crux.TypeVar
 import Data.List (sort)
-import qualified Data.Set as Set
+import qualified Data.HashMap.Strict as HashMap
 import Text.Printf (printf)
 
 freshTypeIndex :: MonadIO m => Env -> m Int
@@ -23,7 +23,7 @@ freshType env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Strong (eLevel env) mempty index
 
-freshTypeConstrained :: MonadIO m => Env -> Set TraitNumber -> m TypeVar
+freshTypeConstrained :: MonadIO m => Env -> HashMap TraitNumber TraitDesc -> m TypeVar
 freshTypeConstrained env constraints = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Strong (eLevel env) constraints index
@@ -311,12 +311,12 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-validateConstraint :: Env -> Pos -> TypeVar -> TraitNumber -> TC ()
-validateConstraint env _pos typeVar trait = case typeVar of
+validateConstraint :: Env -> Pos -> TypeVar -> TraitNumber -> TraitDesc -> TC ()
+validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
     TQuant constraints _ -> do
-        when (not $ Set.member trait constraints) $ do
+        when (not $ HashMap.member trait constraints) $ do
             fail "Does not implement trait"
     TFun _ _ -> do
         fail "Functions do not implement traits"
@@ -325,7 +325,7 @@ validateConstraint env _pos typeVar trait = case typeVar of
         HashTable.lookup key (eKnownInstances env) >>= \case
             Just _ -> return ()
             Nothing -> do
-                fail "Type doesn't implement the trait"
+                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
         -- check in Env
     TRecord _ -> do
         fail "Records do not implement traits"
@@ -353,8 +353,8 @@ unify env pos av' bv' = do
             unify env pos bv av
         (_, TypeVar bref) -> do
             (TUnbound _ _ constraintsB b') <- readIORef bref
-            for_ (Set.toList constraintsB) $ \constraint -> do
-                validateConstraint env pos av constraint
+            for_ (HashMap.toList constraintsB) $ \(traitNumber, desc) -> do
+                validateConstraint env pos av traitNumber desc
             occurs pos b' av
             writeIORef bref $ TBound av
 

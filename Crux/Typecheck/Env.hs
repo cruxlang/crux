@@ -183,7 +183,7 @@ resolveTypeReference env pos resolvePolicy = \case
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, Mutability, TypeVar)
-resolveValueReference env pos ref = case ref of
+resolveValueReference env pos = \case
     UnqualifiedReference name -> do
         SymbolTable.lookup (eValueBindings env) name >>= \case
             Just (ValueReference rr mut t) -> return (rr, mut, t)
@@ -208,7 +208,7 @@ resolveReference symbolType symbolTable env pos ref = do
 -}
 
 resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
-resolvePatternReference env pos ref = case ref of
+resolvePatternReference env pos = \case
     UnqualifiedReference name -> do
         SymbolTable.lookup (ePatternBindings env) name >>= \case
             Just er -> return er
@@ -222,7 +222,7 @@ resolvePatternReference env pos ref = case ref of
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC ExceptionReference
-resolveExceptionReference env pos ref = case ref of
+resolveExceptionReference env pos = \case
     UnqualifiedReference name -> do
         SymbolTable.lookup (eExceptionBindings env) name >>= \case
             Just er -> return er

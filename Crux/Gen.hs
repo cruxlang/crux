@@ -376,7 +376,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DTrait _ _ _ _ -> do
         return ()
         
-    AST.DImpl _ _ _ -> do
+    AST.DImpl _ _ _ _ -> do
         return ()
 
     AST.DException _ name _ -> do

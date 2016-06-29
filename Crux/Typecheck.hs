@@ -637,7 +637,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         unitType <- resolveVoidType env pos
         return $ DTrait unitType traitName typeName contents'
         
-    DImpl _ _ _ -> do
+    DImpl _ _ _ _ -> do
         fail "found impl"
 
     DException pos' name typeIdent -> do

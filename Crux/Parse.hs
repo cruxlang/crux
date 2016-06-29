@@ -754,8 +754,21 @@ traitDeclaration = do
 
 implDeclaration :: Parser ParseDeclaration
 implDeclaration = do
-    _timpl <- token Tokens.TImpl
-    fail "impl"
+    timpl <- token Tokens.TImpl
+    traitName <- anyIdentifier
+    typeName_ <- anyIdentifier
+    (_, decls) <- bracedLines $ do
+        -- TODO: merge with function decl parsing?
+        (pos, funName) <- anyIdentifierWithPos
+        args <- parenthesized $ commaDelimited funArgument
+        returnAnnot <- P.optionMaybe $ do
+            _ <- token TColon
+            returnTypeIdent
+
+        body <- blockExpression
+        return (pos, (funName, pos, args, returnAnnot, body))
+
+    return $ DImpl (tokenData timpl) traitName typeName_ decls
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

@@ -3,6 +3,11 @@ trait Trait a {
   display: fun(a) -> String
 }
 
+impl Trait Number {
+  method(x, y) { x + y }
+  display(z) { toString(z) }
+}
+
 fun main() {
   print(display(method(10, 5)))
 }

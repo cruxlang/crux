@@ -8,7 +8,7 @@ module Crux.Module.Types
 import Crux.AST (Module, ModuleName, Mutability, ResolvedReference)
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, TDataTypeDef)
+import Crux.TypeVar (TypeVar, TDataTypeDef, TraitNumber, TraitDesc)
 
 type Name = Text
 
@@ -25,6 +25,7 @@ data LoadedModule = LoadedModule
     , lmExportedValues :: [(Name, (ResolvedReference, Mutability, TypeVar))]
     , lmExportedTypes :: [(Name, TypeVar)]
     , lmExportedPatterns :: [(Name, PatternReference)]
+    , lmExportedTraits :: [(Name, (ResolvedReference, TraitNumber, TraitDesc))]
     , lmExportedExceptions :: [(Name, TypeVar)]
     } deriving (Eq)
 

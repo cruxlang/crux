@@ -3,8 +3,7 @@ module Crux.Typecheck.Types
     , TypeReference(..)
     , PatternTag(..)
     , PatternReference(..)
-    , TraitNumber(..)
-    , TraitReference(..)
+    , TraitNumber
     , ExceptionReference(..)
     , Env(..)
     , TypeLevel(..)
@@ -13,7 +12,7 @@ module Crux.Typecheck.Types
 import Crux.AST (ModuleName, Mutability, ResolvedReference)
 import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
 import Crux.Prelude
-import Crux.TypeVar (TDataTypeIdentity, TraitDesc(..), TraitNumber(..), TypeLevel(..), TypeVar(..))
+import Crux.TypeVar (TDataTypeIdentity, TraitNumber, TraitDesc, TypeLevel(..), TypeVar(..))
 import Crux.SymbolTable (SymbolTable)
 import Crux.HashTable (HashTable)
 
@@ -22,8 +21,6 @@ data ValueReference
     | ModuleReference ModuleName
 
 data TypeReference = TypeReference TypeVar
-
-data TraitReference = TraitReference TraitNumber TraitDesc
 
 data ExceptionReference = ExceptionReference ResolvedReference TypeVar
 
@@ -35,7 +32,7 @@ data Env = Env
     , eValueBindings      :: SymbolTable ValueReference
     , eTypeBindings       :: SymbolTable TypeReference
     , ePatternBindings    :: SymbolTable PatternReference
-    , eTraitBindings      :: SymbolTable TraitReference
+    , eTraitBindings      :: SymbolTable (ResolvedReference, TraitNumber, TraitDesc)
     , eExceptionBindings  :: SymbolTable ExceptionReference
     , eKnownInstances     :: HashTable (TraitNumber, TDataTypeIdentity) ModuleName
 
@@ -46,6 +43,6 @@ data Env = Env
     , eExportedValues     :: SymbolTable (ResolvedReference, Mutability, TypeVar)
     , eExportedTypes      :: SymbolTable TypeVar
     , eExportedPatterns   :: SymbolTable PatternReference
-    , eExportedTraits     :: SymbolTable ()
+    , eExportedTraits     :: SymbolTable (ResolvedReference, TraitNumber, TraitDesc)
     , eExportedExceptions :: SymbolTable TypeVar
     }

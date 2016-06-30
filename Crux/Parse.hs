@@ -755,8 +755,8 @@ traitDeclaration = do
 implDeclaration :: Parser ParseDeclaration
 implDeclaration = do
     timpl <- token Tokens.TImpl
-    traitName <- anyIdentifier
-    typeName_ <- anyIdentifier
+    traitName <- unresolvedReference
+    typeIdent_ <- returnTypeIdent
     (_, decls) <- bracedLines $ do
         -- TODO: merge with function decl parsing?
         (pos, funName) <- anyIdentifierWithPos
@@ -768,7 +768,7 @@ implDeclaration = do
         body <- blockExpression
         return (pos, (funName, pos, args, returnAnnot, body))
 
-    return $ DImpl (tokenData timpl) traitName typeName_ decls
+    return $ DImpl (tokenData timpl) traitName typeIdent_ decls
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

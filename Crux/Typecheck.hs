@@ -637,8 +637,21 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         unitType <- resolveVoidType env pos
         return $ DTrait unitType traitName typeName contents'
         
-    DImpl _ _ _ _ -> do
-        fail "found impl"
+    DImpl pos' traitName typeIdent values -> do
+        (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
+        typeVar <- resolveTypeIdent env pos' NewTypesAreErrors typeIdent
+
+        values' <- for values $ \(defName, defPos, args, returnTypeIdent, body) -> do
+            let funDef = FunctionDecl
+                    { fdParams = args
+                    , fdReturnAnnot = returnTypeIdent
+                    , fdBody = body
+                    , fdForall = []
+                    }
+            (EFun funType checkedDef) <- check env $ EFun defPos funDef
+            return (defName, funType, fdParams checkedDef, fdReturnAnnot checkedDef, fdBody checkedDef)
+
+        return $ DImpl typeVar traitRef typeIdent values'
 
     DException pos' name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
@@ -678,5 +691,6 @@ run loadedModules thisModule thisModuleName = do
     lmExportedValues <- HashMap.toList <$> SymbolTable.readAll (eExportedValues env)
     lmExportedTypes <- HashMap.toList <$> SymbolTable.readAll (eExportedTypes env)
     lmExportedPatterns <- HashMap.toList <$> SymbolTable.readAll (eExportedPatterns env)
+    lmExportedTraits <- HashMap.toList <$> SymbolTable.readAll (eExportedTraits env)
     lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
     return $ LoadedModule{..}

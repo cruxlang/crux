@@ -18,6 +18,7 @@ module Crux.Typecheck.Env
     , resolveNumberType
     , resolveVoidType
     , resolvePatternReference
+    , resolveTraitReference
     , resolveExceptionReference
     ) where
 
@@ -221,6 +222,20 @@ resolvePatternReference env pos = \case
             Just p -> return p
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
+resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitNumber, TraitDesc)
+resolveTraitReference env pos = \case
+    UnqualifiedReference name -> do
+        SymbolTable.lookup (eTraitBindings env) name >>= \case
+            Just er -> return er
+            Nothing -> failTypeError pos $ Error.UnboundSymbol "trait" name
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolveTraitReference env pos $ KnownReference moduleName name
+    KnownReference moduleName name -> do
+        case findExportedTraitByName env moduleName name of
+            Just trait -> return trait
+            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC ExceptionReference
 resolveExceptionReference env pos = \case
     UnqualifiedReference name -> do
@@ -307,6 +322,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     -- built-in types. would be nice to move into the prelude somehow.
     env <- newEnv thisModuleName loadedModules Nothing
 
+    -- Phase 1
     for_ imports $ \case
         (pos, UnqualifiedImport importName) -> do
             importedModule <- case HashMap.lookup importName loadedModules of
@@ -348,11 +364,14 @@ findExportedValueByName = findExportByName lmExportedValues
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
 findExportedTypeByName = findExportByName lmExportedTypes
 
-findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedExceptionByName = findExportByName lmExportedExceptions
-
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName = findExportByName lmExportedPatterns
+
+findExportedTraitByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TraitNumber, TraitDesc)
+findExportedTraitByName = findExportByName lmExportedTraits
+
+findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
+findExportedExceptionByName = findExportByName lmExportedExceptions
 
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
@@ -438,7 +457,8 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     phase 4:
         a. register all trait definitions
-        b. type check all values in order
+        b. register all impls
+        c. type check all values in order
     -}
 
     let decls = [decl | Declaration _ _ decl <- mDecls thisModule]
@@ -507,7 +527,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
                     }
             let typeVar = TQuant (HashMap.singleton tn desc) typeIndex
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName $ TypeReference typeVar
-            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name $ TraitReference tn desc
+            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)
             return $ Just (env', defns)
         _ -> return Nothing
 
@@ -540,3 +560,14 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ defns $ \(defName, defPos, defTypeIdent) -> do
             typeVar <- resolveTypeIdent env' defPos NewTypesAreErrors defTypeIdent
             SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable typeVar
+    
+    -- Phase 4b.
+    for_ decls $ \case
+        DImpl pos traitName typeReference _values -> do
+            (_, traitNumber, _) <- resolveTraitReference env pos traitName
+            typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeReference
+            typeIdentity <- case typeVar of
+                TDataType def -> return $ dataTypeIdentity def
+                _ -> fail "Type doesn't support traits"
+            HashTable.insert (traitNumber, typeIdentity) (eThisModule env) (eKnownInstances env)
+        _ -> return ()

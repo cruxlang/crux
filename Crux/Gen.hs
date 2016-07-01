@@ -17,10 +17,12 @@ import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST as AST
 import qualified Crux.JSTree as JSTree
 import Crux.Module (importsOf)
+import Crux.TypeVar
 import qualified Crux.Module.Types as AST
 import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
 
 {-
 Instructions can:
@@ -346,7 +348,7 @@ subBlockWithOutput env output expr = do
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag t -> DeclarationWriter ()
+generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag TypeVar -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DExportImport _ _ -> do
         return ()
@@ -373,7 +375,19 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         -- type aliases are not reflected into the IR
         return ()
 
-    AST.DTrait _ _ _ _ -> do
+    AST.DTrait _ _traitName _typeVar decls -> do
+        for_ decls $ \(name, declType, _typeIdent) -> do
+            declType' <- followTypeVar declType
+            argCount <- case declType' of
+                TFun args _rv -> return $ length args
+                _ -> fail "Trait decl must be a function"
+            let argNames = map (\i -> Text.pack $ "a" ++ show i) [1..argCount]
+            let args = (map AST.PBinding $ "dict" : argNames)
+            let body =
+                    [ Call (NewLocalBinding "r") (Property (LocalBinding "dict") name) (map LocalBinding argNames)
+                    , Return (LocalBinding "r")
+                    ]
+            writeDeclaration $ Declaration export $ DFun name args body
         return ()
         
     AST.DImpl _ _ _ _ -> do
@@ -382,7 +396,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name
 
-generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
+generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag TypeVar -> IO Module
 generateModule moduleName AST.Module{..} = do
     counter <- newIORef 0
     decls <- fmap snd $ runWriterT $ do

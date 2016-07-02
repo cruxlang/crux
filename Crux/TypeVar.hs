@@ -13,6 +13,7 @@ module Crux.TypeVar
     , TraitDesc(..)
     , TraitNumber(..)
     , Strength (..)
+    , TypeNumber
     , TypeVar(..)
     , TypeState(..)
     , TypeLevel(..)

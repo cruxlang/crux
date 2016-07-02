@@ -344,7 +344,7 @@ check' expectedType env = \case
     EIdentifier pos txt -> do
         (rr, tyref) <- resolveValueReference env pos txt >>= \case
             (a@(Local, _), _mutability, b) -> do
-                -- Don't instantiate locals.  Let generalization is tricky.
+                -- Don't instantiate locals.  TODO: Let generalization is tricky.
                 return (a, b)
             (a, _mutability, b) -> do
                 b' <- instantiate env b

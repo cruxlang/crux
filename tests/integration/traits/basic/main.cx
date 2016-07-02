@@ -1,3 +1,4 @@
+/*
 trait Trait a {
   method: fun(a, a) -> a
   display: fun(a) -> String
@@ -13,3 +14,6 @@ fun main() {
 }
 
 let _ = main()
+*/
+
+let _ = print(15)

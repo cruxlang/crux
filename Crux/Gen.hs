@@ -23,6 +23,7 @@ import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
+--import qualified Data.Set as Set
 
 {-
 Instructions can:
@@ -113,6 +114,8 @@ data Declaration = Declaration AST.ExportFlag DeclarationType
 type Program = [(AST.ModuleName, Module)] -- topologically sorted
 type Module = [Declaration]
 
+type ASTExpr = AST.Expression AST.ResolvedReference AST.PatternTag TypeVar
+
 newTempOutput :: Env -> IO Int
 newTempOutput (_, counter) = do
     value <- readIORef counter
@@ -153,8 +156,49 @@ tagFromPattern = \case
         AST.TagLiteral literal ->
             Just $ TagLiteral literal
 
-generate :: Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> InstructionWriter (Maybe Value)
-generate env expr = case expr of
+{-
+accumulateTraitReferences' :: MonadIO m
+    => IORef (Set TypeNumber)
+    -> IORef [(TypeNumber, TraitNumber, TraitDesc)]
+    -> TypeVar
+    -> m ()
+accumulateTraitReferences' seen out tv =
+    followTypeVar tv >>= \case
+        TypeVar _v -> do
+            --v' <- readIORef v
+            return () -- sometimes we do hit TUnbound??
+            --fail $ "ICE: should never hit a TypeVar here: " ++ show v'
+        TQuant constraints typeNumber -> do
+            seen' <- readIORef seen
+            if Set.member typeNumber seen' then do
+                return ()
+            else do
+                writeIORef seen $ Set.insert typeNumber seen'
+                -- TODO: we need to sort this list into a canonical order
+                for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
+                    modifyIORef out ((typeNumber, traitNumber, traitDesc):)
+        TFun paramTypes returnType -> do
+            for_ paramTypes $ accumulateTraitReferences' seen out
+            accumulateTraitReferences' seen out returnType
+        TDataType _ -> do
+            -- TODO: walk through type arguments
+            return ()
+        TRecord _ -> do
+            -- TODO: walk through record field types
+            return ()
+        TTypeFun _ _ -> do
+            fail "ICE: what does this mean"
+
+accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeNumber, TraitNumber, TraitDesc)]
+accumulateTraitReferences tv = do
+    seen <- newIORef mempty
+    out <- newIORef mempty
+    accumulateTraitReferences' seen out tv
+    reverse <$> readIORef out
+-}
+
+generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)
+generate env = \case
     AST.ELet _ _mut pat _ v -> do
         v' <- generate env v
         for v' $ \v'' -> do
@@ -180,10 +224,16 @@ generate env expr = case expr of
         fail "ICE: this should never happen.  EMethodApp should be desugared into EApp by now."
 
     AST.EApp _ fn args -> do
+        --let fnType = AST.edata fn
+        --let argTypes = map AST.edata args
+
+        --dicts <- accumulateTraitReferences fnType
+        --let dict_params = map (\(a, _b, _c) -> LocalBinding $ Text.pack $ show a) dicts
+
         fn' <- generate env fn
         args' <- runMaybeT $ for args $ MaybeT . generate env
         for (both fn' args') $ \(fn'', args'') -> do
-            newInstruction env $ \output -> Call output fn'' args''
+            newInstruction env $ \output -> Call output fn'' $ {-dict_params ++-} args''
 
     AST.EAssign _ target rhs -> do
         output <- case target of
@@ -329,19 +379,19 @@ generate env expr = case expr of
         writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
         return $ Just $ Temporary output
 
-subBlock :: MonadIO m => Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
+subBlock :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlock env expr = do
     (_output, instructions) <- liftIO $ runWriterT $ generate env expr
     return instructions
 
-subBlockWithReturn :: MonadIO m => Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
+subBlockWithReturn :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
         Just output' -> instrs ++ [Return output']
         Nothing -> instrs
 
-subBlockWithOutput :: MonadIO m => Env -> Output -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
+subBlockWithOutput :: MonadIO m => Env -> Output -> ASTExpr -> m [Instruction]
 subBlockWithOutput env output expr = do
     (output', instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output' of

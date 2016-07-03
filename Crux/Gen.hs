@@ -17,6 +17,7 @@ import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST as AST
 import qualified Crux.JSTree as JSTree
 import Crux.Module (importsOf)
+import Crux.ModuleName
 import Crux.TypeVar
 import qualified Crux.Module.Types as AST
 import Crux.Prelude
@@ -99,7 +100,7 @@ data Instruction
 
 -- TODO: make this into a record
 data Env = Env
-    { eModuleName :: !AST.ModuleName
+    { eModuleName :: !ModuleName
     , eCounter :: IORef Int
     }
 
@@ -114,7 +115,7 @@ data DeclarationType
 data Declaration = Declaration AST.ExportFlag DeclarationType
     deriving (Show, Eq)
 
-type Program = [(AST.ModuleName, Module)] -- topologically sorted
+type Program = [(ModuleName, Module)] -- topologically sorted
 type Module = [Declaration]
 
 type ASTExpr = AST.Expression AST.ResolvedReference AST.PatternTag TypeVar
@@ -492,7 +493,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name
 
-generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag TypeVar -> IO Module
+generateModule :: ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag TypeVar -> IO Module
 generateModule moduleName AST.Module{..} = do
     counter <- newIORef 0
     fmap snd $ runWriterT $ do

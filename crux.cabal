@@ -20,6 +20,7 @@ library
                    , Crux.Main
                    , Crux.Module
                    , Crux.Module.Types
+                   , Crux.ModuleName
                    , Crux.Parse
                    , Crux.Prelude
                    , Crux.Project

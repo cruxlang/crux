@@ -5,7 +5,8 @@ module Crux.Module.Types
     , Program(..)
     ) where
 
-import Crux.AST (Module, ModuleName, Mutability, ResolvedReference)
+import Crux.ModuleName (ModuleName)
+import Crux.AST (Module, Mutability, ResolvedReference)
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.TypeVar (TypeVar, TDataTypeDef, TraitNumber, TraitDesc)

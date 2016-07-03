@@ -5,6 +5,7 @@ module TypecheckTest (htf_thisModulesTests) where
 
 import           Crux.AST
 import Crux.Module.Types
+import Crux.ModuleName
 import qualified Crux.Typecheck.Env   as Env
 import           Crux.Typecheck.Monad
 import           Crux.Typecheck.Types

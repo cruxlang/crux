@@ -23,6 +23,7 @@ module Crux.Typecheck.Env
     ) where
 
 import Crux.AST
+import Crux.ModuleName
 import qualified Crux.Error as Error
 import Crux.Module.Types
 import Crux.Prelude

@@ -7,6 +7,7 @@ module Crux.Typecheck
 import Crux.AST
 import Crux.Error
 import Crux.Module.Types
+import Crux.ModuleName
 import qualified Crux.SymbolTable as SymbolTable
 import Crux.Prelude
 import Crux.Typecheck.Env

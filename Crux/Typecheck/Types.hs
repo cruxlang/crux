@@ -9,7 +9,8 @@ module Crux.Typecheck.Types
     , TypeLevel(..)
     ) where
 
-import Crux.AST (ModuleName, Mutability, ResolvedReference)
+import Crux.ModuleName (ModuleName)
+import Crux.AST (Mutability, ResolvedReference)
 import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
 import Crux.Prelude
 import Crux.TypeVar (TDataTypeIdentity, TraitNumber, TraitDesc, TypeLevel(..), TypeVar(..))

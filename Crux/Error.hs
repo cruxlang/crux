@@ -10,7 +10,7 @@ module Crux.Error
     , renderError'
     ) where
 
-import qualified Crux.AST as AST
+import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
 import qualified Crux.Tokens as Tokens
 import Crux.TypeVar (TypeVar, showTypeVarIO)
@@ -21,13 +21,13 @@ import Text.Printf
 type Name = Text
 
 data InternalCompilerError
-    = DependentModuleNotLoaded Tokens.Pos AST.ModuleName
+    = DependentModuleNotLoaded Tokens.Pos ModuleName
     | StoppedCheckingWithNoError
     deriving (Eq, Show)
 
 data TypeError
     = UnificationError String TypeVar TypeVar
-    | NoTraitOnType TypeVar Name AST.ModuleName
+    | NoTraitOnType TypeVar Name ModuleName
     | RecordMutabilityUnificationError Name String
     | UnboundSymbol String Name
     | OccursCheckFailed
@@ -35,7 +35,7 @@ data TypeError
     | NotAnLVar String
     | TdnrLhsTypeUnknown String
     | ExportError String
-    | ModuleReferenceError AST.ModuleName Name
+    | ModuleReferenceError ModuleName Name
     | IllegalTypeApplication Name
     | TypeApplicationMismatch Name Int Int
     deriving (Eq, Show)
@@ -43,26 +43,26 @@ data TypeError
 data Error
     = LexError P.ParseError
     | ParseError P.ParseError
-    | ModuleNotFound AST.ModuleName
-    | CircularImport AST.ModuleName
+    | ModuleNotFound ModuleName
+    | CircularImport ModuleName
     | InternalCompilerError InternalCompilerError
     | TypeError Tokens.Pos TypeError
     | DuplicateSymbol Tokens.Pos Text
     deriving (Eq, Show)
 
-renderError :: AST.ModuleName -> Error -> IO String
+renderError :: ModuleName -> Error -> IO String
 renderError moduleName err = do
     e <- renderError' err
-    return $ "At " ++ Text.unpack (AST.printModuleName moduleName) ++ ": " ++ e
+    return $ "At " ++ Text.unpack (printModuleName moduleName) ++ ": " ++ e
 
 renderError' :: Error -> IO String
 renderError' = \case
     LexError e -> return $ "Lex error: " ++ show e
     ParseError e -> return $ "Parse error: " ++ show e
-    ModuleNotFound mn -> return $ "Module not found: " ++ (Text.unpack $ AST.printModuleName mn)
-    CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ AST.printModuleName mn)
+    ModuleNotFound mn -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn)
+    CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
     InternalCompilerError ice -> return $ "ICE: " ++ case ice of
-        DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ AST.printModuleName mn)
+        DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
         StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
     TypeError pos ue -> do
         te <- typeErrorToString ue
@@ -124,7 +124,7 @@ typeErrorToString (TdnrLhsTypeUnknown s) = do
 typeErrorToString (ExportError s) = do
     return $ printf "Export error at %s" s
 typeErrorToString (ModuleReferenceError moduleName name) = do
-    return $ printf "Module %s does not export %s" (Text.unpack $ AST.printModuleName moduleName) (Text.unpack name)
+    return $ printf "Module %s does not export %s" (Text.unpack $ printModuleName moduleName) (Text.unpack name)
 typeErrorToString (IllegalTypeApplication pt) = do
     return $ printf "Type %s does not take parameters" (show pt)
 typeErrorToString (TypeApplicationMismatch name total applied) = do

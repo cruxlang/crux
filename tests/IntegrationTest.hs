@@ -10,11 +10,11 @@ import           Control.Concurrent.STM         (atomically)
 import           Control.Concurrent.STM.TMQueue
 import           Control.Exception              (SomeException, throwIO, try)
 import           Control.Monad                  (replicateM, when)
-import qualified Crux.AST                       as AST
 import           Crux.Error                     (TypeError (..))
 import qualified Crux.Error                     as Error
 import qualified Crux.Gen                       as Gen
 import qualified Crux.JSBackend                 as JS
+import Crux.ModuleName
 import qualified Crux.Module
 import           Crux.Module.Types              as AST
 import           Crux.Tokens                    (Pos (..))
@@ -55,7 +55,7 @@ run src = do
         Left (_, e) -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
-runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either Error.Error String)
+runMultiModule :: HashMap.HashMap ModuleName Text -> IO (Either Error.Error String)
 runMultiModule sources = do
     Crux.Module.loadProgramFromSources sources >>= \case
         Left (_, e) -> return $ Left e
@@ -86,9 +86,9 @@ assertUnificationError _ _ _ (Left err) =
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
 
-failWithError :: String -> AST.ModuleName -> Error.Error -> IO ()
+failWithError :: String -> ModuleName -> Error.Error -> IO ()
 failWithError root moduleName err = do
-    let moduleName' = AST.printModuleName moduleName
+    let moduleName' = printModuleName moduleName
     err' <- Error.renderError' err
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 

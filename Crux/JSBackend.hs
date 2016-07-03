@@ -3,6 +3,7 @@
 module Crux.JSBackend where
 
 import Crux.AST
+import Crux.ModuleName
 import qualified Crux.Gen as Gen
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude

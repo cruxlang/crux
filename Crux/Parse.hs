@@ -7,6 +7,7 @@ import Control.Applicative ((<|>))
 import Control.Monad.Reader.Class (MonadReader, ask, local)
 import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
+import Crux.ModuleName
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.Text (isCapitalized)

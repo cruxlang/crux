@@ -26,7 +26,7 @@ module Crux.TypeVar
     , dataTypeIdentity
     ) where
 
-import Crux.AST (ModuleName)
+import Crux.ModuleName (ModuleName)
 import Crux.Prelude
 import qualified Data.Text as Text
 import System.IO.Unsafe (unsafePerformIO)

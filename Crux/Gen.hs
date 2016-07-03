@@ -415,7 +415,7 @@ traitDictName traitName typeVar = do
             TypeVar {} ->
                 error "Unexpected traitDictName got unbound typevar"
             TDataType TDataTypeDef{..} ->
-                return $ AST.printModuleName tuModuleName <> "$" <> tuName
+                return $ printModuleName tuModuleName <> "$" <> tuName
             _ -> do
                 s <- showTypeVarIO tv2
                 error $ "Unexpected traitDictName " ++ s

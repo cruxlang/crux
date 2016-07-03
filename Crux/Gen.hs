@@ -98,7 +98,10 @@ data Instruction
     deriving (Show, Eq)
 
 -- TODO: make this into a record
-type Env = (AST.ModuleName, IORef Int)
+data Env = Env
+    { eModuleName :: !AST.ModuleName
+    , eCounter :: IORef Int
+    }
 
 data DeclarationType
     = DData Name [AST.Variant ()]
@@ -117,9 +120,9 @@ type Module = [Declaration]
 type ASTExpr = AST.Expression AST.ResolvedReference AST.PatternTag TypeVar
 
 newTempOutput :: Env -> IO Int
-newTempOutput (_, counter) = do
-    value <- readIORef counter
-    writeIORef counter (value + 1)
+newTempOutput Env{..} = do
+    value <- readIORef eCounter
+    writeIORef eCounter (value + 1)
     return value
 
 type DeclarationWriter a = WriterT [Declaration] IO a
@@ -245,7 +248,7 @@ generate env = \case
                 AST.Ambient -> return $ Just $ ExistingLocalBinding n
                 AST.Local -> return $ Just $ ExistingLocalBinding n
                 AST.FromModule mn
-                    | mn == fst env -> return $ Just $ ExistingLocalBinding n
+                    | mn == eModuleName env -> return $ Just $ ExistingLocalBinding n
                     | otherwise -> fail "cannot assign to imported names"
             _ -> fail "Unsupported assignment target"
 
@@ -450,7 +453,7 @@ generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.Pattern
 generateModule moduleName AST.Module{..} = do
     counter <- newIORef 0
     decls <- fmap snd $ runWriterT $ do
-        for_ mDecls $ generateDecl (moduleName, counter)
+        for_ mDecls $ generateDecl Env { eModuleName=moduleName, eCounter=counter }
     return decls
 
 generateProgram :: AST.Program -> IO Program

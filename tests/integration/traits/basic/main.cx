@@ -1,4 +1,3 @@
-/*
 trait Trait a {
   method: fun(a, a) -> a
   display: fun(a) -> String
@@ -9,6 +8,7 @@ impl Trait Number {
   display(z) { toString(z) }
 }
 
+/*
 fun main() {
   print(display(method(10, 5)))
 }

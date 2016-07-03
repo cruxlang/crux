@@ -442,7 +442,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     ]
             writeDeclaration $ Declaration export $ DFun name args body
         return ()
-        
+
     AST.DImpl _ _ _ _ -> do
         return ()
 
@@ -452,9 +452,9 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
 generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag TypeVar -> IO Module
 generateModule moduleName AST.Module{..} = do
     counter <- newIORef 0
-    decls <- fmap snd $ runWriterT $ do
-        for_ mDecls $ generateDecl Env { eModuleName=moduleName, eCounter=counter }
-    return decls
+    fmap snd $ runWriterT $ do
+        for_ mDecls $
+            generateDecl Env { eModuleName=moduleName, eCounter=counter }
 
 generateProgram :: AST.Program -> IO Program
 generateProgram AST.Program{..} = do

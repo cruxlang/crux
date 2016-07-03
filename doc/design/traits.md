@@ -67,6 +67,10 @@ When instantiating a qvar that has constraints, yield an fvar with the same cons
 * Only need to walk the function signature to come up with the parameter list.
 * Tack this onto the crux->core step?  Gen.hs
 
+* Collect the set of all trait impls and compile them somewhere
+* We'll try putting them in the module where they are defined
+    * If we do this, we need to know the module of each concrete trait impl for desugaring
+
 * When compiling a function definition,
     * We must walk the type signature to know the set of typeclass-dictionaries we need.
     * We must sort this canonically, and pepend it onto the front of the argument list.

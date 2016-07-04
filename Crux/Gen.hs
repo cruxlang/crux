@@ -24,7 +24,7 @@ import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
---import qualified Data.Set as Set
+import qualified Data.Set as Set
 
 {-
 Instructions can:
@@ -160,46 +160,52 @@ tagFromPattern = \case
         AST.TagLiteral literal ->
             Just $ TagLiteral literal
 
-{-
 accumulateTraitReferences' :: MonadIO m
     => IORef (Set TypeNumber)
     -> IORef [(TypeNumber, TraitNumber, TraitDesc)]
     -> TypeVar
     -> m ()
-accumulateTraitReferences' seen out tv =
-    followTypeVar tv >>= \case
-        TypeVar _v -> do
-            --v' <- readIORef v
-            return () -- sometimes we do hit TUnbound??
-            --fail $ "ICE: should never hit a TypeVar here: " ++ show v'
-        TQuant constraints typeNumber -> do
-            seen' <- readIORef seen
-            if Set.member typeNumber seen' then do
-                return ()
-            else do
-                writeIORef seen $ Set.insert typeNumber seen'
-                -- TODO: we need to sort this list into a canonical order
-                for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
-                    modifyIORef out ((typeNumber, traitNumber, traitDesc):)
-        TFun paramTypes returnType -> do
-            for_ paramTypes $ accumulateTraitReferences' seen out
-            accumulateTraitReferences' seen out returnType
-        TDataType _ -> do
-            -- TODO: walk through type arguments
-            return ()
-        TRecord _ -> do
-            -- TODO: walk through record field types
-            return ()
-        TTypeFun _ _ -> do
-            fail "ICE: what does this mean"
+accumulateTraitReferences' seen out tv = case tv of
+    TypeVar ref -> readIORef ref >>= \case
+        TUnbound _str _level constraints typeNumber -> do
+            append constraints typeNumber
+        TBound tv2 ->
+            accumulateTraitReferences' seen out tv2
+    TQuant constraints typeNumber -> do
+        append constraints typeNumber
+    TFun paramTypes returnType -> do
+        for_ paramTypes $ accumulateTraitReferences' seen out
+        accumulateTraitReferences' seen out returnType
+    TDataType TDataTypeDef{..} -> do
+        for_ tuParameters $
+            accumulateTraitReferences' seen out
+    TRecord ref ->
+        followRecord ref
+    TTypeFun _ _ -> do
+        fail "ICE: what does this mean"
 
-accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeNumber, TraitNumber, TraitDesc)]
-accumulateTraitReferences tv = do
+  where
+    followRecord ref =  readIORef ref >>= \case
+        RBound ref2 ->
+            followRecord ref2
+        RRecord (RecordType _open rows) ->
+            for_ rows $ \TypeRow{..} ->
+                accumulateTraitReferences' seen out trTyVar
+    append constraints typeNumber = do
+        seen' <- readIORef seen
+        when (not $ Set.member typeNumber seen') $ do
+            modifyIORef seen (Set.insert typeNumber)
+
+            -- TODO: we need to sort this list into a canonical order
+            for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
+                modifyIORef out ((typeNumber, traitNumber, traitDesc):)
+
+_accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeNumber, TraitNumber, TraitDesc)]
+_accumulateTraitReferences tv = do
     seen <- newIORef mempty
     out <- newIORef mempty
     accumulateTraitReferences' seen out tv
     reverse <$> readIORef out
--}
 
 generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)
 generate env = \case
@@ -403,6 +409,7 @@ subBlockWithOutput env output expr = do
         Nothing -> instrs
 
 -- $trait_dict$TRAIT_NAME$DATA_TYPE_MODULE$DATA_TYPE_NAME
+-- FIXME: This should include the module name of the trait too.
 traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
 traitDictName traitName typeVar = do
     tn <- stringifyTypeVar typeVar

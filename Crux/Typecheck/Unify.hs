@@ -19,9 +19,7 @@ freshTypeIndex Env{eNextTypeIndex} = do
     readIORef eNextTypeIndex
 
 freshType :: MonadIO m => Env -> m TypeVar
-freshType env = do
-    index <- freshTypeIndex env
-    newTypeVar $ TUnbound Strong (eLevel env) mempty index
+freshType env = freshTypeConstrained env mempty
 
 freshTypeConstrained :: MonadIO m => Env -> HashMap TraitNumber TraitDesc -> m TypeVar
 freshTypeConstrained env constraints = do
@@ -323,10 +321,11 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TDataType def -> do
         let key = (trait, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case
-            Just _ -> return ()
+            Just _ -> do
+                -- TODO: validate instance constraints against data type parameters
+                return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
-        -- check in Env
     TRecord _ -> do
         fail "Records do not implement traits"
     TTypeFun _ _ -> do

@@ -623,7 +623,7 @@ resolveInstanceDictPlaceholders env = recurse
                 try' <- recurse try
                 catch' <- recurse catch
                 return $ ETryCatch tv try' ident pat catch'
-            
+
             EInstancePlaceholder tv traitNumber traitDesc -> do
                 followTypeVar tv >>= \case
                     TypeVar ref -> readIORef ref >>= \case
@@ -756,10 +756,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         env' <- childEnv env
         traitRefs <- accumulateTraitReferences ty
-        dictArgs <- for traitRefs $ \(tv, traitNumber, _traitDesc) -> do
+        dictArgs <- for traitRefs $ \(tv, TraitNumber traitNumber, _traitDesc) -> do
             followTypeVar tv >>= \case
                 TQuant _ typeNumber -> do
-                    return $ PBinding $ "$" <> (Text.pack $ show typeNumber) <> "$" <> (Text.pack $ show traitNumber)
+                    return $ PBinding $ "$" <> (Text.pack $ show traitNumber) <> "$" <> (Text.pack $ show typeNumber)
                 _ -> do
                     fail "ICE: traits on wat"
 
@@ -774,14 +774,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 }
         let outerFD = case dictArgs of
                 [] -> innerFD
-                _ -> do
+                _ ->
                     FunctionDecl
                         { fdParams = map (\p -> (p, Nothing)) dictArgs
                         , fdReturnAnnot = Nothing
                         , fdBody = EFun (edata expr') innerFD
                         , fdForall = []
                         }
-                    return $ EFun (edata expr') fd
 
         return $ DFun (edata expr') name outerFD
 
@@ -836,7 +835,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
         exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
-        
+
     DTrait _ traitName typeName contents -> do
         env' <- childEnv env
         _ <- newQuantifiedTypeVar env' pos typeName
@@ -846,7 +845,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: introduce some dummy type? we don't need a type here
         unitType <- resolveVoidType env pos
         return $ DTrait unitType traitName typeName contents'
-        
+
     DImpl pos' traitName typeIdent values -> do
         (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
         typeVar <- resolveTypeIdent env pos' NewTypesAreErrors typeIdent

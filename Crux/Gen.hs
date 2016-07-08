@@ -336,8 +336,7 @@ generate env = \case
         return $ Just $ Temporary output
 
     AST.EInstancePlaceholder _ _ _ -> do
-        return $ Just $ Temporary 9999
-        -- fail "Placeholders should not make it to code generation"
+        fail "Placeholders should not make it to code generation"
     AST.EInstanceDict _ traitName _instanceModuleName (TDataTypeIdentity dataName dataModuleName) -> do
         return $ Just $ LocalBinding $ "$trait_dict$" <> traitName <> "$" <> printModuleName dataModuleName <> "$" <> dataName
     AST.EInstanceArgument _ name -> do

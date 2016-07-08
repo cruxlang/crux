@@ -335,8 +335,10 @@ generate env = \case
         writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
         return $ Just $ Temporary output
 
-    AST.EPlaceholder _ _ -> do
+    AST.EInstancePlaceholder _ _ _ -> do
         fail "Placeholders should not make it to code generation"
+    AST.EInstanceDict _ traitName _instanceModuleName (TDataTypeIdentity dataName dataModuleName) -> do
+        return $ Just $ LocalBinding $ "$trait_dict$" <> traitName <> "$" <> printModuleName dataModuleName <> "$" <> dataName
 
 subBlock :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlock env expr = do
@@ -410,15 +412,18 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                 TFun args _rv -> return $ length args
                 _ -> fail "Trait decl must be a function"
             let argNames = map (\i -> Text.pack $ "a" ++ show i) [1..argCount]
-            let args = (map AST.PBinding $ "dict" : argNames)
             let body =
-                    [ Call (NewLocalBinding "r") (Property (LocalBinding "dict") name) (map LocalBinding argNames)
-                    , Return (LocalBinding "r")
+                    [ Return (FunctionLiteral (map AST.PBinding argNames)
+                        [ Call (NewLocalBinding "r") (Property (LocalBinding "dict") name) (map LocalBinding argNames)
+                        , Return (LocalBinding "r")
+                        ])
                     ]
-            writeDeclaration $ Declaration export $ DFun name args body
+            writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
     AST.DImpl typeVar traitName _typeIdent decls -> do
+        -- TODO: generalize trait dict name calculation
+        -- TODO: don't export the ModuleName for the instance dict
         let traitImplName name = "$trait_impl$" <> AST.resolvedReferenceName traitName <> "$" <> name
 
         for_ decls $ \(name, ty, params, ann, body) -> do

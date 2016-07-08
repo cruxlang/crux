@@ -35,6 +35,7 @@ data Env = Env
     , ePatternBindings    :: SymbolTable PatternReference
     , eTraitBindings      :: SymbolTable (ResolvedReference, TraitNumber, TraitDesc)
     , eExceptionBindings  :: SymbolTable ExceptionReference
+    -- TODO: we don't actually care about the instance's module
     , eKnownInstances     :: HashTable (TraitNumber, TDataTypeIdentity) ModuleName
 
     , eReturnType         :: Maybe TypeVar -- Nothing if top-level expression

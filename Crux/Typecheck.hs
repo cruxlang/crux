@@ -6,6 +6,7 @@ module Crux.Typecheck
 
 import Crux.AST
 import Crux.Error
+import qualified Crux.HashTable as HashTable
 import Crux.Module.Types
 import Crux.ModuleName
 import qualified Crux.SymbolTable as SymbolTable
@@ -408,8 +409,8 @@ check' expectedType env = \case
                     [] -> do
                         return $ EIdentifier tv' ref
                     _ -> do
-                        placeholders <- for traits $ \(typeVar, traitNumber, _traitDesc) -> do
-                            return $ EPlaceholder typeVar traitNumber
+                        placeholders <- for traits $ \(typeVar, traitNumber, traitDesc) -> do
+                            return $ EInstancePlaceholder typeVar traitNumber traitDesc
                         return $ EApp
                             tv'
                             (EIdentifier tv' ref)
@@ -537,13 +538,15 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
 
-    EPlaceholder _ _ -> do
+    EInstancePlaceholder _ _ _ -> do
         fail "ICE: placeholders are not typechecked"
+    EInstanceDict _ _ _ _ -> do
+        fail "ICE: instance dicts are not typechecked"
 
 -- TODO: this replacement algorithm could be quadratic depending on the number of
 -- nested functions, so we should switch the placeholders over to IORefs
 resolveInstanceDictPlaceholders :: Env -> TypedExpression -> TC TypedExpression
-resolveInstanceDictPlaceholders _env = recurse
+resolveInstanceDictPlaceholders env = recurse
   where recurse = \case
             ELet tv mut pat typeIdent body -> do
                 body' <- recurse body
@@ -619,8 +622,34 @@ resolveInstanceDictPlaceholders _env = recurse
                 catch' <- recurse catch
                 return $ ETryCatch tv try' ident pat catch'
             
-            EPlaceholder _tv _traitNumber -> do
-                fail "he"
+            EInstancePlaceholder tv traitNumber traitDesc -> do
+                dtid <- followTypeVar tv >>= \case
+                    TypeVar ref -> readIORef ref >>= \case
+                        TUnbound _str _level _constraints _typeNumber ->
+                            fail "should have been quantified by now"
+                        _ ->
+                            fail "never happens"
+                    TQuant _constraints _typeNumber -> do
+                        fail "TODO: use argument dict"
+                        --append constraints tv typeNumber
+                    TFun _paramTypes _returnType -> do
+                        fail "Don't support traits on functions"
+                    TDataType def -> do
+                        return $ dataTypeIdentity def
+                    TRecord _ref -> do
+                        fail "No traits on records"
+                    TTypeFun _ _ -> do
+                        fail "ICE: what does this mean"
+
+                instanceModuleName <- HashTable.lookup (traitNumber, dtid) (eKnownInstances env) >>= \case
+                    Just mn -> return mn
+                    Nothing -> fail "No instance"
+
+                let traitName = tdName traitDesc
+
+                return $ EInstanceDict tv traitName instanceModuleName dtid
+            EInstanceDict _ _ _ _ -> do
+                fail "I don't think we're supposed to do this"
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do

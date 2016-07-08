@@ -8,7 +8,7 @@ module Crux.TypeVar
     , RowMutability(..)
     , RowVariable(..)
     , TVariant(..)
-    , TDataTypeIdentity
+    , TDataTypeIdentity(..)
     , TDataTypeDef(..)
     , TraitDesc(..)
     , TraitNumber(..)

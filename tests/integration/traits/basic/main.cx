@@ -13,5 +13,3 @@ fun main() {
 }
 
 let _ = main()
-
-// let _ = print(15)

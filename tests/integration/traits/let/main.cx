@@ -1,0 +1,15 @@
+trait Trait a {
+  method: fun(a, a) -> a
+  display: fun(a) -> String
+}
+
+impl Trait Number {
+  method(x, y) { x + y }
+  display(z) { toString(z) }
+}
+
+fun go(x, y) {
+  print(display(method(x, y)))
+}
+
+let _ = go(10, 5)

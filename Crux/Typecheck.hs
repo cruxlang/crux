@@ -739,9 +739,12 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
-        quantify ty
 
-        return $ DLet (edata expr'') mut pat' maybeAnnot expr''
+        quantify ty
+        expr''' <- resolveInstanceDictPlaceholders env expr''
+
+        return $ DLet (edata expr'') mut pat' maybeAnnot expr'''
+
     DFun pos' name fd -> do
         let expr = EFun pos' fd
         ty <- freshType env
@@ -754,7 +757,6 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         quantify ty
 
-        env' <- childEnv env
         traitRefs <- accumulateTraitReferences ty
         dictArgs <- for traitRefs $ \(tv, TraitNumber traitNumber, _traitDesc) -> do
             followTypeVar tv >>= \case
@@ -763,8 +765,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 _ -> do
                     fail "ICE: traits on wat"
 
-        -- TODO: insert into child env
-        body'' <- resolveInstanceDictPlaceholders env' body'
+        body'' <- resolveInstanceDictPlaceholders env body'
 
         let innerFD = FunctionDecl
                 { fdParams = args'

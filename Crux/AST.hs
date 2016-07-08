@@ -9,7 +9,6 @@ module Crux.AST
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.Tokens (Pos (..))
-import Crux.TypeVar
 import Crux.ModuleName
 
 type ParsedModule = Module UnresolvedReference () Pos
@@ -175,20 +174,6 @@ data Mutability
     = Mutable
     | Immutable
     deriving (Show, Eq)
-
-class Phase a where
-    type TypeAnnot a
-    type UntypedAnnot a
-
-data Parsed
-instance Phase Parsed where
-    type TypeAnnot Parsed = Pos
-    type UntypedAnnot Parsed = Pos
-
-data Typechecked
-instance Phase Typechecked where
-    type TypeAnnot Typechecked = TypeVar
-    type UntypedAnnot Typechecked = ()
 
 data Expression idtype tagtype edata
     -- Mutable Wildcard makes no sense -- disallow that?

@@ -10,6 +10,7 @@ import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.Tokens (Pos (..))
 import Crux.ModuleName
+import Crux.TypeVar
 
 type ParsedModule = Module UnresolvedReference () Pos
 
@@ -206,6 +207,11 @@ data Expression idtype tagtype edata
     | EBreak edata
     | EThrow edata idtype (Expression idtype tagtype edata)
     | ETryCatch edata (Expression idtype tagtype edata) idtype (Pattern tagtype) (Expression idtype tagtype edata)
+
+    -- trait dictionary conversion
+    -- instance dict placeholders to be resolved after quantification
+    | EPlaceholder edata TraitNumber
+
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 edata :: Expression idtype tagtype edata -> edata
@@ -231,6 +237,7 @@ edata expr = case expr of
     EBreak ed -> ed
     EThrow ed _ _ -> ed
     ETryCatch ed _ _ _ _ -> ed
+    EPlaceholder ed _ -> ed
 
 setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
@@ -255,6 +262,7 @@ setEdata expr e = case expr of
     EBreak _              -> EBreak e
     EThrow _ a b          -> EThrow e a b
     ETryCatch _ a b c d   -> ETryCatch e a b c d
+    EPlaceholder _ a      -> EPlaceholder e a
 
 data TypeIdent
     = UnitTypeIdent

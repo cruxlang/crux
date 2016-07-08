@@ -24,7 +24,6 @@ import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
-import qualified Data.Set as Set
 
 {-
 Instructions can:
@@ -160,53 +159,6 @@ tagFromPattern = \case
         AST.TagLiteral literal ->
             Just $ TagLiteral literal
 
-accumulateTraitReferences' :: MonadIO m
-    => IORef (Set TypeNumber)
-    -> IORef [(TypeNumber, TraitNumber, TraitDesc)]
-    -> TypeVar
-    -> m ()
-accumulateTraitReferences' seen out tv = case tv of
-    TypeVar ref -> readIORef ref >>= \case
-        TUnbound _str _level constraints typeNumber -> do
-            append constraints typeNumber
-        TBound tv2 ->
-            accumulateTraitReferences' seen out tv2
-    TQuant constraints typeNumber -> do
-        append constraints typeNumber
-    TFun paramTypes returnType -> do
-        for_ paramTypes $ accumulateTraitReferences' seen out
-        accumulateTraitReferences' seen out returnType
-    TDataType TDataTypeDef{..} -> do
-        for_ tuParameters $
-            accumulateTraitReferences' seen out
-    TRecord ref ->
-        followRecord ref
-    TTypeFun _ _ -> do
-        fail "ICE: what does this mean"
-
-  where
-    followRecord ref =  readIORef ref >>= \case
-        RBound ref2 ->
-            followRecord ref2
-        RRecord (RecordType _open rows) ->
-            for_ rows $ \TypeRow{..} ->
-                accumulateTraitReferences' seen out trTyVar
-    append constraints typeNumber = do
-        seen' <- readIORef seen
-        when (not $ Set.member typeNumber seen') $ do
-            modifyIORef seen (Set.insert typeNumber)
-
-            -- TODO: we need to sort this list into a canonical order
-            for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
-                modifyIORef out ((typeNumber, traitNumber, traitDesc):)
-
-_accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeNumber, TraitNumber, TraitDesc)]
-_accumulateTraitReferences tv = do
-    seen <- newIORef mempty
-    out <- newIORef mempty
-    accumulateTraitReferences' seen out tv
-    reverse <$> readIORef out
-
 generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)
 generate env = \case
     AST.ELet _ _mut pat _ v -> do
@@ -234,12 +186,6 @@ generate env = \case
         fail "ICE: this should never happen.  EMethodApp should be desugared into EApp by now."
 
     AST.EApp _ fn args -> do
-        --let fnType = AST.edata fn
-        --let argTypes = map AST.edata args
-
-        --dicts <- accumulateTraitReferences fnType
-        --let dict_params = map (\(a, _b, _c) -> LocalBinding $ Text.pack $ show a) dicts
-
         fn' <- generate env fn
         args' <- runMaybeT $ for args $ MaybeT . generate env
         for (both fn' args') $ \(fn'', args'') -> do
@@ -388,6 +334,9 @@ generate env = \case
         catchBody' <- subBlockWithOutput env (ExistingTemporary output) catchBody
         writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
         return $ Just $ Temporary output
+
+    AST.EPlaceholder _ _ -> do
+        fail "Placeholders should not make it to code generation"
 
 subBlock :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlock env expr = do

@@ -8,12 +8,10 @@ impl Trait Number {
   display(z) { toString(z) }
 }
 
-/*
 fun main() {
   print(display(method(10, 5)))
 }
 
 let _ = main()
-*/
 
-let _ = print(15)
+// let _ = print(15)

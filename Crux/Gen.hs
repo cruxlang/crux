@@ -17,10 +17,13 @@ import Control.Monad.Writer.Lazy (WriterT, runWriterT, tell)
 import qualified Crux.AST as AST
 import qualified Crux.JSTree as JSTree
 import Crux.Module (importsOf)
+import Crux.ModuleName
+import Crux.TypeVar
 import qualified Crux.Module.Types as AST
 import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
 
 {-
 Instructions can:
@@ -95,7 +98,10 @@ data Instruction
     deriving (Show, Eq)
 
 -- TODO: make this into a record
-type Env = (AST.ModuleName, IORef Int)
+data Env = Env
+    { eModuleName :: !ModuleName
+    , eCounter :: IORef Int
+    }
 
 data DeclarationType
     = DData Name [AST.Variant ()]
@@ -108,13 +114,15 @@ data DeclarationType
 data Declaration = Declaration AST.ExportFlag DeclarationType
     deriving (Show, Eq)
 
-type Program = [(AST.ModuleName, Module)] -- topologically sorted
+type Program = [(ModuleName, Module)] -- topologically sorted
 type Module = [Declaration]
 
+type ASTExpr = AST.Expression AST.ResolvedReference AST.PatternTag TypeVar
+
 newTempOutput :: Env -> IO Int
-newTempOutput (_, counter) = do
-    value <- readIORef counter
-    writeIORef counter (value + 1)
+newTempOutput Env{..} = do
+    value <- readIORef eCounter
+    writeIORef eCounter (value + 1)
     return value
 
 type DeclarationWriter a = WriterT [Declaration] IO a
@@ -151,8 +159,8 @@ tagFromPattern = \case
         AST.TagLiteral literal ->
             Just $ TagLiteral literal
 
-generate :: Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> InstructionWriter (Maybe Value)
-generate env expr = case expr of
+generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)
+generate env = \case
     AST.ELet _ _mut pat _ v -> do
         v' <- generate env v
         for v' $ \v'' -> do
@@ -181,7 +189,7 @@ generate env expr = case expr of
         fn' <- generate env fn
         args' <- runMaybeT $ for args $ MaybeT . generate env
         for (both fn' args') $ \(fn'', args'') -> do
-            newInstruction env $ \output -> Call output fn'' args''
+            newInstruction env $ \output -> Call output fn'' $ {-dict_params ++-} args''
 
     AST.EAssign _ target rhs -> do
         output <- case target of
@@ -193,7 +201,7 @@ generate env expr = case expr of
                 AST.Ambient -> return $ Just $ ExistingLocalBinding n
                 AST.Local -> return $ Just $ ExistingLocalBinding n
                 AST.FromModule mn
-                    | mn == fst env -> return $ Just $ ExistingLocalBinding n
+                    | mn == eModuleName env -> return $ Just $ ExistingLocalBinding n
                     | otherwise -> fail "cannot assign to imported names"
             _ -> fail "Unsupported assignment target"
 
@@ -327,26 +335,50 @@ generate env expr = case expr of
         writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
         return $ Just $ Temporary output
 
-subBlock :: MonadIO m => Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
+    AST.EInstancePlaceholder _ _ _ -> do
+        fail "Placeholders should not make it to code generation"
+    AST.EInstanceDict _ traitName _instanceModuleName (TDataTypeIdentity dataName dataModuleName) -> do
+        return $ Just $ LocalBinding $ "$trait_dict$" <> traitName <> "$" <> printModuleName dataModuleName <> "$" <> dataName
+
+subBlock :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlock env expr = do
     (_output, instructions) <- liftIO $ runWriterT $ generate env expr
     return instructions
 
-subBlockWithReturn :: MonadIO m => Env -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
+subBlockWithReturn :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
         Just output' -> instrs ++ [Return output']
         Nothing -> instrs
 
-subBlockWithOutput :: MonadIO m => Env -> Output -> AST.Expression AST.ResolvedReference AST.PatternTag t -> m [Instruction]
+subBlockWithOutput :: MonadIO m => Env -> Output -> ASTExpr -> m [Instruction]
 subBlockWithOutput env output expr = do
     (output', instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output' of
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
-generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag t -> DeclarationWriter ()
+-- $trait_dict$TRAIT_NAME$DATA_TYPE_MODULE$DATA_TYPE_NAME
+-- FIXME: This should include the module name of the trait too.
+traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
+traitDictName traitName typeVar = do
+    tn <- stringifyTypeVar typeVar
+    return $ "$trait_dict$" <> AST.resolvedReferenceName traitName <> "$" <> tn
+  where
+    stringifyTypeVar :: MonadIO m => TypeVar -> m Name
+    stringifyTypeVar tv = do
+        tv2 <- followTypeVar tv
+        case tv2 of
+            TypeVar {} ->
+                error "Unexpected traitDictName got unbound typevar"
+            TDataType TDataTypeDef{..} ->
+                return $ printModuleName tuModuleName <> "$" <> tuName
+            _ -> do
+                s <- showTypeVarIO tv2
+                error $ "Unexpected traitDictName " ++ s
+
+generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag TypeVar -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DExportImport _ _ -> do
         return ()
@@ -373,21 +405,61 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         -- type aliases are not reflected into the IR
         return ()
 
-    AST.DTrait _ _ _ _ -> do
+    AST.DTrait _ _traitName _typeVar decls -> do
+        for_ decls $ \(name, declType, _typeIdent) -> do
+            declType' <- followTypeVar declType
+            argCount <- case declType' of
+                TFun args _rv -> return $ length args
+                _ -> fail "Trait decl must be a function"
+            let argNames = map (\i -> Text.pack $ "a" ++ show i) [1..argCount]
+            let body =
+                    [ Return (FunctionLiteral (map AST.PBinding argNames)
+                        [ Call (NewLocalBinding "r") (Property (LocalBinding "dict") name) (map LocalBinding argNames)
+                        , Return (LocalBinding "r")
+                        ])
+                    ]
+            writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
-        
-    AST.DImpl _ _ _ -> do
+
+    AST.DImpl typeVar traitName _typeIdent decls -> do
+        -- TODO: generalize trait dict name calculation
+        -- TODO: don't export the ModuleName for the instance dict
+        let traitImplName name = "$trait_impl$" <> AST.resolvedReferenceName traitName <> "$" <> name
+
+        for_ decls $ \(name, ty, params, ann, body) -> do
+            generateDecl env $ AST.Declaration
+                AST.NoExport
+                undefined
+                (AST.DFun
+                    ty
+                    (traitImplName name)
+                    AST.FunctionDecl
+                        { fdParams = params
+                        , fdReturnAnnot = ann
+                        , fdBody = body
+                        , fdForall = []
+                        }
+                 )
+
+        let dict = RecordLiteral $ HashMap.fromList
+                [ (name, LocalBinding $ traitImplName name)
+                | (name, _ty, _args, _ann, _body) <- decls
+                ]
+        tdn <- traitDictName traitName typeVar
+        writeDeclaration $ Declaration AST.Export $ DLet (AST.PBinding tdn)
+            [ Assign (NewLocalBinding tdn) dict
+            ]
         return ()
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name
 
-generateModule :: AST.ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag t -> IO Module
+generateModule :: ModuleName -> AST.Module AST.ResolvedReference AST.PatternTag TypeVar -> IO Module
 generateModule moduleName AST.Module{..} = do
     counter <- newIORef 0
-    decls <- fmap snd $ runWriterT $ do
-        for_ mDecls $ generateDecl (moduleName, counter)
-    return decls
+    fmap snd $ runWriterT $ do
+        for_ mDecls $
+            generateDecl Env { eModuleName=moduleName, eCounter=counter }
 
 generateProgram :: AST.Program -> IO Program
 generateProgram AST.Program{..} = do

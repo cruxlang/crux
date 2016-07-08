@@ -12,6 +12,7 @@ module Crux.Prelude
     , module Data.Maybe
     , module Crux.IORef
     , module Data.Monoid
+    , module Data.Set
     , module Data.String
     , module Data.Text
     , module Data.Typeable
@@ -35,6 +36,7 @@ import Data.HashMap.Strict (HashMap)
 import Data.HashSet (HashSet)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Monoid (Monoid (..), mconcat, mempty, (<>))
+import Data.Set (Set)
 import Data.String (IsString (..))
 import Data.Text (Text)
 import Data.Traversable (for, traverse)

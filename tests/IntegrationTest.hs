@@ -10,11 +10,11 @@ import           Control.Concurrent.STM         (atomically)
 import           Control.Concurrent.STM.TMQueue
 import           Control.Exception              (SomeException, throwIO, try)
 import           Control.Monad                  (replicateM, when)
-import qualified Crux.AST                       as AST
 import           Crux.Error                     (TypeError (..))
 import qualified Crux.Error                     as Error
 import qualified Crux.Gen                       as Gen
 import qualified Crux.JSBackend                 as JS
+import Crux.ModuleName
 import qualified Crux.Module
 import           Crux.Module.Types              as AST
 import           Crux.Tokens                    (Pos (..))
@@ -55,7 +55,7 @@ run src = do
         Left (_, e) -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
-runMultiModule :: HashMap.HashMap AST.ModuleName Text -> IO (Either Error.Error String)
+runMultiModule :: HashMap.HashMap ModuleName Text -> IO (Either Error.Error String)
 runMultiModule sources = do
     Crux.Module.loadProgramFromSources sources >>= \case
         Left (_, e) -> return $ Left e
@@ -86,9 +86,9 @@ assertUnificationError _ _ _ (Left err) =
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
 
-failWithError :: String -> AST.ModuleName -> Error.Error -> IO ()
+failWithError :: String -> ModuleName -> Error.Error -> IO ()
 failWithError root moduleName err = do
-    let moduleName' = AST.printModuleName moduleName
+    let moduleName' = printModuleName moduleName
     err' <- Error.renderError' err
     assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
 
@@ -225,7 +225,7 @@ test_record_annotation_is_checked2 = do
         , "let _ = main()"
         ]
 
-    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound 10),..._11}" result
+    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound fromList [] 10),..._11}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_cannot_assign_to_immutable_binding = do
@@ -286,13 +286,13 @@ test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
         [ "let f: fun(a) -> Number = fun (i) { i }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant 2" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant fromList [] 2" rv
 
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "forall {a} fun id_int(x: a): Number { x }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant 5" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant fromList [] 5" rv
 
 test_escaped_strings = do
     result1 <- run $ T.unlines
@@ -317,4 +317,4 @@ test_row_variables_are_checked = do
         , "let a = double_x({ x : 22, y : 11 })"
         , "let _ = print(a.z)"
         ]
-    assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound 34),..._35}" result
+    assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound fromList [] 34),..._35}" result

@@ -4,11 +4,11 @@ module Crux.Project
     , buildProjectAndRunTests
     ) where
 
-import qualified Crux.AST as AST
 import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JSBackend
 import Crux.Module
+import Crux.ModuleName (printModuleName)
 import Crux.Prelude
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -65,7 +65,7 @@ buildTarget rtsSource targetName TargetConfig{..} = do
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left (moduleName, err) -> do
             message <- Error.renderError' err
-            Exit.die $ "project build failed\nin module: " ++ Text.unpack (AST.printModuleName moduleName) ++ "\n" ++ message
+            Exit.die $ "project build failed\nin module: " ++ Text.unpack (printModuleName moduleName) ++ "\n" ++ message
         Right program -> do
             program' <- Gen.generateProgram program
             TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
@@ -88,7 +88,7 @@ buildProjectAndRunTests = do
         loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
             Left (moduleName, err) -> do
                 message <- Error.renderError' err
-                Exit.die $ "test build failed\nin module: " ++ Text.unpack (AST.printModuleName moduleName) ++ "\n" ++ message
+                Exit.die $ "test build failed\nin module: " ++ Text.unpack (printModuleName moduleName) ++ "\n" ++ message
             Right program -> do
                 program' <- Gen.generateProgram program
                 let source = JSBackend.generateJS rtsSource program'

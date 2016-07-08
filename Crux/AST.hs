@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable,
-             OverloadedStrings, RecordWildCards #-}
+             OverloadedStrings, RecordWildCards, TypeFamilies #-}
 
 module Crux.AST
     ( module Crux.AST
@@ -9,7 +9,8 @@ module Crux.AST
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.Tokens (Pos (..))
-import qualified Data.Text as Text
+import Crux.ModuleName
+import Crux.TypeVar
 
 type ParsedModule = Module UnresolvedReference () Pos
 
@@ -59,7 +60,16 @@ data DeclarationType idtype tagtype edata
     | DTypeAlias edata Name [Name] TypeIdent
     -- Traits
     | DTrait edata Name {-typevar-}Name [(Name, edata, TypeIdent)]
-    | DImpl edata Name Name
+    | DImpl
+        edata                                    -- ^TypeVar of the type parameter
+        idtype                                   -- ^Trait name
+        TypeIdent                                -- ^Type name
+        [ ( Name                                 -- ^function name
+          , edata
+          , [(Pattern tagtype, Maybe TypeIdent)] -- ^arguments and type annotations
+          , Maybe TypeIdent                      -- ^return type annotation
+          , Expression idtype tagtype edata      -- ^value
+          )]
     -- Exceptions
     | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -69,31 +79,6 @@ data ExportFlag = Export | NoExport
 
 data Declaration idtype tagtype edata = Declaration ExportFlag Pos (DeclarationType idtype tagtype edata)
     deriving (Show, Eq, Functor)
-
-newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }
-    deriving (Show, Eq, Ord, Generic)
-instance Hashable ModuleSegment
-
-data ModuleName = ModuleName [ModuleSegment] ModuleSegment
-    deriving (Eq, Ord, Generic)
-instance Show ModuleName where
-    show (ModuleName prefixes base) = show $ Text.intercalate "." $ fmap (unModuleSegment) (prefixes ++ [base])
-instance Hashable ModuleName
-
--- TODO: assert that first letter is capitalized, remainder are alphanumeric
-toModuleSegment :: Text -> ModuleSegment
-toModuleSegment = ModuleSegment
-
-instance IsString ModuleName where
-    fromString s =
-        let t = Text.pack s in
-        let p = Text.splitOn "." t in
-        case map toModuleSegment p of
-            [] -> error "Invalid module name"
-            xs -> ModuleName (init xs) (last xs)
-
-printModuleName :: ModuleName -> Text
-printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $ a <> [b]
 
 data UnresolvedReference
     = UnqualifiedReference Name
@@ -222,6 +207,12 @@ data Expression idtype tagtype edata
     | EBreak edata
     | EThrow edata idtype (Expression idtype tagtype edata)
     | ETryCatch edata (Expression idtype tagtype edata) idtype (Pattern tagtype) (Expression idtype tagtype edata)
+
+    -- trait dictionary conversion
+    -- instance dict placeholders to be resolved after quantification
+    | EInstancePlaceholder edata TraitNumber TraitDesc
+    | EInstanceDict edata Name ModuleName TDataTypeIdentity
+
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 edata :: Expression idtype tagtype edata -> edata
@@ -247,6 +238,8 @@ edata expr = case expr of
     EBreak ed -> ed
     EThrow ed _ _ -> ed
     ETryCatch ed _ _ _ _ -> ed
+    EInstancePlaceholder ed _ _ -> ed
+    EInstanceDict ed _ _ _ -> ed
 
 setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
@@ -271,6 +264,8 @@ setEdata expr e = case expr of
     EBreak _              -> EBreak e
     EThrow _ a b          -> EThrow e a b
     ETryCatch _ a b c d   -> ETryCatch e a b c d
+    EInstancePlaceholder _ a b -> EInstancePlaceholder e a b
+    EInstanceDict _ a b c -> EInstanceDict e a b c
 
 data TypeIdent
     = UnitTypeIdent

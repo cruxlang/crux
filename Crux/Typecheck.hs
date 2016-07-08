@@ -6,7 +6,9 @@ module Crux.Typecheck
 
 import Crux.AST
 import Crux.Error
+import qualified Crux.HashTable as HashTable
 import Crux.Module.Types
+import Crux.ModuleName
 import qualified Crux.SymbolTable as SymbolTable
 import Crux.Prelude
 import Crux.Typecheck.Env
@@ -18,6 +20,13 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
 import Text.Printf (printf)
+import qualified Data.Set as Set
+
+type ParsedExpression = Expression UnresolvedReference () Pos
+type TypedExpression = Expression ResolvedReference PatternTag TypeVar
+
+type ParsedDeclaration = Declaration UnresolvedReference () Pos
+type TypedDeclaration = Declaration ResolvedReference PatternTag TypeVar
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -39,7 +48,7 @@ buildPatternEnv env pos exprType mut = \case
         def' <- instantiateDataTypeDef env typeDef
 
         let [thisVariantParameters] = [tvParameters | TVariant{..} <- tuVariants def', tvName == cname]
-        unify pos exprType $ TDataType def'
+        unify env pos exprType $ TDataType def'
 
         when (length thisVariantParameters /= length cargs) $
             fail $ printf "Pattern %s should specify %i args but got %i" (Text.unpack cname) (length thisVariantParameters) (length cargs)
@@ -55,7 +64,7 @@ lookupBinding name Env{..} = do
         Just (ValueReference a b c) -> return $ Just (a, b, c)
         _ -> return $ Nothing
 
-isLValue :: MonadIO m => Env -> Expression ResolvedReference tagtype TypeVar -> m Bool
+isLValue :: MonadIO m => Env -> TypedExpression -> m Bool
 isLValue env expr = case expr of
     EIdentifier _ name -> do
         l <- lookupBinding (resolvedReferenceName name) env
@@ -93,22 +102,22 @@ isLValue env expr = case expr of
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
-check :: Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
+check :: Env -> ParsedExpression -> TC TypedExpression
 check env expr = do
     newType <- freshType env
     checkExpecting newType env expr
 
-checkExpecting :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
+checkExpecting :: TypeVar -> Env -> ParsedExpression -> TC TypedExpression
 checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
-    unify (edata expr) (edata e) expectedType
+    unify env (edata expr) (edata e) expectedType
     return e
 
 -- We could have this return a poison type.
 resumableTypeError :: Pos -> TypeError -> TC a
 resumableTypeError pos = failError . TypeError pos
 
-weaken :: MonadIO m => TypeLevel -> Expression idtype tagtype TypeVar -> m (Expression idtype tagtype TypeVar)
+weaken :: MonadIO m => TypeLevel -> TypedExpression -> m TypedExpression
 weaken level e = do
     t' <- weaken' (edata e)
     return $ setEdata e t'
@@ -116,9 +125,9 @@ weaken level e = do
     weaken' t = case t of
         TypeVar ref ->
             readIORef ref >>= \case
-                TUnbound Strong lvl tn
+                TUnbound Strong lvl constraints tn
                     | level <= lvl -> do
-                        writeIORef ref $ TUnbound Weak lvl tn
+                        writeIORef ref $ TUnbound Weak lvl constraints tn
                         return t
                 TUnbound {} ->
                     return t
@@ -153,7 +162,54 @@ weaken level e = do
         RBound rtv' ->
             weakenRecord rtv'
 
-check' :: TypeVar -> Env -> Expression UnresolvedReference () Pos -> TC (Expression ResolvedReference PatternTag TypeVar)
+accumulateTraitReferences' :: MonadIO m
+    => IORef (Set TypeNumber)
+    -> IORef [(TypeVar, TraitNumber, TraitDesc)]
+    -> TypeVar
+    -> m ()
+accumulateTraitReferences' seen out tv = case tv of
+    TypeVar ref -> readIORef ref >>= \case
+        TUnbound _str _level constraints typeNumber -> do
+            append constraints tv typeNumber
+        TBound tv2 ->
+            accumulateTraitReferences' seen out tv2
+    TQuant constraints typeNumber -> do
+        append constraints tv typeNumber
+    TFun paramTypes returnType -> do
+        for_ paramTypes $ accumulateTraitReferences' seen out
+        accumulateTraitReferences' seen out returnType
+    TDataType TDataTypeDef{..} -> do
+        for_ tuParameters $
+            accumulateTraitReferences' seen out
+    TRecord ref -> do
+        followRecord ref
+    TTypeFun _ _ -> do
+        fail "ICE: what does this mean"
+
+  where
+    followRecord ref =  readIORef ref >>= \case
+        RBound ref2 ->
+            followRecord ref2
+        RRecord (RecordType _open rows) ->
+            for_ rows $ \TypeRow{..} ->
+                accumulateTraitReferences' seen out trTyVar
+    append constraints typeVar typeNumber = do
+        seen' <- readIORef seen
+        when (not $ Set.member typeNumber seen') $ do
+            modifyIORef seen (Set.insert typeNumber)
+
+            -- TODO: we need to sort this list into a canonical order
+            for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
+                modifyIORef out ((typeVar, traitNumber, traitDesc):)
+
+accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TraitNumber, TraitDesc)]
+accumulateTraitReferences tv = do
+    seen <- newIORef mempty
+    out <- newIORef mempty
+    accumulateTraitReferences' seen out tv
+    reverse <$> readIORef out
+
+check' :: TypeVar -> Env -> ParsedExpression -> TC TypedExpression
 check' expectedType env = \case
     EFun pos FunctionDecl{..} -> do --  params retAnn body
         valueBindings' <- SymbolTable.clone (eValueBindings env)
@@ -182,7 +238,7 @@ check' expectedType env = \case
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
-                unify pos pt annTy
+                unify env pos pt annTy
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)
@@ -190,10 +246,10 @@ check' expectedType env = \case
         for_ fdReturnAnnot $ \ann -> do
             annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
             -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
-            unify pos returnType annTy
+            unify env pos returnType annTy
 
         body' <- check env' fdBody
-        unify pos returnType $ edata body'
+        unify env pos returnType $ edata body'
 
         let ty = TFun paramTypes returnType
         return $ EFun ty FunctionDecl
@@ -232,14 +288,14 @@ check' expectedType env = \case
                     checkExpecting argType env arg
 
                 let appTy = TFun (map edata args') resultType
-                unify pos (edata fn') appTy
+                unify env pos (edata fn') appTy
 
                 return $ EApp resultType fn' args'
             _ -> do
                 args' <- for args $ check env
                 result <- freshType env
                 let ty = TFun (map edata args') result
-                unify pos (edata fn') ty
+                unify env pos (edata fn') ty
                 return $ EApp result fn' args'
 
     EIntrinsic {} -> do
@@ -253,7 +309,7 @@ check' expectedType env = \case
                 ty <- freshType env
                 row <- freshRowVariable env
                 rec <- newIORef $ RRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
-                unify pos (edata lhs') $ TRecord rec
+                unify env pos (edata lhs') $ TRecord rec
                 return $ ELookup ty lhs' propName
         case lhs of
             EIdentifier pos' (UnqualifiedReference name) -> do
@@ -272,7 +328,7 @@ check' expectedType env = \case
             env' <- childEnv env
             patt' <- buildPatternEnv env' pos (edata matchExpr') Immutable patt
             caseExpr' <- check env' caseExpr
-            unify pos resultType (edata caseExpr')
+            unify env pos resultType (edata caseExpr')
             return $ Case patt' caseExpr'
 
         return $ EMatch resultType matchExpr' cases'
@@ -286,10 +342,10 @@ check' expectedType env = \case
             Immutable -> return expr''
         -- TODO: exhaustiveness check on this pattern
         pat' <- buildPatternEnv env pos ty mut pat
-        unify pos ty (edata expr''')
+        unify env pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
-            unify pos ty annotTy
+            unify env pos ty annotTy
 
         unitType <- resolveVoidType env pos
         return $ ELet unitType mut pat' maybeAnnot expr'''
@@ -298,7 +354,7 @@ check' expectedType env = \case
         lhs' <- check env lhs
         rhs' <- check env rhs
 
-        unify pos (edata lhs') (edata rhs')
+        unify env pos (edata lhs') (edata rhs')
 
         islvalue <- isLValue env lhs'
         when (not islvalue) $ do
@@ -318,7 +374,7 @@ check' expectedType env = \case
         (arrayType, elementType) <- resolveArrayType env pos mutability
         elements' <- for elements $ \element -> do
             elementExpr <- check env element
-            unify pos elementType (edata elementExpr)
+            unify env pos elementType (edata elementExpr)
             return elementExpr
         return $ EArrayLiteral arrayType mutability elements'
 
@@ -327,7 +383,7 @@ check' expectedType env = \case
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
             ty <- freshType env'
             fieldExpr' <- check env' fieldExpr >>= weaken (eLevel env')
-            unify pos ty (edata fieldExpr')
+            unify env pos ty (edata fieldExpr')
             return (name, fieldExpr')
 
         let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
@@ -342,15 +398,24 @@ check' expectedType env = \case
     EIdentifier pos (UnqualifiedReference "_unsafe_coerce") ->
         resumableTypeError pos $ IntrinsicError "Intrinsic _unsafe_coerce is not a value"
     EIdentifier pos txt -> do
-        (rr, tyref) <- resolveValueReference env pos txt >>= \case
-            (a@(Local, _), _mutability, b) -> do
-                -- Don't instantiate locals.  Let generalization is tricky.
-                return (a, b)
-            (a, _mutability, b) -> do
-                b' <- instantiate env b
-                return (a, b')
+        resolveValueReference env pos txt >>= \case
+            (ref@(Local, _), _mutability, tv) -> do
+                -- Don't instantiate locals.  TODO: Let generalization is tricky.
+                return $ EIdentifier tv ref
+            (ref, _mutability, tv) -> do
+                tv' <- instantiate env tv
+                traits <- accumulateTraitReferences tv'
+                case traits of
+                    [] -> do
+                        return $ EIdentifier tv' ref
+                    _ -> do
+                        placeholders <- for traits $ \(typeVar, traitNumber, traitDesc) -> do
+                            return $ EInstancePlaceholder typeVar traitNumber traitDesc
+                        return $ EApp
+                            tv'
+                            (EIdentifier tv' ref)
+                            placeholders
 
-        return $ EIdentifier tyref rr
     ESemi _ lhs rhs -> do
         lhs' <- check env lhs
         rhs' <- check env rhs
@@ -380,16 +445,16 @@ check' expectedType env = \case
         rhs' <- check env rhs
 
         if | isArithmeticOp bi -> do
-                unify pos (edata lhs') (edata rhs')
+                unify env pos (edata lhs') (edata rhs')
                 return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
            | isRelationalOp bi -> do
-                unify pos (edata lhs') (edata rhs')
+                unify env pos (edata lhs') (edata rhs')
                 booleanType <- resolveBooleanType env pos
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | isBooleanOp bi -> do
                 booleanType <- resolveBooleanType env (edata lhs)
-                unify pos (edata lhs') booleanType
-                unify pos (edata rhs') booleanType
+                unify env pos (edata lhs') booleanType
+                unify env pos (edata rhs') booleanType
                 return $ EBinIntrinsic booleanType bi lhs' rhs'
            | otherwise ->
                 error "This should be impossible: Check EBinIntrinsic"
@@ -398,11 +463,11 @@ check' expectedType env = \case
         booleanType <- resolveBooleanType env pos
 
         condition' <- check env condition
-        unify pos booleanType (edata condition')
+        unify env pos booleanType (edata condition')
         ifTrue' <- check env ifTrue
         ifFalse' <- check env ifFalse
 
-        unify pos (edata ifTrue') (edata ifFalse')
+        unify env pos (edata ifTrue') (edata ifFalse')
 
         return $ EIfThenElse (edata ifTrue') condition' ifTrue' ifFalse'
 
@@ -411,11 +476,11 @@ check' expectedType env = \case
         unitType <- resolveVoidType env pos
 
         condition' <- check env cond
-        unify pos booleanType (edata condition')
+        unify env pos booleanType (edata condition')
 
         let env' = env { eInLoop = True }
         body' <- check env' body
-        unify pos unitType (edata body')
+        unify env pos unitType (edata body')
 
         return $ EWhile unitType condition' body'
 
@@ -430,7 +495,7 @@ check' expectedType env = \case
 
         let env' = env { eValueBindings = bindings', eInLoop = True }
         body' <- check env' body
-        unify pos unitType (edata body')
+        unify env pos unitType (edata body')
 
         return $ EFor unitType name over' body'
 
@@ -440,7 +505,7 @@ check' expectedType env = \case
             Nothing ->
                 error "Cannot return outside of functions"
             Just rt -> do
-                unify pos rt $ edata rv'
+                unify env pos rt $ edata rv'
                 retTy <- freshType env
                 return $ EReturn retTy rv'
 
@@ -473,6 +538,119 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
 
+    EInstancePlaceholder _ _ _ -> do
+        fail "ICE: placeholders are not typechecked"
+    EInstanceDict _ _ _ _ -> do
+        fail "ICE: instance dicts are not typechecked"
+
+-- TODO: this replacement algorithm could be quadratic depending on the number of
+-- nested functions, so we should switch the placeholders over to IORefs
+resolveInstanceDictPlaceholders :: Env -> TypedExpression -> TC TypedExpression
+resolveInstanceDictPlaceholders env = recurse
+  where recurse = \case
+            ELet tv mut pat typeIdent body -> do
+                body' <- recurse body
+                return $ ELet tv mut pat typeIdent body'
+            ELookup tv body name -> do
+                body' <- recurse body
+                return $ ELookup tv body' name
+            EApp tv fn args -> do
+                fn' <- recurse fn
+                args' <- for args recurse
+                return $ EApp tv fn' args'
+            EMatch tv expr cases -> do
+                expr' <- recurse expr
+                cases' <- for cases $ \(Case pat body) -> do
+                    body' <- recurse body
+                    return $ Case pat body'
+                return $ EMatch tv expr' cases'
+            EAssign tv lhs rhs -> do
+                lhs' <- recurse lhs
+                rhs' <- recurse rhs
+                return $ EAssign tv lhs' rhs'
+            expr@EIdentifier{} -> do
+                return expr
+            ESemi tv lhs rhs -> do
+                lhs' <- recurse lhs
+                rhs' <- recurse rhs
+                return $ ESemi tv lhs' rhs'
+            EMethodApp tv expr name args -> do
+                expr' <- recurse expr
+                args' <- for args recurse
+                return $ EMethodApp tv expr' name args'
+            EFun tv fd@FunctionDecl{fdBody} -> do
+                fdBody' <- recurse fdBody
+                return $ EFun tv fd{fdBody=fdBody'}
+            ERecordLiteral tv fields -> do
+                fields' <- for fields recurse
+                return $ ERecordLiteral tv fields'
+            EArrayLiteral tv mut elements -> do
+                elements' <- for elements recurse
+                return $ EArrayLiteral tv mut elements'
+            expr@ELiteral{} -> do
+                return expr
+            EBinIntrinsic tv bi lhs rhs -> do
+                lhs' <- recurse lhs
+                rhs' <- recurse rhs
+                return $ EBinIntrinsic tv bi lhs' rhs'
+            EIntrinsic tv intrinsic -> do
+                intrinsic' <- for intrinsic recurse
+                return $ EIntrinsic tv intrinsic'
+            EIfThenElse tv cond ifTrue ifFalse -> do
+                cond' <- recurse cond
+                ifTrue' <- recurse ifTrue
+                ifFalse' <- recurse ifFalse
+                return $ EIfThenElse tv cond' ifTrue' ifFalse'
+            EWhile tv cond body -> do
+                cond' <- recurse cond
+                body' <- recurse body
+                return $ EWhile tv cond' body'
+            EFor tv name iter body -> do
+                iter' <- recurse iter
+                body' <- recurse body
+                return $ EFor tv name iter' body'
+            EReturn tv value -> do
+                value' <- recurse value
+                return $ EReturn tv value'
+            EBreak tv -> do
+                return $ EBreak tv
+            EThrow tv ident value -> do
+                value' <- recurse value
+                return $ EThrow tv ident value'
+            ETryCatch tv try ident pat catch -> do
+                try' <- recurse try
+                catch' <- recurse catch
+                return $ ETryCatch tv try' ident pat catch'
+            
+            EInstancePlaceholder tv traitNumber traitDesc -> do
+                dtid <- followTypeVar tv >>= \case
+                    TypeVar ref -> readIORef ref >>= \case
+                        TUnbound _str _level _constraints _typeNumber ->
+                            fail "should have been quantified by now"
+                        _ ->
+                            fail "never happens"
+                    TQuant _constraints _typeNumber -> do
+                        fail "TODO: use argument dict"
+                        --append constraints tv typeNumber
+                    TFun _paramTypes _returnType -> do
+                        fail "Don't support traits on functions"
+                    TDataType def -> do
+                        return $ dataTypeIdentity def
+                    TRecord _ref -> do
+                        fail "No traits on records"
+                    TTypeFun _ _ -> do
+                        fail "ICE: what does this mean"
+
+                instanceModuleName <- HashTable.lookup (traitNumber, dtid) (eKnownInstances env) >>= \case
+                    Just mn -> return mn
+                    Nothing -> fail "No instance"
+
+                let traitName = tdName traitDesc
+
+                return $ EInstanceDict tv traitName instanceModuleName dtid
+            EInstanceDict _ _ _ _ -> do
+                fail "I don't think we're supposed to do this"
+
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do
     when (export == Export) $ do
@@ -493,7 +671,7 @@ exportException export env pos name typeVar = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedExceptions env) pos SymbolTable.DisallowDuplicates name typeVar
 
-checkDecl :: Env -> Declaration UnresolvedReference () Pos -> TC (Declaration ResolvedReference PatternTag TypeVar)
+checkDecl :: Env -> ParsedDeclaration -> TC TypedDeclaration
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where
   g :: DeclarationType UnresolvedReference () Pos -> TC (DeclarationType ResolvedReference PatternTag TypeVar)
@@ -533,10 +711,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         ty <- freshType env'
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env' pos NewTypesAreQuantified annotation
-            unify pos' ty annotTy
+            unify env pos' ty annotTy
 
         expr' <- check env' expr
-        unify pos' ty (edata expr')
+        unify env pos' ty (edata expr')
 
         expr'' <- case mut of
             Mutable -> weaken (eLevel env') expr'
@@ -566,13 +744,16 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
         expr'@(EFun _ fd') <- check env expr
         let FunctionDecl{fdBody=body', fdParams=args'} = fd'
-        unify pos' (edata expr') ty
+        unify env pos' (edata expr') ty
+
         quantify ty
+        body'' <- resolveInstanceDictPlaceholders env body'
+
         return $ DFun (edata expr') name FunctionDecl
             { fdParams = args'
             , fdReturnAnnot = fdReturnAnnot fd
             , fdForall = fdForall fd
-            , fdBody = body'
+            , fdBody = body''
             }
 
     {- TYPE DEFINITIONS -}
@@ -637,8 +818,21 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         unitType <- resolveVoidType env pos
         return $ DTrait unitType traitName typeName contents'
         
-    DImpl _ _ _ -> do
-        fail "found impl"
+    DImpl pos' traitName typeIdent values -> do
+        (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
+        typeVar <- resolveTypeIdent env pos' NewTypesAreErrors typeIdent
+
+        values' <- for values $ \(defName, defPos, args, returnTypeIdent, body) -> do
+            let funDef = FunctionDecl
+                    { fdParams = args
+                    , fdReturnAnnot = returnTypeIdent
+                    , fdBody = body
+                    , fdForall = []
+                    }
+            (EFun funType checkedDef) <- check env $ EFun defPos funDef
+            return (defName, funType, fdParams checkedDef, fdReturnAnnot checkedDef, fdBody checkedDef)
+
+        return $ DImpl typeVar traitRef typeIdent values'
 
     DException pos' name typeIdent -> do
         typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
@@ -678,5 +872,6 @@ run loadedModules thisModule thisModuleName = do
     lmExportedValues <- HashMap.toList <$> SymbolTable.readAll (eExportedValues env)
     lmExportedTypes <- HashMap.toList <$> SymbolTable.readAll (eExportedTypes env)
     lmExportedPatterns <- HashMap.toList <$> SymbolTable.readAll (eExportedPatterns env)
+    lmExportedTraits <- HashMap.toList <$> SymbolTable.readAll (eExportedTraits env)
     lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
     return $ LoadedModule{..}

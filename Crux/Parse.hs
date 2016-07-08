@@ -7,6 +7,7 @@ import Control.Applicative ((<|>))
 import Control.Monad.Reader.Class (MonadReader, ask, local)
 import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
+import Crux.ModuleName
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
 import Crux.Text (isCapitalized)
@@ -754,8 +755,21 @@ traitDeclaration = do
 
 implDeclaration :: Parser ParseDeclaration
 implDeclaration = do
-    _timpl <- token Tokens.TImpl
-    fail "impl"
+    timpl <- token Tokens.TImpl
+    traitName <- unresolvedReference
+    typeIdent_ <- returnTypeIdent
+    (_, decls) <- bracedLines $ do
+        -- TODO: merge with function decl parsing?
+        (pos, funName) <- anyIdentifierWithPos
+        args <- parenthesized $ commaDelimited funArgument
+        returnAnnot <- P.optionMaybe $ do
+            _ <- token TColon
+            returnTypeIdent
+
+        body <- blockExpression
+        return (pos, (funName, pos, args, returnAnnot, body))
+
+    return $ DImpl (tokenData timpl) traitName typeIdent_ decls
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

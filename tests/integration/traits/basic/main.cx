@@ -3,17 +3,13 @@ trait Trait a {
   display: fun(a) -> String
 }
 
-let _ = print("15")
-
-/*
-data Sum(Number)
-
-fun f(x, y) {
-  method(x, y)
+impl Trait Number {
+  method(x, y) { x + y }
+  display(z) { toString(z) }
 }
 
 fun main() {
-  print(display(f(Sum(10), Sum(5))))
+  print(display(method(10, 5)))
 }
+
 let _ = main()
-*/

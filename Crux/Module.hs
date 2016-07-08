@@ -19,6 +19,7 @@ import Control.Exception (tryJust)
 import qualified Crux.AST as AST
 import qualified Crux.Error as Error
 import qualified Crux.Lex as Lex
+import Crux.ModuleName
 import Crux.Module.Types as AST
 import qualified Crux.HashTable as HashTable
 import qualified Crux.Parse as Parse
@@ -38,7 +39,7 @@ import System.Environment (getExecutablePath)
 import qualified System.FilePath as FP
 import System.IO.Error (isDoesNotExistError)
 
-type ModuleLoader = AST.ModuleName -> IO (Either Error.Error AST.ParsedModule)
+type ModuleLoader = ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
 newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
 newChainedModuleLoader [] moduleName = return $ Left $ Error.ModuleNotFound moduleName
@@ -48,9 +49,9 @@ newChainedModuleLoader (loader:rest) moduleName = do
         Left e -> return $ Left e
         Right m -> return $ Right m
 
-moduleNameToPath :: AST.ModuleName -> FilePath
-moduleNameToPath (AST.ModuleName prefix m) =
-    let toPathSegment (AST.ModuleSegment t) = Text.unpack t in
+moduleNameToPath :: ModuleName -> FilePath
+moduleNameToPath (ModuleName prefix m) =
+    let toPathSegment (ModuleSegment t) = Text.unpack t in
     FP.combine
         (FP.joinPath $ map toPathSegment prefix)
         (toPathSegment m <> ".cx")
@@ -75,11 +76,11 @@ newProjectModuleLoader config root mainModulePath =
             else return $ Left $ Error.ModuleNotFound moduleName
     in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
 
-newMemoryLoader :: HashMap.HashMap AST.ModuleName Text -> ModuleLoader
+newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
 newMemoryLoader sources moduleName = do
     case HashMap.lookup moduleName sources of
         Just source -> parseModuleFromSource
-            ("<" ++ Text.unpack (AST.printModuleName moduleName) ++ ">")
+            ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
             source
         Nothing ->
             return $ Left $ Error.ModuleNotFound moduleName
@@ -148,36 +149,36 @@ parseModuleFromSource filename source = do
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: AST.ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
+parseModuleFromFile :: ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromFile moduleName filename = runEitherT $ do
     source <- EitherT $ tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName else Nothing) $ BS.readFile filename
     EitherT $ parseModuleFromSource filename $ TE.decodeUtf8 source
 
-loadModuleFromSource :: Text -> IO (Either (AST.ModuleName, Error.Error) AST.LoadedModule)
+loadModuleFromSource :: Text -> IO (Either (ModuleName, Error.Error) AST.LoadedModule)
 loadModuleFromSource source = runEitherT $ do
     program <- EitherT $ loadProgramFromSource source
     return $ pMainModule program
 
-getModuleName :: AST.Import -> AST.ModuleName
+getModuleName :: AST.Import -> ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn
 getModuleName (AST.QualifiedImport mn _) = mn
 
-importsOf :: AST.Module a b c -> [(Tokens.Pos, AST.ModuleName)]
+importsOf :: AST.Module a b c -> [(Tokens.Pos, ModuleName)]
 importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 
 addBuiltin :: AST.Module a b c -> AST.Module a b c
 addBuiltin m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "builtin") : AST.mImports m }
 
-type ProgramLoadResult a = Either (AST.ModuleName, Error.Error) a
+type ProgramLoadResult a = Either (ModuleName, Error.Error) a
 
 hasNoBuiltinPragma :: AST.Module a b c -> Bool
 hasNoBuiltinPragma AST.Module{..} = AST.PNoBuiltin `elem` mPragmas
 
 loadModule ::
        ModuleLoader
-    -> IORef (HashMap AST.ModuleName AST.LoadedModule)
-    -> IORef (HashSet AST.ModuleName)
-    -> AST.ModuleName
+    -> IORef (HashMap ModuleName AST.LoadedModule)
+    -> IORef (HashSet ModuleName)
+    -> ModuleName
     -> IO (ProgramLoadResult AST.LoadedModule)
 loadModule loader loadedModules loadingModules moduleName = runEitherT $ do
     HashTable.lookup moduleName loadedModules >>= \case
@@ -209,7 +210,7 @@ loadModule loader loadedModules loadingModules moduleName = runEitherT $ do
                     HashTable.insert moduleName loadedModule loadedModules
                     return loadedModule
 
-loadProgram :: ModuleLoader -> AST.ModuleName -> IO (ProgramLoadResult AST.Program)
+loadProgram :: ModuleLoader -> ModuleName -> IO (ProgramLoadResult AST.Program)
 loadProgram loader main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
@@ -233,7 +234,7 @@ loadProgramFromDirectoryAndModule :: FilePath -> Text -> IO (ProgramLoadResult A
 loadProgramFromDirectoryAndModule sourceDir mainModule = do
     loadProgramFromFile $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
 
-pathToModuleName :: FilePath -> AST.ModuleName
+pathToModuleName :: FilePath -> ModuleName
 pathToModuleName path =
     case FP.splitExtension path of
         (p, ".cx") -> fromString p
@@ -250,7 +251,7 @@ loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
     loadProgramFromSources $ HashMap.fromList [ ("main", mainModuleSource) ]
 
-loadProgramFromSources :: HashMap.HashMap AST.ModuleName Text -> IO (ProgramLoadResult AST.Program)
+loadProgramFromSources :: HashMap.HashMap ModuleName Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
     base <- newBaseLoader
     let mem = newMemoryLoader sources

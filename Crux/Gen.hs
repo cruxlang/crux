@@ -336,9 +336,12 @@ generate env = \case
         return $ Just $ Temporary output
 
     AST.EInstancePlaceholder _ _ _ -> do
-        fail "Placeholders should not make it to code generation"
+        return $ Just $ Temporary 9999
+        -- fail "Placeholders should not make it to code generation"
     AST.EInstanceDict _ traitName _instanceModuleName (TDataTypeIdentity dataName dataModuleName) -> do
         return $ Just $ LocalBinding $ "$trait_dict$" <> traitName <> "$" <> printModuleName dataModuleName <> "$" <> dataName
+    AST.EInstanceArgument _ name -> do
+        return $ Just $ LocalBinding name
 
 subBlock :: MonadIO m => Env -> ASTExpr-> m [Instruction]
 subBlock env expr = do

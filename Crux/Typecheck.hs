@@ -542,6 +542,8 @@ check' expectedType env = \case
         fail "ICE: placeholders are not typechecked"
     EInstanceDict _ _ _ _ -> do
         fail "ICE: instance dicts are not typechecked"
+    EInstanceArgument _ _ -> do
+        fail "ICE: instance arguments are not typechecked"
 
 -- TODO: this replacement algorithm could be quadratic depending on the number of
 -- nested functions, so we should switch the placeholders over to IORefs
@@ -623,33 +625,37 @@ resolveInstanceDictPlaceholders env = recurse
                 return $ ETryCatch tv try' ident pat catch'
             
             EInstancePlaceholder tv traitNumber traitDesc -> do
-                dtid <- followTypeVar tv >>= \case
+                followTypeVar tv >>= \case
                     TypeVar ref -> readIORef ref >>= \case
                         TUnbound _str _level _constraints _typeNumber ->
                             fail "should have been quantified by now"
                         _ ->
                             fail "never happens"
-                    TQuant _constraints _typeNumber -> do
-                        fail "TODO: use argument dict"
+                    TQuant _constraints typeNumber -> do
+                        -- some combination of traitNumber, typeNumber
+                        let (TraitNumber unwrapped) = traitNumber
+                        return $ EInstanceArgument tv $ "$" <> (Text.pack $ show unwrapped) <> "$" <> (Text.pack $ show typeNumber)
                         --append constraints tv typeNumber
                     TFun _paramTypes _returnType -> do
                         fail "Don't support traits on functions"
                     TDataType def -> do
-                        return $ dataTypeIdentity def
+                        let dtid = dataTypeIdentity def
+                        instanceModuleName <- HashTable.lookup (traitNumber, dtid) (eKnownInstances env) >>= \case
+                            Just mn -> return mn
+                            Nothing -> fail "No instance"
+
+                        let traitName = tdName traitDesc
+
+                        return $ EInstanceDict tv traitName instanceModuleName dtid
                     TRecord _ref -> do
                         fail "No traits on records"
                     TTypeFun _ _ -> do
                         fail "ICE: what does this mean"
 
-                instanceModuleName <- HashTable.lookup (traitNumber, dtid) (eKnownInstances env) >>= \case
-                    Just mn -> return mn
-                    Nothing -> fail "No instance"
-
-                let traitName = tdName traitDesc
-
-                return $ EInstanceDict tv traitName instanceModuleName dtid
             EInstanceDict _ _ _ _ -> do
                 fail "I don't think we're supposed to do this"
+            EInstanceArgument _ _ -> do
+                fail "I don't think we're supposed to do this either"
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do
@@ -747,14 +753,37 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         unify env pos' (edata expr') ty
 
         quantify ty
-        body'' <- resolveInstanceDictPlaceholders env body'
 
-        return $ DFun (edata expr') name FunctionDecl
-            { fdParams = args'
-            , fdReturnAnnot = fdReturnAnnot fd
-            , fdForall = fdForall fd
-            , fdBody = body''
-            }
+        env' <- childEnv env
+        traitRefs <- accumulateTraitReferences ty
+        dictArgs <- for traitRefs $ \(tv, traitNumber, _traitDesc) -> do
+            followTypeVar tv >>= \case
+                TQuant _ typeNumber -> do
+                    return $ PBinding $ "$" <> (Text.pack $ show typeNumber) <> "$" <> (Text.pack $ show traitNumber)
+                _ -> do
+                    fail "ICE: traits on wat"
+
+        -- TODO: insert into child env
+        body'' <- resolveInstanceDictPlaceholders env' body'
+
+        let innerFD = FunctionDecl
+                { fdParams = args'
+                , fdReturnAnnot = fdReturnAnnot fd
+                , fdForall = fdForall fd
+                , fdBody = body''
+                }
+        let outerFD = case dictArgs of
+                [] -> innerFD
+                _ -> do
+                    FunctionDecl
+                        { fdParams = map (\p -> (p, Nothing)) dictArgs
+                        , fdReturnAnnot = Nothing
+                        , fdBody = EFun (edata expr') innerFD
+                        , fdForall = []
+                        }
+                    return $ EFun (edata expr') fd
+
+        return $ DFun (edata expr') name outerFD
 
     {- TYPE DEFINITIONS -}
 

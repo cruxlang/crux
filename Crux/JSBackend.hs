@@ -322,19 +322,26 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
             for defn renderInstruction
     Gen.DException name ->
         return $ [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
+renderDeclaration (Gen.TraitInstance instanceName values) = do
+    values' <- for values renderValue
+    return [JSTree.SAssign (JSTree.EIdentifier instanceName) $ JSTree.EObject values']
 
-getExportedValues :: Gen.Declaration -> [Name]
-getExportedValues (Gen.Declaration NoExport _) = []
-getExportedValues (Gen.Declaration Export decl) = case decl of
-    Gen.DData _name variants -> fmap (\(Variant () n _) -> n) variants
-    Gen.DJSData _name variants -> fmap (\(JSVariant n _) -> n) variants
-    Gen.DFun name _args _body -> [name]
-    Gen.DLet pat _defn -> case pat of
-        PWildcard -> []
-        PBinding name -> [name]
-        PConstructor {} ->
-            error "Gen: Top-level pattern bindings are not supported"
-    Gen.DException name -> [name <> "$"]
+data ExportType = QualifiedExport | UnqualifiedExport
+
+getExportedValues :: Gen.Declaration -> [(ExportType, Name)]
+getExportedValues = \case
+    Gen.Declaration NoExport _ -> []
+    Gen.Declaration Export decl -> case decl of
+        Gen.DData _name variants -> fmap (\(Variant () n _) -> (QualifiedExport, n)) variants
+        Gen.DJSData _name variants -> fmap (\(JSVariant n _) -> (QualifiedExport, n)) variants
+        Gen.DFun name _args _body -> [(QualifiedExport, name)]
+        Gen.DLet pat _defn -> case pat of
+            PWildcard -> []
+            PBinding name -> [(QualifiedExport, name)]
+            PConstructor {} ->
+                error "Gen: Top-level pattern bindings are not supported"
+        Gen.DException name -> [(QualifiedExport, name <> "$")]
+    Gen.TraitInstance instanceName _ -> [(UnqualifiedExport, instanceName)]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body =
@@ -349,8 +356,9 @@ generateModule moduleName decls = runST $ do
     counter <- newSTRef 0
     runReaderT (generateModule' decls) (moduleName, counter)
 
-renderExportName :: ModuleName -> Text -> Text
-renderExportName mn n = renderModuleName mn <> "_" <> n
+renderExportName :: ModuleName -> (ExportType, Text) -> Text
+renderExportName mn (QualifiedExport, n) = renderModuleName mn <> "_" <> n
+renderExportName _ (UnqualifiedExport, n) = n
 
 generateJS :: Text -> Gen.Program -> Text
 generateJS rtsSource modules = runST $ do
@@ -359,7 +367,7 @@ generateJS rtsSource modules = runST $ do
         let exportedValueNames = mconcat $ fmap getExportedValues decls
         let declareExports = [JSTree.SVar (renderExportName moduleName n) Nothing | n <- exportedValueNames]
         body <- runReaderT (generateModule' decls) (moduleName, counter)
-        let setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName n) | n <- exportedValueNames]
+        let setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName $ snd n) | n <- exportedValueNames]
         return $ declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
 
     -- TODO: introduce an SRaw

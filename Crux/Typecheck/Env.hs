@@ -6,6 +6,7 @@ module Crux.Typecheck.Env
     , childEnv
     , buildTypeEnvironment
     , newQuantifiedTypeVar
+    , newQuantifiedConstrainedTypeVar
     , resolveTypeIdent
     , exportedDecls
     , findExportedPatternByName
@@ -38,6 +39,7 @@ import qualified Data.Text as Text
 import Prelude hiding (String)
 import qualified Crux.SymbolTable as SymbolTable
 import qualified Crux.HashTable as HashTable
+import qualified Data.Set as Set
 
 data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
     deriving (Eq)
@@ -45,7 +47,6 @@ data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
 newEnv :: MonadIO m => ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> m Env
 newEnv eThisModule eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
-    eNextTraitIndex <- newIORef 0
     eValueBindings <- SymbolTable.new
     eTypeBindings <- SymbolTable.new
     ePatternBindings <- SymbolTable.new
@@ -76,12 +77,6 @@ childEnv env@Env{..} = do
         , eExceptionBindings = exceptionBindings
         , eLevel = eLevel + 1
         }
-
-getNextTraitNumber :: MonadIO m => Env -> m TraitNumber
-getNextTraitNumber env = do
-    tn <- readIORef (eNextTraitIndex env)
-    writeIORef (eNextTraitIndex env) (tn + 1)
-    return $ TraitNumber tn
 
 exportedDecls :: [Declaration a b c] -> [DeclarationType a b c]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
@@ -163,6 +158,14 @@ newQuantifiedTypeVar env pos name = do
     SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
     return tyVar
 
+newQuantifiedConstrainedTypeVar :: Env -> Pos -> Name -> TraitIdentity -> TraitDesc -> TC TypeVar
+newQuantifiedConstrainedTypeVar env pos name traitNumber traitDesc = do
+    tyVar <- freshTypeConstrained env $ HashMap.singleton traitNumber traitDesc
+    quantify tyVar
+
+    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
+    return tyVar
+
 resolveTypeReference :: Env -> Pos -> ResolvePolicy -> UnresolvedReference -> TC TypeVar
 resolveTypeReference env pos resolvePolicy = \case
     UnqualifiedReference name -> do
@@ -223,7 +226,7 @@ resolvePatternReference env pos = \case
             Just p -> return p
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitNumber, TraitDesc)
+resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitIdentity, TraitDesc)
 resolveTraitReference env pos = \case
     UnqualifiedReference name -> do
         SymbolTable.lookup (eTraitBindings env) name >>= \case
@@ -330,6 +333,9 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 Just im -> return im
                 Nothing -> failICE $ Error.DependentModuleNotLoaded pos importName
 
+            for_ (Set.toList $ lmKnownInstances importedModule) $ \(a, b, c) -> do
+                HashTable.insert (a, b) c $ eKnownInstances env
+
             -- populate types
             for_ (lmExportedTypes importedModule) $ \(name, typeVar) -> do
                 SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference typeVar)
@@ -343,6 +349,13 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates name pb
 
         (pos, QualifiedImport moduleName importName) -> do
+            importedModule <- case HashMap.lookup moduleName loadedModules of
+                Just im -> return im
+                Nothing -> failICE $ Error.DependentModuleNotLoaded pos moduleName
+
+            for_ (Set.toList $ lmKnownInstances importedModule) $ \(a, b, c) -> do
+                HashTable.insert (a, b) c $ eKnownInstances env
+
             for_ importName $ \importName' -> do
                 SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates importName' (ModuleReference moduleName)
 
@@ -368,7 +381,7 @@ findExportedTypeByName = findExportByName lmExportedTypes
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName = findExportByName lmExportedPatterns
 
-findExportedTraitByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TraitNumber, TraitDesc)
+findExportedTraitByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TraitIdentity, TraitDesc)
 findExportedTraitByName = findExportByName lmExportedTraits
 
 findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
@@ -519,13 +532,13 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     -- Phase 2d.
     traitDecls <- fmap catMaybes $ for decls $ \case
         DTrait pos name typeVarName defns -> do
-            tn <- getNextTraitNumber env
             env' <- childEnv env
             typeIndex <- freshTypeIndex env'
             let desc = TraitDesc
                     { tdName = name
                     , tdModule = eThisModule env
                     }
+            let tn = TraitIdentity (eThisModule env) name
             let typeVar = TQuant (HashMap.singleton tn desc) typeIndex
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName $ TypeReference typeVar
             SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)

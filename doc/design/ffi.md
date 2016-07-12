@@ -208,3 +208,7 @@ Internally-generated names can start with `$_`.
 ### Exceptions
 
 Exception constructors end with `$`.  Exception FooError would be a `FooError$` value in the generated JS.
+
+### Trait Instance Dicts
+
+`$$number$Number$string$ToString`

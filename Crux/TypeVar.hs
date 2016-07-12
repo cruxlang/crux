@@ -11,7 +11,7 @@ module Crux.TypeVar
     , TDataTypeIdentity(..)
     , TDataTypeDef(..)
     , TraitDesc(..)
-    , TraitNumber(..)
+    , TraitIdentity(..)
     , Strength (..)
     , TypeNumber
     , TypeVar(..)
@@ -53,7 +53,7 @@ data TDataTypeDef typevar = TDataTypeDef
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TDataTypeIdentity = TDataTypeIdentity Name ModuleName
-    deriving (Show, Eq, Generic)
+    deriving (Show, Eq, Ord, Generic)
 
 instance Hashable TDataTypeIdentity
     
@@ -123,8 +123,10 @@ data TraitDesc = TraitDesc
     }
     deriving (Eq, Show)
 
-newtype TraitNumber = TraitNumber Int
-    deriving (Eq, Ord, Show, Hashable)
+data TraitIdentity = TraitIdentity ModuleName Name
+    deriving (Eq, Ord, Show, Generic)
+
+instance Hashable TraitIdentity
 
 type TypeNumber = Int
 
@@ -134,7 +136,7 @@ data Strength = Strong | Weak
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant (HashMap TraitNumber TraitDesc) TypeNumber
+    | TQuant (HashMap TraitIdentity TraitDesc) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -155,7 +157,7 @@ instance Show TypeVar where
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 data TypeState
-    = TUnbound Strength TypeLevel (HashMap TraitNumber TraitDesc) TypeNumber
+    = TUnbound Strength TypeLevel (HashMap TraitIdentity TraitDesc) TypeNumber
     | TBound TypeVar
     deriving (Eq, Show)
 

@@ -21,7 +21,7 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: MonadIO m => Env -> m TypeVar
 freshType env = freshTypeConstrained env mempty
 
-freshTypeConstrained :: MonadIO m => Env -> HashMap TraitNumber TraitDesc -> m TypeVar
+freshTypeConstrained :: MonadIO m => Env -> HashMap TraitIdentity TraitDesc -> m TypeVar
 freshTypeConstrained env constraints = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Strong (eLevel env) constraints index
@@ -309,7 +309,7 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-validateConstraint :: Env -> Pos -> TypeVar -> TraitNumber -> TraitDesc -> TC ()
+validateConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC ()
 validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"

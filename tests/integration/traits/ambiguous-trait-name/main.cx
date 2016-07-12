@@ -1,0 +1,11 @@
+import {
+  one
+  two
+}
+
+fun main() {
+  one.go(10)
+  two.go(10)
+}
+
+let _ = main()

@@ -8,7 +8,7 @@ import Crux.AST
 import Crux.Error
 import qualified Crux.HashTable as HashTable
 import Crux.Module.Types
-import Crux.ModuleName
+import Crux.ModuleName as ModuleName
 import qualified Crux.SymbolTable as SymbolTable
 import Crux.Prelude
 import Crux.Typecheck.Env
@@ -164,7 +164,7 @@ weaken level e = do
 
 accumulateTraitReferences' :: MonadIO m
     => IORef (Set TypeNumber)
-    -> IORef [(TypeVar, TraitNumber, TraitDesc)]
+    -> IORef [(TypeVar, TraitIdentity, TraitDesc)]
     -> TypeVar
     -> m ()
 accumulateTraitReferences' seen out tv = case tv of
@@ -202,7 +202,7 @@ accumulateTraitReferences' seen out tv = case tv of
             for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
                 modifyIORef out ((typeVar, traitNumber, traitDesc):)
 
-accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TraitNumber, TraitDesc)]
+accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TraitIdentity, TraitDesc)]
 accumulateTraitReferences tv = do
     seen <- newIORef mempty
     out <- newIORef mempty
@@ -540,15 +540,19 @@ check' expectedType env = \case
 
     EInstancePlaceholder _ _ _ -> do
         fail "ICE: placeholders are not typechecked"
-    EInstanceDict _ _ _ _ -> do
+    EInstanceDict _ _ _ -> do
         fail "ICE: instance dicts are not typechecked"
     EInstanceArgument _ _ -> do
         fail "ICE: instance arguments are not typechecked"
 
+renderInstanceArgumentName :: TraitIdentity -> TypeNumber -> Name
+renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
+    "$" <> (Text.intercalate "$" $ ModuleName.toList traitModule) <> "$" <> traitName <> "$" <> (Text.pack $ show typeNumber)
+
 -- TODO: this replacement algorithm could be quadratic depending on the number of
 -- nested functions, so we should switch the placeholders over to IORefs
-resolveInstanceDictPlaceholders :: Env -> TypedExpression -> TC TypedExpression
-resolveInstanceDictPlaceholders env = recurse
+resolveInstanceDictPlaceholders :: TypedExpression -> TC TypedExpression
+resolveInstanceDictPlaceholders = recurse
   where recurse = \case
             ELet tv mut pat typeIdent body -> do
                 body' <- recurse body
@@ -624,7 +628,7 @@ resolveInstanceDictPlaceholders env = recurse
                 catch' <- recurse catch
                 return $ ETryCatch tv try' ident pat catch'
 
-            EInstancePlaceholder tv traitNumber traitDesc -> do
+            EInstancePlaceholder tv traitIdentity _traitDesc -> do
                 followTypeVar tv >>= \case
                     TypeVar ref -> readIORef ref >>= \case
                         TUnbound _str _level _constraints _typeNumber ->
@@ -632,27 +636,19 @@ resolveInstanceDictPlaceholders env = recurse
                         _ ->
                             fail "never happens"
                     TQuant _constraints typeNumber -> do
-                        -- some combination of traitNumber, typeNumber
-                        let (TraitNumber unwrapped) = traitNumber
-                        return $ EInstanceArgument tv $ "$" <> (Text.pack $ show unwrapped) <> "$" <> (Text.pack $ show typeNumber)
+                        return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
                         --append constraints tv typeNumber
                     TFun _paramTypes _returnType -> do
                         fail "Don't support traits on functions"
                     TDataType def -> do
                         let dtid = dataTypeIdentity def
-                        instanceModuleName <- HashTable.lookup (traitNumber, dtid) (eKnownInstances env) >>= \case
-                            Just mn -> return mn
-                            Nothing -> fail "No instance"
-
-                        let traitName = tdName traitDesc
-
-                        return $ EInstanceDict tv traitName instanceModuleName dtid
+                        return $ EInstanceDict tv traitIdentity dtid
                     TRecord _ref -> do
                         fail "No traits on records"
                     TTypeFun _ _ -> do
                         fail "ICE: what does this mean"
 
-            EInstanceDict _ _ _ _ -> do
+            EInstanceDict _ _ _ -> do
                 fail "I don't think we're supposed to do this"
             EInstanceArgument _ _ -> do
                 fail "I don't think we're supposed to do this either"
@@ -741,7 +737,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
 
         quantify ty
-        expr''' <- resolveInstanceDictPlaceholders env expr''
+        expr''' <- resolveInstanceDictPlaceholders expr''
 
         return $ DLet (edata expr'') mut pat' maybeAnnot expr'''
 
@@ -758,14 +754,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         traitRefs <- accumulateTraitReferences ty
-        dictArgs <- for traitRefs $ \(tv, TraitNumber traitNumber, _traitDesc) -> do
+        dictArgs <- for traitRefs $ \(tv, traitIdentity, _traitDesc) -> do
+
             followTypeVar tv >>= \case
                 TQuant _ typeNumber -> do
-                    return $ PBinding $ "$" <> (Text.pack $ show traitNumber) <> "$" <> (Text.pack $ show typeNumber)
+                    return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
                 _ -> do
                     fail "ICE: traits on wat"
 
-        body'' <- resolveInstanceDictPlaceholders env body'
+        body'' <- resolveInstanceDictPlaceholders body'
 
         let innerFD = FunctionDecl
                 { fdParams = args'
@@ -838,10 +835,14 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         return $ DTypeAlias typeVar name typeVars ident
 
     DTrait _ traitName typeName contents -> do
+        -- TODO: add an ICE if it's not already set up in the environment
+        Just (_traitRef, traitNumber, traitDesc) <- SymbolTable.lookup (eTraitBindings env) traitName
         env' <- childEnv env
-        _ <- newQuantifiedTypeVar env' pos typeName
+        _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber traitDesc
         contents' <- for contents $ \(name, pos', typeIdent) -> do
             tv <- resolveTypeIdent env' pos' NewTypesAreErrors typeIdent
+            let rr = (FromModule $ eThisModule env, name)
+            exportValue export env pos' name (rr, Immutable, tv)
             return (name, tv, typeIdent)
         -- TODO: introduce some dummy type? we don't need a type here
         unitType <- resolveVoidType env pos
@@ -903,4 +904,5 @@ run loadedModules thisModule thisModuleName = do
     lmExportedPatterns <- HashMap.toList <$> SymbolTable.readAll (eExportedPatterns env)
     lmExportedTraits <- HashMap.toList <$> SymbolTable.readAll (eExportedTraits env)
     lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
+    lmKnownInstances <- (Set.fromList . fmap (\((a, b), c) -> (a, b, c)) . HashMap.toList) <$> HashTable.read (eKnownInstances env)
     return $ LoadedModule{..}

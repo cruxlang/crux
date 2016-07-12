@@ -3,7 +3,7 @@ module Crux.Typecheck.Types
     , TypeReference(..)
     , PatternTag(..)
     , PatternReference(..)
-    , TraitNumber
+    , TraitIdentity
     , ExceptionReference(..)
     , Env(..)
     , TypeLevel(..)
@@ -13,7 +13,7 @@ import Crux.ModuleName (ModuleName)
 import Crux.AST (Mutability, ResolvedReference)
 import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
 import Crux.Prelude
-import Crux.TypeVar (TDataTypeIdentity, TraitNumber, TraitDesc, TypeLevel(..), TypeVar(..))
+import Crux.TypeVar (TDataTypeIdentity, TraitIdentity, TraitDesc, TypeLevel(..), TypeVar(..))
 import Crux.SymbolTable (SymbolTable)
 import Crux.HashTable (HashTable)
 
@@ -29,14 +29,14 @@ data Env = Env
     { eThisModule         :: ModuleName
     , eLoadedModules      :: HashMap ModuleName LoadedModule
     , eNextTypeIndex      :: IORef Int
-    , eNextTraitIndex     :: IORef Int
     , eValueBindings      :: SymbolTable ValueReference
     , eTypeBindings       :: SymbolTable TypeReference
     , ePatternBindings    :: SymbolTable PatternReference
-    , eTraitBindings      :: SymbolTable (ResolvedReference, TraitNumber, TraitDesc)
+    , eTraitBindings      :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
     , eExceptionBindings  :: SymbolTable ExceptionReference
-    -- TODO: we don't actually care about the instance's module
-    , eKnownInstances     :: HashTable (TraitNumber, TDataTypeIdentity) ModuleName
+    -- TODO: make this a set?
+    -- TODO: we don't actually care about the instance's module name
+    , eKnownInstances     :: HashTable (TraitIdentity, TDataTypeIdentity) ModuleName
 
     , eReturnType         :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop             :: !Bool
@@ -45,6 +45,6 @@ data Env = Env
     , eExportedValues     :: SymbolTable (ResolvedReference, Mutability, TypeVar)
     , eExportedTypes      :: SymbolTable TypeVar
     , eExportedPatterns   :: SymbolTable PatternReference
-    , eExportedTraits     :: SymbolTable (ResolvedReference, TraitNumber, TraitDesc)
+    , eExportedTraits     :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
     , eExportedExceptions :: SymbolTable TypeVar
     }

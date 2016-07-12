@@ -111,7 +111,9 @@ data DeclarationType
     | DException Name
     deriving (Show, Eq)
 
-data Declaration = Declaration AST.ExportFlag DeclarationType
+data Declaration
+    = Declaration AST.ExportFlag DeclarationType
+    | TraitInstance Name (HashMap Name Value)
     deriving (Show, Eq)
 
 type Program = [(ModuleName, Module)] -- topologically sorted
@@ -337,8 +339,8 @@ generate env = \case
 
     AST.EInstancePlaceholder _ _ _ -> do
         fail "Placeholders should not make it to code generation"
-    AST.EInstanceDict _ traitName _instanceModuleName (TDataTypeIdentity dataName dataModuleName) -> do
-        return $ Just $ LocalBinding $ "$trait_dict$" <> traitName <> "$" <> printModuleName dataModuleName <> "$" <> dataName
+    AST.EInstanceDict _ traitIdentity dti -> do
+        return $ Just $ LocalBinding $ instanceDictName traitIdentity dti
     AST.EInstanceArgument _ name -> do
         return $ Just $ LocalBinding name
 
@@ -361,24 +363,29 @@ subBlockWithOutput env output expr = do
         Just output'' -> instrs ++ [Assign output output'']
         Nothing -> instrs
 
--- $trait_dict$TRAIT_NAME$DATA_TYPE_MODULE$DATA_TYPE_NAME
--- FIXME: This should include the module name of the trait too.
+-- this should really be calculated in the js backend
+renderModuleName :: ModuleName -> Name
+renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
+
+instanceDictName :: TraitIdentity -> TDataTypeIdentity -> Text
+instanceDictName (TraitIdentity traitModule traitName) (TDataTypeIdentity typeName typeModule) =
+    "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
+
 traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
-traitDictName traitName typeVar = do
-    tn <- stringifyTypeVar typeVar
-    return $ "$trait_dict$" <> AST.resolvedReferenceName traitName <> "$" <> tn
+traitDictName traitName' typeVar = do
+    let (AST.FromModule traitModule, traitName) = traitName'
+    dti <- getDTI typeVar
+    return $ instanceDictName (TraitIdentity traitModule traitName) dti
   where
-    stringifyTypeVar :: MonadIO m => TypeVar -> m Name
-    stringifyTypeVar tv = do
-        tv2 <- followTypeVar tv
-        case tv2 of
-            TypeVar {} ->
-                error "Unexpected traitDictName got unbound typevar"
-            TDataType TDataTypeDef{..} ->
-                return $ printModuleName tuModuleName <> "$" <> tuName
-            _ -> do
-                s <- showTypeVarIO tv2
-                error $ "Unexpected traitDictName " ++ s
+    getDTI :: MonadIO m => TypeVar -> m TDataTypeIdentity
+    getDTI tv = followTypeVar tv >>= \case
+        TypeVar {} ->
+            error "Unexpected traitDictName got unbound typevar"
+        TDataType def ->
+            return $ dataTypeIdentity def
+        tv2 -> do
+            s <- showTypeVarIO tv2
+            error $ "Unexpected traitDictName " ++ s
 
 generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag TypeVar -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = case decl of
@@ -424,34 +431,15 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         return ()
 
     AST.DImpl typeVar traitName _typeIdent decls -> do
-        -- TODO: generalize trait dict name calculation
-        -- TODO: don't export the ModuleName for the instance dict
-        let traitImplName name = "$trait_impl$" <> AST.resolvedReferenceName traitName <> "$" <> name
+        instanceName <- traitDictName traitName typeVar
+        decls' <- for decls $ \(name, _ty, params, _ann, body) -> do
+            -- TODO: find some better way to guarantee that we never
+            -- define an instance value to be be flow control
+            body' <- subBlockWithReturn env body
+            let poop = FunctionLiteral (map fst params) body'
+            return (name, poop)
 
-        for_ decls $ \(name, ty, params, ann, body) -> do
-            generateDecl env $ AST.Declaration
-                AST.NoExport
-                undefined
-                (AST.DFun
-                    ty
-                    (traitImplName name)
-                    AST.FunctionDecl
-                        { fdParams = params
-                        , fdReturnAnnot = ann
-                        , fdBody = body
-                        , fdForall = []
-                        }
-                 )
-
-        let dict = RecordLiteral $ HashMap.fromList
-                [ (name, LocalBinding $ traitImplName name)
-                | (name, _ty, _args, _ann, _body) <- decls
-                ]
-        tdn <- traitDictName traitName typeVar
-        writeDeclaration $ Declaration AST.Export $ DLet (AST.PBinding tdn)
-            [ Assign (NewLocalBinding tdn) dict
-            ]
-        return ()
+        writeDeclaration $ TraitInstance instanceName $ HashMap.fromList decls'
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

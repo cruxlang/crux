@@ -34,7 +34,8 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
                     , lmExportedTypes = []
                     , lmExportedPatterns = []
                     , lmExportedTraits = []
-                    , lmExportedExceptions = [] }) ]
+                    , lmExportedExceptions = []
+                    , lmKnownInstances = mempty }) ]
     (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- SymbolTable.readAll (eTypeBindings env)

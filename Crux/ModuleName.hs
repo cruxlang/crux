@@ -28,4 +28,7 @@ instance IsString ModuleName where
             xs -> ModuleName (init xs) (last xs)
 
 printModuleName :: ModuleName -> Text
-printModuleName (ModuleName a b) = Text.intercalate "." $ fmap unModuleSegment $ a <> [b]
+printModuleName mn = Text.intercalate "." $ toList mn
+
+toList :: ModuleName -> [Text]
+toList (ModuleName a b) = fmap unModuleSegment $ a <> [b]

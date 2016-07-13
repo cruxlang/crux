@@ -23,7 +23,6 @@ import qualified Crux.Module.Types as AST
 import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
-import qualified Data.Text as Text
 
 {-
 Instructions can:
@@ -416,17 +415,8 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
 
     AST.DTrait _ _traitName _typeVar decls -> do
         for_ decls $ \(name, declType, _typeIdent) -> do
-            declType' <- followTypeVar declType
-            argCount <- case declType' of
-                TFun args _rv -> return $ length args
-                _ -> fail "Trait decl must be a function"
-            let argNames = map (\i -> Text.pack $ "a" ++ show i) [1..argCount]
             let body =
-                    [ Return (FunctionLiteral (map AST.PBinding argNames)
-                        [ Call (NewLocalBinding "r") (Property (LocalBinding "dict") name) (map LocalBinding argNames)
-                        , Return (LocalBinding "r")
-                        ])
-                    ]
+                    [ Return (Property (LocalBinding "dict") name) ]
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 

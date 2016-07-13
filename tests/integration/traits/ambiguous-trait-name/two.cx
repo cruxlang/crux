@@ -3,7 +3,7 @@ export trait Go a {
 }
 
 impl Go Number {
-  go(n) {
+  go = fun(n) {
     print("two: " + toString(n))
   }
 }

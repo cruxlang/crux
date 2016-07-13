@@ -1,0 +1,17 @@
+trait Monoid a {
+  empty: a
+  concat: fun(a, a) -> a
+}
+
+impl Monoid Number {
+  empty = 0
+  concat = fun(x, y) {
+    x + y
+  }
+}
+
+fun main() {
+  print(concat(empty, concat(1, 2)))
+}
+
+let _ = main()

@@ -7,6 +7,7 @@ import Crux.ModuleName
 import qualified Crux.Gen as Gen
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
+import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Monad.ST
@@ -322,9 +323,12 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
             for defn renderInstruction
     Gen.DException name ->
         return $ [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
-renderDeclaration (Gen.TraitInstance instanceName values) = do
-    values' <- for values renderValue
-    return [JSTree.SAssign (JSTree.EIdentifier instanceName) $ JSTree.EObject values']
+renderDeclaration (Gen.TraitInstance instanceName defns) = do
+    defns' <- for (HashMap.toList defns) $ \(name, (value, instructions)) -> do
+        value' <- renderValue value
+        instructions' <- for instructions renderInstruction
+        return ((name, value'), instructions')
+    return $ mconcat (fmap snd defns') <> [JSTree.SAssign (JSTree.EIdentifier instanceName) $ JSTree.EObject $ HashMap.fromList $ fmap fst defns']
 
 data ExportType = QualifiedExport | UnqualifiedExport
 

@@ -61,15 +61,10 @@ data DeclarationType idtype tagtype edata
     -- Traits
     | DTrait edata Name {-typevar-}Name [(Name, edata, TypeIdent)]
     | DImpl
-        edata                                    -- ^TypeVar of the type parameter
-        idtype                                   -- ^Trait name
-        TypeIdent                                -- ^Type name
-        [ ( Name                                 -- ^function name
-          , edata
-          , [(Pattern tagtype, Maybe TypeIdent)] -- ^arguments and type annotations
-          , Maybe TypeIdent                      -- ^return type annotation
-          , Expression idtype tagtype edata      -- ^value
-          )]
+        edata     -- ^TypeVar of the type parameter
+        idtype    -- ^Trait name
+        TypeIdent -- ^Type name
+        [(Name, Expression idtype tagtype edata)]
     -- Exceptions
     | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

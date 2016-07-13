@@ -4,8 +4,8 @@ trait Trait a {
 }
 
 impl Trait Number {
-  method(x, y) { x + y }
-  display(z) { toString(z) }
+  method = fun(x, y) { x + y }
+  display = fun(z) { toString(z) }
 }
 
 fun go(x, y) {

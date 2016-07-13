@@ -852,15 +852,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
         typeVar <- resolveTypeIdent env pos' NewTypesAreErrors typeIdent
 
-        values' <- for values $ \(defName, defPos, args, returnTypeIdent, body) -> do
-            let funDef = FunctionDecl
-                    { fdParams = args
-                    , fdReturnAnnot = returnTypeIdent
-                    , fdBody = body
-                    , fdForall = []
-                    }
-            (EFun funType checkedDef) <- check env $ EFun defPos funDef
-            return (defName, funType, fdParams checkedDef, fdReturnAnnot checkedDef, fdBody checkedDef)
+        values' <- for values $ \(elementName, expr) -> do
+            -- TODO: unify with trait definition
+            -- TODO: use checkExpecting so TDNR works
+            expr' <- check env expr
+            return (elementName, expr')
 
         return $ DImpl typeVar traitRef typeIdent values'
 

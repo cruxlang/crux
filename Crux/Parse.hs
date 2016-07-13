@@ -759,15 +759,11 @@ implDeclaration = do
     traitName <- unresolvedReference
     typeIdent_ <- returnTypeIdent
     (_, decls) <- bracedLines $ do
-        -- TODO: merge with function decl parsing?
-        (pos, funName) <- anyIdentifierWithPos
-        args <- parenthesized $ commaDelimited funArgument
-        returnAnnot <- P.optionMaybe $ do
-            _ <- token TColon
-            returnTypeIdent
-
-        body <- blockExpression
-        return (pos, (funName, pos, args, returnAnnot, body))
+        -- TODO: add sugar for function decl parsing?
+        (pos, elementName) <- anyIdentifierWithPos
+        tequal <- token TEqual
+        expr <- withIndentation (IRDeeper tequal) noSemiExpression
+        return (pos, (elementName, expr))
 
     return $ DImpl (tokenData timpl) traitName typeIdent_ decls
 

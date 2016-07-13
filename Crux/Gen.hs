@@ -112,7 +112,7 @@ data DeclarationType
 
 data Declaration
     = Declaration AST.ExportFlag DeclarationType
-    | TraitInstance Name (HashMap Name Value)
+    | TraitInstance Name (HashMap Name (Value, [Instruction]))
     deriving (Show, Eq)
 
 type Program = [(ModuleName, Module)] -- topologically sorted
@@ -120,7 +120,7 @@ type Module = [Declaration]
 
 type ASTExpr = AST.Expression AST.ResolvedReference AST.PatternTag TypeVar
 
-newTempOutput :: Env -> IO Int
+newTempOutput :: MonadIO m => Env -> m Int
 newTempOutput Env{..} = do
     value <- readIORef eCounter
     writeIORef eCounter (value + 1)
@@ -138,7 +138,7 @@ writeInstruction i = tell [i]
 
 newInstruction :: Env -> (Output -> Instruction) -> InstructionWriter Value
 newInstruction env instr = do
-    t <- lift $ newTempOutput env
+    t <- newTempOutput env
     writeInstruction $ instr $ NewTemporary t
     return $ Temporary t
 
@@ -243,7 +243,7 @@ generate env = \case
     AST.EMatch _ value cases -> do
         value' <- generate env value
         for value' $ \value'' -> do
-            output <- lift $ newTempOutput env
+            output <- newTempOutput env
 
             writeInstruction $ EmptyTemporary output
             cases' <- for cases $ \(AST.Case pat expr') -> do
@@ -268,7 +268,7 @@ generate env = \case
 
     AST.EIfThenElse _ cond ifTrue ifFalse -> do
         cond' <- generate env cond
-        output <- lift $ newTempOutput env
+        output <- newTempOutput env
         writeInstruction $ EmptyTemporary output
         ifTrue' <- subBlockWithOutput env (ExistingTemporary output) ifTrue
         ifFalse' <- subBlockWithOutput env (ExistingTemporary output) ifFalse
@@ -292,8 +292,8 @@ generate env = \case
     AST.EFor _ name over body -> do
         over' <- generate env over
         for over' $ \over'' -> do
-            cmpVar <- lift $ newTempOutput env
-            loopVar <- lift $ newTempOutput env
+            cmpVar <- newTempOutput env
+            loopVar <- newTempOutput env
 
             writeInstruction $ Assign (NewTemporary loopVar) $ Literal $ AST.LInteger 0
             lengthVar <- newInstruction env $ \output -> Lookup output over'' "length"
@@ -329,7 +329,7 @@ generate env = \case
         return Nothing
 
     AST.ETryCatch _ tryBody exceptionName binding catchBody -> do
-        output <- lift $ newTempOutput env
+        output <- newTempOutput env
         writeInstruction $ EmptyTemporary output
         tryBody' <- subBlockWithOutput env (ExistingTemporary output) tryBody
         catchBody' <- subBlockWithOutput env (ExistingTemporary output) catchBody
@@ -343,12 +343,15 @@ generate env = \case
     AST.EInstanceArgument _ name -> do
         return $ Just $ LocalBinding name
 
-subBlock :: MonadIO m => Env -> ASTExpr-> m [Instruction]
+subBlock :: MonadIO m => Env -> ASTExpr -> m [Instruction]
 subBlock env expr = do
     (_output, instructions) <- liftIO $ runWriterT $ generate env expr
     return instructions
 
-subBlockWithReturn :: MonadIO m => Env -> ASTExpr-> m [Instruction]
+subBlock' :: MonadIO m => Env -> ASTExpr -> m (Maybe Value, [Instruction])
+subBlock' env expr = liftIO $ runWriterT $ generate env expr
+
+subBlockWithReturn :: MonadIO m => Env -> ASTExpr -> m [Instruction]
 subBlockWithReturn env expr = do
     (output, instrs) <- liftIO $ runWriterT $ generate env expr
     return $ case output of
@@ -422,12 +425,11 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
 
     AST.DImpl typeVar traitName _typeIdent decls -> do
         instanceName <- traitDictName traitName typeVar
-        decls' <- for decls $ \(name, _ty, params, _ann, body) -> do
+        decls' <- for decls $ \(name, expr) -> do
             -- TODO: find some better way to guarantee that we never
             -- define an instance value to be be flow control
-            body' <- subBlockWithReturn env body
-            let poop = FunctionLiteral (map fst params) body'
-            return (name, poop)
+            (Just value, instructions) <- subBlock' env expr
+            return (name, (value, instructions))
 
         writeDeclaration $ TraitInstance instanceName $ HashMap.fromList decls'
 

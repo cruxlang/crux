@@ -668,6 +668,11 @@ exportPattern export env pos name patternRef = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedPatterns env) pos SymbolTable.DisallowDuplicates name patternRef
 
+exportTrait :: ExportFlag -> Env -> Pos -> Name -> ResolvedReference -> TraitIdentity -> TraitDesc -> TC ()
+exportTrait export env pos name traitRef traitIdentity traitDesc = do
+    when (export == Export) $ do
+        SymbolTable.insert (eExportedTraits env) pos SymbolTable.DisallowDuplicates name (traitRef, traitIdentity, traitDesc)
+
 exportException :: ExportFlag -> Env -> Pos -> Name -> TypeVar -> TC ()
 exportException export env pos name typeVar = do
     when (export == Export) $ do
@@ -834,18 +839,19 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
 
-    DTrait _ traitName typeName contents -> do
+    DTrait pos' traitName typeName contents -> do
         -- TODO: add an ICE if it's not already set up in the environment
-        Just (_traitRef, traitNumber, traitDesc) <- SymbolTable.lookup (eTraitBindings env) traitName
+        Just (traitRef, traitNumber, traitDesc) <- SymbolTable.lookup (eTraitBindings env) traitName
         env' <- childEnv env
         _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber traitDesc
-        contents' <- for contents $ \(name, pos', typeIdent) -> do
-            tv <- resolveTypeIdent env' pos' NewTypesAreErrors typeIdent
+        contents' <- for contents $ \(name, pos'', typeIdent) -> do
+            tv <- resolveTypeIdent env' pos'' NewTypesAreErrors typeIdent
             let rr = (FromModule $ eThisModule env, name)
-            exportValue export env pos' name (rr, Immutable, tv)
+            exportValue export env pos'' name (rr, Immutable, tv)
             return (name, tv, typeIdent)
         -- TODO: introduce some dummy type? we don't need a type here
         unitType <- resolveVoidType env pos
+        exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName typeName contents'
 
     DImpl pos' traitName typeIdent values -> do

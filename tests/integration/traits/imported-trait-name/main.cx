@@ -1,0 +1,24 @@
+import {
+  one
+  two
+}
+
+data D(String)
+
+impl one.One D {
+  go = fun(D(s)) {
+    print("one: " + s)
+  }
+}
+
+impl two.Two D {
+  go = fun(D(s)) {
+    print("two: " + s)
+  }
+}
+
+fun main() {
+  one.go(D("one"))
+  two.go(D("two"))
+}
+let _ = main()

@@ -160,6 +160,7 @@ newQuantifiedConstrainedTypeVar env pos name traitNumber traitDesc = do
     SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name tyVar
     return tyVar
 
+-- I could merge this into ResolveReference but that's a bit tricky because of the ModuleReference stuff
 resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, Mutability, TypeVar)
 resolveValueReference env pos = \case
     UnqualifiedReference name -> do

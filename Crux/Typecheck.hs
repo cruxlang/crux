@@ -233,14 +233,14 @@ check' expectedType env = \case
 
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
-                annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
+                annTy <- resolveTypeIdent env' pos ann
                 unify env pos pt annTy
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)
 
         for_ fdReturnAnnot $ \ann -> do
-            annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
+            annTy <- resolveTypeIdent env' pos ann
             unify env pos returnType annTy
 
         body' <- check env' fdBody
@@ -339,7 +339,7 @@ check' expectedType env = \case
         pat' <- buildPatternEnv env pos ty mut pat
         unify env pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env pos NewTypesAreErrors annotation
+            annotTy <- resolveTypeIdent env pos annotation
             unify env pos ty annotTy
 
         unitType <- resolveVoidType env pos
@@ -710,7 +710,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     DDeclare pos' name forall typeIdent -> do
         env' <- childEnv env
         registerExplicitTypeVariables env' pos' forall
-        ty <- resolveTypeIdent env' pos NewTypesAreErrors typeIdent
+        ty <- resolveTypeIdent env' pos typeIdent
         let resolvedRef = (Ambient, name)
         let mut = Immutable
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
@@ -721,7 +721,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         ty <- freshType env'
         registerExplicitTypeVariables env' pos forall
         for_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env' pos NewTypesAreErrors annotation
+            annotTy <- resolveTypeIdent env' pos annotation
             unify env pos' ty annotTy
 
         expr' <- check env' expr
@@ -848,7 +848,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         env' <- childEnv env
         _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber traitDesc
         contents' <- for contents $ \(name, pos'', typeIdent) -> do
-            tv <- resolveTypeIdent env' pos'' NewTypesAreErrors typeIdent
+            tv <- resolveTypeIdent env' pos'' typeIdent
             let rr = (FromModule $ eThisModule env, name)
             exportValue export env pos'' name (rr, Immutable, tv)
             return (name, tv, typeIdent)
@@ -859,7 +859,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DImpl pos' traitName typeIdent values -> do
         (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
-        typeVar <- resolveTypeIdent env pos' NewTypesAreErrors typeIdent
+        typeVar <- resolveTypeIdent env pos' typeIdent
 
         values' <- for values $ \(elementName, expr) -> do
             -- TODO: unify with trait definition
@@ -870,7 +870,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         return $ DImpl typeVar traitRef typeIdent values'
 
     DException pos' name typeIdent -> do
-        typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
+        typeVar <- resolveTypeIdent env pos typeIdent
         exportException export env pos' name typeVar
         return $ DException typeVar name typeIdent
 

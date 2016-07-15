@@ -1,8 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 
 module Crux.Typecheck.Env
-    ( ResolvePolicy (..)
-    , newEnv
+    ( newEnv
     , childEnv
     , buildTypeEnvironment
     , newQuantifiedTypeVar
@@ -28,7 +27,6 @@ import Crux.ModuleName
 import qualified Crux.Error as Error
 import Crux.Module.Types
 import Crux.Prelude
-import Crux.Text (isCapitalized)
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
@@ -40,9 +38,6 @@ import Prelude hiding (String)
 import qualified Crux.SymbolTable as SymbolTable
 import qualified Crux.HashTable as HashTable
 import qualified Data.Set as Set
-
-data ResolvePolicy = NewTypesAreErrors | NewTypesAreQuantified
-    deriving (Eq)
 
 newEnv :: MonadIO m => ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> m Env
 newEnv eThisModule eLoadedModules eReturnType = do
@@ -81,8 +76,8 @@ childEnv env@Env{..} = do
 exportedDecls :: [Declaration a b c] -> [DeclarationType a b c]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]
 
-resolveTypeIdent :: Env -> Pos -> ResolvePolicy -> TypeIdent -> TC TypeVar
-resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
+resolveTypeIdent :: Env -> Pos -> TypeIdent -> TC TypeVar
+resolveTypeIdent env@Env{..} pos typeIdent =
     go typeIdent
   where
     go :: TypeIdent -> TC TypeVar
@@ -90,7 +85,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
         resolveVoidType env pos
 
     go (TypeIdent typeName typeParameters) = do
-        ty <- resolveTypeReference env pos resolvePolicy typeName >>= followTypeVar
+        ty <- resolveTypeReference env pos typeName >>= followTypeVar
         case ty of
             TDataType TDataTypeDef{tuName}
                 | [] == typeParameters -> do
@@ -103,7 +98,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                 | length tuParameters == length typeParameters -> do
                     (TTypeFun tuParameters' rt') <- instantiate env ty
                     for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
-                        b' <- resolveTypeIdent env pos NewTypesAreErrors b
+                        b' <- resolveTypeIdent env pos b
                         unify env pos a b'
                     return rt'
                 | otherwise -> do
@@ -166,22 +161,20 @@ newQuantifiedConstrainedTypeVar env pos name traitNumber traitDesc = do
     SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
     return tyVar
 
-resolveTypeReference :: Env -> Pos -> ResolvePolicy -> UnresolvedReference -> TC TypeVar
-resolveTypeReference env pos resolvePolicy = \case
+resolveTypeReference :: Env -> Pos -> UnresolvedReference -> TC TypeVar
+resolveTypeReference env pos = \case
     UnqualifiedReference name -> do
         SymbolTable.lookup (eTypeBindings env) name >>= \case
             Just (TypeReference t) -> do
                 return t
-            Nothing | NewTypesAreQuantified == resolvePolicy && not (isCapitalized name) -> do
-                newQuantifiedTypeVar env pos name
             Nothing -> do
                 failTypeError pos $ Error.UnboundSymbol "type" name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
-        resolveTypeReference env pos resolvePolicy $ KnownReference moduleName name
+        resolveTypeReference env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
         if moduleName == eThisModule env then do
-            resolveTypeReference env pos NewTypesAreErrors (UnqualifiedReference name)
+            resolveTypeReference env pos (UnqualifiedReference name)
         else do
             case findExportedTypeByName env moduleName name of
                 Just tv -> return tv
@@ -263,7 +256,7 @@ resolveArrayType env pos mutability = do
     let typeReference = case mutability of
             Immutable -> KnownReference "array" "Array"
             Mutable -> KnownReference "mutarray" "MutableArray"
-    arrayType <- resolveTypeReference env pos NewTypesAreErrors typeReference
+    arrayType <- resolveTypeReference env pos typeReference
     followTypeVar arrayType >>= \case
         TTypeFun [_argType] (TDataType td) -> do
             let newArrayType = TDataType td{ tuParameters=[elementType] }
@@ -275,7 +268,7 @@ resolveOptionType env pos = do
     elementType <- freshType env
 
     let typeReference = KnownReference "option" "Option"
-    optionType <- resolveTypeReference env pos NewTypesAreErrors typeReference
+    optionType <- resolveTypeReference env pos typeReference
     followTypeVar optionType >>= \case
         TTypeFun [_argType] (TDataType td) -> do
             let newOptionType = TDataType td{ tuParameters=[elementType] }
@@ -284,19 +277,19 @@ resolveOptionType env pos = do
 
 resolveBooleanType :: Env -> Pos -> TC TypeVar
 resolveBooleanType env pos = do
-    resolveTypeReference env pos NewTypesAreErrors (KnownReference "boolean" "Boolean")
+    resolveTypeReference env pos (KnownReference "boolean" "Boolean")
 
 resolveNumberType :: Env -> Pos -> TC TypeVar
 resolveNumberType env pos = do
-    resolveTypeReference env pos NewTypesAreErrors (KnownReference "number" "Number")
+    resolveTypeReference env pos (KnownReference "number" "Number")
 
 resolveStringType :: Env -> Pos -> TC TypeVar
 resolveStringType env pos = do
-    resolveTypeReference env pos NewTypesAreErrors (KnownReference "string" "String")
+    resolveTypeReference env pos (KnownReference "string" "String")
 
 resolveVoidType :: Env -> Pos -> TC TypeVar
 resolveVoidType env pos = do
-    resolveTypeReference env pos NewTypesAreErrors (KnownReference "void" "Void")
+    resolveTypeReference env pos (KnownReference "void" "Void")
 
 -- TODO: what do we do with this when Variants know their own types
 createUserTypeDef :: Env
@@ -440,7 +433,7 @@ registerExceptionDecl env = \case
     DImpl {} -> return ()
 
     DException pos exceptionName typeIdent -> do
-        tyVar <- resolveTypeIdent env pos NewTypesAreErrors typeIdent
+        tyVar <- resolveTypeIdent env pos typeIdent
         SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
         return ()
 
@@ -526,7 +519,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         env' <- childEnv env
         for_ paramTypes $ \(tvName, tv) -> do
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates tvName (TypeReference tv)
-        resolvedType <- resolveTypeIdent env' pos NewTypesAreErrors ident
+        resolvedType <- resolveTypeIdent env' pos ident
         unify env pos bodyTypeVar resolvedType
 
     -- Phase 2d.
@@ -553,14 +546,14 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
         for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do
             for_ (zip typeIdents typeVars) $ \(typeIdent, typeVar) -> do
-                tv' <- resolveTypeIdent e vpos NewTypesAreErrors typeIdent
+                tv' <- resolveTypeIdent e vpos typeIdent
                 unify env vpos typeVar tv'
 
         let computeVariantType [] = tyVar
             computeVariantType argTypeIdents = TFun argTypeIdents tyVar
 
         for_ variants $ \(Variant _typeVar vname vparameters) -> do
-            parameterTypeVars <- traverse (resolveTypeIdent e pos NewTypesAreErrors) vparameters
+            parameterTypeVars <- traverse (resolveTypeIdent e pos) vparameters
             let ctorType = computeVariantType parameterTypeVars
             SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates vname (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
             SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates vname (PatternReference typeDef $ TagVariant vname)
@@ -572,14 +565,14 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     -- Phase 4a.
     for_ traitDecls $ \(env', defns) -> do
         for_ defns $ \(defName, defPos, defTypeIdent) -> do
-            typeVar <- resolveTypeIdent env' defPos NewTypesAreErrors defTypeIdent
+            typeVar <- resolveTypeIdent env' defPos defTypeIdent
             SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable typeVar
     
     -- Phase 4b.
     for_ decls $ \case
         DImpl pos traitName typeReference _values -> do
             (_, traitNumber, _) <- resolveTraitReference env pos traitName
-            typeVar <- resolveTypeIdent env pos NewTypesAreErrors typeReference
+            typeVar <- resolveTypeIdent env pos typeReference
             typeIdentity <- case typeVar of
                 TDataType def -> return $ dataTypeIdentity def
                 _ -> fail "Type doesn't support traits"

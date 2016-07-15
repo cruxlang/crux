@@ -4,7 +4,6 @@ module Crux.Typecheck.Types
     , PatternTag(..)
     , PatternReference(..)
     , TraitIdentity
-    , ExceptionReference(..)
     , Env(..)
     , TypeLevel(..)
     ) where
@@ -23,8 +22,6 @@ data ValueReference
 
 data TypeReference = TypeReference TypeVar
 
-data ExceptionReference = ExceptionReference ResolvedReference TypeVar
-
 data Env = Env
     { eThisModule         :: ModuleName
     , eLoadedModules      :: HashMap ModuleName LoadedModule
@@ -33,7 +30,7 @@ data Env = Env
     , eTypeBindings       :: SymbolTable TypeReference
     , ePatternBindings    :: SymbolTable PatternReference
     , eTraitBindings      :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
-    , eExceptionBindings  :: SymbolTable ExceptionReference
+    , eExceptionBindings  :: SymbolTable (ResolvedReference, TypeVar)
     -- TODO: make this a set?
     -- TODO: we don't actually care about the instance's module name
     , eKnownInstances     :: HashTable (TraitIdentity, TDataTypeIdentity) ModuleName
@@ -46,5 +43,5 @@ data Env = Env
     , eExportedTypes      :: SymbolTable TypeVar
     , eExportedPatterns   :: SymbolTable PatternReference
     , eExportedTraits     :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
-    , eExportedExceptions :: SymbolTable TypeVar
+    , eExportedExceptions :: SymbolTable (ResolvedReference, TypeVar)
     }

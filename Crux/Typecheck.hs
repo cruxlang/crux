@@ -512,13 +512,7 @@ check' expectedType env = \case
 
     EThrow pos exceptionName throwExpr -> do
         free <- freshType env
-        ExceptionReference rr tyVar <- resolveExceptionReference env pos exceptionName
-        {-
-        ty <- HashTable.lookup exceptionName (eExceptionBindings env) >>= \case
-            Just tyVar -> return tyVar
-            Nothing -> do
-                failTypeError pos $ UnboundException exceptionName
-        -}
+        (rr, tyVar) <- resolveExceptionReference env pos exceptionName
         throwExpr' <- checkExpecting tyVar env throwExpr
         return $ EThrow free rr throwExpr'
 
@@ -526,7 +520,7 @@ check' expectedType env = \case
         tryBody' <- check env tryBody
         catchEnv <- childEnv env
 
-        ExceptionReference rr ty <- resolveExceptionReference env pos exceptionName
+        (rr, ty) <- resolveExceptionReference env pos exceptionName
 
         -- TODO: exhaustiveness check on this pattern
         binding' <- buildPatternEnv catchEnv pos ty Immutable binding
@@ -668,7 +662,7 @@ exportTrait export env pos name traitRef traitIdentity traitDesc = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedTraits env) pos SymbolTable.DisallowDuplicates name (traitRef, traitIdentity, traitDesc)
 
-exportException :: ExportFlag -> Env -> Pos -> Name -> TypeVar -> TC ()
+exportException :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, TypeVar) -> TC ()
 exportException export env pos name typeVar = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedExceptions env) pos SymbolTable.DisallowDuplicates name typeVar
@@ -870,8 +864,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         return $ DImpl typeVar traitRef typeIdent values'
 
     DException pos' name typeIdent -> do
+        -- TODO: look it up in the current environment
         typeVar <- resolveTypeIdent env pos typeIdent
-        exportException export env pos' name typeVar
+        exportException export env pos' name ((FromModule $ eThisModule env, name), typeVar)
         return $ DException typeVar name typeIdent
 
 run :: HashMap ModuleName LoadedModule -> Module UnresolvedReference () Pos -> ModuleName -> TC LoadedModule

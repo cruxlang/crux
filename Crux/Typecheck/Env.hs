@@ -200,11 +200,6 @@ resolveValueReference env pos = \case
                     return (rref, mutability, typevar)
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-{-
-resolveReference :: String -> (Env -> HashTable Name a) -> Env -> Pos -> UnresolvedReference -> TC a
-resolveReference symbolType symbolTable env pos ref = do
--}
-
 resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
 resolvePatternReference env pos = \case
     UnqualifiedReference name -> do
@@ -219,33 +214,25 @@ resolvePatternReference env pos = \case
             Just p -> return p
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitIdentity, TraitDesc)
-resolveTraitReference env pos = \case
+resolveReference :: [Char] -> (Env -> SymbolTable.SymbolTable a) -> (LoadedModule -> [(Name, a)]) -> Env -> Pos -> UnresolvedReference -> TC a
+resolveReference symbolType bindingTable exportTable env pos = \case
     UnqualifiedReference name -> do
-        SymbolTable.lookup (eTraitBindings env) name >>= \case
+        SymbolTable.lookup (bindingTable env) name >>= \case
             Just er -> return er
-            Nothing -> failTypeError pos $ Error.UnboundSymbol "trait" name
+            Nothing -> failTypeError pos $ Error.UnboundSymbol symbolType name
     QualifiedReference importName name -> do
         moduleName <- resolveImportName env pos importName
-        resolveTraitReference env pos $ KnownReference moduleName name
+        resolveReference symbolType bindingTable exportTable env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
-        case findExportedTraitByName env moduleName name of
-            Just trait -> return trait
+        case findExportByName exportTable env moduleName name of
+            Just export -> return export
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC ExceptionReference
-resolveExceptionReference env pos = \case
-    UnqualifiedReference name -> do
-        SymbolTable.lookup (eExceptionBindings env) name >>= \case
-            Just er -> return er
-            Nothing -> failTypeError pos $ Error.UnboundSymbol "exception" name
-    QualifiedReference importName name -> do
-        moduleName <- resolveImportName env pos importName
-        resolveExceptionReference env pos $ KnownReference moduleName name
-    KnownReference moduleName name -> do
-        case findExportedExceptionByName env moduleName name of
-            Just typevar -> return $ ExceptionReference (FromModule moduleName, name) typevar
-            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitIdentity, TraitDesc)
+resolveTraitReference = resolveReference "trait" eTraitBindings lmExportedTraits
+
+resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TypeVar)
+resolveExceptionReference = resolveReference "exception" eExceptionBindings lmExportedExceptions
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
 resolveArrayType env pos mutability = do
@@ -374,12 +361,6 @@ findExportedTypeByName = findExportByName lmExportedTypes
 findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
 findExportedPatternByName = findExportByName lmExportedPatterns
 
-findExportedTraitByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, TraitIdentity, TraitDesc)
-findExportedTraitByName = findExportByName lmExportedTraits
-
-findExportedExceptionByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedExceptionByName = findExportByName lmExportedExceptions
-
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerJSFFIDecl env = \case
@@ -434,7 +415,7 @@ registerExceptionDecl env = \case
 
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos typeIdent
-        SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates exceptionName (ExceptionReference (FromModule $ eThisModule env, exceptionName) tyVar)
+        SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates exceptionName ((FromModule $ eThisModule env, exceptionName), tyVar)
         return ()
 
 addThisModuleDataDeclsToEnvironment

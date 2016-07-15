@@ -27,7 +27,7 @@ data LoadedModule = LoadedModule
     , lmExportedTypes :: [(Name, TypeVar)]
     , lmExportedPatterns :: [(Name, PatternReference)]
     , lmExportedTraits :: [(Name, (ResolvedReference, TraitIdentity, TraitDesc))]
-    , lmExportedExceptions :: [(Name, TypeVar)]
+    , lmExportedExceptions :: [(Name, (ResolvedReference, TypeVar))]
     , lmKnownInstances :: Set (TraitIdentity, TDataTypeIdentity, ModuleName)
     } deriving (Eq)
 

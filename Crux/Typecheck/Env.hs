@@ -490,8 +490,8 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     dataDecls' <- for dataDecls $ \(pos, typeName, typeVarNames, variants) -> do
         e <- childEnv env
-        tyVars <- for typeVarNames $ \tvName ->
-            resolveTypeReference e pos NewTypesAreQuantified (UnqualifiedReference tvName)
+        tyVars <- for typeVarNames $ \tvName -> do
+            newQuantifiedTypeVar e pos tvName
 
         typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
         let tyVar = TDataType typeDef

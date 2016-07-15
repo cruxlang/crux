@@ -8,7 +8,6 @@ module Crux.Typecheck.Env
     , newQuantifiedConstrainedTypeVar
     , resolveTypeIdent
     , exportedDecls
-    , findExportedPatternByName
 
     , resolveValueReference
     , resolveTypeReference
@@ -200,20 +199,6 @@ resolveValueReference env pos = \case
                     return (rref, mutability, typevar)
                 Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
-resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
-resolvePatternReference env pos = \case
-    UnqualifiedReference name -> do
-        SymbolTable.lookup (ePatternBindings env) name >>= \case
-            Just er -> return er
-            Nothing -> failTypeError pos $ Error.UnboundSymbol "pattern" name
-    QualifiedReference importName name -> do
-        moduleName <- resolveImportName env pos importName
-        resolvePatternReference env pos $ KnownReference moduleName name
-    KnownReference moduleName name -> do
-        case findExportedPatternByName env moduleName name of
-            Just p -> return p
-            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
-
 resolveReference :: [Char] -> (Env -> SymbolTable.SymbolTable a) -> (LoadedModule -> [(Name, a)]) -> Env -> Pos -> UnresolvedReference -> TC a
 resolveReference symbolType bindingTable exportTable env pos = \case
     UnqualifiedReference name -> do
@@ -227,6 +212,9 @@ resolveReference symbolType bindingTable exportTable env pos = \case
         case findExportByName exportTable env moduleName name of
             Just export -> return export
             Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
+resolvePatternReference = resolveReference "pattern" ePatternBindings lmExportedPatterns
 
 resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitIdentity, TraitDesc)
 resolveTraitReference = resolveReference "trait" eTraitBindings lmExportedTraits
@@ -357,9 +345,6 @@ findExportedValueByName = findExportByName lmExportedValues
 
 findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
 findExportedTypeByName = findExportByName lmExportedTypes
-
-findExportedPatternByName :: Env -> ModuleName -> Name -> Maybe PatternReference
-findExportedPatternByName = findExportByName lmExportedPatterns
 
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()

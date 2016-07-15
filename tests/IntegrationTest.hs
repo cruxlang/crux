@@ -290,7 +290,7 @@ test_polymorphic_type_annotations_are_universally_quantified4 = do
 
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
-        [ "forall {a} fun id_int(x: a): Number { x }"
+        [ "fun id_int{a}(x: a): Number { x }"
         ]
     assertUnificationError (Pos 1 1 1) "Number" "TQuant fromList [] 5" rv
 

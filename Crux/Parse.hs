@@ -720,18 +720,19 @@ forallQualifier :: Parser ([Name], Pos)
 forallQualifier = do
     tforall <- token Tokens.TForall
     (, tokenData tforall) <$> (braced $ commaDelimited typeVarName)
-  where
-    typeVarName = anyIdentifier
+
+typeVarName :: Parser Name
+typeVarName = anyIdentifier
 
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
-    maybeForall <- P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
 
-    let (fdForall, pos) = fromMaybe ([], tokenData tfun) maybeForall
+    let pos = tokenData tfun
 
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
+        fdForall <- P.option [] $ braced $ commaDelimited typeVarName
         fdParams <- parenthesized $ commaDelimited funArgument
         fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon

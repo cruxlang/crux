@@ -17,19 +17,19 @@ let _unsafe_new: fun(Number) -> mutable [a] =
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export forall {a} fun append(a: mutable [a], v: a): () {
+export fun append{a}(a: mutable [a], v: a): () {
     _unsafe_coerce(a).push(v)
 }
 
-export forall {a} fun get(a: mutable [a], idx: Number) {
+export fun get{a}(a: mutable [a], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-export forall {a} fun len(a: mutable [a]): Number {
+export fun len{a}(a: mutable [a]): Number {
     _unsafe_coerce(a).length
 }
 
-export forall {a} fun replicate(element: a, length: Number): mutable [a] {
+export fun replicate{a}(element: a, length: Number): mutable [a] {
     let arr = _unsafe_new(length);
 
     let mutable i = 0;
@@ -41,7 +41,7 @@ export forall {a} fun replicate(element: a, length: Number): mutable [a] {
     arr
 }
 
-export forall {a, b} fun each(arr: mutable [a], f: fun(a) -> b): () {
+export fun each{a, b}(arr: mutable [a], f: fun(a) -> b): () {
     let mutable i = 0
     let length = len(arr)
     while i < length {
@@ -50,19 +50,19 @@ export forall {a, b} fun each(arr: mutable [a], f: fun(a) -> b): () {
     }
 }
 
-export forall {a} fun sliceFrom(arr: mutable [a], start: Number): mutable [a] {
+export fun sliceFrom{a}(arr: mutable [a], start: Number): mutable [a] {
     _unsafe_coerce(arr).slice(start)
 }
 
-export forall {a} fun sliceTo(arr: mutable [a], end: Number): mutable [a] {
+export fun sliceTo{a}(arr: mutable [a], end: Number): mutable [a] {
     _unsafe_coerce(arr).slice(0, end)
 }
 
-export forall {a} fun slice(arr: mutable [a], start: Number, end: Number): mutable [a] {
+export fun slice{a}(arr: mutable [a], start: Number, end: Number): mutable [a] {
     _unsafe_coerce(arr).slice(start, end)
 }
 
-export forall{a} fun freeze(arr: mutable [a]): [a] {
+export fun freeze{a}(arr: mutable [a]): [a] {
     _unsafe_coerce(arr).slice()
 }
 

@@ -28,6 +28,6 @@ export let toString: fun(a) -> String =
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
 
-export forall {a} fun emptyArray(): [a] {
+export fun emptyArray{a}(): [a] {
     _unsafe_js("[]")
 }

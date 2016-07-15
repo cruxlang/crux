@@ -50,7 +50,7 @@ data DeclarationType idtype tagtype edata
     -- Exports
     = DExportImport edata Name
     -- Values
-    | DDeclare edata Name TypeIdent
+    | DDeclare edata Name [Name] TypeIdent
     | DLet !edata !Mutability (Pattern tagtype) [Name] (Maybe TypeIdent) (Expression idtype tagtype edata)
     | DFun !edata !Name [Name] !(FunctionDecl idtype tagtype edata)
     -- Types

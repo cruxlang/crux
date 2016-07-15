@@ -431,7 +431,7 @@ letExpression = do
     withIndentation (IRDeeper tlet) $ do
         mut <- P.option Immutable (token TMutable >> return Mutable)
         pat <- pattern IrrefutableContext
-        forall <- P.option [] $ braced $ commaDelimited typeVarName
+        forall <- P.option [] $ explicitTypeVariableList
         typeAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent
@@ -608,9 +608,10 @@ declareDeclaration = do
     declareToken <- token TDeclare
     withIndentation (IRDeeper declareToken) $ do
         name <- anyIdentifier
+        forall <- P.option [] explicitTypeVariableList
         _ <- token TColon
         ti <- typeIdent
-        return $ DDeclare (tokenData declareToken) name ti
+        return $ DDeclare (tokenData declareToken) name forall ti
 
 variantDefinition :: Parser (Variant Pos)
 variantDefinition = do
@@ -718,6 +719,10 @@ blockExpression = do
 typeVarName :: Parser Name
 typeVarName = anyIdentifier
 
+explicitTypeVariableList :: Parser [Name]
+explicitTypeVariableList = do
+    braced $ commaDelimited typeVarName
+
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
     tfun <- token Tokens.TFun
@@ -726,7 +731,7 @@ funDeclaration = do
 
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
-        forall <- P.option [] $ braced $ commaDelimited typeVarName
+        forall <- P.option [] explicitTypeVariableList
         fdParams <- parenthesized $ commaDelimited funArgument
         fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon

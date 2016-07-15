@@ -394,7 +394,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DExportImport _ _ -> do
         return ()
 
-    AST.DDeclare _ _ _ -> do
+    AST.DDeclare _ _ _ _ -> do
         -- declarations are not reflected into the IR
         return ()
     AST.DData _ name _ variants -> do

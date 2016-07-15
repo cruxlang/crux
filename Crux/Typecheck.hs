@@ -231,10 +231,6 @@ check' expectedType env = \case
             , eInLoop=False
             }
 
-        for_ fdForall $ \name -> do
-            tv <- freshQuantized env'
-            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates name (TypeReference tv)
-
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
             for_ pAnn $ \ann -> do
                 annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
@@ -255,7 +251,6 @@ check' expectedType env = \case
         return $ EFun ty FunctionDecl
             { fdParams=params'
             , fdReturnAnnot
-            , fdForall
             , fdBody=body'
             }
 
@@ -333,9 +328,11 @@ check' expectedType env = \case
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet pos mut pat maybeAnnot expr' -> do
+    ELet pos mut pat forall maybeAnnot expr' -> do
         ty <- freshType env
         env' <- childEnv env
+        for_ forall $ \typeVarName -> do
+            newQuantifiedTypeVar env pos typeVarName
         expr'' <- check env' expr'
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
@@ -348,7 +345,7 @@ check' expectedType env = \case
             unify env pos ty annotTy
 
         unitType <- resolveVoidType env pos
-        return $ ELet unitType mut pat' maybeAnnot expr'''
+        return $ ELet unitType mut pat' forall maybeAnnot expr'''
 
     EAssign pos lhs rhs -> do
         lhs' <- check env lhs
@@ -554,9 +551,9 @@ renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
 resolveInstanceDictPlaceholders :: TypedExpression -> TC TypedExpression
 resolveInstanceDictPlaceholders = recurse
   where recurse = \case
-            ELet tv mut pat typeIdent body -> do
+            ELet tv mut pat forall typeIdent body -> do
                 body' <- recurse body
-                return $ ELet tv mut pat typeIdent body'
+                return $ ELet tv mut pat forall typeIdent body'
             ELookup tv body name -> do
                 body' <- recurse body
                 return $ ELookup tv body' name
@@ -713,9 +710,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
         exportValue export env pos' name (resolvedRef, mut, ty)
         return $ DDeclare ty name typeIdent
-    DLet pos' mut pat maybeAnnot expr -> do
+    DLet pos' mut pat forall maybeAnnot expr -> do
         env' <- childEnv env
         ty <- freshType env'
+        for_ forall $ \typeVarName -> do
+            void $ newQuantifiedTypeVar env' pos typeVarName
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env' pos NewTypesAreQuantified annotation
             unify env pos' ty annotTy
@@ -744,15 +743,18 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
         expr''' <- resolveInstanceDictPlaceholders expr''
 
-        return $ DLet (edata expr'') mut pat' maybeAnnot expr'''
+        return $ DLet (edata expr'') mut pat' forall maybeAnnot expr'''
 
-    DFun pos' name fd -> do
-        let expr = EFun pos' fd
+    DFun pos' name forall fd -> do
         ty <- freshType env
         let rr = (FromModule $ eThisModule env, name)
         exportValue export env pos' name (rr, Immutable, ty)
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
-        expr'@(EFun _ fd') <- check env expr
+        env' <- childEnv env
+        for_ forall $ \typeVarName -> do
+            -- TODO: use the pos of the type var
+            newQuantifiedTypeVar env' pos' typeVarName
+        expr'@(EFun _ fd') <- check env' $ EFun pos' fd
         let FunctionDecl{fdBody=body', fdParams=args'} = fd'
         unify env pos' (edata expr') ty
 
@@ -772,7 +774,6 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         let innerFD = FunctionDecl
                 { fdParams = args'
                 , fdReturnAnnot = fdReturnAnnot fd
-                , fdForall = fdForall fd
                 , fdBody = body''
                 }
         let outerFD = case dictArgs of
@@ -782,10 +783,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         { fdParams = map (\p -> (p, Nothing)) dictArgs
                         , fdReturnAnnot = Nothing
                         , fdBody = EFun (edata expr') innerFD
-                        , fdForall = []
                         }
 
-        return $ DFun (edata expr') name outerFD
+        return $ DFun (edata expr') name forall outerFD
 
     {- TYPE DEFINITIONS -}
 

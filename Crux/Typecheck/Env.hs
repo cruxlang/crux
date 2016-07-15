@@ -103,7 +103,7 @@ resolveTypeIdent env@Env{..} pos resolvePolicy typeIdent =
                 | length tuParameters == length typeParameters -> do
                     (TTypeFun tuParameters' rt') <- instantiate env ty
                     for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
-                        b' <- resolveTypeIdent env pos NewTypesAreQuantified b
+                        b' <- resolveTypeIdent env pos NewTypesAreErrors b
                         unify env pos a b'
                     return rt'
                 | otherwise -> do

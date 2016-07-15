@@ -292,7 +292,7 @@ test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int{a}(x: a): Number { x }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant fromList [] 5" rv
+    assertUnificationError (Pos 1 1 1) "Number" "TQuant fromList [] 2" rv
 
 test_escaped_strings = do
     result1 <- run $ T.unlines

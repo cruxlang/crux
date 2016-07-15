@@ -162,7 +162,7 @@ tagFromPattern = \case
 
 generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)
 generate env = \case
-    AST.ELet _ _mut pat _ v -> do
+    AST.ELet _ _mut pat _ _ v -> do
         v' <- generate env v
         for v' $ \v'' -> do
             writeInstruction $ BindPattern v'' pat
@@ -402,11 +402,11 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DJSData _ name variants -> do
         writeDeclaration $ Declaration export $ DJSData name variants
 
-    AST.DFun _ name funDecl -> do -- name params _retAnn body -> do
+    AST.DFun _ name _ funDecl -> do -- name params _retAnn body -> do
         let AST.FunctionDecl{..} = funDecl
         body' <- subBlockWithReturn env fdBody
         writeDeclaration $ Declaration export $ DFun name (map fst fdParams) body'
-    AST.DLet _ _mut pat _ defn -> do
+    AST.DLet _ _mut pat _ _ defn -> do
         defn' <- case pat of
             AST.PWildcard -> subBlock env defn
             AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
@@ -417,7 +417,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         return ()
 
     AST.DTrait _ _traitName _typeVar decls -> do
-        for_ decls $ \(name, declType, _typeIdent) -> do
+        for_ decls $ \(name, _declType, _typeIdent) -> do
             let body =
                     [ Return (Property (LocalBinding "dict") name) ]
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body

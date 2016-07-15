@@ -283,8 +283,6 @@ functionExpression = do
     tfun <- token Tokens.TFun
     let pos = tokenData tfun
 
-    -- TODO...?
-    let fdForall = []
     fdParams <- parenthesized $ commaDelimited funArgument
     fdReturnAnnot <- P.optionMaybe $ do
         _ <- token TColon
@@ -433,12 +431,13 @@ letExpression = do
     withIndentation (IRDeeper tlet) $ do
         mut <- P.option Immutable (token TMutable >> return Mutable)
         pat <- pattern IrrefutableContext
+        forall <- P.option [] $ braced $ commaDelimited typeVarName
         typeAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent
         _ <- token TEqual
         expr <- noSemiExpression
-        return $ ELet (tokenData tlet) mut pat typeAnn expr
+        return $ ELet (tokenData tlet) mut pat forall typeAnn expr
 
 semiExpression :: Parser ParseExpression
 semiExpression = do
@@ -601,8 +600,8 @@ typeVariableName = do
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
-    ELet ed mut name typeAnn expr <- letExpression
-    return $ DLet ed mut name typeAnn expr
+    ELet ed mut name forall typeAnn expr <- letExpression
+    return $ DLet ed mut name forall typeAnn expr
 
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
@@ -727,14 +726,14 @@ funDeclaration = do
 
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
-        fdForall <- P.option [] $ braced $ commaDelimited typeVarName
+        forall <- P.option [] $ braced $ commaDelimited typeVarName
         fdParams <- parenthesized $ commaDelimited funArgument
         fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon
             returnTypeIdent
 
         fdBody <- blockExpression
-        return $ DFun pos name FunctionDecl{..}
+        return $ DFun pos name forall FunctionDecl{..}
 
 traitDeclaration :: Parser ParseDeclaration
 traitDeclaration = do

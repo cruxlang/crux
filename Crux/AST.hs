@@ -42,7 +42,6 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     { fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
     , fdReturnAnnot :: !(Maybe TypeIdent)
     , fdBody        :: !(Expression idtype tagtype edata)
-    , fdForall      :: [Name]
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
@@ -52,8 +51,8 @@ data DeclarationType idtype tagtype edata
     = DExportImport edata Name
     -- Values
     | DDeclare edata Name TypeIdent
-    | DLet !edata !Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
-    | DFun !edata !Name !(FunctionDecl idtype tagtype edata)
+    | DLet !edata !Mutability (Pattern tagtype) [Name] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | DFun !edata !Name [Name] !(FunctionDecl idtype tagtype edata)
     -- Types
     | DData edata Name [Text] [Variant edata]
     | DJSData edata Name [JSVariant]
@@ -174,7 +173,7 @@ data Mutability
 data Expression idtype tagtype edata
     -- Mutable Wildcard makes no sense -- disallow that?
     -- TODO: should mutability status be part of the pattern?
-    = ELet edata Mutability (Pattern tagtype) (Maybe TypeIdent) (Expression idtype tagtype edata)
+    = ELet edata Mutability (Pattern tagtype) [Name] (Maybe TypeIdent) (Expression idtype tagtype edata)
     | ELookup edata (Expression idtype tagtype edata) Name
     | EApp edata (Expression idtype tagtype edata) [Expression idtype tagtype edata]
     | EMatch edata (Expression idtype tagtype edata) [Case idtype tagtype edata]
@@ -213,7 +212,7 @@ data Expression idtype tagtype edata
 
 edata :: Expression idtype tagtype edata -> edata
 edata expr = case expr of
-    ELet ed _ _ _ _ -> ed
+    ELet ed _ _ _ _ _ -> ed
     EFun ed _ -> ed
     ELookup ed _ _ -> ed
     EApp ed _ _ -> ed
@@ -240,7 +239,7 @@ edata expr = case expr of
 
 setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
-    ELet _ a b c d        -> ELet e a b c d
+    ELet _ a b c d f      -> ELet e a b c d f
     EFun _ a              -> EFun e a
     ELookup _ a b         -> ELookup e a b
     EApp _ a b            -> EApp e a b

@@ -80,7 +80,6 @@ data TokenType
     | TReturn
     | TConst
     | TMutable
-    | TForall
     | TTrait
     | TImpl
     deriving (Show, Eq)

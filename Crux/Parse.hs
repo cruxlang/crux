@@ -280,11 +280,11 @@ identifierExpression = do
 
 functionExpression :: Parser ParseExpression
 functionExpression = do
-    maybeForall <- P.optionMaybe forallQualifier
     tfun <- token Tokens.TFun
+    let pos = tokenData tfun
 
-    let (fdForall, pos) = fromMaybe ([], tokenData tfun) maybeForall
-
+    -- TODO...?
+    let fdForall = []
     fdParams <- parenthesized $ commaDelimited funArgument
     fdReturnAnnot <- P.optionMaybe $ do
         _ <- token TColon
@@ -715,11 +715,6 @@ blockExpression = do
         -- TODO: I think using the open brace's position for the position
         -- of all ESemi is wrong
         _ -> foldl1 (ESemi brPos) body
-
-forallQualifier :: Parser ([Name], Pos)
-forallQualifier = do
-    tforall <- token Tokens.TForall
-    (, tokenData tforall) <$> (braced $ commaDelimited typeVarName)
 
 typeVarName :: Parser Name
 typeVarName = anyIdentifier

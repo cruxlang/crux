@@ -1,6 +1,5 @@
 module Crux.Typecheck.Types
     ( ValueReference(..)
-    , TypeReference(..)
     , PatternTag(..)
     , PatternReference(..)
     , TraitIdentity
@@ -20,14 +19,12 @@ data ValueReference
     = ValueReference ResolvedReference Mutability TypeVar
     | ModuleReference ModuleName
 
-data TypeReference = TypeReference TypeVar
-
 data Env = Env
     { eThisModule         :: ModuleName
     , eLoadedModules      :: HashMap ModuleName LoadedModule
     , eNextTypeIndex      :: IORef Int
     , eValueBindings      :: SymbolTable ValueReference
-    , eTypeBindings       :: SymbolTable TypeReference
+    , eTypeBindings       :: SymbolTable TypeVar
     , ePatternBindings    :: SymbolTable PatternReference
     , eTraitBindings      :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
     , eExceptionBindings  :: SymbolTable (ResolvedReference, TypeVar)

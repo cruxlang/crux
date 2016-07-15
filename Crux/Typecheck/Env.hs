@@ -149,7 +149,7 @@ newQuantifiedTypeVar env pos name = do
     tyVar <- freshType env
     quantify tyVar
 
-    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
+    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name tyVar
     return tyVar
 
 newQuantifiedConstrainedTypeVar :: Env -> Pos -> Name -> TraitIdentity -> TraitDesc -> TC TypeVar
@@ -157,27 +157,8 @@ newQuantifiedConstrainedTypeVar env pos name traitNumber traitDesc = do
     tyVar <- freshTypeConstrained env $ HashMap.singleton traitNumber traitDesc
     quantify tyVar
 
-    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference tyVar)
+    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name tyVar
     return tyVar
-
-resolveTypeReference :: Env -> Pos -> UnresolvedReference -> TC TypeVar
-resolveTypeReference env pos = \case
-    UnqualifiedReference name -> do
-        SymbolTable.lookup (eTypeBindings env) name >>= \case
-            Just (TypeReference t) -> do
-                return t
-            Nothing -> do
-                failTypeError pos $ Error.UnboundSymbol "type" name
-    QualifiedReference importName name -> do
-        moduleName <- resolveImportName env pos importName
-        resolveTypeReference env pos $ KnownReference moduleName name
-    KnownReference moduleName name -> do
-        if moduleName == eThisModule env then do
-            resolveTypeReference env pos (UnqualifiedReference name)
-        else do
-            case findExportedTypeByName env moduleName name of
-                Just tv -> return tv
-                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
 
 resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, Mutability, TypeVar)
 resolveValueReference env pos = \case
@@ -209,9 +190,15 @@ resolveReference symbolType bindingTable exportTable env pos = \case
         moduleName <- resolveImportName env pos importName
         resolveReference symbolType bindingTable exportTable env pos $ KnownReference moduleName name
     KnownReference moduleName name -> do
-        case findExportByName exportTable env moduleName name of
-            Just export -> return export
-            Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+        if moduleName == eThisModule env then do
+            resolveReference symbolType bindingTable exportTable env pos (UnqualifiedReference name)
+        else do
+            case findExportByName exportTable env moduleName name of
+                Just export -> return export
+                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveTypeReference :: Env -> Pos -> UnresolvedReference -> TC TypeVar
+resolveTypeReference = resolveReference "type" eTypeBindings lmExportedTypes
 
 resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
 resolvePatternReference = resolveReference "pattern" ePatternBindings lmExportedPatterns
@@ -306,7 +293,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
 
             -- populate types
             for_ (lmExportedTypes importedModule) $ \(name, typeVar) -> do
-                SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference typeVar)
+                SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name typeVar
 
             -- populate values
             for_ (lmExportedValues importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
@@ -343,9 +330,6 @@ findExportByName getExports env moduleName valueName = do
 findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
 findExportedValueByName = findExportByName lmExportedValues
 
-findExportedTypeByName :: Env -> ModuleName -> Name -> Maybe TypeVar
-findExportedTypeByName = findExportByName lmExportedTypes
-
 -- Phase 2a
 registerJSFFIDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
 registerJSFFIDecl env = \case
@@ -370,7 +354,7 @@ registerJSFFIDecl env = \case
                 , tuVariants = variants'
                 }
         let userType = TDataType typeDef
-        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference userType)
+        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name userType
 
         for_ variants $ \(JSVariant variantName value) -> do
             SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates variantName (ValueReference (Local, variantName) Immutable userType)
@@ -457,7 +441,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         let typeRef = case tyVars of
                 [] -> tyVar
                 _ -> TTypeFun tyVars tyVar
-        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates typeName (TypeReference typeRef)
+        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates typeName typeRef
 
         let qvars = zip typeVarNames tyVars
         return (pos, typeDef, tyVar, qvars, variants)
@@ -475,7 +459,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             let registeredType = case params of
                     [] -> bodyTypeVar
                     _ -> TTypeFun (fmap snd paramTypes) bodyTypeVar
-            SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name (TypeReference registeredType)
+            SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name registeredType
             return $ Just (pos, paramTypes, ident, bodyTypeVar)
         _ -> do
             return Nothing
@@ -484,7 +468,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ aliasDecls $ \(pos, paramTypes, ident, bodyTypeVar) -> do
         env' <- childEnv env
         for_ paramTypes $ \(tvName, tv) -> do
-            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates tvName (TypeReference tv)
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates tvName tv
         resolvedType <- resolveTypeIdent env' pos ident
         unify env pos bodyTypeVar resolvedType
 
@@ -499,7 +483,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
                     }
             let tn = TraitIdentity (eThisModule env) name
             let typeVar = TQuant (HashMap.singleton tn desc) typeIndex
-            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName $ TypeReference typeVar
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
             SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)
             return $ Just (env', defns)
         _ -> return Nothing
@@ -508,7 +492,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
         for_ qvars $ \(qvName, qvTypeVar) ->
-            SymbolTable.insert (eTypeBindings e) pos SymbolTable.DisallowDuplicates qvName (TypeReference qvTypeVar)
+            SymbolTable.insert (eTypeBindings e) pos SymbolTable.DisallowDuplicates qvName qvTypeVar
 
         for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do
             for_ (zip typeIdents typeVars) $ \(typeIdent, typeVar) -> do

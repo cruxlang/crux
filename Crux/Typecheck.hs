@@ -791,7 +791,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
+        (Just typeVar) <- SymbolTable.lookup (eTypeBindings env) name
 
         exportType export env pos' name typeVar
 
@@ -814,7 +814,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
+        (Just typeVar) <- SymbolTable.lookup (eTypeBindings env) name
 
         exportType export env pos' name typeVar
 
@@ -832,7 +832,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: error when a name is inserted into type bindings twice at top level
         -- TODO: is there a better way to carry this information from environment
         -- setup through type checking of decls?
-        (Just (TypeReference typeVar)) <- SymbolTable.lookup (eTypeBindings env) name
+        (Just typeVar) <- SymbolTable.lookup (eTypeBindings env) name
         exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
 

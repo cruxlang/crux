@@ -277,14 +277,14 @@ test_mutable_record_field_requirement_is_inferred = do
 test_polymorphic_type_annotations_are_universally_quantified2 = do
     rv <- run $ T.unlines
         [ "let f: fun(Number) -> Number = fun (i) { i }"
-        , "let g: fun(a) -> a = fun (i) { i }"
+        , "let g{a}: fun(a) -> a = fun (i) { i }"
         , "let _ = f(g(\"hello\"))"
         ]
     assertUnificationError (Pos 1 3 11) "String" "Number" rv
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
-        [ "let f: fun(a) -> Number = fun (i) { i }"
+        [ "let f{a}: fun(a) -> Number = fun (i) { i }"
         ]
     assertUnificationError (Pos 1 1 1) "Number" "TQuant fromList [] 2" rv
 

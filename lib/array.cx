@@ -9,7 +9,7 @@ type Number = number.Number
 
 export data Array a {}
 
-let _unsafe_new: fun(Number) -> [a] =
+let _unsafe_new{a}: fun(Number) -> [a] =
     _unsafe_js("function (len) { return new Array(len); }")
 
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")

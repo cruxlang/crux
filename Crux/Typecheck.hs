@@ -241,7 +241,6 @@ check' expectedType env = \case
 
         for_ fdReturnAnnot $ \ann -> do
             annTy <- resolveTypeIdent env' pos NewTypesAreErrors ann
-            -- annTy <- resolveTypeIdent env pos NewTypesAreQuantified ann
             unify env pos returnType annTy
 
         body' <- check env' fdBody
@@ -716,7 +715,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         for_ forall $ \typeVarName -> do
             void $ newQuantifiedTypeVar env' pos typeVarName
         for_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env' pos NewTypesAreQuantified annotation
+            annotTy <- resolveTypeIdent env' pos NewTypesAreErrors annotation
             unify env pos' ty annotTy
 
         expr' <- check env' expr

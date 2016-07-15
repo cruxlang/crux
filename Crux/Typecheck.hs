@@ -331,7 +331,7 @@ check' expectedType env = \case
         ty <- freshType env
         env' <- childEnv env
         for_ forall $ \typeVarName -> do
-            newQuantifiedTypeVar env pos typeVarName
+            newQuantifiedTypeVar env' pos typeVarName
         expr'' <- check env' expr'
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
@@ -340,7 +340,7 @@ check' expectedType env = \case
         pat' <- buildPatternEnv env pos ty mut pat
         unify env pos ty (edata expr''')
         for_ maybeAnnot $ \annotation -> do
-            annotTy <- resolveTypeIdent env pos NewTypesAreQuantified annotation
+            annotTy <- resolveTypeIdent env pos NewTypesAreErrors annotation
             unify env pos ty annotTy
 
         unitType <- resolveVoidType env pos

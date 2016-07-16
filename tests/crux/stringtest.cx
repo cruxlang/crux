@@ -21,3 +21,8 @@ let _ = test("endsWith", fun() {
 let _ = test("trim", fun() {
     assert.equal("foo", " \nfoo\n\r\t "->trim())
 })
+
+let _ = test("len", fun() {
+    assert.equal(3, len("foo"))
+    assert.equal(11, len("hello world"))
+})

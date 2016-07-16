@@ -423,7 +423,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
-    AST.DImpl typeVar traitName _typeIdent decls -> do
+    AST.DImpl typeVar traitName _ _typeIdent decls -> do
         instanceName <- traitDictName traitName typeVar
         decls' <- for decls $ \(name, expr) -> do
             -- TODO: find some better way to guarantee that we never

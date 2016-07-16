@@ -1,0 +1,7 @@
+pragma { NoBuiltin }
+
+import { number(...) }
+
+export trait HasLength a {
+  len: fun(a) -> Number
+}

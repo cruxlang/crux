@@ -757,6 +757,7 @@ implDeclaration :: Parser ParseDeclaration
 implDeclaration = do
     timpl <- token Tokens.TImpl
     traitName <- unresolvedReference
+    forall <- P.option [] explicitTypeVariableList
     typeIdent_ <- returnTypeIdent
     (_, decls) <- bracedLines $ do
         -- TODO: add sugar for function decl parsing?
@@ -765,7 +766,7 @@ implDeclaration = do
         expr <- withIndentation (IRDeeper tequal) noSemiExpression
         return (pos, (elementName, expr))
 
-    return $ DImpl (tokenData timpl) traitName typeIdent_ decls
+    return $ DImpl (tokenData timpl) traitName forall typeIdent_ decls
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

@@ -112,7 +112,7 @@ typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
 typeErrorToString (UnboundSymbol type_ name) =
-    return $ printf "Unbound %s %s" (show type_) (show name)
+    return $ printf "Unbound %s %s" (type_) (show name)
 typeErrorToString (OccursCheckFailed) =
     return $ printf "Occurs check failed"
 typeErrorToString (IntrinsicError message) =

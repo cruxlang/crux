@@ -851,9 +851,12 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName typeName contents'
 
-    DImpl pos' traitName typeIdent values -> do
+    DImpl pos' traitName forall typeIdent values -> do
         (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
-        typeVar <- resolveTypeIdent env pos' typeIdent
+
+        env' <- childEnv env
+        registerExplicitTypeVariables env' pos' forall
+        typeVar <- resolveTypeIdent env' pos' typeIdent
 
         values' <- for values $ \(elementName, expr) -> do
             -- TODO: unify with trait definition
@@ -861,7 +864,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             expr' <- check env expr
             return (elementName, expr')
 
-        return $ DImpl typeVar traitRef typeIdent values'
+        -- TODO: verify everything is implemented
+
+        return $ DImpl typeVar traitRef forall typeIdent values'
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment

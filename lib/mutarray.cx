@@ -4,6 +4,7 @@ import {
     array
     string
     number
+    length
 }
 
 // TODO: implement selective import
@@ -25,15 +26,17 @@ export fun get{a}(a: mutable [a], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-export fun len{a}(a: mutable [a]): Number {
-    _unsafe_coerce(a).length
+impl length.HasLength{a} mutable [a] {
+  len = fun(arr) {
+    return _unsafe_coerce(arr).length
+  }
 }
 
-export fun replicate{a}(element: a, length: Number): mutable [a] {
-    let arr = _unsafe_new(length);
+export fun replicate{a}(element: a, n: Number): mutable [a] {
+    let arr = _unsafe_new(n);
 
     let mutable i = 0;
-    while i < length {
+    while i < n {
         _unsafe_set(arr, i, element)
         i = i + 1
     };
@@ -43,8 +46,8 @@ export fun replicate{a}(element: a, length: Number): mutable [a] {
 
 export fun each{a, b}(arr: mutable [a], f: fun(a) -> b): () {
     let mutable i = 0
-    let length = len(arr)
-    while i < length {
+    let n = length.len(arr)
+    while i < n {
         f(_unsafe_get(arr, i))
         i = i + 1
     }

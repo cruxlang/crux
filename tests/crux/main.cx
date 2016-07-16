@@ -1,6 +1,7 @@
 import {
     test
 
+    arraytest as _
     booltest as _
     numbertest as _
     stringtest as _

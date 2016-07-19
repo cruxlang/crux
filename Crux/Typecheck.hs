@@ -404,8 +404,8 @@ check' expectedType env = \case
                     [] -> do
                         return $ EIdentifier tv' ref
                     _ -> do
-                        placeholders <- for traits $ \(typeVar, traitNumber, traitDesc) -> do
-                            return $ EInstancePlaceholder typeVar traitNumber traitDesc
+                        placeholders <- for traits $ \(typeVar, traitNumber, _traitDesc) -> do
+                            return $ EInstancePlaceholder typeVar traitNumber
                         return $ EApp
                             tv'
                             (EIdentifier tv' ref)
@@ -527,7 +527,7 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
 
-    EInstancePlaceholder _ _ _ -> do
+    EInstancePlaceholder _ _ -> do
         fail "ICE: placeholders are not typechecked"
     EInstanceDict _ _ _ -> do
         fail "ICE: instance dicts are not typechecked"
@@ -617,7 +617,7 @@ resolveInstanceDictPlaceholders = recurse
                 catch' <- recurse catch
                 return $ ETryCatch tv try' ident pat catch'
 
-            EInstancePlaceholder tv traitIdentity _traitDesc -> do
+            EInstancePlaceholder tv traitIdentity -> do
                 followTypeVar tv >>= \case
                     TypeVar ref -> readIORef ref >>= \case
                         TUnbound _str _level _constraints _typeNumber ->

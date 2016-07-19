@@ -205,7 +205,7 @@ data Expression idtype tagtype edata
 
     -- trait dictionary conversion
     -- instance dict placeholders to be resolved after quantification
-    | EInstancePlaceholder edata TraitIdentity TraitDesc
+    | EInstancePlaceholder edata TraitIdentity
     | EInstanceDict edata TraitIdentity TDataTypeIdentity
     | EInstanceArgument edata Name
 
@@ -234,7 +234,7 @@ edata expr = case expr of
     EBreak ed -> ed
     EThrow ed _ _ -> ed
     ETryCatch ed _ _ _ _ -> ed
-    EInstancePlaceholder ed _ _ -> ed
+    EInstancePlaceholder ed _ -> ed
     EInstanceDict ed _ _ -> ed
     EInstanceArgument ed _ -> ed
 
@@ -261,7 +261,7 @@ setEdata expr e = case expr of
     EBreak _              -> EBreak e
     EThrow _ a b          -> EThrow e a b
     ETryCatch _ a b c d   -> ETryCatch e a b c d
-    EInstancePlaceholder _ a b -> EInstancePlaceholder e a b
+    EInstancePlaceholder _ a -> EInstancePlaceholder e a
     EInstanceDict _ a b -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
 

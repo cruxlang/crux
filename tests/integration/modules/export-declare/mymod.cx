@@ -1,1 +1,1 @@
-export declare String{a}: fun(a) -> String
+export declare String<a>: fun(a) -> String

@@ -10,23 +10,23 @@ type Number = number.Number
 
 export data Array a {}
 
-let _unsafe_new{a}: fun(Number) -> [a] =
+let _unsafe_new<a>: fun(Number) -> [a] =
     _unsafe_js("function (len) { return new Array(len); }")
 
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun get{t}(a: [t], idx: Number) {
+export fun get<t>(a: [t], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-impl length.HasLength{a} [a] {
+impl length.HasLength<a> [a] {
   len = fun(a) {
     _unsafe_coerce(a).length
   }
 }
 
-export fun replicate{a}(element: a, n: Number): [a] {
+export fun replicate<a>(element: a, n: Number): [a] {
     let arr = _unsafe_new(n);
 
     let mutable i = 0;
@@ -38,7 +38,7 @@ export fun replicate{a}(element: a, n: Number): [a] {
     arr
 }
 
-export fun each{a, b}(arr: [a], f: fun(a) -> b): () {
+export fun each<a, b>(arr: [a], f: fun(a) -> b): () {
     let mutable i = 0
     let n = length.len(arr)
     while i < n {
@@ -47,14 +47,14 @@ export fun each{a, b}(arr: [a], f: fun(a) -> b): () {
     }
 }
 
-export fun sliceFrom{a}(arr: [a], start: Number): [a] {
+export fun sliceFrom<a>(arr: [a], start: Number): [a] {
     _unsafe_coerce(arr).slice(start)
 }
 
-export fun sliceTo{a}(arr: [a], end: Number): [a] {
+export fun sliceTo<a>(arr: [a], end: Number): [a] {
     _unsafe_coerce(arr).slice(0, end)
 }
 
-export fun slice{a}(arr: [a], start: Number, end: Number): [a] {
+export fun slice<a>(arr: [a], start: Number, end: Number): [a] {
     _unsafe_coerce(arr).slice(start, end)
 }

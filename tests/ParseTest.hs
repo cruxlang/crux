@@ -135,7 +135,7 @@ test_fun_with_argument_annotations = do
         (DFun () "f" [] FunctionDecl { fdParams=[("x", Just $ TypeIdent "Number" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () $ LInteger 1})
 
 test_fun_with_forall = do
-    assertExprParses funDeclaration "fun f{T}(x: T) {}"
+    assertExprParses funDeclaration "fun f<T>(x: T) {}"
         (DFun () "f" ["T"] FunctionDecl { fdParams=[("x", Just $ TypeIdent "T" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit})
 
 test_fun_that_takes_function = do

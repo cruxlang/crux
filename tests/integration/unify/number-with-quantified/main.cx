@@ -1,3 +1,3 @@
-fun f{a}(a: a) {
+fun f<a>(a: a) {
   a == 10
 }

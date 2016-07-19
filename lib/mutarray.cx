@@ -12,27 +12,27 @@ type Number = number.Number
 
 export data MutableArray a {}
 
-let _unsafe_new{a}: fun(Number) -> mutable [a] =
+let _unsafe_new<a>: fun(Number) -> mutable [a] =
     _unsafe_js("function (len) { return new Array(len); }")
 
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun append{a}(a: mutable [a], v: a): () {
+export fun append<a>(a: mutable [a], v: a): () {
     _unsafe_coerce(a).push(v)
 }
 
-export fun get{a}(a: mutable [a], idx: Number) {
+export fun get<a>(a: mutable [a], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-impl length.HasLength{a} mutable [a] {
+impl length.HasLength<a> mutable [a] {
   len = fun(arr) {
     return _unsafe_coerce(arr).length
   }
 }
 
-export fun replicate{a}(element: a, n: Number): mutable [a] {
+export fun replicate<a>(element: a, n: Number): mutable [a] {
     let arr = _unsafe_new(n);
 
     let mutable i = 0;
@@ -44,7 +44,7 @@ export fun replicate{a}(element: a, n: Number): mutable [a] {
     arr
 }
 
-export fun each{a, b}(arr: mutable [a], f: fun(a) -> b): () {
+export fun each<a, b>(arr: mutable [a], f: fun(a) -> b): () {
     let mutable i = 0
     let n = length.len(arr)
     while i < n {
@@ -53,19 +53,19 @@ export fun each{a, b}(arr: mutable [a], f: fun(a) -> b): () {
     }
 }
 
-export fun sliceFrom{a}(arr: mutable [a], start: Number): mutable [a] {
+export fun sliceFrom<a>(arr: mutable [a], start: Number): mutable [a] {
     _unsafe_coerce(arr).slice(start)
 }
 
-export fun sliceTo{a}(arr: mutable [a], end: Number): mutable [a] {
+export fun sliceTo<a>(arr: mutable [a], end: Number): mutable [a] {
     _unsafe_coerce(arr).slice(0, end)
 }
 
-export fun slice{a}(arr: mutable [a], start: Number, end: Number): mutable [a] {
+export fun slice<a>(arr: mutable [a], start: Number, end: Number): mutable [a] {
     _unsafe_coerce(arr).slice(start, end)
 }
 
-export fun freeze{a}(arr: mutable [a]): [a] {
+export fun freeze<a>(arr: mutable [a]): [a] {
     _unsafe_coerce(arr).slice()
 }
 

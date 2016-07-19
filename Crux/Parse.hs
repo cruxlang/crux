@@ -90,6 +90,12 @@ bracketed' = enclosed (token TOpenBracket) (token TCloseBracket)
 bracketed :: Parser a -> Parser a
 bracketed p = fmap snd $ bracketed' p
 
+angleBracketed :: Parser a -> Parser a
+angleBracketed p = fmap snd $ angleBracketed' p
+
+angleBracketed' :: Parser a -> Parser (Pos, a)
+angleBracketed' = enclosed (token TLess) (token TGreater)
+
 getToken :: P.Stream s m (Token Pos)
          => (Token Pos -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim show nextPos predicate
@@ -721,7 +727,7 @@ typeVarName = anyIdentifier
 
 explicitTypeVariableList :: Parser [Name]
 explicitTypeVariableList = do
-    braced $ commaDelimited typeVarName
+    angleBracketed $ commaDelimited typeVarName
 
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do

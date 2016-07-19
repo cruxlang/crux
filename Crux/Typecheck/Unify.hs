@@ -12,6 +12,12 @@ import Crux.TypeVar
 import Data.List (sort)
 import qualified Data.HashMap.Strict as HashMap
 import Text.Printf (printf)
+import qualified Data.Set as Set
+import qualified Crux.SymbolTable as SymbolTable
+import Crux.Module.Types
+import qualified Crux.Error as Error
+import Crux.ModuleName (ModuleName)
+import Crux.Util
 
 freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do
@@ -21,7 +27,7 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: MonadIO m => Env -> m TypeVar
 freshType env = freshTypeConstrained env mempty
 
-freshTypeConstrained :: MonadIO m => Env -> HashMap TraitIdentity TraitDesc -> m TypeVar
+freshTypeConstrained :: MonadIO m => Env -> Set TraitIdentity -> m TypeVar
 freshTypeConstrained env constraints = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Strong (eLevel env) constraints index
@@ -39,6 +45,120 @@ freshQuantized env = do
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
     RowVariable <$> freshTypeIndex env
+
+findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
+findExportByName getExports env moduleName valueName = do
+    modul <- HashMap.lookup moduleName (eLoadedModules env)
+    findFirstOf (getExports modul) $ \(name, v) ->
+        if name == valueName then
+            Just v
+        else
+            Nothing
+
+findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
+findExportedValueByName = findExportByName lmExportedValues
+
+resolveImportName :: Env -> Pos -> Name -> TC ModuleName
+resolveImportName env pos importName = do
+    SymbolTable.lookup (eValueBindings env) importName >>= \case
+        Just (ModuleReference moduleName) -> return moduleName
+        -- TODO: should we differentiate between these cases?
+        Just _ -> failTypeError pos $ Error.UnboundSymbol "import" importName
+        _ -> failTypeError pos $ Error.UnboundSymbol "import" importName
+
+-- I could merge this into ResolveReference but that's a bit tricky because of the ModuleReference stuff
+resolveValueReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, Mutability, TypeVar)
+resolveValueReference env pos = \case
+    UnqualifiedReference name -> do
+        SymbolTable.lookup (eValueBindings env) name >>= \case
+            Just (ValueReference rr mut t) -> return (rr, mut, t)
+            -- TODO: turn this into a custom error message
+            Just (ModuleReference _) -> failTypeError pos $ Error.UnboundSymbol "value" name
+            Nothing -> failTypeError pos $ Error.UnboundSymbol "value" name
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolveValueReference env pos $ KnownReference moduleName name
+    KnownReference moduleName name -> do
+        if moduleName == eThisModule env then do
+            resolveValueReference env pos (UnqualifiedReference name)
+        else do
+            case findExportedValueByName env moduleName name of
+                Just (rref, mutability, typevar) ->
+                    return (rref, mutability, typevar)
+                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveReference :: [Char] -> (Env -> SymbolTable.SymbolTable a) -> (LoadedModule -> [(Name, a)]) -> Env -> Pos -> UnresolvedReference -> TC a
+resolveReference symbolType bindingTable exportTable env pos = \case
+    UnqualifiedReference name -> do
+        SymbolTable.lookup (bindingTable env) name >>= \case
+            Just er -> return er
+            Nothing -> failTypeError pos $ Error.UnboundSymbol symbolType name
+    QualifiedReference importName name -> do
+        moduleName <- resolveImportName env pos importName
+        resolveReference symbolType bindingTable exportTable env pos $ KnownReference moduleName name
+    KnownReference moduleName name -> do
+        if moduleName == eThisModule env then do
+            resolveReference symbolType bindingTable exportTable env pos (UnqualifiedReference name)
+        else do
+            case findExportByName exportTable env moduleName name of
+                Just export -> return export
+                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+
+resolveTypeReference :: Env -> Pos -> UnresolvedReference -> TC TypeVar
+resolveTypeReference = resolveReference "type" eTypeBindings lmExportedTypes
+
+resolvePatternReference :: Env -> Pos -> UnresolvedReference -> TC PatternReference
+resolvePatternReference = resolveReference "pattern" ePatternBindings lmExportedPatterns
+
+resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitIdentity, TraitDesc)
+resolveTraitReference = resolveReference "trait" eTraitBindings lmExportedTraits
+
+resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TypeVar)
+resolveExceptionReference = resolveReference "exception" eExceptionBindings lmExportedExceptions
+
+resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
+resolveArrayType env pos mutability = do
+    elementType <- case mutability of
+            Immutable -> freshType env
+            Mutable -> freshWeakQVar env
+
+    let typeReference = case mutability of
+            Immutable -> KnownReference "array" "Array"
+            Mutable -> KnownReference "mutarray" "MutableArray"
+    arrayType <- resolveTypeReference env pos typeReference
+    followTypeVar arrayType >>= \case
+        TTypeFun [_argType] (TDataType td) -> do
+            let newArrayType = TDataType td{ tuParameters=[elementType] }
+            return (newArrayType, elementType)
+        _ -> fail "Unexpected Array type"
+
+resolveOptionType :: Env -> Pos -> TC (TypeVar, TypeVar)
+resolveOptionType env pos = do
+    elementType <- freshType env
+
+    let typeReference = KnownReference "option" "Option"
+    optionType <- resolveTypeReference env pos typeReference
+    followTypeVar optionType >>= \case
+        TTypeFun [_argType] (TDataType td) -> do
+            let newOptionType = TDataType td{ tuParameters=[elementType] }
+            return (newOptionType, elementType)
+        _ -> fail "Unexpected Option type"
+
+resolveBooleanType :: Env -> Pos -> TC TypeVar
+resolveBooleanType env pos = do
+    resolveTypeReference env pos (KnownReference "boolean" "Boolean")
+
+resolveNumberType :: Env -> Pos -> TC TypeVar
+resolveNumberType env pos = do
+    resolveTypeReference env pos (KnownReference "number" "Number")
+
+resolveStringType :: Env -> Pos -> TC TypeVar
+resolveStringType env pos = do
+    resolveTypeReference env pos (KnownReference "string" "String")
+
+resolveVoidType :: Env -> Pos -> TC TypeVar
+resolveVoidType env pos = do
+    resolveTypeReference env pos (KnownReference "void" "Void")
 
 data RecordSubst
     = SFree RowVariable
@@ -314,7 +434,7 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
     TQuant constraints _ -> do
-        when (not $ HashMap.member trait constraints) $ do
+        when (not $ Set.member trait constraints) $ do
             fail "Does not implement trait"
     TFun _ _ -> do
         fail "Functions do not implement traits"
@@ -352,8 +472,9 @@ unify env pos av' bv' = do
             unify env pos bv av
         (_, TypeVar bref) -> do
             (TUnbound _ _ constraintsB b') <- readIORef bref
-            for_ (HashMap.toList constraintsB) $ \(traitNumber, desc) -> do
-                validateConstraint env pos av traitNumber desc
+            for_ (Set.toList constraintsB) $ \traitIdentity@(TraitIdentity moduleName name) -> do
+                (_, _, desc) <- resolveTraitReference env pos $ KnownReference moduleName name
+                validateConstraint env pos av traitIdentity desc
             occurs pos b' av
             writeIORef bref $ TBound av
 

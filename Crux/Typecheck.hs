@@ -164,7 +164,7 @@ weaken level e = do
 
 accumulateTraitReferences' :: MonadIO m
     => IORef (Set TypeNumber)
-    -> IORef [(TypeVar, TraitIdentity, TraitDesc)]
+    -> IORef [(TypeVar, TraitIdentity)]
     -> TypeVar
     -> m ()
 accumulateTraitReferences' seen out tv = case tv of
@@ -199,10 +199,10 @@ accumulateTraitReferences' seen out tv = case tv of
             modifyIORef seen (Set.insert typeNumber)
 
             -- TODO: we need to sort this list into a canonical order
-            for_ (HashMap.toList constraints) $ \(traitNumber, traitDesc) -> do
-                modifyIORef out ((typeVar, traitNumber, traitDesc):)
+            for_ (Set.toList constraints) $ \traitIdentity -> do
+                modifyIORef out ((typeVar, traitIdentity):)
 
-accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TraitIdentity, TraitDesc)]
+accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TraitIdentity)]
 accumulateTraitReferences tv = do
     seen <- newIORef mempty
     out <- newIORef mempty
@@ -404,7 +404,7 @@ check' expectedType env = \case
                     [] -> do
                         return $ EIdentifier tv' ref
                     _ -> do
-                        placeholders <- for traits $ \(typeVar, traitNumber, _traitDesc) -> do
+                        placeholders <- for traits $ \(typeVar, traitNumber) -> do
                             return $ EInstancePlaceholder typeVar traitNumber
                         return $ EApp
                             tv'
@@ -758,7 +758,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         traitRefs <- accumulateTraitReferences ty
-        dictArgs <- for traitRefs $ \(tv, traitIdentity, _traitDesc) -> do
+        dictArgs <- for traitRefs $ \(tv, traitIdentity) -> do
 
             followTypeVar tv >>= \case
                 TQuant _ typeNumber -> do
@@ -840,7 +840,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: add an ICE if it's not already set up in the environment
         Just (traitRef, traitNumber, traitDesc) <- SymbolTable.lookup (eTraitBindings env) traitName
         env' <- childEnv env
-        _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber traitDesc
+        _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber
         contents' <- for contents $ \(name, pos'', typeIdent) -> do
             tv <- resolveTypeIdent env' pos'' typeIdent
             let rr = (FromModule $ eThisModule env, name)

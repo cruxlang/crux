@@ -136,7 +136,7 @@ data Strength = Strong | Weak
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant (HashMap TraitIdentity TraitDesc) TypeNumber
+    | TQuant (Set TraitIdentity) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -157,7 +157,7 @@ instance Show TypeVar where
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 data TypeState
-    = TUnbound Strength TypeLevel (HashMap TraitIdentity TraitDesc) TypeNumber
+    = TUnbound Strength TypeLevel (Set TraitIdentity) TypeNumber
     | TBound TypeVar
     deriving (Eq, Show)
 

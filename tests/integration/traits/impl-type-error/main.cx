@@ -1,0 +1,11 @@
+data D {}
+
+trait T a {
+  m: fun(a) -> Number
+}
+
+impl T D {
+  m = fun(d) {
+    "boo"
+  }
+}

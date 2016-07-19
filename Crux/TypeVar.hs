@@ -120,6 +120,8 @@ data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
 data TraitDesc = TraitDesc
     { tdName :: Name
     , tdModule :: ModuleName
+    , tdTypeVar :: TypeVar
+    , tdMethods :: [(Name, TypeVar)]
     }
     deriving (Eq, Show)
 

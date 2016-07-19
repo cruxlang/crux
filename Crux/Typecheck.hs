@@ -852,16 +852,30 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         return $ DTrait unitType traitName typeName contents'
 
     DImpl pos' traitName forall typeIdent values -> do
-        (traitRef, _traitNumber, _traitDesc) <- resolveTraitReference env pos traitName
+        (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitName
 
         env' <- childEnv env
         registerExplicitTypeVariables env' pos' forall
         typeVar <- resolveTypeIdent env' pos' typeIdent
 
+        -- instantiate all of the methods in the same subst dict
+        -- so the typevar is unified across methods
+        subst <- newIORef mempty
+        recordSubst <- newIORef mempty
+        let inst = instantiate' subst recordSubst env'
+        traitParameter <- inst $ tdTypeVar traitDesc
+        newMethods <- for (tdMethods traitDesc) $ \(name, methodType) -> do
+            methodType' <- inst methodType
+            return (name, methodType')
+
+        unify env' pos' typeVar traitParameter
+
         values' <- for values $ \(elementName, expr) -> do
-            -- TODO: unify with trait definition
-            -- TODO: use checkExpecting so TDNR works
-            expr' <- check env expr
+            -- TODO: handle errors
+            let (Just methodTypeVar) = lookup elementName newMethods
+
+            -- TODO: test for TDNR in trait impl
+            expr' <- checkExpecting methodTypeVar env expr
             return (elementName, expr')
 
         -- TODO: verify everything is implemented

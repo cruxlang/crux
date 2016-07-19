@@ -362,16 +362,23 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     traitDecls <- fmap catMaybes $ for decls $ \case
         DTrait pos name typeVarName defns -> do
             env' <- childEnv env
-            typeIndex <- freshTypeIndex env'
+
+            let tn = TraitIdentity (eThisModule env) name
+
+            typeVar <- newQuantifiedConstrainedTypeVar env' pos name tn
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
+            methods <- for defns $ \(mname, mpos, typeIdent) -> do
+                tv <- resolveTypeIdent env' mpos typeIdent
+                return (mname, mpos, tv)
+
             let desc = TraitDesc
                     { tdName = name
                     , tdModule = eThisModule env
+                    , tdTypeVar = typeVar
+                    , tdMethods = map (\(a, _, b) -> (a, b)) methods
                     }
-            let tn = TraitIdentity (eThisModule env) name
-            let typeVar = TQuant (Set.singleton tn) typeIndex
-            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
             SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)
-            return $ Just (env', defns)
+            return $ Just methods
         _ -> return Nothing
 
     -- Phase 2e.
@@ -399,10 +406,9 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         registerExceptionDecl env decl
 
     -- Phase 4a.
-    for_ traitDecls $ \(env', defns) -> do
-        for_ defns $ \(defName, defPos, defTypeIdent) -> do
-            typeVar <- resolveTypeIdent env' defPos defTypeIdent
-            SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable typeVar
+    for_ traitDecls $ \defns -> do
+        for_ defns $ \(defName, defPos, defTypeVar) -> do
+            SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable defTypeVar
     
     -- Phase 4b.
     for_ decls $ \case

@@ -74,3 +74,9 @@ implement Functor Map<key> {
 }
 ```
 
+### Type-Level Comparison
+
+Another downside of using angle brackets is that it makes the possible future feature of type-level comparison syntactically tricky.  `Foo<x < y>`.  We'd probably want to add a new token for that as a workaround.  I'm not aware of any prior art here besides C++, which has insane lexing and parsing rules.
+
+
+

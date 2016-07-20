@@ -1,10 +1,10 @@
 # Angle Brackets for Type Parameters
 
-## Philosophical Arguments
+## Philosophical or Stylistic Arguments
 
 Rust, Swift, C#, and TypeScript all use angle brackets for generics, so they're quite familiar to many people.  For this reason, Chad has traditionally been in favor of angle brackets.
 
-Andy, mdl, and imran have raised the objection that they're visually noisy and intimidating, especially compared to the generics of Haskell and ML which feel a lot lighter and more approachable.
+Andy, mdl, and imran have raised the objection that they're visually noisy and intimidating, especially compared to the generics of Haskell and ML which feel a lot lighter and more approachable.  I'm convinced a great deal of the fear of generics in the industry comes from peoples' past C++ experiences, and we all hope that generics in Crux are as pleasant as they are in Haskell.
 
 Whatever the ultimate syntax, it should be consistent across both definition and use, and all language features.  Predictability is key.
 
@@ -31,7 +31,7 @@ Compare to:
 data Foo<a>(a)
 ```
 
-Angle brackets have the nice property of being a familiar location for introducing type variables into a context.
+Angle brackets have the nice property of being a familiar mechanism for introducing type variables into a context.  Related: explicit introduction of type variables, rather than implicit via case (Haskell) or via apostrophes (OCaml).  Explicit introduction has the nice property that machinery like ScopedTypeVariables is not necessary.
 
 ```
 fun length<a>(arr: [a]): Int {
@@ -78,5 +78,6 @@ implement Functor Map<key> {
 
 Another downside of using angle brackets is that it makes the possible future feature of type-level comparison syntactically tricky.  `Foo<x < y>`.  We'd probably want to add a new token for that as a workaround.  I'm not aware of any prior art here besides C++, which has insane lexing and parsing rules.
 
+# Your thoughts?
 
-
+If you have any thoughts or feedback or ideas, please feel free to comment.

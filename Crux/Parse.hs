@@ -129,28 +129,26 @@ identifier name = fmap snd $ tokenBy $ \case
     TLowerIdentifier t | t == name -> Just ()
     _ -> Nothing
 
-lowerIdentifier :: Parser (Pos, Text)
+lowerIdentifier :: Parser (Text, Pos)
 lowerIdentifier = do
     (t, Token pos _) <- tokenBy $ \case
         TLowerIdentifier t -> Just t
         _ -> Nothing
-    return (pos, t)
+    return (t, pos)
 
-upperIdentifier :: Parser (Pos, Text)
+upperIdentifier :: Parser (Text, Pos)
 upperIdentifier = do
     (t, Token pos _) <- tokenBy $ \case
         TUpperIdentifier t -> Just t
         _ -> Nothing
-    return (pos, t)
+    return (t, pos)
 
-anyIdentifierWithPos :: Parser (Pos, Text)
+anyIdentifierWithPos :: Parser (Text, Pos)
 anyIdentifierWithPos = do
     lowerIdentifier <|> upperIdentifier
 
 anyIdentifier :: Parser Text
-anyIdentifier = do
-    (_, txt) <- anyIdentifierWithPos
-    return txt
+anyIdentifier = fst <$> anyIdentifierWithPos
 
 ifThenElseExpression :: Parser ParseExpression
 ifThenElseExpression = do
@@ -281,7 +279,7 @@ parseString = do
 
 identifierExpression :: Parser ParseExpression
 identifierExpression = do
-    (pos, txt) <- anyIdentifierWithPos
+    (txt, pos) <- anyIdentifierWithPos
     return $ EIdentifier pos $ UnqualifiedReference txt
 
 functionExpression :: Parser ParseExpression
@@ -308,9 +306,9 @@ data PatternContext = RefutableContext | IrrefutableContext
 -- mod.UPPER(...) - PConstructor
 pattern :: PatternContext -> Parser (Pattern ())
 pattern ctx = parenthesized (pattern ctx) <|> wildcardPattern <|> do
-    let lowerBinding = lowerIdentifier >>= return . PBinding . snd
+    let lowerBinding = lowerIdentifier >>= return . PBinding . fst
     let parseConstructor = do
-            (_, constructorName) <- upperIdentifier
+            (constructorName, _) <- upperIdentifier
             -- TODO: if parenthesized, this should require at least one arg
             -- commaDelimited1?
             args <- P.optionMaybe $ parenthesized $ commaDelimited $ pattern ctx
@@ -621,7 +619,7 @@ declareDeclaration = do
 
 variantDefinition :: Parser (Variant Pos)
 variantDefinition = do
-    (pos, ctorname) <- anyIdentifierWithPos
+    (ctorname, pos) <- anyIdentifierWithPos
 
     let withArgs = parenthesized $ commaDelimited typeIdent
     ctordata <- withArgs <|> return []
@@ -722,12 +720,15 @@ blockExpression = do
         -- of all ESemi is wrong
         _ -> foldl1 (ESemi brPos) body
 
-typeVarName :: Parser Name
-typeVarName = anyIdentifier
+typeVarIdent :: Parser TypeVarIdent
+typeVarIdent = do
+    (name, pos) <- anyIdentifierWithPos
+    traits <- P.option [] $ token TColon >> commaDelimited anyIdentifier
+    return $ TypeVarIdent name pos traits
 
-explicitTypeVariableList :: Parser [Name]
+explicitTypeVariableList :: Parser [TypeVarIdent]
 explicitTypeVariableList = do
-    angleBracketed $ commaDelimited typeVarName
+    angleBracketed $ commaDelimited typeVarIdent
 
 funDeclaration :: Parser ParseDeclaration
 funDeclaration = do
@@ -752,7 +753,7 @@ traitDeclaration = do
     name <- anyIdentifier
     typeVar <- anyIdentifier
     (_, decls) <- bracedLines $ do
-        (pos, mname) <- anyIdentifierWithPos
+        (mname, pos) <- anyIdentifierWithPos
         tcolon <- token Tokens.TColon
         mident <- withIndentation (IRDeeper tcolon) typeIdent
         return (pos, (mname, pos, mident))
@@ -767,7 +768,7 @@ implDeclaration = do
     typeIdent_ <- returnTypeIdent
     (_, decls) <- bracedLines $ do
         -- TODO: add sugar for function decl parsing?
-        (pos, elementName) <- anyIdentifierWithPos
+        (elementName, pos) <- anyIdentifierWithPos
         tequal <- token TEqual
         expr <- withIndentation (IRDeeper tequal) noSemiExpression
         return (pos, (elementName, expr))
@@ -828,8 +829,8 @@ pragmas = do
 importDecl :: Parser (Pos, Import)
 importDecl = do
     segments' <- P.sepBy1 anyIdentifierWithPos (token TDot)
-    let ((pos, _):_) = segments'
-    let segments = fmap snd segments'
+    let ((_, pos):_) = segments'
+    let segments = fmap fst segments'
     let prefix = fmap ModuleSegment $ init segments
     let base = ModuleSegment $ last segments
     let moduleName = ModuleName prefix base

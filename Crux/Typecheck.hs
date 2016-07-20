@@ -330,7 +330,7 @@ check' expectedType env = \case
     ELet pos mut pat forall maybeAnnot expr' -> do
         ty <- freshType env
         env' <- childEnv env
-        registerExplicitTypeVariables env' pos forall
+        registerExplicitTypeVariables env' forall
         expr'' <- check env' expr'
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
@@ -667,11 +667,9 @@ exportException export env pos name typeVar = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedExceptions env) pos SymbolTable.DisallowDuplicates name typeVar
 
-registerExplicitTypeVariables :: Env -> Pos -> [Name] -> TC ()
-registerExplicitTypeVariables env pos forall = do
-    for_ forall $ \typeVarName -> do
-        -- TODO: use the pos from each type variable name
-        newQuantifiedTypeVar env pos typeVarName
+registerExplicitTypeVariables :: Env -> [TypeVarIdent] -> TC ()
+registerExplicitTypeVariables env forall = do
+    for_ forall $ registerTypeVarIdent env
     
 checkDecl :: Env -> ParsedDeclaration -> TC TypedDeclaration
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
@@ -703,7 +701,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DDeclare pos' name forall typeIdent -> do
         env' <- childEnv env
-        registerExplicitTypeVariables env' pos' forall
+        registerExplicitTypeVariables env' forall
         ty <- resolveTypeIdent env' pos typeIdent
         let resolvedRef = (Ambient, name)
         let mut = Immutable
@@ -713,7 +711,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     DLet pos' mut pat forall maybeAnnot expr -> do
         env' <- childEnv env
         ty <- freshType env'
-        registerExplicitTypeVariables env' pos forall
+        registerExplicitTypeVariables env' forall
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env' pos annotation
             unify env pos' ty annotTy
@@ -750,7 +748,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportValue export env pos' name (rr, Immutable, ty)
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
         env' <- childEnv env
-        registerExplicitTypeVariables env' pos' forall
+        registerExplicitTypeVariables env' forall
         expr'@(EFun _ fd') <- check env' $ EFun pos' fd
         let FunctionDecl{fdBody=body', fdParams=args'} = fd'
         unify env pos' (edata expr') ty
@@ -855,7 +853,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitName
 
         env' <- childEnv env
-        registerExplicitTypeVariables env' pos' forall
+        registerExplicitTypeVariables env' forall
         typeVar <- resolveTypeIdent env' pos' typeIdent
 
         -- instantiate all of the methods in the same subst dict

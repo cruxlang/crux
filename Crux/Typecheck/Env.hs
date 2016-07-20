@@ -4,6 +4,7 @@ module Crux.Typecheck.Env
     ( newEnv
     , childEnv
     , buildTypeEnvironment
+    , registerTypeVarIdent
     , newQuantifiedTypeVar
     , newQuantifiedConstrainedTypeVar
     , resolveTypeIdent
@@ -134,6 +135,17 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         (optionType, elementType'') <- resolveOptionType env pos
         unify env pos elementType' elementType''
         return optionType
+
+registerTypeVarIdent :: Env -> TypeVarIdent -> TC ()
+registerTypeVarIdent env (TypeVarIdent name pos traits) = do
+    traitIdentities <- for traits $ \traitName -> do
+        (_, traitIdentity, _) <- resolveTraitReference env pos (UnqualifiedReference traitName)
+        return traitIdentity
+    -- TODO: eliminate duplicates? at least warn
+    tyVar <- freshTypeConstrained env $ Set.fromList traitIdentities
+    quantify tyVar
+
+    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name tyVar
 
 newQuantifiedTypeVar :: Env -> Pos -> Name -> TC TypeVar
 newQuantifiedTypeVar env pos name = do
@@ -418,8 +430,8 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             -- TODO: we could have a function which reads the type identity from a TypeVar without needing a full typeident resolution
             -- it would just look at the outermost constructor name
             env' <- childEnv env
-            for_ forall $ \typeVarName -> do
-                newQuantifiedTypeVar env' pos typeVarName
+            for_ forall $ \typeVarIdent -> do
+                registerTypeVarIdent env' typeVarIdent
             typeVar <- resolveTypeIdent env' pos typeReference
             typeIdentity <- case typeVar of
                 TDataType def -> return $ dataTypeIdentity def

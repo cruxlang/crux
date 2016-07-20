@@ -44,15 +44,18 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     , fdBody        :: !(Expression idtype tagtype edata)
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
+data TypeVarIdent = TypeVarIdent Name Pos [Name]
+    deriving (Eq, Show)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype tagtype edata
     -- Exports
     = DExportImport edata Name
     -- Values
-    | DDeclare edata Name [Name] TypeIdent
-    | DLet !edata !Mutability (Pattern tagtype) [Name] (Maybe TypeIdent) (Expression idtype tagtype edata)
-    | DFun !edata !Name [Name] !(FunctionDecl idtype tagtype edata)
+    | DDeclare edata Name [TypeVarIdent] TypeIdent
+    | DLet !edata !Mutability (Pattern tagtype) [TypeVarIdent] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    | DFun !edata !Name [TypeVarIdent] !(FunctionDecl idtype tagtype edata)
     -- Types
     | DData edata Name [Text] [Variant edata]
     | DJSData edata Name [JSVariant]
@@ -62,7 +65,7 @@ data DeclarationType idtype tagtype edata
     | DImpl
         edata     -- ^TypeVar of the type parameter
         idtype    -- ^Trait name
-        [Name]    -- ^Type variables
+        [TypeVarIdent]    -- ^Type variables
         TypeIdent -- ^Type name
         [(Name, Expression idtype tagtype edata)]
     -- Exceptions
@@ -174,7 +177,7 @@ data Mutability
 data Expression idtype tagtype edata
     -- Mutable Wildcard makes no sense -- disallow that?
     -- TODO: should mutability status be part of the pattern?
-    = ELet edata Mutability (Pattern tagtype) [Name] (Maybe TypeIdent) (Expression idtype tagtype edata)
+    = ELet edata Mutability (Pattern tagtype) [TypeVarIdent] (Maybe TypeIdent) (Expression idtype tagtype edata)
     | ELookup edata (Expression idtype tagtype edata) Name
     | EApp edata (Expression idtype tagtype edata) [Expression idtype tagtype edata]
     | EMatch edata (Expression idtype tagtype edata) [Case idtype tagtype edata]

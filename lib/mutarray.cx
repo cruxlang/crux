@@ -26,7 +26,8 @@ export fun get<a>(a: mutable [a], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-impl length.HasLength<a> mutable [a] {
+// TODO: sugar
+impl length.HasLength MutableArray<a> {
   len = fun(arr) {
     return _unsafe_coerce(arr).length
   }

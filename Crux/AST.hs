@@ -65,8 +65,8 @@ data DeclarationType idtype tagtype edata
     | DImpl
         edata     -- ^TypeVar of the type parameter
         idtype    -- ^Trait name
+        UnresolvedReference -- ^Type name
         [TypeVarIdent]    -- ^Type variables
-        TypeIdent -- ^Type name
         [(Name, Expression idtype tagtype edata)]
     -- Exceptions
     | DException edata Name TypeIdent

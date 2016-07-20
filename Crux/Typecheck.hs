@@ -330,7 +330,7 @@ check' expectedType env = \case
     ELet pos mut pat forall maybeAnnot expr' -> do
         ty <- freshType env
         env' <- childEnv env
-        registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall
         expr'' <- check env' expr'
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
@@ -697,7 +697,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     DDeclare pos' name forall typeIdent -> do
         env' <- childEnv env
-        registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall
         ty <- resolveTypeIdent env' pos typeIdent
         let resolvedRef = (Ambient, name)
         let mut = Immutable
@@ -707,7 +707,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
     DLet pos' mut pat forall maybeAnnot expr -> do
         env' <- childEnv env
         ty <- freshType env'
-        registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env' pos annotation
             unify env pos' ty annotTy
@@ -744,7 +744,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportValue export env pos' name (rr, Immutable, ty)
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
         env' <- childEnv env
-        registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall
         expr'@(EFun _ fd') <- check env' $ EFun pos' fd
         let FunctionDecl{fdBody=body', fdParams=args'} = fd'
         unify env pos' (edata expr') ty
@@ -845,12 +845,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName typeName contents'
 
-    DImpl pos' traitName forall typeIdent values -> do
-        (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitName
+    DImpl pos' traitReference typeReference forall values -> do
+        (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
+        typeVar <- resolveTypeReference env pos' typeReference
 
         env' <- childEnv env
-        registerExplicitTypeVariables env' forall
-        typeVar <- resolveTypeIdent env' pos' typeIdent
+
+        -- TODO: assert the list of type variables matches the kind of the data type
+
+        _ <- registerExplicitTypeVariables env' forall
 
         -- instantiate all of the methods in the same subst dict
         -- so the typevar is unified across methods
@@ -874,7 +877,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         -- TODO: verify everything is implemented
 
-        return $ DImpl typeVar traitRef forall typeIdent values'
+        return $ DImpl typeVar traitRef typeReference forall values'
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment

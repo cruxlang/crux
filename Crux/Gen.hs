@@ -385,6 +385,8 @@ traitDictName traitName' typeVar = do
             error "Unexpected traitDictName got unbound typevar"
         TDataType def ->
             return $ dataTypeIdentity def
+        TTypeFun _ (TDataType def) ->
+            return $ dataTypeIdentity def
         tv2 -> do
             s <- showTypeVarIO tv2
             error $ "Unexpected traitDictName " ++ s

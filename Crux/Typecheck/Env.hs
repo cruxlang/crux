@@ -429,18 +429,13 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     
     -- Phase 4b.
     for_ decls $ \case
-        DImpl pos traitName forall typeReference _values -> do
-            (_, traitNumber, _) <- resolveTraitReference env pos traitName
-
-            -- TODO: we could have a function which reads the type identity from a TypeVar without needing a full typeident resolution
-            -- it would just look at the outermost constructor name
-            env' <- childEnv env
-            for_ forall $ \typeVarIdent -> do
-                registerTypeVarIdent env' typeVarIdent
-            typeVar <- resolveTypeIdent env' pos typeReference
-            typeIdentity <- case typeVar of
+        DImpl pos traitReference typeReference _forall _values -> do
+            (_, traitNumber, _) <- resolveTraitReference env pos traitReference
+            typeVar <- resolveTypeReference env pos typeReference
+            typeIdentity <- followTypeVar typeVar >>= \case
                 TDataType def -> return $ dataTypeIdentity def
-                _ -> fail "Type doesn't support traits"
-            
+                TTypeFun _args (TDataType def) -> return $ dataTypeIdentity def
+                _ -> fail $ "Type doesn't support traits: " ++ show (eThisModule env) ++ ": " ++ show typeVar
+
             HashTable.insert (traitNumber, typeIdentity) (eThisModule env) (eKnownInstances env)
         _ -> return ()

@@ -20,7 +20,7 @@ export fun get<t>(a: [t], idx: Number) {
     _unsafe_get(a, idx)
 }
 
-impl length.HasLength<a> [a] {
+impl length.HasLength Array<a> {
   len = fun(a) {
     _unsafe_coerce(a).length
   }

@@ -139,7 +139,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
 registerTypeVarIdent :: Env -> TypeVarIdent -> TC ()
 registerTypeVarIdent env (TypeVarIdent name pos traits) = do
     traitIdentities <- for traits $ \traitName -> do
-        (_, traitIdentity, _) <- resolveTraitReference env pos (UnqualifiedReference traitName)
+        (_, traitIdentity, _) <- resolveTraitReference env pos traitName
         return traitIdentity
     -- TODO: eliminate duplicates? at least warn
     tyVar <- freshTypeConstrained env $ Set.fromList traitIdentities

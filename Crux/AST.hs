@@ -44,7 +44,7 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     , fdBody        :: !(Expression idtype tagtype edata)
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data TypeVarIdent = TypeVarIdent Name Pos [Name]
+data TypeVarIdent = TypeVarIdent Name Pos [UnresolvedReference]
     deriving (Eq, Show)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup

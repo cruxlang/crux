@@ -723,7 +723,7 @@ blockExpression = do
 typeVarIdent :: Parser TypeVarIdent
 typeVarIdent = do
     (name, pos) <- anyIdentifierWithPos
-    traits <- P.option [] $ token TColon >> commaDelimited anyIdentifier
+    traits <- P.option [] $ token TColon >> commaDelimited unresolvedReference
     return $ TypeVarIdent name pos traits
 
 explicitTypeVariableList :: Parser [TypeVarIdent]

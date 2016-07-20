@@ -78,6 +78,12 @@ implement Functor Map<key> {
 
 Another downside of using angle brackets is that it makes the possible future feature of type-level comparison syntactically tricky.  `Foo<x < y>`.  We'd probably want to add a new token for that as a workaround.  I'm not aware of any prior art here besides C++, which has insane lexing and parsing rules.
 
+## How important is this syntax?
+
+I suspect that, in practice, this syntax is not that important.  Crux infers the most general type, and placeholder type variables avoid the need to spell out types all the time.
+
+In addition, sugar for arrays, mutable arrays, and optionals means the angle brackets shouldn't show up too much in typical code.
+
 # Your thoughts?
 
 If you have any thoughts or feedback or ideas, please feel free to comment.

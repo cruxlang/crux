@@ -1,0 +1,17 @@
+trait Plop a {
+  plop: fun(a) -> String
+}
+
+data Flip {
+  Flip
+}
+
+fun f<a: Plop>(a: a) {
+  plop(a)
+}
+
+fun main() {
+  f(Flip)
+}
+
+let _ = main()

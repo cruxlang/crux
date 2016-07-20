@@ -1,4 +1,4 @@
-export data Dispatcher action ({
+export data Dispatcher<action>({
   mutable currentToken: Number,
   callbacks: mutable [fun(action) -> ()],
 })

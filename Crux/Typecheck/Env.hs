@@ -5,6 +5,7 @@ module Crux.Typecheck.Env
     , childEnv
     , buildTypeEnvironment
     , registerTypeVarIdent
+    , registerExplicitTypeVariables
     , newQuantifiedTypeVar
     , newQuantifiedConstrainedTypeVar
     , resolveTypeIdent
@@ -136,7 +137,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         unify env pos elementType' elementType''
         return optionType
 
-registerTypeVarIdent :: Env -> TypeVarIdent -> TC ()
+registerTypeVarIdent :: Env -> TypeVarIdent -> TC TypeVar
 registerTypeVarIdent env (TypeVarIdent name pos traits) = do
     traitIdentities <- for traits $ \traitName -> do
         (_, traitIdentity, _) <- resolveTraitReference env pos traitName
@@ -146,7 +147,12 @@ registerTypeVarIdent env (TypeVarIdent name pos traits) = do
     quantify tyVar
 
     SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name tyVar
+    return tyVar
 
+registerExplicitTypeVariables :: Env -> [TypeVarIdent] -> TC [TypeVar]
+registerExplicitTypeVariables env forall = do
+    for forall $ registerTypeVarIdent env
+    
 newQuantifiedTypeVar :: Env -> Pos -> Name -> TC TypeVar
 newQuantifiedTypeVar env pos name = do
     tyVar <- freshType env
@@ -331,8 +337,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     dataDecls' <- for dataDecls $ \(pos, typeName, typeVarNames, variants) -> do
         e <- childEnv env
-        tyVars <- for typeVarNames $ \tvName -> do
-            newQuantifiedTypeVar e pos tvName
+        tyVars <- registerExplicitTypeVariables e typeVarNames
 
         typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
         let tyVar = TDataType typeDef
@@ -396,7 +401,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     -- Phase 2e.
     for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
-        for_ qvars $ \(qvName, qvTypeVar) ->
+        for_ qvars $ \(TypeVarIdent qvName _ _, qvTypeVar) ->
             SymbolTable.insert (eTypeBindings e) pos SymbolTable.DisallowDuplicates qvName qvTypeVar
 
         for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do

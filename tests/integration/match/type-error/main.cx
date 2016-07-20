@@ -1,4 +1,4 @@
-data Wrapper a {
+data Wrapper<a> {
   Wrapped(a)
 }
 

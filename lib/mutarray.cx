@@ -10,7 +10,7 @@ import {
 // TODO: implement selective import
 type Number = number.Number
 
-export data MutableArray a {}
+export data MutableArray<a> {}
 
 let _unsafe_new<a>: fun(Number) -> mutable [a] =
     _unsafe_js("function (len) { return new Array(len); }")

@@ -1,4 +1,4 @@
-data List a {
+data List<a> {
     Cons(a, List a),
     Nil,
 }

@@ -4,7 +4,7 @@ import {
     boolean(...)
 }
 
-export data Option a {
+export data Option<a> {
     Some(a),
     None,
 }

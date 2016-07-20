@@ -8,7 +8,7 @@ import {
 // TODO: implement selective import
 type Number = number.Number
 
-export data Array a {}
+export data Array<a> {}
 
 let _unsafe_new<a>: fun(Number) -> [a] =
     _unsafe_js("function (len) { return new Array(len); }")

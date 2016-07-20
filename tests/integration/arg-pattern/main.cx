@@ -1,4 +1,4 @@
-data W a(a)
+data W<a>(a)
 
 fun f(W(s)) {
   s

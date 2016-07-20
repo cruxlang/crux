@@ -57,7 +57,7 @@ data DeclarationType idtype tagtype edata
     | DLet !edata !Mutability (Pattern tagtype) [TypeVarIdent] (Maybe TypeIdent) (Expression idtype tagtype edata)
     | DFun !edata !Name [TypeVarIdent] !(FunctionDecl idtype tagtype edata)
     -- Types
-    | DData edata Name [Text] [Variant edata]
+    | DData edata Name [TypeVarIdent] [Variant edata]
     | DJSData edata Name [JSVariant]
     | DTypeAlias edata Name [Name] TypeIdent
     -- Traits

@@ -667,10 +667,6 @@ exportException export env pos name typeVar = do
     when (export == Export) $ do
         SymbolTable.insert (eExportedExceptions env) pos SymbolTable.DisallowDuplicates name typeVar
 
-registerExplicitTypeVariables :: Env -> [TypeVarIdent] -> TC ()
-registerExplicitTypeVariables env forall = do
-    for_ forall $ registerTypeVarIdent env
-    
 checkDecl :: Env -> ParsedDeclaration -> TC TypedDeclaration
 checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g decl
  where

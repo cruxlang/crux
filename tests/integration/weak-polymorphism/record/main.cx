@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-data Maybe a { None, Some(a) }
+data Maybe<a> { None, Some(a) }
 
 let a = { x : None }
 

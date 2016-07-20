@@ -115,8 +115,8 @@ test_times = do
         (EBinIntrinsic () BIMultiply (ELiteral () $ LInteger 8) (ELiteral () $ LInteger 8))
 
 test_polymorphic_data = do
-    assertExprParses dataDeclaration "data Maybe a { Some(a), None, };"
-        (DData () "Maybe" ["a"] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])
+    assertExprParses dataDeclaration "data Maybe<a> { Some(a), None, };"
+        (DData () "Maybe" [TypeVarIdent "a" (Pos 1 1 12) []] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"

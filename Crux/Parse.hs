@@ -629,7 +629,7 @@ variantDefinition = do
 cruxDataDeclaration :: Pos -> Parser ParseDeclaration
 cruxDataDeclaration pos = do
     name <- typeName
-    typeVars <- P.many typeVariableName
+    typeVars <- P.option [] explicitTypeVariableList
 
     let shorthand = do
             args <- parenthesized $ commaDelimited typeIdent

@@ -1,4 +1,4 @@
-data Option2 a {
+data Option2<a> {
     None2,
     Some2(a)
 }

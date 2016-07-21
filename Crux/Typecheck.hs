@@ -721,6 +721,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         -- This is not unified with buildPatternEnv because ThisModule has different
         -- behavior from Local with respect to let generalization.
+        -- TODO: try again
         pat' <- case pat of
             PWildcard -> do
                 return PWildcard

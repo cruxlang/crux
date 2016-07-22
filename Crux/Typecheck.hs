@@ -164,7 +164,7 @@ weaken level e = do
 
 accumulateTraitReferences' :: MonadIO m
     => IORef (Set TypeNumber)
-    -> IORef [(TypeVar, TraitIdentity)]
+    -> IORef [(TypeVar, TypeNumber, TraitIdentity)]
     -> TypeVar
     -> m ()
 accumulateTraitReferences' seen out tv = case tv of
@@ -187,7 +187,7 @@ accumulateTraitReferences' seen out tv = case tv of
         fail "ICE: what does this mean"
 
   where
-    followRecord ref =  readIORef ref >>= \case
+    followRecord ref = readIORef ref >>= \case
         RBound ref2 ->
             followRecord ref2
         RRecord (RecordType _open rows) ->
@@ -200,9 +200,9 @@ accumulateTraitReferences' seen out tv = case tv of
 
             -- TODO: we need to sort this list into a canonical order
             for_ (Set.toList constraints) $ \traitIdentity -> do
-                modifyIORef out ((typeVar, traitIdentity):)
+                modifyIORef out ((typeVar, typeNumber, traitIdentity):)
 
-accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TraitIdentity)]
+accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TypeNumber, TraitIdentity)]
 accumulateTraitReferences tv = do
     seen <- newIORef mempty
     out <- newIORef mempty
@@ -404,7 +404,7 @@ check' expectedType env = \case
                     [] -> do
                         return $ EIdentifier tv' ref
                     _ -> do
-                        placeholders <- for traits $ \(typeVar, traitNumber) -> do
+                        placeholders <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
                             return $ EInstancePlaceholder typeVar traitNumber
                         return $ EApp
                             tv'
@@ -737,12 +737,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         traitRefs <- accumulateTraitReferences ty
-        dictArgs <- for traitRefs $ \(tv, traitIdentity) -> do
-            followTypeVar tv >>= \case
-                TQuant _ typeNumber -> do
-                    return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
-                _ -> do
-                    fail "ICE: traits on wat"
+        dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
+            return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
 
         expr''' <- resolveInstanceDictPlaceholders expr''
 
@@ -770,12 +766,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         traitRefs <- accumulateTraitReferences ty
-        dictArgs <- for traitRefs $ \(tv, traitIdentity) -> do
-            followTypeVar tv >>= \case
-                TQuant _ typeNumber -> do
-                    return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
-                _ -> do
-                    fail "ICE: traits on wat"
+        dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
+            return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
 
         body'' <- resolveInstanceDictPlaceholders body'
 

@@ -1,0 +1,28 @@
+trait Show a {
+  show: fun(a) -> String
+}
+
+impl Show Number {
+  show = toString
+}
+
+impl Show String {
+  show = fun(s) { s }
+}
+
+let f = fun(x) {
+  show(x)
+}
+
+let g = show
+let h: fun(Number) -> String = g
+
+fun main() {
+  print(f("1"))
+  print(f(2))
+  print(g("3"))
+  print(g(4))
+  print(h(5))
+}
+
+let _ = main()

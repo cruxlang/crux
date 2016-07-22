@@ -735,9 +735,26 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
 
         quantify ty
+
+        traitRefs <- accumulateTraitReferences ty
+        dictArgs <- for traitRefs $ \(tv, traitIdentity) -> do
+            followTypeVar tv >>= \case
+                TQuant _ typeNumber -> do
+                    return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
+                _ -> do
+                    fail "ICE: traits on wat"
+
         expr''' <- resolveInstanceDictPlaceholders expr''
 
-        return $ DLet (edata expr'') mut pat' forall maybeAnnot expr'''
+        let expr'''' = case dictArgs of
+                [] -> expr'''
+                _ -> EFun (edata expr''') $ FunctionDecl
+                    { fdParams = map (\p -> (p, Nothing)) dictArgs
+                    , fdReturnAnnot = Nothing
+                    , fdBody = expr'''
+                    }
+
+        return $ DLet (edata expr'''') mut pat' forall maybeAnnot expr''''
 
     DFun pos' name forall fd -> do
         ty <- freshType env
@@ -754,7 +771,6 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         traitRefs <- accumulateTraitReferences ty
         dictArgs <- for traitRefs $ \(tv, traitIdentity) -> do
-
             followTypeVar tv >>= \case
                 TQuant _ typeNumber -> do
                     return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber

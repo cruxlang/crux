@@ -469,11 +469,16 @@ unify env pos av' bv' = do
         -- thanks to followTypeVar, the only TypeVar case here is TUnbound
         (TypeVar aref, TypeVar bref) -> do
             (TUnbound _ _ constraintsA a') <- readIORef aref
-            (TUnbound _ _ constraintsB b') <- readIORef bref
+            (TUnbound strengthB levelB constraintsB b') <- readIORef bref
+
             -- TODO: merge the constraints
             when ((constraintsA, a') /= (constraintsB, b')) $ do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
+                -- TODO: how do we merge strength?
+                -- TODO: how do we merge level?
+                -- TODO: instead of mutating both, maybe introduce a new type var and bind both?
+                writeIORef bref $ TUnbound strengthB levelB (constraintsA <> constraintsB) b'
         (TypeVar _, _) -> do
             -- flip around so we only have to handle one case
             -- TODO: fix the error messages

@@ -1,6 +1,7 @@
 module Crux.Module.Types
     ( PatternTag(..)
     , PatternReference(..)
+    , InstanceDesc(..)
     , LoadedModule(..)
     , Program(..)
     ) where
@@ -21,6 +22,12 @@ data PatternTag
 data PatternReference = PatternReference (TDataTypeDef TypeVar) PatternTag
     deriving (Eq)
 
+data InstanceDesc = InstanceDesc
+    { idModuleName :: ModuleName
+    , idTypeVar :: TypeVar
+    }
+    deriving (Eq)
+
 data LoadedModule = LoadedModule
     { lmModule :: Module ResolvedReference PatternTag TypeVar
     , lmExportedValues :: [(Name, (ResolvedReference, Mutability, TypeVar))]
@@ -28,7 +35,7 @@ data LoadedModule = LoadedModule
     , lmExportedPatterns :: [(Name, PatternReference)]
     , lmExportedTraits :: [(Name, (ResolvedReference, TraitIdentity, TraitDesc))]
     , lmExportedExceptions :: [(Name, (ResolvedReference, TypeVar))]
-    , lmKnownInstances :: Set (TraitIdentity, TDataTypeIdentity, ModuleName)
+    , lmKnownInstances :: HashMap (TraitIdentity, TDataTypeIdentity) InstanceDesc
     } deriving (Eq)
 
 --type CheckedModule = Module ResolvedReference PatternTag TypeVar

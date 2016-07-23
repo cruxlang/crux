@@ -929,5 +929,5 @@ run loadedModules thisModule thisModuleName = do
     lmExportedPatterns <- HashMap.toList <$> SymbolTable.readAll (eExportedPatterns env)
     lmExportedTraits <- HashMap.toList <$> SymbolTable.readAll (eExportedTraits env)
     lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
-    lmKnownInstances <- (Set.fromList . fmap (\((a, b), c) -> (a, b, c)) . HashMap.toList) <$> HashTable.read (eKnownInstances env)
+    lmKnownInstances <- HashTable.read (eKnownInstances env)
     return $ LoadedModule{..}

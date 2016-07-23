@@ -9,7 +9,7 @@ module Crux.Typecheck.Types
 
 import Crux.ModuleName (ModuleName)
 import Crux.AST (Mutability, ResolvedReference)
-import Crux.Module.Types (LoadedModule, PatternTag (..), PatternReference (..))
+import Crux.Module.Types (LoadedModule, PatternTag(..), PatternReference(..), InstanceDesc(..))
 import Crux.Prelude
 import Crux.TypeVar (TDataTypeIdentity, TraitIdentity, TraitDesc, TypeLevel(..), TypeVar(..))
 import Crux.SymbolTable (SymbolTable)
@@ -23,14 +23,14 @@ data Env = Env
     { eThisModule         :: ModuleName
     , eLoadedModules      :: HashMap ModuleName LoadedModule
     , eNextTypeIndex      :: IORef Int
+
     , eValueBindings      :: SymbolTable ValueReference
     , eTypeBindings       :: SymbolTable TypeVar
     , ePatternBindings    :: SymbolTable PatternReference
     , eTraitBindings      :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
     , eExceptionBindings  :: SymbolTable (ResolvedReference, TypeVar)
-    -- TODO: make this a set?
-    -- TODO: we don't actually care about the instance's module name
-    , eKnownInstances     :: HashTable (TraitIdentity, TDataTypeIdentity) ModuleName
+
+    , eKnownInstances     :: HashTable (TraitIdentity, TDataTypeIdentity) InstanceDesc
 
     , eReturnType         :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop             :: !Bool

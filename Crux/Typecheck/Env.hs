@@ -183,7 +183,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 Just im -> return im
                 Nothing -> failICE $ Error.DependentModuleNotLoaded pos importName
 
-            for_ (Set.toList $ lmKnownInstances importedModule) $ \(a, b, c) -> do
+            for_ (HashMap.toList $ lmKnownInstances importedModule) $ \((a, b), c) -> do
                 HashTable.insert (a, b) c $ eKnownInstances env
 
             -- populate types
@@ -203,7 +203,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
                 Just im -> return im
                 Nothing -> failICE $ Error.DependentModuleNotLoaded pos moduleName
 
-            for_ (Set.toList $ lmKnownInstances importedModule) $ \(a, b, c) -> do
+            for_ (HashMap.toList $ lmKnownInstances importedModule) $ \((a, b), c) -> do
                 HashTable.insert (a, b) c $ eKnownInstances env
 
             for_ importName $ \importName' -> do
@@ -412,16 +412,18 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             (_, traitNumber, _) <- resolveTraitReference env pos traitReference
             typeVar <- resolveTypeReference env pos typeReference
 
-            -- TODO: generalize this to use a type application helper
-            typeIdentity <- followTypeVar typeVar >>= \case
-                TDataType def -> case forall of
-                    [] -> return $ dataTypeIdentity def
-                    _ -> failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeReference) 0 (length forall)
-                TTypeFun args (TDataType def) -> do
-                    when (length forall /= length args) $ do
-                        failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeReference) (length args) (length forall)
-                    return $ dataTypeIdentity def
+            env' <- childEnv env
+            instanceParameterTypes <- registerExplicitTypeVariables env' forall
+            instanceTypeVar <- applyTypeFunction env pos typeReference DisallowTypeFunctions typeVar instanceParameterTypes
+
+            typeIdentity <- case instanceTypeVar of
+                TDataType def -> return $ dataTypeIdentity def
                 _ -> fail $ "Type doesn't support traits: " ++ show (eThisModule env) ++ ": " ++ show typeVar
 
-            HashTable.insert (traitNumber, typeIdentity) (eThisModule env) (eKnownInstances env)
+            let instanceDesc = InstanceDesc
+                    { idModuleName = eThisModule env
+                    , idTypeVar = instanceTypeVar
+                    }
+
+            HashTable.insert (traitNumber, typeIdentity) instanceDesc (eKnownInstances env)
         _ -> return ()

@@ -33,7 +33,6 @@ import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
 import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap
-import qualified Data.Text as Text
 import Prelude hiding (String)
 import qualified Crux.SymbolTable as SymbolTable
 import qualified Crux.HashTable as HashTable
@@ -84,30 +83,10 @@ resolveTypeIdent env@Env{..} pos typeIdent =
     go UnitTypeIdent = do
         resolveVoidType env pos
 
-    go (TypeIdent typeName typeParameters) = do
-        ty <- resolveTypeReference env pos typeName >>= followTypeVar
-        case ty of
-            TDataType TDataTypeDef{tuName}
-                | [] == typeParameters -> do
-                    return ty
-                | otherwise -> do
-                    failTypeError pos $ Error.IllegalTypeApplication tuName
-            TTypeFun tuParameters _rt
-                | [] == typeParameters -> do
-                    return ty
-                | length tuParameters == length typeParameters -> do
-                    (TTypeFun tuParameters' rt') <- instantiate env ty
-                    for_ (zip tuParameters' typeParameters) $ \(a, b) -> do
-                        b' <- resolveTypeIdent env pos b
-                        unify env pos a b'
-                    return rt'
-                | otherwise -> do
-                    failTypeError pos $ Error.TypeApplicationMismatch (getUnresolvedReferenceLeaf typeName) (length tuParameters) (length typeParameters)
-            _
-                | [] == typeParameters ->
-                    return ty
-                | otherwise ->
-                    failTypeError pos $ Error.IllegalTypeApplication (Text.pack $ show ty)
+    go (TypeIdent typeName typeArguments) = do
+        ty <- resolveTypeReference env pos typeName
+        typeArguments' <- for typeArguments $ resolveTypeIdent env pos
+        applyTypeFunction env pos (getUnresolvedReferenceLeaf typeName) AllowTypeFunctions ty typeArguments'
 
     go (RecordIdent rows) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do

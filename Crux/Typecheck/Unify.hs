@@ -18,6 +18,7 @@ import Crux.Module.Types
 import qualified Crux.Error as Error
 import Crux.ModuleName (ModuleName)
 import Crux.Util
+import qualified Data.Text as Text
 
 freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do
@@ -115,6 +116,38 @@ resolveTraitReference = resolveReference "trait" eTraitBindings lmExportedTraits
 
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TypeVar)
 resolveExceptionReference = resolveReference "exception" eExceptionBindings lmExportedExceptions
+
+data TypeApplicationPolicy = AllowTypeFunctions | DisallowTypeFunctions
+    deriving (Eq)
+
+applyTypeFunction :: Env -> Pos -> Name -> TypeApplicationPolicy -> TypeVar -> [TypeVar] -> TC TypeVar
+applyTypeFunction env pos typeName typeApplicationPolicy inputType typeArguments = do
+    ty <- followTypeVar inputType
+    case ty of
+        TDataType TDataTypeDef{tuName}
+            | [] == typeArguments -> do
+                return ty
+            | otherwise -> do
+                failTypeError pos $ Error.IllegalTypeApplication tuName
+        TTypeFun tuParameters _rt
+            | [] == typeArguments -> case typeApplicationPolicy of
+                AllowTypeFunctions -> return ty
+                DisallowTypeFunctions -> do
+                    failTypeError pos $ Error.TypeApplicationMismatch typeName (length tuParameters) 0
+            | length tuParameters == length typeArguments -> do
+                (TTypeFun tuParameters' rt') <- instantiate env ty
+                for_ (zip tuParameters' typeArguments) $ \(a, b) -> do
+                    unify env pos a b
+                return rt'
+            | otherwise -> do
+                failTypeError pos $ Error.TypeApplicationMismatch typeName (length tuParameters) (length typeArguments)
+        _
+            | [] == typeArguments ->
+                return ty
+            | otherwise ->
+                -- TODO: make this error message sane
+                failTypeError pos $ Error.IllegalTypeApplication (Text.pack $ show ty)
+
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
 resolveArrayType env pos mutability = do

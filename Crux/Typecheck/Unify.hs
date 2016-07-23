@@ -159,11 +159,8 @@ resolveArrayType env pos mutability = do
             Immutable -> KnownReference "array" "Array"
             Mutable -> KnownReference "mutarray" "MutableArray"
     arrayType <- resolveTypeReference env pos typeReference
-    followTypeVar arrayType >>= \case
-        TTypeFun [_argType] (TDataType td) -> do
-            let newArrayType = TDataType td{ tuParameters=[elementType] }
-            return (newArrayType, elementType)
-        _ -> fail "Unexpected Array type"
+    newArrayType <- applyTypeFunction env pos (getUnresolvedReferenceLeaf typeReference) DisallowTypeFunctions arrayType [elementType]
+    return (newArrayType, elementType)
 
 resolveOptionType :: Env -> Pos -> TC (TypeVar, TypeVar)
 resolveOptionType env pos = do
@@ -171,11 +168,8 @@ resolveOptionType env pos = do
 
     let typeReference = KnownReference "option" "Option"
     optionType <- resolveTypeReference env pos typeReference
-    followTypeVar optionType >>= \case
-        TTypeFun [_argType] (TDataType td) -> do
-            let newOptionType = TDataType td{ tuParameters=[elementType] }
-            return (newOptionType, elementType)
-        _ -> fail "Unexpected Option type"
+    newOptionType <- applyTypeFunction env pos (getUnresolvedReferenceLeaf typeReference) DisallowTypeFunctions optionType [elementType]
+    return (newOptionType, elementType)
 
 resolveBooleanType :: Env -> Pos -> TC TypeVar
 resolveBooleanType env pos = do

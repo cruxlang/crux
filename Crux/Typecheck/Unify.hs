@@ -120,8 +120,9 @@ resolveExceptionReference = resolveReference "exception" eExceptionBindings lmEx
 data TypeApplicationPolicy = AllowTypeFunctions | DisallowTypeFunctions
     deriving (Eq)
 
-applyTypeFunction :: Env -> Pos -> Name -> TypeApplicationPolicy -> TypeVar -> [TypeVar] -> TC TypeVar
-applyTypeFunction env pos typeName typeApplicationPolicy inputType typeArguments = do
+applyTypeFunction :: Env -> Pos -> UnresolvedReference -> TypeApplicationPolicy -> TypeVar -> [TypeVar] -> TC TypeVar
+applyTypeFunction env pos typeReference typeApplicationPolicy inputType typeArguments = do
+    let typeName = getUnresolvedReferenceLeaf typeReference
     ty <- followTypeVar inputType
     case ty of
         TDataType TDataTypeDef{tuName}
@@ -159,7 +160,7 @@ resolveArrayType env pos mutability = do
             Immutable -> KnownReference "array" "Array"
             Mutable -> KnownReference "mutarray" "MutableArray"
     arrayType <- resolveTypeReference env pos typeReference
-    newArrayType <- applyTypeFunction env pos (getUnresolvedReferenceLeaf typeReference) DisallowTypeFunctions arrayType [elementType]
+    newArrayType <- applyTypeFunction env pos typeReference DisallowTypeFunctions arrayType [elementType]
     return (newArrayType, elementType)
 
 resolveOptionType :: Env -> Pos -> TC (TypeVar, TypeVar)
@@ -168,7 +169,7 @@ resolveOptionType env pos = do
 
     let typeReference = KnownReference "option" "Option"
     optionType <- resolveTypeReference env pos typeReference
-    newOptionType <- applyTypeFunction env pos (getUnresolvedReferenceLeaf typeReference) DisallowTypeFunctions optionType [elementType]
+    newOptionType <- applyTypeFunction env pos typeReference DisallowTypeFunctions optionType [elementType]
     return (newOptionType, elementType)
 
 resolveBooleanType :: Env -> Pos -> TC TypeVar

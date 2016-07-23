@@ -86,7 +86,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
     go (TypeIdent typeName typeArguments) = do
         ty <- resolveTypeReference env pos typeName
         typeArguments' <- for typeArguments $ resolveTypeIdent env pos
-        applyTypeFunction env pos (getUnresolvedReferenceLeaf typeName) AllowTypeFunctions ty typeArguments'
+        applyTypeFunction env pos typeName AllowTypeFunctions ty typeArguments'
 
     go (RecordIdent rows) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do

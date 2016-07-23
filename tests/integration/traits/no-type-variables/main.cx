@@ -1,0 +1,9 @@
+trait N a {
+  e: fun(a) -> Number
+}
+
+impl N Option {
+  e = fun(m) {
+    return 0
+  }
+}

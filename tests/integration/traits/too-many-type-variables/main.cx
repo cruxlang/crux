@@ -1,0 +1,9 @@
+trait N a {
+  e: fun(a) -> Number
+}
+
+impl N Number<a> {
+  e = fun(m) {
+    return 0
+  }
+}

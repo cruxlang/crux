@@ -1,0 +1,38 @@
+
+data Pair<a, b>(a, b)
+
+// Eq
+trait E a {
+  e: fun(a, a) -> Boolean
+}
+
+impl E Option<a: E> {
+  e = fun(lhs, rhs) {
+    match Pair(lhs, rhs) {
+      Pair(None, None) => True
+      Pair(Some(x), Some(y)) => e(x, y)
+      _ => False
+    }
+  }
+}
+
+impl E Number {
+  e = fun(x, y) { x == y }
+}
+
+// TODO: move this into another test.  it should not typecheck because
+// instance selection is ambiguous.
+//let _ = e(None, None)
+
+// TODO: this should not typecheck because no Pair or String instance
+// TODO: move to another test
+//let _ = e(Some(Pair(1, "hi")), None)
+
+fun main() {
+  let n: ?Number = None
+  print(e(n, n))
+  print(e(Some(10), None))
+  print(e(Some(10), Some(11)))
+  print(e(Some(12), Some(12)))
+}
+let _ = main()

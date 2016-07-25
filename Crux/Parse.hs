@@ -773,7 +773,7 @@ implDeclaration = do
         expr <- withIndentation (IRDeeper tequal) noSemiExpression
         return (pos, (elementName, expr))
 
-    return $ DImpl (tokenData timpl) traitName typeName' forall decls
+    return $ DImpl (tokenData timpl) traitName typeName' forall decls []
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

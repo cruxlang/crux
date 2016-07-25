@@ -112,7 +112,7 @@ data DeclarationType
 
 data Declaration
     = Declaration AST.ExportFlag DeclarationType
-    | TraitInstance Name (HashMap Name (Value, [Instruction]))
+    | TraitInstance Name (HashMap Name (Value, [Instruction])) [Name]
     deriving (Show, Eq)
 
 type Program = [(ModuleName, Module)] -- topologically sorted
@@ -385,8 +385,6 @@ traitDictName traitName' typeVar = do
             error "Unexpected traitDictName got unbound typevar"
         TDataType def ->
             return $ dataTypeIdentity def
-        TTypeFun _ (TDataType def) ->
-            return $ dataTypeIdentity def
         tv2 -> do
             s <- showTypeVarIO tv2
             error $ "Unexpected traitDictName " ++ s
@@ -425,7 +423,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
-    AST.DImpl typeVar traitName _ _typeIdent decls -> do
+    AST.DImpl typeVar traitName _ _typeIdent decls contextParameters -> do
         instanceName <- traitDictName traitName typeVar
         decls' <- for decls $ \(name, expr) -> do
             -- TODO: find some better way to guarantee that we never
@@ -433,7 +431,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             (Just value, instructions) <- subBlock' env expr
             return (name, (value, instructions))
 
-        writeDeclaration $ TraitInstance instanceName $ HashMap.fromList decls'
+        writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextParameters
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

@@ -202,11 +202,11 @@ accumulateTraitReferences' seen out tv = case tv of
             for_ (Set.toList constraints) $ \traitIdentity -> do
                 modifyIORef out ((typeVar, typeNumber, traitIdentity):)
 
-accumulateTraitReferences :: MonadIO m => TypeVar -> m [(TypeVar, TypeNumber, TraitIdentity)]
-accumulateTraitReferences tv = do
+accumulateTraitReferences :: MonadIO m => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
+accumulateTraitReferences typeVars = do
     seen <- newIORef mempty
     out <- newIORef mempty
-    accumulateTraitReferences' seen out tv
+    for_ typeVars $ accumulateTraitReferences' seen out
     reverse <$> readIORef out
 
 check' :: TypeVar -> Env -> ParsedExpression -> TC TypedExpression
@@ -399,7 +399,7 @@ check' expectedType env = \case
                 return $ EIdentifier tv ref
             (ref, _mutability, tv) -> do
                 tv' <- instantiate env tv
-                traits <- accumulateTraitReferences tv'
+                traits <- accumulateTraitReferences [tv']
                 case traits of
                     [] -> do
                         return $ EIdentifier tv' ref
@@ -540,8 +540,8 @@ renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
 
 -- TODO: this replacement algorithm could be quadratic depending on the number of
 -- nested functions, so we should switch the placeholders over to IORefs
-resolveInstanceDictPlaceholders :: TypedExpression -> TC TypedExpression
-resolveInstanceDictPlaceholders = recurse
+resolveInstanceDictPlaceholders :: Env -> TypedExpression -> TC TypedExpression
+resolveInstanceDictPlaceholders env = recurse
   where recurse = \case
             ELet tv mut pat forall typeIdent body -> do
                 body' <- recurse body
@@ -631,7 +631,24 @@ resolveInstanceDictPlaceholders = recurse
                         fail "Don't support traits on functions"
                     TDataType def -> do
                         let dtid = dataTypeIdentity def
-                        return $ EInstanceDict tv traitIdentity dtid
+                        instanceDesc <- HashTable.lookup (traitIdentity, dtid) (eKnownInstances env) >>= \case
+                            Just instanceDesc -> return instanceDesc
+                            Nothing -> fail "Unification has already validated we have an instance" -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
+
+                        instanceType <- instantiate env $ idTypeVar instanceDesc
+                        traits <- accumulateTraitReferences [instanceType]
+                        unify env (Pos 0 0 0) instanceType tv
+
+                        let thisDict = EInstanceDict tv traitIdentity dtid
+                        case traits of
+                            [] -> do
+                                return thisDict
+                            _ -> do
+                                --liftIO $ putStrLn $ "def = " <> show def
+                                argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
+                                    --quantify typeVar -- this feels dirty
+                                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                                return $ EApp tv thisDict argDicts
                     TRecord _ref -> do
                         fail "No traits on records"
                     TTypeFun _ _ -> do
@@ -736,11 +753,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         quantify ty
 
-        traitRefs <- accumulateTraitReferences ty
+        traitRefs <- accumulateTraitReferences [ty]
         dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
             return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
 
-        expr''' <- resolveInstanceDictPlaceholders expr''
+        expr''' <- resolveInstanceDictPlaceholders env expr''
 
         let expr'''' = case dictArgs of
                 [] -> expr'''
@@ -765,11 +782,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         quantify ty
 
-        traitRefs <- accumulateTraitReferences ty
+        traitRefs <- accumulateTraitReferences [ty]
         dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
             return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
 
-        body'' <- resolveInstanceDictPlaceholders body'
+        body'' <- resolveInstanceDictPlaceholders env body'
 
         let innerFD = FunctionDecl
                 { fdParams = args'
@@ -854,7 +871,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName typeName contents'
 
-    DImpl pos' traitReference typeReference forall values -> do
+    DImpl pos' traitReference typeReference forall values _ -> do
         (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
         typeVar <- resolveTypeReference env pos' typeReference
 
@@ -862,7 +879,22 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         -- TODO: assert the list of type variables matches the kind of the data type
 
-        _ <- registerExplicitTypeVariables env' forall
+        typeVars <- registerExplicitTypeVariables env' forall
+        traitRefs <- accumulateTraitReferences typeVars
+        dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
+            return $ renderInstanceArgumentName traitIdentity typeNumber
+
+        typeVar' <- followTypeVar typeVar >>= \case
+            TDataType _def -> do
+                -- TODO: assert typeVars == []
+                return typeVar
+            TTypeFun _params _rt -> do
+                -- TODO: assert len(params) == len(typeVars)
+                (TTypeFun params' rt') <- instantiate env' typeVar
+                for_ (zip params' typeVars) $ \(a, b) -> do
+                    unify env pos' a b
+                return rt'
+            _ -> fail "hot dog"
 
         -- instantiate all of the methods in the same subst dict
         -- so the typevar is unified across methods
@@ -874,7 +906,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             methodType' <- inst methodType
             return (name, methodType')
 
-        unify env' pos' typeVar traitParameter
+        unify env' pos' typeVar' traitParameter
 
         values' <- for values $ \(elementName, expr) -> do
             -- TODO: handle errors
@@ -882,11 +914,12 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
             -- TODO: test for TDNR in trait impl
             expr' <- checkExpecting methodTypeVar env expr
-            return (elementName, expr')
+            expr'' <- resolveInstanceDictPlaceholders env expr'
+            return (elementName, expr'')
 
         -- TODO: verify everything is implemented
 
-        return $ DImpl typeVar traitRef typeReference forall values'
+        return $ DImpl typeVar' traitRef typeReference forall values' dictArgs
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment

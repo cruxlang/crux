@@ -457,20 +457,31 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
+{-
+This function needs to exist but it has a crazy type right now.
+
+resolveTrait :: Env -> Pos -> TypeVar -> TraitIdentity -> TDataTypeIdentity -> TC TraitInstance
+resolveTrait env pos traitIdentity dataTypeIdentity = do
+    HashTable.lookup (trait, dataTypeIdentity) (eKnownInstances env) >>= \case
+        Just instanceDesc -> return instanceDesc
+        Nothing -> failTypeError pos $ NoTraitOnType 
+-}
+
 validateConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC ()
 validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
     TQuant constraints _ -> do
         when (not $ Set.member trait constraints) $ do
-            fail "Does not implement trait"
+            fail "Quant does not implement trait"
     TFun _ _ -> do
         fail "Functions do not implement traits"
     TDataType def -> do
         let key = (trait, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case
-            Just _ -> do
-                -- TODO: validate instance constraints against data type parameters
+            Just InstanceDesc{idTypeVar} -> do
+                idTypeVar' <- instantiate env idTypeVar
+                unify env pos idTypeVar' typeVar
                 return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
@@ -479,8 +490,10 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TTypeFun _ (TDataType def) -> do
         let key = (trait, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case
-            Just _ -> do
-                -- TODO: validate instance constraints against data type parameters
+            Just InstanceDesc{idTypeVar} -> do
+                -- generalize this code with TDataType above
+                idTypeVar' <- instantiate env idTypeVar
+                unify env pos idTypeVar' typeVar
                 return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)

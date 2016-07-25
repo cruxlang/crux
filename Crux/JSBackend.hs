@@ -323,12 +323,17 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
             for defn renderInstruction
     Gen.DException name ->
         return $ [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
-renderDeclaration (Gen.TraitInstance instanceName defns) = do
+renderDeclaration (Gen.TraitInstance instanceName defns contextParameters) = do
     defns' <- for (HashMap.toList defns) $ \(name, (value, instructions)) -> do
         value' <- renderValue value
         instructions' <- for instructions renderInstruction
         return ((name, value'), instructions')
-    return $ mconcat (fmap snd defns') <> [JSTree.SAssign (JSTree.EIdentifier instanceName) $ JSTree.EObject $ HashMap.fromList $ fmap fst defns']
+    let obj = JSTree.EObject $ HashMap.fromList $ fmap fst defns'
+    case contextParameters of
+        [] -> do
+            return $ mconcat (fmap snd defns') <> [JSTree.SAssign (JSTree.EIdentifier instanceName) obj]
+        _ -> do
+            return $ mconcat (fmap snd defns') <> [JSTree.SFunction instanceName contextParameters [JSTree.SReturn $ Just obj]]
 
 data ExportType = QualifiedExport | UnqualifiedExport
 
@@ -345,7 +350,7 @@ getExportedValues = \case
             PConstructor {} ->
                 error "Gen: Top-level pattern bindings are not supported"
         Gen.DException name -> [(QualifiedExport, name <> "$")]
-    Gen.TraitInstance instanceName _ -> [(UnqualifiedExport, instanceName)]
+    Gen.TraitInstance instanceName _ _ -> [(UnqualifiedExport, instanceName)]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body =

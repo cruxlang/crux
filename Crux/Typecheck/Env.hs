@@ -408,7 +408,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     
     -- Phase 4b.
     for_ decls $ \case
-        DImpl pos traitReference typeReference forall _values -> do
+        DImpl pos traitReference typeReference forall _values _ -> do
             (_, traitNumber, _) <- resolveTraitReference env pos traitReference
             typeVar <- resolveTypeReference env pos typeReference
 

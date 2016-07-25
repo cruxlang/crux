@@ -67,7 +67,8 @@ data DeclarationType idtype tagtype edata
         idtype    -- ^Trait name
         UnresolvedReference -- ^Type name
         [TypeVarIdent]    -- ^Type variables
-        [(Name, Expression idtype tagtype edata)]
+        [(Name, Expression idtype tagtype edata)] -- ^Methods
+        [Name] -- ^Context dict arguments
     -- Exceptions
     | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

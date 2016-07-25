@@ -38,8 +38,6 @@ data LoadedModule = LoadedModule
     , lmKnownInstances :: HashMap (TraitIdentity, TDataTypeIdentity) InstanceDesc
     } deriving (Eq)
 
---type CheckedModule = Module ResolvedReference PatternTag TypeVar
-
 data Program = Program
     { pMainModule   :: LoadedModule
     , pOtherModules :: HashMap ModuleName LoadedModule

@@ -52,3 +52,8 @@ An unordered set of interesting language design resources.
 ## Mutability
 
 * [Relaxing the Value Restriction](http://caml.inria.fr/pub/papers/garrigue-value_restriction-fiwflp04.pdf)
+
+## Resources
+
+* [Resources for Amateur Compiler Writers](http://c9x.me/compile/bib/)
+* 

@@ -3,6 +3,7 @@ pragma { NoBuiltin }
 // because the typechecker relies on certain modules being loaded, the
 // sequence of imports matters here.
 import {
+    cmp
     length
     boolean
     option
@@ -13,6 +14,7 @@ import {
     number
 }
 
+export import cmp
 export import length
 export import boolean
 export import option

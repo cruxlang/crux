@@ -1,3 +1,6 @@
+fun g<b>(x: b, y: b) {
+}
+
 fun f<a>(a: a) {
-  a == 10
+  g(a, 10)
 }

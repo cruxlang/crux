@@ -198,6 +198,14 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
             for_ (lmExportedPatterns importedModule) $ \(name, pb) -> do
                 SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates name pb
 
+            -- populate traits
+            for_ (lmExportedTraits importedModule) $ \(name, trait) -> do
+                SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name trait
+
+            -- populate exceptions
+            for_ (lmExportedExceptions importedModule) $ \(name, exc) -> do
+                SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates name exc
+
         (pos, QualifiedImport moduleName importName) -> do
             importedModule <- case HashMap.lookup moduleName loadedModules of
                 Just im -> return im

@@ -1,3 +1,11 @@
 pragma { NoBuiltin }
 
+import { cmp(...) }
+
 export data Number {}
+
+impl Eq Number {
+  // TODO: some sort of unsafe primitives
+  eq = _unsafe_js("function(x, y) { return x === y; }")
+  neq = _unsafe_js("function(x, y) { return x !== y; }")
+}

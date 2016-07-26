@@ -1,6 +1,7 @@
 pragma { NoBuiltin }
 
 import {
+    cmp(...)
     boolean(...)
     array
     number
@@ -11,6 +12,11 @@ import {
 type Number = number.Number
 
 export data String {}
+
+impl Eq String {
+  eq = _unsafe_js("function eq(x, y) { return x === y; }")
+  neq = _unsafe_js("function neq(x, y) { return x !== y; }")
+}
 
 impl length.HasLength String {
   len = fun(s) {

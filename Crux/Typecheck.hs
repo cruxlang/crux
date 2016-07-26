@@ -436,23 +436,29 @@ check' expectedType env = \case
     -- Arithmetic operators like + and - have type (a, a) -> a
     -- Relational operators like <= and != have type (a, a) -> Bool
     EBinIntrinsic pos bi lhs rhs -> do
-        lhs' <- check env lhs
-        rhs' <- check env rhs
+        case bi of
+            BIEqual -> do
+                check env $ EApp pos (EIdentifier pos $ KnownReference "cmp" "eq") [lhs, rhs]
+            BINotEqual -> do
+                check env $ EApp pos (EIdentifier pos $ KnownReference "cmp" "neq") [lhs, rhs]
+            _ -> do
+                lhs' <- check env lhs
+                rhs' <- check env rhs
 
-        if | isArithmeticOp bi -> do
-                unify env pos (edata lhs') (edata rhs')
-                return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
-           | isRelationalOp bi -> do
-                unify env pos (edata lhs') (edata rhs')
-                booleanType <- resolveBooleanType env pos
-                return $ EBinIntrinsic booleanType bi lhs' rhs'
-           | isBooleanOp bi -> do
-                booleanType <- resolveBooleanType env (edata lhs)
-                unify env pos (edata lhs') booleanType
-                unify env pos (edata rhs') booleanType
-                return $ EBinIntrinsic booleanType bi lhs' rhs'
-           | otherwise ->
-                error "This should be impossible: Check EBinIntrinsic"
+                if | isArithmeticOp bi -> do
+                        unify env pos (edata lhs') (edata rhs')
+                        return $ EBinIntrinsic (edata lhs') bi lhs' rhs'
+                   | isRelationalOp bi -> do
+                        unify env pos (edata lhs') (edata rhs')
+                        booleanType <- resolveBooleanType env pos
+                        return $ EBinIntrinsic booleanType bi lhs' rhs'
+                   | isBooleanOp bi -> do
+                        booleanType <- resolveBooleanType env (edata lhs)
+                        unify env pos (edata lhs') booleanType
+                        unify env pos (edata rhs') booleanType
+                        return $ EBinIntrinsic booleanType bi lhs' rhs'
+                   | otherwise ->
+                        error "This should be impossible: Check EBinIntrinsic"
 
     EIfThenElse pos condition ifTrue ifFalse -> do
         booleanType <- resolveBooleanType env pos

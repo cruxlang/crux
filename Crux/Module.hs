@@ -215,12 +215,16 @@ loadProgram loader main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
+    let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules n
+
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
-    _ <- EitherT $ loadModule loader loadedModules loadingModules "void"
+    loadSyntaxDependency "void"
+    -- any module that uses == or != depends on 'cmp'
+    loadSyntaxDependency "cmp"
     -- any module that uses a string literal depends on 'string' being loaded
-    _ <- EitherT $ loadModule loader loadedModules loadingModules "string"
+    loadSyntaxDependency "string"
     -- any module that uses a number literal depends on 'number' being loaded
-    _ <- EitherT $ loadModule loader loadedModules loadingModules "number"
+    loadSyntaxDependency "number"
 
     mainModule <- EitherT $ loadModule loader loadedModules loadingModules main
 

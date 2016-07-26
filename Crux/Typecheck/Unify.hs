@@ -47,16 +47,22 @@ freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
     RowVariable <$> freshTypeIndex env
 
-findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> ModuleName -> Name -> Maybe a
-findExportByName getExports env moduleName valueName = do
-    modul <- HashMap.lookup moduleName (eLoadedModules env)
-    findFirstOf (getExports modul) $ \(name, v) ->
-        if name == valueName then
-            Just v
-        else
-            Nothing
+findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> Pos -> ModuleName -> Name -> TC a
+findExportByName getExports env pos moduleName valueName = do
+    modul <- case HashMap.lookup moduleName (eLoadedModules env) of
+        Just modul -> return modul
+        Nothing -> failError $ ModuleNotFound moduleName
+    let r = findFirstOf (getExports modul) $ \(name, v) ->
+            if name == valueName then
+                Just v
+            else
+                Nothing
+    case r of
+        Just e -> return e
+        Nothing -> do
+            failTypeError pos $ ModuleReferenceError moduleName valueName
 
-findExportedValueByName :: Env -> ModuleName -> Name -> Maybe (ResolvedReference, Mutability, TypeVar)
+findExportedValueByName :: Env -> Pos -> ModuleName -> Name -> TC (ResolvedReference, Mutability, TypeVar)
 findExportedValueByName = findExportByName lmExportedValues
 
 resolveImportName :: Env -> Pos -> Name -> TC ModuleName
@@ -83,10 +89,7 @@ resolveValueReference env pos = \case
         if moduleName == eThisModule env then do
             resolveValueReference env pos (UnqualifiedReference name)
         else do
-            case findExportedValueByName env moduleName name of
-                Just (rref, mutability, typevar) ->
-                    return (rref, mutability, typevar)
-                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+            findExportedValueByName env pos moduleName name
 
 resolveReference :: [Char] -> (Env -> SymbolTable.SymbolTable a) -> (LoadedModule -> [(Name, a)]) -> Env -> Pos -> UnresolvedReference -> TC a
 resolveReference symbolType bindingTable exportTable env pos = \case
@@ -101,9 +104,7 @@ resolveReference symbolType bindingTable exportTable env pos = \case
         if moduleName == eThisModule env then do
             resolveReference symbolType bindingTable exportTable env pos (UnqualifiedReference name)
         else do
-            case findExportByName exportTable env moduleName name of
-                Just export -> return export
-                Nothing -> failTypeError pos $ Error.ModuleReferenceError moduleName name
+            findExportByName exportTable env pos moduleName name
 
 resolveTypeReference :: Env -> Pos -> UnresolvedReference -> TC TypeVar
 resolveTypeReference = resolveReference "type" eTypeBindings lmExportedTypes

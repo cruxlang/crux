@@ -51,7 +51,7 @@ findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> Pos -> ModuleName ->
 findExportByName getExports env pos moduleName valueName = do
     modul <- case HashMap.lookup moduleName (eLoadedModules env) of
         Just modul -> return modul
-        Nothing -> failError $ ModuleNotFound moduleName
+        Nothing -> failError $ InternalCompilerError $ DependentModuleNotLoaded pos moduleName
     let r = findFirstOf (getExports modul) $ \(name, v) ->
             if name == valueName then
                 Just v
@@ -61,9 +61,6 @@ findExportByName getExports env pos moduleName valueName = do
         Just e -> return e
         Nothing -> do
             failTypeError pos $ ModuleReferenceError moduleName valueName
-
-findExportedValueByName :: Env -> Pos -> ModuleName -> Name -> TC (ResolvedReference, Mutability, TypeVar)
-findExportedValueByName = findExportByName lmExportedValues
 
 resolveImportName :: Env -> Pos -> Name -> TC ModuleName
 resolveImportName env pos importName = do
@@ -89,7 +86,7 @@ resolveValueReference env pos = \case
         if moduleName == eThisModule env then do
             resolveValueReference env pos (UnqualifiedReference name)
         else do
-            findExportedValueByName env pos moduleName name
+            findExportByName lmExportedValues env pos moduleName name
 
 resolveReference :: [Char] -> (Env -> SymbolTable.SymbolTable a) -> (LoadedModule -> [(Name, a)]) -> Env -> Pos -> UnresolvedReference -> TC a
 resolveReference symbolType bindingTable exportTable env pos = \case

@@ -5,6 +5,7 @@ module Crux.Lex where
 import Control.Monad.Identity (Identity)
 import Crux.Prelude
 import Crux.Tokens
+import Crux.Pos
 import Data.Char
 import qualified Data.Text as T
 import Text.Parsec ((<|>))

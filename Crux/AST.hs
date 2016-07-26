@@ -8,7 +8,7 @@ module Crux.AST
 
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
-import Crux.Tokens (Pos (..))
+import Crux.Pos (Pos (..))
 import Crux.ModuleName
 import Crux.TypeVar
 

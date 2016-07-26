@@ -12,16 +12,16 @@ module Crux.Error
 
 import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
-import qualified Crux.Tokens as Tokens
 import Crux.TypeVar (TypeVar, showTypeVarIO)
 import qualified Data.Text as Text
 import qualified Text.Parsec as P
 import Text.Printf
+import Crux.Pos (Pos(..))
 
 type Name = Text
 
 data InternalCompilerError
-    = DependentModuleNotLoaded Tokens.Pos ModuleName
+    = DependentModuleNotLoaded Pos ModuleName
     | StoppedCheckingWithNoError
     deriving (Eq, Show)
 
@@ -46,8 +46,8 @@ data Error
     | ModuleNotFound ModuleName
     | CircularImport ModuleName
     | InternalCompilerError InternalCompilerError
-    | TypeError Tokens.Pos TypeError
-    | DuplicateSymbol Tokens.Pos Text
+    | TypeError Pos TypeError
+    | DuplicateSymbol Pos Text
     deriving (Eq, Show)
 
 renderError :: ModuleName -> Error -> IO String
@@ -70,8 +70,8 @@ renderError' = \case
     DuplicateSymbol pos name -> do
         return $ "Duplicate symbol at " ++ formatPos pos ++ ": " ++ Text.unpack name
 
-formatPos :: Tokens.Pos -> String
-formatPos Tokens.Pos{..} = printf "%i,%i" posLine posCol
+formatPos :: Pos -> String
+formatPos Pos{..} = printf "%i,%i" posLine posCol
 
 getErrorName :: Error -> Text
 getErrorName = \case

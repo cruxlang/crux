@@ -24,7 +24,7 @@ import Crux.Module.Types as AST
 import qualified Crux.HashTable as HashTable
 import qualified Crux.Parse as Parse
 import Crux.Prelude
-import qualified Crux.Tokens as Tokens
+import Crux.Pos
 import qualified Crux.Typecheck as Typecheck
 import Crux.Typecheck.Monad
 import qualified Data.Aeson as JSON
@@ -163,11 +163,11 @@ getModuleName :: AST.Import -> ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn
 getModuleName (AST.QualifiedImport mn _) = mn
 
-importsOf :: AST.Module a b c -> [(Tokens.Pos, ModuleName)]
+importsOf :: AST.Module a b c -> [(Pos, ModuleName)]
 importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 
 addBuiltin :: AST.Module a b c -> AST.Module a b c
-addBuiltin m = m { AST.mImports = (Tokens.Pos 0 0 0, AST.UnqualifiedImport "builtin") : AST.mImports m }
+addBuiltin m = m { AST.mImports = (Pos 0 0 0, AST.UnqualifiedImport "builtin") : AST.mImports m }
 
 type ProgramLoadResult a = Either (ModuleName, Error.Error) a
 

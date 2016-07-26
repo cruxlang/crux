@@ -17,7 +17,7 @@ import Control.Exception (Exception, throwIO, try)
 import Control.Monad.Trans.Reader
 import Crux.Error
 import Crux.Prelude
-import Crux.Tokens (Pos)
+import Crux.Pos (Pos)
 
 data Warning = Warning -- TODO: move this into Crux.Warning and give it real options
 

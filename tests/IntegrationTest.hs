@@ -17,7 +17,7 @@ import qualified Crux.JSBackend                 as JS
 import Crux.ModuleName
 import qualified Crux.Module
 import           Crux.Module.Types              as AST
-import           Crux.Tokens                    (Pos (..))
+import           Crux.Pos                    (Pos (..))
 import           Crux.TypeVar                   (renderTypeVarIO)
 import           Data.Foldable                  (for_)
 import qualified Data.HashMap.Strict            as HashMap

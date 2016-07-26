@@ -24,6 +24,7 @@ library
                    , Crux.Parse
                    , Crux.Prelude
                    , Crux.Project
+                   , Crux.Pos
                    , Crux.SymbolTable
                    , Crux.Text
                    , Crux.Tokens

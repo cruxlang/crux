@@ -13,7 +13,7 @@ import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
 import Crux.Typecheck.Monad (TC, Warning(..), recordWarning, failError)
 import Crux.Error (Error(DuplicateSymbol))
-import Crux.Tokens (Pos)
+import Crux.Pos (Pos)
 
 type Name = Text
 newtype SymbolTable v = SymbolTable (IORef (HashMap Name v))

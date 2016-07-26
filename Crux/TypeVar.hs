@@ -13,6 +13,7 @@ module Crux.TypeVar
     , TraitDesc(..)
     , TraitIdentity(..)
     , Strength (..)
+    , TypeSource(..)
     , TypeNumber
     , TypeVar(..)
     , TypeState(..)
@@ -30,6 +31,7 @@ import Crux.ModuleName (ModuleName)
 import Crux.Prelude
 import qualified Data.Text as Text
 import System.IO.Unsafe (unsafePerformIO)
+import Crux.Pos
 
 type Name = Text
 
@@ -135,10 +137,16 @@ type TypeNumber = Int
 data Strength = Strong | Weak
     deriving (Eq, Show)
 
+data TypeSource
+    = ExplicitName Name Pos
+    -- TODO: put a source on Unbound type variables too
+    | Instantiation
+    deriving (Eq, Show)
+
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant (Set TraitIdentity) TypeNumber
+    | TQuant TypeSource (Set TraitIdentity) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -152,7 +160,7 @@ unsafeShowRef ref = show $ unsafePerformIO $ readIORef ref
 -- TODO: showsPrec
 instance Show TypeVar where
     show (TypeVar r) = "(TypeVar " ++ unsafeShowRef r ++ ")"
-    show (TQuant constraints tn) = "(TQuant " ++ show constraints ++ " " ++ show tn ++ ")"
+    show (TQuant source constraints tn) = "(TQuant " ++ show source ++ " " ++ show constraints ++ " " ++ show tn ++ ")"
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
     show (TDataType def) = "(TDataType " ++ show def ++ ")"
     show (TRecord _) = "(TRecord ???)" -- TODO
@@ -219,8 +227,8 @@ showTypeVarIO' showBound = \case
             if showBound
                 then return $ "(TBound " ++ inner ++ ")"
                 else return inner
-    TQuant constraints i -> do
-        return $ "TQuant " ++ show constraints ++ " " ++ show i
+    TQuant typeSource constraints i -> do
+        return $ "TQuant " ++ show typeSource ++ " " ++ show constraints ++ " " ++ show i
     TFun args ret -> do
         as <- for args $ showTypeVarIO' showBound
         rs <- showTypeVarIO' showBound ret

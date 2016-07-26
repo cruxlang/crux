@@ -173,7 +173,7 @@ accumulateTraitReferences' seen out tv = case tv of
             append constraints tv typeNumber
         TBound tv2 ->
             accumulateTraitReferences' seen out tv2
-    TQuant constraints typeNumber -> do
+    TQuant _ constraints typeNumber -> do
         append constraints tv typeNumber
     TFun paramTypes returnType -> do
         for_ paramTypes $ accumulateTraitReferences' seen out
@@ -624,7 +624,7 @@ resolveInstanceDictPlaceholders env = recurse
                             fail "should have been quantified by now"
                         _ ->
                             fail "never happens"
-                    TQuant _constraints typeNumber -> do
+                    TQuant _ _constraints typeNumber -> do
                         return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
                         --append constraints tv typeNumber
                     TFun _paramTypes _returnType -> do

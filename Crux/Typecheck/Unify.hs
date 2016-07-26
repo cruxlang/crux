@@ -38,11 +38,6 @@ freshWeakQVar env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Weak (eLevel env) mempty index
 
-freshQuantized :: MonadIO m => Env -> m TypeVar
-freshQuantized env = do
-    index <- freshTypeIndex env
-    return $ TQuant mempty index
-
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
     RowVariable <$> freshTypeIndex env
@@ -239,11 +234,12 @@ instantiate' subst recordSubst env ty = case ty of
                 return ty
             TBound tv' -> do
                 instantiate' subst recordSubst env tv'
-    TQuant constraints name -> do
+    TQuant _ constraints name -> do
         HashTable.lookup name subst >>= \case
             Just v ->
                 return v
             Nothing -> do
+                -- propagate source
                 tv <- freshTypeConstrained env constraints
                 HashTable.insert name tv subst
                 return tv
@@ -279,7 +275,7 @@ quantify ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound Strong _ constraints i -> do
-                writeIORef ref $ TBound $ TQuant constraints i
+                writeIORef ref $ TBound $ TQuant Instantiation constraints i
             TUnbound Weak _ _ _ -> do
                 return ()
             TBound t -> do
@@ -469,9 +465,9 @@ validateConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC 
 validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
-    TQuant constraints _ -> do
+    TQuant _source constraints _ -> do
         when (not $ Set.member trait constraints) $ do
-            fail "Quant does not implement trait"
+            failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TFun _ _ -> do
         fail "Functions do not implement traits"
     TDataType def -> do
@@ -547,7 +543,7 @@ unify env pos av' bv' = do
             for_ (zip aa ba) $ uncurry $ unify env pos
             unify env pos ar br
 
-        (TQuant cI i, TQuant cJ j) | (cI, i) == (cJ, j) ->
+        (TQuant _ cI i, TQuant _ cJ j) | (cI, i) == (cJ, j) ->
             return ()
 
         _ ->

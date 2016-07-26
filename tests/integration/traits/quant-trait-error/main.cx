@@ -1,0 +1,7 @@
+trait E a {
+  foo: fun(a) -> a
+}
+
+fun f<a>(a: a) {
+  foo(a)
+}

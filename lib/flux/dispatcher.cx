@@ -5,8 +5,8 @@ export data Dispatcher<action>({
 
 data DispatchToken(Number)
 
-export fun new<action>(): Dispatcher action {
-  return Dispatcher({
+export fun new() {
+  Dispatcher({
     currentToken: 0,
     callbacks: mutable [],
   })
@@ -20,7 +20,7 @@ export fun register<action>(Dispatcher(self), callback: fun(action) -> ()): Disp
 }
 
 fun unregister(Dispatcher(self), token: DispatchToken) {
-  
+
 }
 
 export fun dispatch<action>(Dispatcher(self), action: action) {

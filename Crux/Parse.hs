@@ -486,6 +486,9 @@ delimited delim parseElement = do
 commaDelimited :: Parser a -> Parser [a]
 commaDelimited = delimited $ token TComma
 
+plusDelimited :: Parser a -> Parser [a]
+plusDelimited = delimited $ token TPlus
+
 recordField :: Parser (Text, Maybe Mutability, TypeIdent)
 recordField = do
     mut <- P.optionMaybe (
@@ -723,7 +726,7 @@ blockExpression = do
 typeVarIdent :: Parser TypeVarIdent
 typeVarIdent = do
     (name, pos) <- anyIdentifierWithPos
-    traits <- P.option [] $ token TColon >> commaDelimited unresolvedReference
+    traits <- P.option [] $ token TColon >> plusDelimited unresolvedReference
     return $ TypeVarIdent name pos traits
 
 explicitTypeVariableList :: Parser [TypeVarIdent]

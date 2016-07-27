@@ -3,6 +3,7 @@ pragma { NoBuiltin }
 import {
   boolean(...)
   cmp(...)
+  pair
 }
 
 export data Option<a> {
@@ -10,14 +11,11 @@ export data Option<a> {
   None,
 }
 
-// TODO: tuples (or move pair into its own file)
-data Pair<a, b>(a, b)
-
 impl Eq Option<a: Eq> {
   eq = fun(lhs, rhs) {
-    match Pair(lhs, rhs) {
-      Pair(None, None) => True
-      Pair(Some(x), Some(y)) => x == y
+    match pair.Pair(lhs, rhs) {
+      pair.Pair(None, None) => True
+      pair.Pair(Some(x), Some(y)) => x == y
       _ => False
     }
   }

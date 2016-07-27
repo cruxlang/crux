@@ -1,8 +1,10 @@
 pragma { NoBuiltin }
 
 import {
-    number
-    length
+  boolean
+  number
+  length
+  cmp
 }
 
 // TODO: implement selective import
@@ -16,13 +18,37 @@ let _unsafe_new<a>: fun(Number) -> [a] =
 let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
 let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
 
-export fun get<t>(a: [t], idx: Number) {
+export fun get<t>(a: [t], idx: Number): t {
     _unsafe_get(a, idx)
 }
 
 impl length.HasLength Array<a> {
   len = fun(a) {
     _unsafe_coerce(a).length
+  }
+}
+
+impl cmp.Eq Array<a: cmp.Eq> {
+  eq = fun(lhs, rhs) {
+    let lhs_length = length.len(lhs)
+    let rhs_length = length.len(rhs)
+    if lhs_length != rhs_length {
+      return boolean.False
+    }
+
+    let mutable i = 0
+    while i < lhs_length {
+      if get(lhs, i) != get(rhs, i) {
+        return boolean.False
+      }
+      i = i + 1
+    }
+
+    boolean.True
+  }
+
+  neq = fun(lhs, rhs) {
+    boolean.not(lhs == rhs)
   }
 }
 

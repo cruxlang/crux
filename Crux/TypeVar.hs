@@ -235,7 +235,7 @@ showTypeVarIO' showBound = \case
         return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
     TDataType def -> do
         tvs <- for (tuParameters def) $ showTypeVarIO' showBound
-        return $ (Text.unpack $ tuName def) ++ if tvs /= [] then " " ++ (intercalate " " tvs) else ""
+        return $ (Text.unpack $ tuName def) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
     TRecord rtv -> do
         showRecordTypeVarIO' showBound rtv
     TTypeFun args ret -> do

@@ -12,7 +12,7 @@ module Crux.Error
 
 import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, showTypeVarIO)
+import Crux.TypeVar (TypeVar, renderTypeVarIO)
 import qualified Data.Text as Text
 import qualified Text.Parsec as P
 import Text.Printf
@@ -100,14 +100,14 @@ getTypeErrorName = \case
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
-    as <- showTypeVarIO at
-    bs <- showTypeVarIO bt
+    as <- renderTypeVarIO at
+    bs <- renderTypeVarIO bt
     let m
             | null message = ""
             | otherwise = "\n" ++ message
     return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
 typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
-    ts <- showTypeVarIO typeVar
+    ts <- renderTypeVarIO typeVar
     return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message

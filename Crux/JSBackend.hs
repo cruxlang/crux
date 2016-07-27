@@ -329,11 +329,13 @@ renderDeclaration (Gen.TraitInstance instanceName defns contextParameters) = do
         instructions' <- for instructions renderInstruction
         return ((name, value'), instructions')
     let obj = JSTree.EObject $ HashMap.fromList $ fmap fst defns'
-    case contextParameters of
+    let prefix = mconcat $ fmap snd defns'
+    expr <- case contextParameters of
         [] -> do
-            return $ mconcat (fmap snd defns') <> [JSTree.SAssign (JSTree.EIdentifier instanceName) obj]
+            return obj
         _ -> do
-            return $ mconcat (fmap snd defns') <> [JSTree.SFunction instanceName contextParameters [JSTree.SReturn $ Just obj]]
+            return $ JSTree.EFunction contextParameters [JSTree.SReturn $ Just obj]
+    return $ prefix <> [JSTree.SAssign (JSTree.EIdentifier instanceName) expr]
 
 data ExportType = QualifiedExport | UnqualifiedExport
 

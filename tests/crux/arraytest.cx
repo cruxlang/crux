@@ -1,16 +1,21 @@
 import {
-    test(...)
-    assert
+  test(...)
+  assert
 }
 
 let _ = test("array length", fun() {
-    assert.equal(0, len([]))
-    assert.equal(1, len([5]))
-    assert.equal(2, len(["hi", "bye"]))
+  assert.equal(0, len([]))
+  assert.equal(1, len([5]))
+  assert.equal(2, len(["hi", "bye"]))
 })
 
 let _ = test("mutable array length", fun() {
-    assert.equal(0, len(mutable []))
-    assert.equal(1, len(mutable [5]))
-    assert.equal(2, len(mutable ["hi", "bye"]))
+  assert.equal(0, len(mutable []))
+  assert.equal(1, len(mutable [5]))
+  assert.equal(2, len(mutable ["hi", "bye"]))
+})
+
+let _ = test("array equality", fun() {
+  assert.equal([1, 2], [1, 2])
+  assert.notEqual([1, 2], [3, 4])
 })

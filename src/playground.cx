@@ -71,7 +71,7 @@ data LastCompile(String, Boolean)
 data Compiler({
     onresult: (Result String String) -> (),
     mutable state: CompilerState,
-    mutable lastCompile: Option LastCompile,
+    mutable lastCompile: ?LastCompile,
 })
 
 fun newCompiler(onresult) {

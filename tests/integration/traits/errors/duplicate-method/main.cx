@@ -1,0 +1,4 @@
+trait C a {
+  x: a
+  x: a
+}

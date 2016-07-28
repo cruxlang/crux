@@ -10,6 +10,7 @@ import qualified Crux.HashTable as HashTable
 import Crux.Module.Types
 import Crux.ModuleName as ModuleName
 import qualified Crux.SymbolTable as SymbolTable
+import Crux.Pos (Pos(..))
 import Crux.Prelude
 import Crux.Typecheck.Env
 import Crux.Typecheck.Monad

@@ -3,12 +3,13 @@
 
 module ParseTest (htf_thisModulesTests) where
 
-import           Crux.AST
-import qualified Crux.Lex            as Lex
-import           Crux.Parse
-import           Data.HashMap.Strict (fromList)
-import qualified Data.Text           as T
-import           Test.Framework
+import Crux.AST
+import qualified Crux.Lex as Lex
+import Crux.Parse
+import Crux.Pos (Pos(..))
+import Data.HashMap.Strict (fromList)
+import qualified Data.Text as T
+import Test.Framework
 
 assertParseOk :: (Eq b, Show b) => Parser a -> T.Text -> b -> (a -> b) -> IO ()
 assertParseOk parser source expected f = do

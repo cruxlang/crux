@@ -9,6 +9,7 @@ import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
 import Crux.ModuleName
 import qualified Crux.JSTree as JSTree
+import Crux.Pos (Pos(..))
 import Crux.Prelude
 import Crux.Text (isCapitalized)
 import Crux.Tokens as Tokens

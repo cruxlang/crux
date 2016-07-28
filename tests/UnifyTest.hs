@@ -1,18 +1,16 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings, ScopedTypeVariables #-}
 
 module UnifyTest (htf_thisModulesTests) where
 
-import           Crux.AST             (Pos (..))
-import           Crux.IORef
-import           Crux.Typecheck.Env   (newEnv)
-import           Crux.Typecheck.Monad
-import           Crux.Typecheck.Unify
-import           Crux.TypeVar
-import qualified Data.HashMap.Strict  as HashMap
-import           Test.Framework
+import Crux.IORef
+import Crux.Pos (Pos (..))
+import Crux.Typecheck.Env (newEnv)
+import Crux.Typecheck.Monad
+import Crux.Typecheck.Unify
+import Crux.TypeVar
+import qualified Data.HashMap.Strict as HashMap
+import Test.Framework
 
 test_function_taking_record = do
     env <- newEnv "main" HashMap.empty Nothing

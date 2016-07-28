@@ -3,7 +3,6 @@
 
 module Crux.AST
     ( module Crux.AST
-    , Pos(..)
     ) where
 
 import qualified Crux.JSTree as JSTree

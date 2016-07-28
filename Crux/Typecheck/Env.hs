@@ -28,6 +28,7 @@ import Crux.ModuleName
 import qualified Crux.Error as Error
 import Crux.Module.Types
 import Crux.Prelude
+import Crux.Pos (Pos)
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Types
 import Crux.Typecheck.Unify

@@ -3,15 +3,15 @@
 
 module GenTest (htf_thisModulesTests) where
 
-import           Control.Exception (try)
-import qualified Crux.AST          as AST
-import qualified Crux.Error        as Error
-import qualified Crux.Gen          as Gen
+import Control.Exception (try)
+import qualified Crux.AST as AST
+import qualified Crux.Error as Error
+import qualified Crux.Gen as Gen
 import qualified Crux.Module
 import qualified Crux.Module.Types
-import           Data.Text         (Text)
-import           GHC.Exception     (ErrorCall (..))
-import           Test.Framework
+import Data.Text (Text)
+import GHC.Exception (ErrorCall (..))
+import Test.Framework
 
 genDoc' :: Text -> IO (Either Error.Error Gen.Module)
 genDoc' src = do

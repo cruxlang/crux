@@ -3,37 +3,37 @@
 
 module IntegrationTest where
 
-import           Control.Concurrent             (getNumCapabilities)
-import           Control.Concurrent.Async       (async, wait)
-import           Control.Concurrent.MVar
-import           Control.Concurrent.STM         (atomically)
-import           Control.Concurrent.STM.TMQueue
-import           Control.Exception              (SomeException, throwIO, try)
-import           Control.Monad                  (replicateM, when)
-import           Crux.Error                     (TypeError (..))
-import qualified Crux.Error                     as Error
-import qualified Crux.Gen                       as Gen
-import qualified Crux.JSBackend                 as JS
-import Crux.ModuleName
+import Control.Concurrent (getNumCapabilities)
+import Control.Concurrent.Async (async, wait)
+import Control.Concurrent.MVar
+import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM.TMQueue
+import Control.Exception (SomeException, throwIO, try)
+import Control.Monad (replicateM, when)
+import Crux.Error (TypeError (..))
+import qualified Crux.Error as Error
+import qualified Crux.Gen as Gen
+import qualified Crux.JSBackend as JS
 import qualified Crux.Module
-import           Crux.Module.Types              as AST
-import           Crux.Pos                    (Pos (..))
-import           Crux.TypeVar                   (renderTypeVarIO)
-import           Data.Foldable                  (for_)
-import qualified Data.HashMap.Strict            as HashMap
-import           Data.Monoid                    ((<>))
-import           Data.Text                      (Text)
-import qualified Data.Text                      as T
-import qualified Data.Text.IO                   as T
-import qualified Data.Yaml                      as Yaml
-import           System.Directory               (doesFileExist)
-import           System.Directory               (doesDirectoryExist)
-import qualified System.Directory.PathWalk      as PathWalk
-import           System.Exit                    (ExitCode (..))
-import qualified System.FilePath                as FilePath
-import           System.Process                 (readProcessWithExitCode)
-import           Test.Framework
-import           Text.RawString.QQ              (r)
+import Crux.Module.Types as AST
+import Crux.ModuleName
+import Crux.Pos (Pos (..))
+import Crux.TypeVar (renderTypeVarIO)
+import Data.Foldable (for_)
+import qualified Data.HashMap.Strict as HashMap
+import Data.Monoid ((<>))
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import qualified Data.Yaml as Yaml
+import System.Directory (doesFileExist)
+import System.Directory (doesDirectoryExist)
+import qualified System.Directory.PathWalk as PathWalk
+import System.Exit (ExitCode (..))
+import qualified System.FilePath as FilePath
+import System.Process (readProcessWithExitCode)
+import Test.Framework
+import Text.RawString.QQ (r)
 
 runProgram' :: AST.Program -> IO String
 runProgram' p = do

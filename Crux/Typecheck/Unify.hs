@@ -15,6 +15,7 @@ import Text.Printf (printf)
 import qualified Data.Set as Set
 import qualified Crux.SymbolTable as SymbolTable
 import Crux.Module.Types
+import Crux.Pos (Pos)
 import qualified Crux.Error as Error
 import Crux.ModuleName (ModuleName)
 import Crux.Util

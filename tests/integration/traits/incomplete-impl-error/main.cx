@@ -1,0 +1,6 @@
+trait C a {
+  c: a
+}
+
+impl C Number {
+}

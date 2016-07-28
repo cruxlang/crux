@@ -886,6 +886,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         -- TODO: assert the list of type variables matches the kind of the data type
 
+        let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
+        let implNames = Set.fromList $ fmap fst values
+
+        let notImplemented = Set.difference traitNames implNames
+        when (not $ Set.null notImplemented) $ do
+            failTypeError pos' $ IncompleteImpl $ Set.toList notImplemented
+
         typeVars <- registerExplicitTypeVariables env' forall
         traitRefs <- accumulateTraitReferences typeVars
         dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do

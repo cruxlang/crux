@@ -27,7 +27,6 @@ data InternalCompilerError
 
 data TypeError
     = UnificationError String TypeVar TypeVar
-    | NoTraitOnType TypeVar Name ModuleName
     | RecordMutabilityUnificationError Name String
     | UnboundSymbol String Name
     | OccursCheckFailed
@@ -38,6 +37,9 @@ data TypeError
     | ModuleReferenceError ModuleName Name
     | IllegalTypeApplication Name
     | TypeApplicationMismatch Name Int Int
+    -- trait errors
+    | NoTraitOnType TypeVar Name ModuleName
+    | IncompleteImpl [Name]
     deriving (Eq, Show)
 
 data Error
@@ -86,7 +88,6 @@ getErrorName = \case
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case
     UnificationError{} -> "unification"
-    NoTraitOnType{} -> "no-trait-on-type"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
     UnboundSymbol t _ -> "unbound-" <> Text.pack t
     OccursCheckFailed{} -> "occurs-check"
@@ -97,6 +98,8 @@ getTypeErrorName = \case
     ModuleReferenceError{} -> "module-reference"
     IllegalTypeApplication{} -> "illegal-type-application"
     TypeApplicationMismatch{} -> "type-application-mismatch"
+    NoTraitOnType{} -> "no-trait-on-type"
+    IncompleteImpl{} -> "incomplete-impl"
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
@@ -106,9 +109,6 @@ typeErrorToString (UnificationError message at bt) = do
             | null message = ""
             | otherwise = "\n" ++ message
     return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
-typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
-    ts <- renderTypeVarIO typeVar
-    return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
 typeErrorToString (UnboundSymbol type_ name) =
@@ -129,3 +129,8 @@ typeErrorToString (IllegalTypeApplication pt) = do
     return $ printf "Type %s does not take parameters" (show pt)
 typeErrorToString (TypeApplicationMismatch name total applied) = do
     return $ printf "Type %s takes %i type parameters.  %i given" (show name) total applied
+typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
+    ts <- renderTypeVarIO typeVar
+    return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
+typeErrorToString (IncompleteImpl missingMethods) = do
+    return $ "Impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)

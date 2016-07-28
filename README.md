@@ -3,7 +3,7 @@ does not compromise on rock-solid fundamentals.
 
 # Big Ideas
 
-Crux is all about small, clever ideas that fit together without clumsy seams or weird corner cases.
+Crux is all about small, well-understood ideas that fit together without clumsy seams or weird corner cases.
 
 We won't try to guess what you're trying to say because we don't think your customers should be the
 ones to tell you that we guessed wrong.

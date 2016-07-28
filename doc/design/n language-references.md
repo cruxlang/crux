@@ -28,6 +28,7 @@ An unordered set of interesting language design resources.
 * [Unification](https://en.wikipedia.org/wiki/Unification_%28computer_science%29)
 * [Implementations of various type systems](https://github.com/tomprimozic/type-systems)
 * [How OCaml type checker works -- or what polymorphism and garbage collection have in common](http://okmij.org/ftp/ML/generalization.html)
+* [Implementing type classes](http://web.cecs.pdx.edu/~mpj/pubs/pldi93.html)
 
 ## Row Types
 

@@ -922,14 +922,17 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         unify env' pos' typeVar' traitParameter
 
-        values' <- for values $ \(elementName, expr) -> do
-            -- TODO: handle errors
-            let (Just methodTypeVar) = lookup elementName newMethods
+        values' <- for values $ \(methodName, expr) -> do
+            when (1 < (length $ filter (\(name, _) -> name == methodName) values)) $ do
+                -- TODO: use the pos of the impl here
+                failError $ DuplicateSymbol pos' methodName
+
+            let (Just methodTypeVar) = lookup methodName newMethods
 
             -- TODO: test for TDNR in trait impl
             expr' <- checkExpecting methodTypeVar env expr
             expr'' <- resolveInstanceDictPlaceholders env expr'
-            return (elementName, expr'')
+            return (methodName, expr'')
 
         -- TODO: verify everything is implemented
 

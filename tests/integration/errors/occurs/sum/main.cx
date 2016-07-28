@@ -1,2 +1,2 @@
-data List<a> { Cons(a, List a), Nil }
+data List<a> { Cons(a, List<a>), Nil }
 fun bad(a) { Cons(a, a) }

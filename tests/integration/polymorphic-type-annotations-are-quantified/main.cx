@@ -1,7 +1,7 @@
 data Option2<a> { None2, Some2(a) }
 
-let none<a>: fun() -> Option2 a = fun () { None2 }
+let none<a>: fun() -> Option2<a> = fun () { None2 }
 
 fun f() {
-    let n: Option2 Number = none()
+    let n: Option2<Number> = none()
 }

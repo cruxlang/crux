@@ -7,7 +7,7 @@ fun gimme(): TheList {
   [{a: "here you go"}]
 }
 
-let blink: AlsoArray TheRecord = _unsafe_coerce(gimme())
+let blink: AlsoArray<TheRecord> = _unsafe_coerce(gimme())
 
 let _ = for g in blink {
   print(g.a)

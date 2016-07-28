@@ -500,22 +500,6 @@ recordField = do
     ty <- typeIdent
     return (name, mut, ty)
 
-nonEmptyRecord :: Parser TypeIdent
-nonEmptyRecord = do
-    firstProp <- P.try $
-        token TOpenBrace *> recordField
-
-    areMore <- P.optionMaybe $ token TComma
-    props <- (firstProp:) <$> case areMore of
-        Nothing ->
-            return []
-        Just _ -> do
-            commaDelimited recordField
-
-    _ <- token TCloseBrace
-
-    return $ RecordIdent props
-
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent =
     RecordIdent <$> braced (commaDelimited recordField)
@@ -538,10 +522,10 @@ unresolvedReference = do
             return $ QualifiedReference first second
     qua <|> unq
 
-sumIdent :: Parser TypeIdent -> Parser TypeIdent
-sumIdent paramParser = do
+sumIdent :: Parser TypeIdent
+sumIdent = do
     name <- unresolvedReference
-    params <- P.many paramParser
+    params <- P.option [] $ angleBracketed $ commaDelimited typeIdent
     return $ TypeIdent name params
 
 unitTypeIdent :: Parser TypeIdent
@@ -555,41 +539,19 @@ arrayTypeIdent = do
     ti <- bracketed typeIdent
     return $ ArrayIdent mutability ti
 
-optionTypeIdent :: Parser TypeIdent -> Parser TypeIdent
-optionTypeIdent innerTypeIdent = do
+optionTypeIdent :: Parser TypeIdent
+optionTypeIdent = do
     _ <- token TQuestionMark
-    ti <- innerTypeIdent
+    ti <- typeIdent
     return $ OptionIdent ti
-
 
 typeIdent :: Parser TypeIdent
 typeIdent = asum
     [ arrayTypeIdent
-    , optionTypeIdent noSpaceTypeIdent
+    , optionTypeIdent
     , functionTypeIdent
     , recordTypeIdent
-    , sumIdent noSpaceTypeIdent
-    , unitTypeIdent
-    , parenthesized typeIdent
-    ]
-
-noSpaceTypeIdent :: Parser TypeIdent
-noSpaceTypeIdent = asum
-    [ arrayTypeIdent
-    , optionTypeIdent noSpaceTypeIdent
-    , recordTypeIdent
-    , sumIdent (fail "")
-    , unitTypeIdent
-    , parenthesized typeIdent
-    ]
-
-returnTypeIdent :: Parser TypeIdent
-returnTypeIdent = asum
-    [ arrayTypeIdent
-    , optionTypeIdent noSpaceTypeIdent
-    , functionTypeIdent
-    , nonEmptyRecord
-    , sumIdent (arrayTypeIdent <|> optionTypeIdent (fail "") <|> nonEmptyRecord <|> sumIdent (fail "") <|> unitTypeIdent <|> parenthesized typeIdent)
+    , sumIdent
     , unitTypeIdent
     , parenthesized typeIdent
     ]
@@ -679,7 +641,7 @@ aliasDeclaration = do
     typeToken <- token TType
     withIndentation (IRDeeper typeToken) $ do
         name <- typeName
-        vars <- P.many typeVariableName
+        vars <- P.option [] $ angleBracketed $ commaDelimited typeVariableName
         _ <- token TEqual
         ty <- typeIdent
         return $ DTypeAlias (tokenData typeToken) name vars ty
@@ -746,7 +708,7 @@ funDeclaration = do
         fdParams <- parenthesized $ commaDelimited funArgument
         fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon
-            returnTypeIdent
+            typeIdent
 
         fdBody <- blockExpression
         return $ DFun pos name forall FunctionDecl{..}

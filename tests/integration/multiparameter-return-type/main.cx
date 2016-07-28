@@ -1,6 +1,6 @@
-type P = Result String String
+type P = Result<String, String>
 
-fun f(a: Result String String): Result String String {
+fun f(a: Result<String, String>): Result<String, String> {
   return a
 }
 

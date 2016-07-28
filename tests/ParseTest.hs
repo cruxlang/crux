@@ -74,7 +74,7 @@ test_record_types_can_have_trailing_comma = do
 test_multi_arg_type_ident = do
     assertParses
         typeIdent
-        "Result String String"
+        "Result<String, String>"
         (TypeIdent
             (UnqualifiedReference "Result")
             [ TypeIdent (UnqualifiedReference "String") []

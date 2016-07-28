@@ -1,10 +1,10 @@
 type Hody = {
-    bros: Option {
-        x : Number,
-        y : Number
+    bros: ?{
+        x: Number,
+        y: Number
     }
 }
 
-fun foo() : Option { x : Number, y : Number } {
-    Some({x : 5, y : 22 })
+fun foo(): ?{ x: Number, y: Number } {
+    Some({x: 5, y: 22 })
 }

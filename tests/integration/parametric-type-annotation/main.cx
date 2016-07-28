@@ -1,3 +1,2 @@
-
 data Option2<a> { None2, Some2(a) }
-let x: Option2 Number = Some2(22)
+let x: Option2<Number> = Some2(22)

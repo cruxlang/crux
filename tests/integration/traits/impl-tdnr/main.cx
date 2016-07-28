@@ -1,0 +1,16 @@
+trait C a {
+  m: fun(String) -> a
+}
+
+impl C Boolean {
+  m = fun(s) {
+    s->startsWith("hello")
+  }
+}
+
+fun main() {
+  let r: Boolean = m("hello world")
+  print(r)
+}
+
+let _ = main()

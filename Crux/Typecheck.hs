@@ -929,12 +929,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
             let (Just methodTypeVar) = lookup methodName newMethods
 
-            -- TODO: test for TDNR in trait impl
             expr' <- checkExpecting methodTypeVar env expr
             expr'' <- resolveInstanceDictPlaceholders env expr'
             return (methodName, expr'')
-
-        -- TODO: verify everything is implemented
 
         return $ DImpl typeVar' traitRef typeReference forall values' dictArgs
 

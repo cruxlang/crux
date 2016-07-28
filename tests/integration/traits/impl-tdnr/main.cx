@@ -1,16 +1,27 @@
-trait C {
-  m(String): self
+trait From {
+  f(String): self
 }
 
-impl C Boolean {
-  m(s) {
+impl From Boolean {
+  f(s) {
     s->startsWith("hello")
   }
 }
 
+trait To {
+  t(self): String
+}
+
+impl To Boolean {
+  t(b) {
+    if b then "true" else "not true"
+  }
+}
+
 fun main() {
-  let r: Boolean = m("hello world")
+  let r: Boolean = f("hello world")
   print(r)
+  print(t(False))
 }
 
 let _ = main()

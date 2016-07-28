@@ -283,17 +283,21 @@ identifierExpression = do
     (txt, pos) <- anyIdentifierWithPos
     return $ EIdentifier pos $ UnqualifiedReference txt
 
-functionExpression :: Parser ParseExpression
-functionExpression = do
-    tfun <- token Tokens.TFun
-    let pos = tokenData tfun
-
+functionGuts :: Pos -> Parser ParseExpression
+functionGuts pos = do
     fdParams <- parenthesized $ commaDelimited funArgument
     fdReturnAnnot <- P.optionMaybe $ do
         _ <- token TColon
         typeIdent
     fdBody <- blockExpression
     return $ EFun pos FunctionDecl{..}
+
+functionExpression :: Parser ParseExpression
+functionExpression = do
+    tfun <- token Tokens.TFun
+    let pos = tokenData tfun
+
+    functionGuts pos
 
 wildcardPattern :: Parser (Pattern ())
 wildcardPattern = token TWildcard *> return PWildcard
@@ -720,8 +724,16 @@ traitDeclaration = do
     typeVar <- anyIdentifier
     (_, decls) <- bracedLines $ do
         (mname, pos) <- anyIdentifierWithPos
-        tcolon <- token Tokens.TColon
-        mident <- withIndentation (IRDeeper tcolon) typeIdent
+        let trad = do
+                tcolon <- token Tokens.TColon
+                withIndentation (IRDeeper tcolon) typeIdent
+        let sugar = do
+                -- TODO: indentation rules here are probably wrongc
+                params <- parenthesized $ commaDelimited typeIdent
+                _ <- token Tokens.TColon
+                ret <- typeIdent
+                return $ FunctionIdent params ret
+        mident <- sugar <|> trad
         return (pos, (mname, pos, mident))
 
     return $ DTrait (tokenData ttrait) name typeVar decls
@@ -733,10 +745,14 @@ implDeclaration = do
     typeName' <- unresolvedReference
     forall <- P.option [] explicitTypeVariableList
     (_, decls) <- bracedLines $ do
-        -- TODO: add sugar for function decl parsing?
+        -- TODO: indentation rules here probably aren't right
         (elementName, pos) <- anyIdentifierWithPos
-        tequal <- token TEqual
-        expr <- withIndentation (IRDeeper tequal) noSemiExpression
+        let trad = do
+                tequal <- token TEqual
+                withIndentation (IRDeeper tequal) noSemiExpression
+        let sugar = functionGuts pos
+
+        expr <- sugar <|> trad
         return (pos, (elementName, expr))
 
     return $ DImpl (tokenData timpl) traitName typeName' forall decls []

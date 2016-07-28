@@ -1,0 +1,16 @@
+trait C a {
+  c(a): String
+}
+
+impl C Boolean {
+  c(n) {
+    if n == True then "true" else "false"
+  }
+}
+
+fun main() {
+  print(c(True))
+  print(c(False))
+}
+
+let _ = main()

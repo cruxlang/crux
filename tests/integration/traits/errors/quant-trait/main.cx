@@ -1,5 +1,5 @@
-trait E a {
-  foo: fun(a) -> a
+trait E {
+  foo(self): self
 }
 
 fun f<a>(a: a) {

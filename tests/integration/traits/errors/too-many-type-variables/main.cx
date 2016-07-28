@@ -1,9 +1,9 @@
-trait N a {
-  e: fun(a) -> Number
+trait N {
+  e(self): Number
 }
 
 impl N Number<a> {
-  e = fun(m) {
+  e(m) {
     return 0
   }
 }

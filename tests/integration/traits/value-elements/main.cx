@@ -1,11 +1,11 @@
-trait Monoid a {
-  empty: a
-  concat: fun(a, a) -> a
+trait Monoid {
+  empty: self
+  concat(self, self): self
 }
 
 impl Monoid Number {
   empty = 0
-  concat = fun(x, y) {
+  concat(x, y) {
     x + y
   }
 }

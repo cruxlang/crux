@@ -365,12 +365,13 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     -- Phase 2d.
     traitDecls <- fmap catMaybes $ for decls $ \case
-        DTrait pos name typeVarName defns -> do
+        DTrait pos name defns -> do
             env' <- childEnv env
 
             let tn = TraitIdentity (eThisModule env) name
 
             typeVar <- newQuantifiedConstrainedTypeVar env' pos name tn
+            let typeVarName = "self" -- a la Rust
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
             methods <- for defns $ \(mname, mpos, typeIdent) -> do
                 tv <- resolveTypeIdent env' mpos typeIdent

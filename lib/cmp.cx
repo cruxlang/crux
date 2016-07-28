@@ -4,9 +4,9 @@ import {
   boolean
 }
 
-export trait Eq a {
-  eq: fun(a, a) -> boolean.Boolean
-  neq: fun(a, a) -> boolean.Boolean
+export trait Eq {
+  eq(self, self): boolean.Boolean
+  neq(self, self): boolean.Boolean
 }
 
 impl Eq boolean.Boolean {

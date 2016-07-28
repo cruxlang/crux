@@ -1,5 +1,5 @@
-trait C a {
-  c(a): String
+trait C {
+  c(self): String
 }
 
 impl C Boolean {

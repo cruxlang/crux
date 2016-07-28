@@ -1,9 +1,9 @@
-export trait Go a {
-  go: fun(a) -> ()
+export trait Go {
+  go(self): ()
 }
 
 impl Go Number {
-  go = fun(n) {
+  go(n) {
     print("two: " + toString(n))
   }
 }

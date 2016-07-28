@@ -1,7 +1,7 @@
 data D {}
 
-trait T a {
-  m: fun(a) -> Number
+trait T {
+  m(self): Number
 }
 
 impl T D {

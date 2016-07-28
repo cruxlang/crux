@@ -1,9 +1,9 @@
-trait C a {
-  m: fun(String) -> a
+trait C {
+  m(String): self
 }
 
 impl C Boolean {
-  m = fun(s) {
+  m(s) {
     s->startsWith("hello")
   }
 }

@@ -1,6 +1,6 @@
-trait C a {
-  one: a
-  two: a
+trait C {
+  one: self
+  two: self
 }
 
 impl C Number {

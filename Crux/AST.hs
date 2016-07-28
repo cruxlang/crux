@@ -60,7 +60,7 @@ data DeclarationType idtype tagtype edata
     | DJSData edata Name [JSVariant]
     | DTypeAlias edata Name [Name] TypeIdent
     -- Traits
-    | DTrait edata Name {-typevar-}Name [(Name, edata, TypeIdent)]
+    | DTrait edata Name [(Name, edata, TypeIdent)]
     | DImpl
         edata     -- ^TypeVar of the type parameter
         idtype    -- ^Trait name

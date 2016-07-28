@@ -863,10 +863,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportType export env pos' name typeVar
         return $ DTypeAlias typeVar name typeVars ident
 
-    DTrait pos' traitName typeName contents -> do
+    DTrait pos' traitName contents -> do
         -- TODO: add an ICE if it's not already set up in the environment
         Just (traitRef, traitNumber, traitDesc) <- SymbolTable.lookup (eTraitBindings env) traitName
         env' <- childEnv env
+        let typeName = "self"
         _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber
         contents' <- for contents $ \(name, pos'', typeIdent) -> do
             tv <- resolveTypeIdent env' pos'' typeIdent
@@ -876,7 +877,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- TODO: introduce some dummy type? we don't need a type here
         unitType <- resolveVoidType env pos
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
-        return $ DTrait unitType traitName typeName contents'
+        return $ DTrait unitType traitName contents'
 
     DImpl pos' traitReference typeReference forall values _ -> do
         (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference

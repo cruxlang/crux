@@ -416,7 +416,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         -- type aliases are not reflected into the IR
         return ()
 
-    AST.DTrait _ _traitName _typeVar decls -> do
+    AST.DTrait _ _traitName decls -> do
         for_ decls $ \(name, _declType, _typeIdent) -> do
             let body =
                     [ Return (Property (LocalBinding "dict") name) ]

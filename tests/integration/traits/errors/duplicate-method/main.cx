@@ -1,4 +1,4 @@
-trait C a {
-  x: a
-  x: a
+trait C {
+  x: self
+  x: self
 }

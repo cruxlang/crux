@@ -1,5 +1,5 @@
-trait Plop a {
-  plop: fun(a) -> String
+trait Plop {
+  plop(self): String
 }
 
 data Flip {

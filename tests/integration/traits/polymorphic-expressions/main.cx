@@ -1,5 +1,5 @@
-trait Show a {
-  show: fun(a) -> String
+trait Show {
+  show(self): String
 }
 
 impl Show Number {

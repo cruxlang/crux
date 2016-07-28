@@ -1,13 +1,12 @@
-
 data Pair<a, b>(a, b)
 
 // Eq
-trait E a {
-  e: fun(a, a) -> Boolean
+trait E {
+  e(self, self): Boolean
 }
 
 impl E Option<a: E> {
-  e = fun(lhs, rhs) {
+  e(lhs, rhs) {
     match Pair(lhs, rhs) {
       Pair(None, None) => True
       Pair(Some(x), Some(y)) => e(x, y)

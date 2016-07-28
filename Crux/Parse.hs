@@ -721,7 +721,6 @@ traitDeclaration :: Parser ParseDeclaration
 traitDeclaration = do
     ttrait <- token Tokens.TTrait
     name <- anyIdentifier
-    typeVar <- anyIdentifier
     (_, decls) <- bracedLines $ do
         (mname, pos) <- anyIdentifierWithPos
         let trad = do
@@ -736,7 +735,7 @@ traitDeclaration = do
         mident <- sugar <|> trad
         return (pos, (mname, pos, mident))
 
-    return $ DTrait (tokenData ttrait) name typeVar decls
+    return $ DTrait (tokenData ttrait) name decls
 
 implDeclaration :: Parser ParseDeclaration
 implDeclaration = do

@@ -1,11 +1,11 @@
-trait Trait a {
-  method: fun(a, a) -> a
-  display: fun(a) -> String
+trait Trait {
+  method(self, self): self
+  display(self): String
 }
 
 impl Trait Number {
-  method = fun(x, y) { x + y }
-  display = fun(z) { toString(z) }
+  method(x, y) { x + y }
+  display(z) { toString(z) }
 }
 
 fun go(x, y) {

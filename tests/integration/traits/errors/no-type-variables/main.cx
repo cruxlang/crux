@@ -1,5 +1,5 @@
-trait N a {
-  e: fun(a) -> Number
+trait N {
+  e(self): Number
 }
 
 impl N Option {

@@ -23,7 +23,7 @@ export fun get<t>(a: [t], idx: Number): t {
 }
 
 impl length.HasLength Array<a> {
-  len = fun(a) {
+  len(a) {
     _unsafe_coerce(a).length
   }
 }

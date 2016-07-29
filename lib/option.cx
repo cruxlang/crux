@@ -12,7 +12,7 @@ export data Option<a> {
 }
 
 impl Eq Option<a: Eq> {
-  eq = fun(lhs, rhs) {
+  eq(lhs, rhs) {
     match pair.Pair(lhs, rhs) {
       pair.Pair(None, None) => True
       pair.Pair(Some(x), Some(y)) => x == y

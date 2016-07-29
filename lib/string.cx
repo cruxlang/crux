@@ -18,7 +18,7 @@ impl Eq String {
 }
 
 impl length.HasLength String {
-  len = fun(s) {
+  len(s) {
     _unsafe_coerce(s).length
   }
 }

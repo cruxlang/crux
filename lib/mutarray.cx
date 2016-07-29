@@ -28,7 +28,7 @@ export fun get<a>(a: mutable [a], idx: Number) {
 
 // TODO: sugar
 impl length.HasLength MutableArray<a> {
-  len = fun(arr) {
+  len(arr) {
     return _unsafe_coerce(arr).length
   }
 }

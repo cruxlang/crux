@@ -29,7 +29,7 @@ impl length.HasLength Array<a> {
 }
 
 impl cmp.Eq Array<a: cmp.Eq> {
-  eq = fun(lhs, rhs) {
+  eq(lhs, rhs) {
     let lhs_length = length.len(lhs)
     let rhs_length = length.len(rhs)
     if lhs_length != rhs_length {
@@ -45,10 +45,6 @@ impl cmp.Eq Array<a: cmp.Eq> {
     }
 
     boolean.True
-  }
-
-  neq = fun(lhs, rhs) {
-    boolean.not(lhs == rhs)
   }
 }
 

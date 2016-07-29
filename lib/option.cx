@@ -19,8 +19,4 @@ impl Eq Option<a: Eq> {
       _ => False
     }
   }
-
-  neq = fun(lhs, rhs) {
-    not(lhs == rhs)
-  }
 }

@@ -11,8 +11,4 @@ impl cmp.Eq Pair<a: cmp.Eq, b: cmp.Eq> {
   eq = fun(Pair(a, b), Pair(c, d)) {
     a == c && b == d
   }
-
-  neq = fun(Pair(a, b), Pair(c, d)) {
-    a != c || b != d
-  }
 }

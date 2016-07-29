@@ -925,10 +925,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         values' <- for values $ \(methodName, expr) -> do
             when (1 < (length $ filter (\(name, _) -> name == methodName) values)) $ do
-                -- TODO: use the pos of the impl here
+                -- TODO: use the pos of the method here
                 failError $ DuplicateSymbol pos' methodName
 
-            let (Just methodTypeVar) = lookup methodName newMethods
+            methodTypeVar <- case lookup methodName newMethods of
+                Just tv -> return tv
+                -- TODO: use the pos of the method here
+                Nothing -> failTypeError pos' $ UnexpectedImplMethod methodName
 
             expr' <- checkExpecting methodTypeVar env expr
             expr'' <- resolveInstanceDictPlaceholders env expr'

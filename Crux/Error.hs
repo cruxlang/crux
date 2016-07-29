@@ -40,6 +40,7 @@ data TypeError
     -- trait errors
     | NoTraitOnType TypeVar Name ModuleName
     | IncompleteImpl [Name]
+    | UnexpectedImplMethod Name
     deriving (Eq, Show)
 
 data Error
@@ -100,6 +101,7 @@ getTypeErrorName = \case
     TypeApplicationMismatch{} -> "type-application-mismatch"
     NoTraitOnType{} -> "no-trait-on-type"
     IncompleteImpl{} -> "incomplete-impl"
+    UnexpectedImplMethod{} -> "unexpected-impl-method"
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
@@ -134,3 +136,5 @@ typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
     return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
 typeErrorToString (IncompleteImpl missingMethods) = do
     return $ "Impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
+typeErrorToString (UnexpectedImplMethod name) = do
+    return $ "Impl has method not defined by trait: " <> Text.unpack name

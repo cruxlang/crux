@@ -1,17 +1,37 @@
 pragma { NoBuiltin }
 
 import {
-  boolean
+  boolean(...)
 }
 
 export trait Eq {
-  eq(self, self): boolean.Boolean
+  eq(self, self): Boolean
 }
 
+// TODO: move this into Eq and implement trait defaults
 export fun neq(lhs, rhs) {
-  boolean.not(lhs == rhs)
+  not(lhs == rhs)
 }
 
-impl Eq boolean.Boolean {
+impl Eq Boolean {
   eq = _unsafe_js("function eq(x, y) { return x === y; }")
 }
+
+export trait Ord {
+  lt(self, self): Boolean
+}
+
+// TODO: move this into Eq and implement trait defaults
+export fun gte(lhs, rhs) {
+  not(lhs < rhs)
+}
+
+export fun lte(lhs, rhs) {
+  lhs < rhs || lhs == rhs
+}
+
+export fun gt(lhs, rhs) {
+  rhs < lhs && lhs != rhs
+}
+
+// TODO: Ord impl for Boolean

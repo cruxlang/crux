@@ -145,16 +145,6 @@ isArithmeticOp op = case op of
     BIDivide -> True
     _ -> False
 
-isRelationalOp :: BinIntrinsic -> Bool
-isRelationalOp op = case op of
-    BILess -> True
-    BIGreater -> True
-    BILessEqual -> True
-    BIGreaterEqual -> True
-    BIEqual -> True
-    BINotEqual -> True
-    _ -> False
-
 isBooleanOp :: BinIntrinsic -> Bool
 isBooleanOp op = case op of
     BAnd -> True

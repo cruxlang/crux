@@ -8,3 +8,8 @@ impl Eq Number {
   // TODO: some sort of unsafe primitives
   eq = _unsafe_js("function(x, y) { return x === y; }")
 }
+
+impl Ord Number {
+  // TODO: some sort of unsafe primitives
+  lt = _unsafe_js("function(x, y) { return x < y; }")
+}

@@ -23,26 +23,32 @@ impl length.HasLength String {
   }
 }
 
+// Internal JS representation of strings
+type StrObj = {
+  length: Number,
+  indexOf: fun(String, Number) -> Number,
+}
+
 export fun startsWith(haystack: String, needle: String) {
-    let h = _unsafe_coerce(haystack)
-    let n = _unsafe_coerce(needle)
+    let h: StrObj = _unsafe_coerce(haystack)
+    let n: StrObj = _unsafe_coerce(needle)
     if n.length > h.length {
         return False
     }
-    return h.indexOf(n, 0) == 0
+    return h.indexOf(needle, 0) == 0
 }
 
 export fun endsWith(haystack: String, needle: String) {
     // Oops, how do I use a record with a keyword property name :D
     // return _unsafe_coerce(haystack).match(needle + "$") == needle;
 
-    let h = _unsafe_coerce(haystack)
-    let n = _unsafe_coerce(needle)
+    let h: StrObj = _unsafe_coerce(haystack)
+    let n: StrObj = _unsafe_coerce(needle)
     if n.length > h.length {
         return False
     }
     // TODO: crux does not support negative literals yet
-    return h.indexOf(n, h.length - n.length) != 0 - 1
+    return h.indexOf(needle, h.length - n.length) != 0 - 1
 }
 
 export fun join(sep: String, elements: [String]): String {

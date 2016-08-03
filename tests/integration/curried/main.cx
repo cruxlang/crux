@@ -1,2 +1,6 @@
+// TODO: why do i need to import cmp here?
+import { cmp }
+
 let f = x => y => x + y
-let _ = print(f(1)(2))
+let g<a: cmp.Eq>: a => a => a = f
+let _ = print(g(1)(2))

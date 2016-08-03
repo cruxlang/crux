@@ -27,7 +27,7 @@ export fun print(a): () {
     _unsafe_js("console").log(a)
 }
 
-export let toString<a>: fun(a) -> String =
+export let toString<a>: a => String =
     _unsafe_js("function toString(v) { return '' + v; }")
 
 // Arrays have unspecified representation here. They are represented as JS arrays.

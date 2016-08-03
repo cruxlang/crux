@@ -3,5 +3,5 @@ pragma { NoBuiltin }
 import { number(...) }
 
 export trait HasLength {
-  len(self): Number
+  len: self => Number
 }

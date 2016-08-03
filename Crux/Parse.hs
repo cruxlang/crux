@@ -539,7 +539,13 @@ sumIdent :: Parser TypeIdent
 sumIdent = do
     name <- unresolvedReference
     params <- P.option [] $ angleBracketed $ commaDelimited typeIdent
-    return $ TypeIdent name params
+
+    let it = TypeIdent name params
+    let funner = do
+            _ <- token TFatRightArrow
+            rv <- typeIdent
+            return $ FunctionIdent [it] rv
+    funner <|> return it
 
 unitTypeIdent :: Parser TypeIdent
 unitTypeIdent = do
@@ -564,8 +570,8 @@ typeIdent = asum
     , optionTypeIdent
     , functionTypeIdent
     , recordTypeIdent
-    , sumIdent
-    , unitTypeIdent
+    , sumIdent      -- also unary functions
+    , unitTypeIdent -- also nullary functions
     , parenthesized typeIdent
     ]
 

@@ -281,7 +281,16 @@ parseString = do
 identifierExpression :: Parser ParseExpression
 identifierExpression = do
     (txt, pos) <- anyIdentifierWithPos
-    return $ EIdentifier pos $ UnqualifiedReference txt
+    let fn = do
+            _ <- token TFatRightArrow
+            body <- noSemiExpression
+            return $ EFun pos $ FunctionDecl
+                { fdParams = [(PBinding txt, Nothing)]
+                , fdReturnAnnot = Nothing
+                , fdBody = body
+                }
+    let ident = EIdentifier pos $ UnqualifiedReference txt
+    fn <|> return ident
 
 functionGuts :: Pos -> Parser ParseExpression
 functionGuts pos = do

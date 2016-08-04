@@ -32,6 +32,7 @@ data Pattern tag
     = PWildcard
     | PBinding Name
     | PConstructor UnresolvedReference tag [Pattern tag]
+    | PTuple [Pattern tag]
     deriving (Show, Eq)
 
 instance IsString (Pattern tagtype) where
@@ -181,6 +182,7 @@ data Expression idtype tagtype edata
     | EFun edata (FunctionDecl idtype tagtype edata)
     | ERecordLiteral edata (HashMap Name (Expression idtype tagtype edata))
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
+    | ETupleLiteral edata [Expression idtype tagtype edata]
     | ELiteral edata Literal
 
     -- intrinsics
@@ -214,6 +216,7 @@ edata expr = case expr of
     EAssign ed _ _ -> ed
     ELiteral ed _ -> ed
     EArrayLiteral ed _ _ -> ed
+    ETupleLiteral ed _ -> ed
     ERecordLiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
@@ -241,6 +244,7 @@ setEdata expr e = case expr of
     EAssign _ a b         -> EAssign e a b
     ELiteral _ a          -> ELiteral e a
     EArrayLiteral _ a b   -> EArrayLiteral e a b
+    ETupleLiteral _ a     -> ETupleLiteral e a
     ERecordLiteral _ a    -> ERecordLiteral e a
     EIdentifier _ a       -> EIdentifier e a
     ESemi _ a b           -> ESemi e a b

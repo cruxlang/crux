@@ -218,6 +218,9 @@ generate env = \case
         elements' <- runMaybeT $ for elements $ MaybeT . generate env
         return $ fmap ArrayLiteral elements'
 
+    AST.ETupleLiteral{} -> do
+        fail "Tuples should be eliminated during typechecking"
+
     AST.ERecordLiteral _ props -> do
         props' <- runMaybeT $ for props $ MaybeT . generate env
         return $ fmap RecordLiteral props'

@@ -12,6 +12,7 @@ import {
     mutarray
     string
     number
+    tuple // TODO: this is not actually used, but it isn't codegenned in the right place if not imported here
 }
 
 export import cmp

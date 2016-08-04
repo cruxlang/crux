@@ -313,13 +313,20 @@ wildcardPattern = token TWildcard *> return PWildcard
 
 data PatternContext = RefutableContext | IrrefutableContext
 
+parenPattern :: PatternContext -> Parser (Pattern ())
+parenPattern ctx = do
+    (parenthesized $ commaDelimited $ pattern ctx) >>= \case
+        [] -> fail "TODO: unit patterns"
+        [x] -> return x
+        elements -> return $ PTuple elements
+
 -- lower - PBinding
 -- UPPER - PBinding if irrefutable else PConstructor
 -- UPPER(...) - PConstructor
 -- mod.UPPER - PConstructor
 -- mod.UPPER(...) - PConstructor
 pattern :: PatternContext -> Parser (Pattern ())
-pattern ctx = parenthesized (pattern ctx) <|> wildcardPattern <|> do
+pattern ctx = parenPattern ctx <|> wildcardPattern <|> do
     let lowerBinding = lowerIdentifier >>= return . PBinding . fst
     let parseConstructor = do
             (constructorName, _) <- upperIdentifier
@@ -358,6 +365,15 @@ matchExpression = do
             blockExpression <|> noSemiExpression
         return $ Case pat ex
     return $ EMatch (tokenData tmatch) expr cases
+
+parenExpression :: Parser ParseExpression
+parenExpression = do
+    -- TODO: think about commas vs. semicolons
+    (parenthesized $ commaDelimited semiExpression) >>= \case
+        [] -> fail "unit handled elsewhere"
+        [x] -> return x
+        elements@(first:_) -> do
+            return $ ETupleLiteral (edata first) elements
 
 basicExpression :: Parser ParseExpression
 basicExpression =
@@ -462,9 +478,6 @@ semiExpression = do
     first <- noSemiExpression
     rest <- P.many (token TSemicolon >> noSemiExpression)
     return $ foldl' (\a b -> ESemi (edata a) a b) first rest
-
-parenExpression :: Parser ParseExpression
-parenExpression = parenthesized semiExpression
 
 noSemiExpression :: Parser ParseExpression
 noSemiExpression =

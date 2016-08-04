@@ -1,0 +1,9 @@
+pragma { NoBuiltin }
+
+export data Tuple2<a, b>(a, b)
+export data Tuple3<a, b, c>(a, b, c)
+export data Tuple4<a, b, c, d>(a, b, c, d)
+export data Tuple5<a, b, c, d, e>(a, b, c, d, e)
+export data Tuple6<a, b, c, d, e, f>(a, b, c, d, e, f)
+export data Tuple7<a, b, c, d, e, f, g>(a, b, c, d, e, f, g)
+export data Tuple8<a, b, c, d, e, f, g, h>(a, b, c, d, e, f, g, h)

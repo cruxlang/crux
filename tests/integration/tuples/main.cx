@@ -1,0 +1,8 @@
+fun main() {
+  let z = (1, 2)
+  let (x, y) = z
+  print(x)
+  print(y)
+}
+
+let _ = main()

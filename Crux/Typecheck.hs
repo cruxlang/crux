@@ -59,6 +59,10 @@ buildPatternEnv env pos exprType mut = \case
 
         return $ PConstructor unresolvedReference patternTag args'
 
+    PTuple elements -> do
+        let patternName = "Tuple" <> (Text.pack $ show $ length elements)
+        buildPatternEnv env pos exprType mut $ PConstructor (KnownReference "tuple" patternName) () elements
+
 lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
 lookupBinding name Env{..} = do
     SymbolTable.lookup eValueBindings name >>= \case
@@ -374,6 +378,10 @@ check' expectedType env = \case
             return elementExpr
         return $ EArrayLiteral arrayType mutability elements'
 
+    ETupleLiteral pos elements -> do
+        let ctor = EIdentifier pos $ KnownReference "tuple" $ "Tuple" <> (Text.pack $ show $ length elements)
+        check env $ EApp pos ctor elements
+
     ERecordLiteral pos fields -> do
         env' <- childEnv env
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
@@ -591,6 +599,9 @@ resolveInstanceDictPlaceholders env = recurse
             EArrayLiteral tv mut elements -> do
                 elements' <- for elements recurse
                 return $ EArrayLiteral tv mut elements'
+            ETupleLiteral tv elements -> do
+                elements' <- for elements recurse
+                return $ ETupleLiteral tv elements'
             expr@ELiteral{} -> do
                 return expr
             EBinIntrinsic tv bi lhs rhs -> do
@@ -759,6 +770,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
+            PTuple {} ->
+                error "Tuple patterns on top-level let bindings are not supported yet.  also TODO: export"
 
         quantify ty
 

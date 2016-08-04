@@ -219,6 +219,8 @@ loadProgram loader main = runEitherT $ do
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
     loadSyntaxDependency "void"
+    -- any module that uses tuples depends on 'tuple'
+    loadSyntaxDependency "tuple"
     -- any module that uses == or != depends on 'cmp'
     loadSyntaxDependency "cmp"
     -- any module that uses a string literal depends on 'string' being loaded

@@ -86,11 +86,10 @@ assertUnificationError _ _ _ (Left err) =
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
 
-failWithError :: String -> ModuleName -> Error.Error -> IO ()
+failWithError :: String -> Maybe ModuleName -> Error.Error -> IO ()
 failWithError root moduleName err = do
-    let moduleName' = printModuleName moduleName
-    err' <- Error.renderError' err
-    assertFailure $ "\nError in: " <> root <> "\nModule: " <> (T.unpack moduleName') <> "\n" <> err'
+    err' <- Error.renderError moduleName err
+    assertFailure $ "\nError in: " <> root <> "\n" <> err'
 
 data ErrorConfig = ErrorConfig
     { errorName     :: Maybe Text

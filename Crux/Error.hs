@@ -53,10 +53,10 @@ data Error
     | DuplicateSymbol Pos Text
     deriving (Eq, Show)
 
-renderError :: ModuleName -> Error -> IO String
+renderError :: Maybe ModuleName -> Error -> IO String
 renderError moduleName err = do
     e <- renderError' err
-    return $ "At " ++ Text.unpack (printModuleName moduleName) ++ ": " ++ e
+    return $ "At " ++ Text.unpack (maybe "<root>" printModuleName moduleName) ++ ": " ++ e
 
 renderError' :: Error -> IO String
 renderError' = \case

@@ -216,11 +216,6 @@ returnExpression = do
         _      -> return $ ELiteral (tokenData pr) LUnit
     return $ EReturn (tokenData pr) rv
 
-unitLiteralExpression :: Parser ParseExpression
-unitLiteralExpression = do
-    o <- P.try $ token TOpenParen <* token TCloseParen
-    return $ ELiteral (tokenData o) LUnit
-
 arrayLiteralExpression :: Parser ParseExpression
 arrayLiteralExpression = do
     let arrParser = do
@@ -260,7 +255,6 @@ stringLiteralExpression = do
 
 literalExpression :: Parser ParseExpression
 literalExpression =
-    unitLiteralExpression <|>
     arrayLiteralExpression <|>
     recordLiteralExpression <|>
     functionExpression <|>
@@ -369,11 +363,11 @@ matchExpression = do
 parenExpression :: Parser ParseExpression
 parenExpression = do
     -- TODO: think about commas vs. semicolons
-    (parenthesized $ commaDelimited semiExpression) >>= \case
-        [] -> fail "unit handled elsewhere"
-        [x] -> return x
-        elements@(first:_) -> do
-            return $ ETupleLiteral (edata first) elements
+    (pos, elements) <- (parenthesized' $ commaDelimited semiExpression)
+    return $ case elements of
+        [] -> ELiteral pos LUnit
+        [x] -> x
+        _ -> ETupleLiteral pos elements
 
 basicExpression :: Parser ParseExpression
 basicExpression =

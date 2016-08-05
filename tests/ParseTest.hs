@@ -33,7 +33,7 @@ test_literals = do
         (ELiteral () (LInteger 5))
     assertExprParses literalExpression "\"Hooper\""
         (ELiteral () (LString "Hooper"))
-    assertExprParses literalExpression "()"
+    assertExprParses noSemiExpression "()"
         (ELiteral () (LUnit))
     assertExprParses literalExpression "[]"
         (EArrayLiteral () Immutable [])

@@ -2,6 +2,7 @@ pragma { NoBuiltin }
 
 import {
   boolean(...)
+  js.unsafe
 }
 
 export trait Eq {
@@ -14,7 +15,7 @@ export fun neq(lhs, rhs) {
 }
 
 impl Eq Boolean {
-  eq = _unsafe_js("function eq(x, y) { return x === y; }")
+  eq = unsafe.eq
 }
 
 export trait Ordered {
@@ -51,7 +52,7 @@ export data jsffi Ordering {
 }
 
 impl Eq Ordering {
-  eq = _unsafe_js("function eq(lhs, rhs) { return lhs === rhs; }")
+  eq = unsafe.eq
 }
 
 // TODO: move compare into the Eq constraint and implement trait defaults

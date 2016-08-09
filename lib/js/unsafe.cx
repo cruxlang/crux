@@ -1,0 +1,20 @@
+pragma { NoBuiltin }
+
+import {
+  boolean
+}
+
+// TODO: implement non-wildcard unqualified imports
+type Boolean = boolean.Boolean
+
+export let eq<a, b>: fun(a, b) -> Boolean = _unsafe_js(
+  "function eq(lhs, rhs) { return lhs === rhs; }"
+)
+
+export let neq<a, b>: fun(a, b) -> Boolean = _unsafe_js(
+  "function neq(lhs, rhs) { return lhs !== rhs; }"
+)
+
+export let lt<a, b>: fun(a, b) -> Boolean = _unsafe_js(
+  "function lt(lhs, rhs) { return lhs < rhs; }"
+)

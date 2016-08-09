@@ -1,11 +1,12 @@
 pragma { NoBuiltin }
 
 import {
-    cmp(...)
-    boolean(...)
-    array
-    number
-    length
+  cmp(...)
+  boolean(...)
+  array
+  number
+  length
+  js.unsafe
 }
 
 // TODO: implement selective import
@@ -14,7 +15,7 @@ type Number = number.Number
 export data String {}
 
 impl Eq String {
-  eq = _unsafe_js("function eq(x, y) { return x === y; }")
+  eq = unsafe.eq
 }
 
 impl length.HasLength String {

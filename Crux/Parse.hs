@@ -377,34 +377,31 @@ matchExpression = do
         return $ Case pat ex
     return $ EMatch (tokenData tmatch) expr cases
 
-asPattern :: ParseExpression -> Maybe (Pattern ())
+asPattern :: ParseExpression -> Parser (Pattern ())
 asPattern = \case
-    EIdentifier _ (UnqualifiedReference n) -> Just $ PBinding n
-    _ -> Nothing
+    EIdentifier _ (UnqualifiedReference n) -> return $ PBinding n
+    -- TODO: better error message
+    _ -> fail "Not a valid pattern"
 
 parenExpression :: Parser ParseExpression
 parenExpression = do
     -- TODO: think about commas vs. semicolons
     (pos, elements) <- (parenthesized' $ commaDelimited semiExpression)
-    rv <- case mapM asPattern elements of
-        Nothing -> do
-            return Nothing
-        Just patterns -> do
-            P.option (Nothing) $ do
-                _ <- token TFatRightArrow
-                body <- noSemiExpression
-                return $ Just $ EFun pos FunctionDecl
-                    { fdParams = fmap (\p -> (p, Nothing)) patterns
-                    , fdReturnAnnot = Nothing
-                    , fdBody = body
-                    }
-
-    case rv of
+    (P.optionMaybe $ token TFatRightArrow) >>= \case
         Nothing -> return $ case elements of
+            -- we know it's an expr, parse it as such
             [] -> ELiteral pos LUnit
             [x] -> x
             _ -> ETupleLiteral pos elements
-        Just rv' -> return rv'
+        Just _ -> do
+            -- attempt as lambda form
+            patterns <- for elements asPattern
+            body <- noSemiExpression
+            return $ EFun pos FunctionDecl
+                { fdParams = fmap (\p -> (p, Nothing)) patterns
+                , fdReturnAnnot = Nothing
+                , fdBody = body
+                }
 
 basicExpression :: Parser ParseExpression
 basicExpression =

@@ -15,6 +15,7 @@ An unordered set of interesting language design resources.
 * Want to Write a Compiler? Just Read These Two Papers (Reddit Comments) - https://www.reddit.com/r/programming/comments/3y1fdz/want_to_write_a_compiler_just_read_these_two/
 * Sound and Complete Bidirectional Typechecking for Higher-Rank Polymorphism with Existentials and Indexed Types - http://arxiv.org/abs/1601.05106
 * An Incremental Approach to Compiler Construction [pdf](http://scheme2006.cs.uchicago.edu/11-ghuloum.pdf) [HN comments](https://news.ycombinator.com/item?id=10785164)
+* [Resources for Amateur Compiler Writers](http://c9x.me/compile/bib/)
 
 ## Parsing
 
@@ -54,7 +55,6 @@ An unordered set of interesting language design resources.
 
 * [Relaxing the Value Restriction](http://caml.inria.fr/pub/papers/garrigue-value_restriction-fiwflp04.pdf)
 
-## Resources
+## Existential Types
 
-* [Resources for Amateur Compiler Writers](http://c9x.me/compile/bib/)
-* 
+* [Eliminating Simple Existentials](http://okmij.org/ftp/Computation/Existentials.html)

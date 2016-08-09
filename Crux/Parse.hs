@@ -1,7 +1,24 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase, MultiParamTypeClasses,
              OverloadedStrings, RecordWildCards, TupleSections #-}
 
-module Crux.Parse where
+module Crux.Parse
+    ( parse
+
+    -- for unit tests
+    , Parser
+    , runParser
+    , PatternContext(..)
+    , typeIdent
+    , pattern
+    , literalExpression
+    , multiplyExpression
+    , noSemiExpression
+    , matchExpression
+    , letExpression
+    , funDeclaration
+    , letDeclaration
+    , dataDeclaration
+    ) where
 
 import Control.Applicative ((<|>))
 import Control.Monad.Reader.Class (MonadReader, ask, local)
@@ -364,10 +381,18 @@ parenExpression :: Parser ParseExpression
 parenExpression = do
     -- TODO: think about commas vs. semicolons
     (pos, elements) <- (parenthesized' $ commaDelimited semiExpression)
-    return $ case elements of
-        [] -> ELiteral pos LUnit
-        [x] -> x
-        _ -> ETupleLiteral pos elements
+    case elements of
+        [] -> P.option (ELiteral pos LUnit) $ do
+            _arrowToken <- token TFatRightArrow
+            body <- noSemiExpression
+            let fd = FunctionDecl
+                    { fdParams = []
+                    , fdReturnAnnot = Nothing
+                    , fdBody = body
+                    }
+            return $ EFun pos fd
+        [x] -> return x
+        _ -> return $ ETupleLiteral pos elements
 
 basicExpression :: Parser ParseExpression
 basicExpression =

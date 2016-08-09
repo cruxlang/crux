@@ -17,7 +17,7 @@ impl Eq Boolean {
   eq = _unsafe_js("function eq(x, y) { return x === y; }")
 }
 
-export trait Ord {
+export trait Ordered {
   lt(self, self): Boolean
 }
 
@@ -42,4 +42,25 @@ export fun min(lhs, rhs) {
 
 export fun max(lhs, rhs) {
   if rhs < lhs then lhs else rhs
+}
+
+export data jsffi Ordering {
+  LessThan = "negative-one-todo", // TODO: support negative numeric literals
+  EqualTo = 0,
+  GreaterThan = 1,
+}
+
+impl Eq Ordering {
+  eq = _unsafe_js("function eq(lhs, rhs) { return lhs === rhs; }")
+}
+
+// TODO: move compare into the Eq constraint and implement trait defaults
+
+export fun compare(lhs, rhs) {
+  if lhs < rhs then
+    LessThan
+  else if rhs < lhs then
+    GreaterThan
+  else
+    EqualTo
 }

@@ -57,4 +57,4 @@ An unordered set of interesting language design resources.
 
 ## Existential Types
 
-* [Eliminating Simple Existentials](http://okmij.org/ftp/Computation/Existentials.html)
+* [Representing existential data types with isomorphic simple types](http://okmij.org/ftp/Computation/Existentials.html)

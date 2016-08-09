@@ -59,6 +59,9 @@ buildPatternEnv env pos exprType mut = \case
 
         return $ PConstructor unresolvedReference patternTag args'
 
+    PUnit -> do
+        buildPatternEnv env pos exprType mut $ PConstructor (KnownReference "void" "Void") () []
+
     PTuple elements -> do
         let patternName = "Tuple" <> (Text.pack $ show $ length elements)
         buildPatternEnv env pos exprType mut $ PConstructor (KnownReference "tuple" patternName) () elements
@@ -770,6 +773,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 return $ PBinding name
             PConstructor {} ->
                 error "Patterns on top-level let bindings are not supported yet.  also TODO: export"
+            PUnit ->
+                error "Unit patterns on top-level let bindings are not supported yet.  also TODO: export"
             PTuple {} ->
                 error "Tuple patterns on top-level let bindings are not supported yet.  also TODO: export"
 

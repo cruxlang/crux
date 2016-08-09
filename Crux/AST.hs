@@ -32,6 +32,7 @@ data Pattern tag
     = PWildcard
     | PBinding Name
     | PConstructor UnresolvedReference tag [Pattern tag]
+    | PUnit
     | PTuple [Pattern tag]
     deriving (Show, Eq)
 

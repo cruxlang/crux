@@ -1,4 +1,6 @@
 pragma { NoBuiltin }
 
 // TODO: allow () as a type name
-export data Void {}
+export data jsffi Void {
+  Void = undefined
+}

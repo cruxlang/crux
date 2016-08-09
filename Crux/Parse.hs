@@ -310,7 +310,7 @@ data PatternContext = RefutableContext | IrrefutableContext
 parenPattern :: PatternContext -> Parser (Pattern ())
 parenPattern ctx = do
     (parenthesized $ commaDelimited $ pattern ctx) >>= \case
-        [] -> fail "TODO: unit patterns"
+        [] -> return PUnit
         [x] -> return x
         elements -> return $ PTuple elements
 

@@ -7,3 +7,6 @@ let _: () = u()()
 let f = x => y => x + y
 let g<a: cmp.Eq>: a => a => a = f
 let _ = print(g(1)(2))
+
+let h = (x) => (y) => x + y
+let _ = print(h(1)(2))

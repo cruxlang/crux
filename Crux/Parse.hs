@@ -377,22 +377,34 @@ matchExpression = do
         return $ Case pat ex
     return $ EMatch (tokenData tmatch) expr cases
 
+asPattern :: ParseExpression -> Maybe (Pattern ())
+asPattern = \case
+    EIdentifier _ (UnqualifiedReference n) -> Just $ PBinding n
+    _ -> Nothing
+
 parenExpression :: Parser ParseExpression
 parenExpression = do
     -- TODO: think about commas vs. semicolons
     (pos, elements) <- (parenthesized' $ commaDelimited semiExpression)
-    case elements of
-        [] -> P.option (ELiteral pos LUnit) $ do
-            _arrowToken <- token TFatRightArrow
-            body <- noSemiExpression
-            let fd = FunctionDecl
-                    { fdParams = []
+    rv <- case mapM asPattern elements of
+        Nothing -> do
+            return Nothing
+        Just patterns -> do
+            P.option (Nothing) $ do
+                _ <- token TFatRightArrow
+                body <- noSemiExpression
+                return $ Just $ EFun pos FunctionDecl
+                    { fdParams = fmap (\p -> (p, Nothing)) patterns
                     , fdReturnAnnot = Nothing
                     , fdBody = body
                     }
-            return $ EFun pos fd
-        [x] -> return x
-        _ -> return $ ETupleLiteral pos elements
+
+    case rv of
+        Nothing -> return $ case elements of
+            [] -> ELiteral pos LUnit
+            [x] -> x
+            _ -> ETupleLiteral pos elements
+        Just rv' -> return rv'
 
 basicExpression :: Parser ParseExpression
 basicExpression =

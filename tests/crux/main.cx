@@ -3,6 +3,7 @@ import {
 
     arraytest as _
     booltest as _
+    cmptest as _
     numbertest as _
     stringtest as _
     pathtest as _

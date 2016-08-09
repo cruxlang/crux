@@ -35,3 +35,11 @@ export fun gt(lhs, rhs) {
 }
 
 // TODO: Ord impl for Boolean
+
+export fun min(lhs, rhs) {
+  if lhs < rhs then lhs else rhs
+}
+
+export fun max(lhs, rhs) {
+  if rhs < lhs then lhs else rhs
+}

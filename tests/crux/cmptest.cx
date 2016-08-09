@@ -1,0 +1,9 @@
+import {
+  test(...)
+  assert
+}
+
+let _ = test("number min and max", fun() {
+  assert.equal(1, min(1, 2))
+  assert.equal(2, max(1, 2))
+})

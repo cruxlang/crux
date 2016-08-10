@@ -4,6 +4,9 @@ import { cmp }
 let u = () => () => ()
 let _: () = u()()
 
+let v = (()) => (()) => ()
+let _: () = v(())(())
+
 let f = x => y => x + y
 let g<a: cmp.Eq>: a => a => a = f
 let _ = print(g(1)(2))

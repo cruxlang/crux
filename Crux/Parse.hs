@@ -395,6 +395,7 @@ data PatExpr
 asPattern :: ParseExpression -> Parser (Pattern ())
 asPattern = \case
     EIdentifier _ (UnqualifiedReference n) -> return $ PBinding n
+    ELiteral _ LUnit -> return $ PTuple []
     -- TODO: better error message
     _ -> fail "Not a valid pattern"
 

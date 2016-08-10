@@ -36,6 +36,7 @@ import qualified Text.Parsec as P
 type Parser = P.ParsecT [Token Pos] () (Reader IndentReq)
 type ParseData = Pos
 type ParseExpression = Expression UnresolvedReference () ParseData
+type ParsePattern = Pattern ()
 type ParseDeclaration = DeclarationType UnresolvedReference () ParseData
 
 data IndentReq
@@ -319,12 +320,12 @@ functionExpression = do
 
     functionGuts pos
 
-wildcardPattern :: Parser (Pattern ())
+wildcardPattern :: Parser ParsePattern
 wildcardPattern = token TWildcard *> return PWildcard
 
 data PatternContext = RefutableContext | IrrefutableContext
 
-parenPattern :: PatternContext -> Parser (Pattern ())
+parenPattern :: PatternContext -> Parser ParsePattern
 parenPattern ctx = do
     (parenthesized $ commaDelimited $ pattern ctx) >>= \case
         [] -> return PUnit
@@ -336,7 +337,7 @@ parenPattern ctx = do
 -- UPPER(...) - PConstructor
 -- mod.UPPER - PConstructor
 -- mod.UPPER(...) - PConstructor
-pattern :: PatternContext -> Parser (Pattern ())
+pattern :: PatternContext -> Parser ParsePattern
 pattern ctx = parenPattern ctx <|> wildcardPattern <|> do
     let lowerBinding = lowerIdentifier >>= return . PBinding . fst
     let parseConstructor = do
@@ -377,6 +378,21 @@ matchExpression = do
         return $ Case pat ex
     return $ EMatch (tokenData tmatch) expr cases
 
+{-
+-- Sometimes we don't know what it is yet.
+-- We can resolve a PatExpr into a concrete
+-- Expression or Pattern.  The complexity here is largely
+-- to support ES6 lambda syntax.
+data PatExpr
+    -- = PWildcard
+    = PEUnit
+    -- | PEIdentifier Text
+    -- | PETuple [PattyOrExpr]
+    | PEExpr ParseExpression
+    -- | PEPattern ParsePattern
+-}
+
+-- TODO: replace this with PatExpr resolution
 asPattern :: ParseExpression -> Parser (Pattern ())
 asPattern = \case
     EIdentifier _ (UnqualifiedReference n) -> return $ PBinding n
@@ -588,11 +604,6 @@ sumIdent = do
             return $ FunctionIdent [it] rv
     funner <|> return it
 
-unitTypeIdent :: Parser TypeIdent
-unitTypeIdent = do
-    _ <- P.try $ token TOpenParen <* token TCloseParen
-    return UnitTypeIdent
-
 arrayTypeIdent :: Parser TypeIdent
 arrayTypeIdent = do
     mutability <- P.option Immutable (token TMutable *> return Mutable)
@@ -605,15 +616,26 @@ optionTypeIdent = do
     ti <- typeIdent
     return $ OptionIdent ti
 
+parenTypeIdent :: Parser TypeIdent
+parenTypeIdent = do
+    elements <- parenthesized $ commaDelimited typeIdent
+    (P.optionMaybe $ token TFatRightArrow) >>= \case
+        Nothing -> return $ case elements of
+            [] -> UnitTypeIdent
+            [x] -> x
+            _ -> error "TODO: tuple type ident"
+        Just _arrowToken -> do
+            resultType <- typeIdent
+            return $ FunctionIdent elements resultType
+
 typeIdent :: Parser TypeIdent
 typeIdent = asum
     [ arrayTypeIdent
     , optionTypeIdent
     , functionTypeIdent
     , recordTypeIdent
-    , sumIdent      -- also unary functions
-    , unitTypeIdent -- also nullary functions
-    , parenthesized typeIdent
+    , sumIdent       -- also unary functions
+    , parenTypeIdent -- also nullary and binary+ functions
     ]
 
 typeName :: Parser Text
@@ -706,7 +728,7 @@ aliasDeclaration = do
         ty <- typeIdent
         return $ DTypeAlias (tokenData typeToken) name vars ty
 
-funArgument :: Parser (Pattern (), Maybe TypeIdent)
+funArgument :: Parser (ParsePattern, Maybe TypeIdent)
 funArgument = do
     n <- pattern IrrefutableContext
     ann <- P.optionMaybe $ do

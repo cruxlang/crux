@@ -52,6 +52,8 @@ renderArgument = \case
             let stmts = generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subpattern
             return stmts
         return (n, mconcat prefixes)
+    PTuple _ -> do
+        error "Tuples should be rewritten by this point"
 
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
@@ -78,6 +80,7 @@ generateMatchVars matchVar = \case
             [ generateMatchVars (JSTree.EIndex matchVar (JSTree.ELiteral $ JSTree.LInteger index)) subPattern
             | (index, subPattern) <- zip [1..] subpatterns
             ]
+    PTuple _ -> error "Tuple should be rewritten by this point"
 
 -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Lexical_grammar
 jsKeywords :: [Text]
@@ -321,6 +324,8 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
             fail "Gen: Top-level pattern bindings are not supported"
         PBinding _name -> do
             for defn renderInstruction
+        PTuple _ -> do
+            fail "Gen: Tuple should be rewritten by this point"
     Gen.DException name ->
         return $ [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
 renderDeclaration (Gen.TraitInstance instanceName defns contextParameters) = do
@@ -351,6 +356,8 @@ getExportedValues = \case
             PBinding name -> [(QualifiedExport, name)]
             PConstructor {} ->
                 error "Gen: Top-level pattern bindings are not supported"
+            PTuple _ ->
+                error "Gen: Tuples should be rewritten by this point"
         Gen.DException name -> [(QualifiedExport, name <> "$")]
     Gen.TraitInstance instanceName _ _ -> [(UnqualifiedExport, instanceName)]
 

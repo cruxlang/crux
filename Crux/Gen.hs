@@ -159,7 +159,6 @@ tagFromPattern = \case
             Just $ TagVariant name $ catMaybes subtags'
         AST.TagLiteral literal ->
             Just $ TagLiteral literal
-    AST.PUnit -> fail "Should never get here"
     AST.PTuple _ -> fail "Should never get here"
 
 generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)
@@ -416,7 +415,6 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             AST.PWildcard -> subBlock env defn
             AST.PBinding name -> subBlockWithOutput env (NewLocalBinding name) defn
             AST.PConstructor {} -> error "Gen: Top-level pattern matches are not yet supported"
-            AST.PUnit -> error "Should never get here"
             AST.PTuple _ -> error "Should never get here"
         writeDeclaration $ Declaration export $ DLet pat defn'
     AST.DTypeAlias {} -> do

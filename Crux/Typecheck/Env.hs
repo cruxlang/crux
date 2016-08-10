@@ -81,9 +81,12 @@ resolveTypeIdent env@Env{..} pos typeIdent =
     go typeIdent
   where
     go :: TypeIdent -> TC TypeVar
-    go UnitTypeIdent = do
-        resolveVoidType env pos
-
+    go (TupleTypeIdent elements) = case elements of
+        [] -> resolveVoidType env pos
+        _ -> do
+            elements' <- for elements $ resolveTypeIdent env pos
+            resolveTupleType env pos elements'
+    
     go (TypeIdent typeName typeArguments) = do
         ty <- resolveTypeReference env pos typeName
         typeArguments' <- for typeArguments $ resolveTypeIdent env pos

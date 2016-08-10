@@ -328,7 +328,6 @@ data PatternContext = RefutableContext | IrrefutableContext
 parenPattern :: PatternContext -> Parser ParsePattern
 parenPattern ctx = do
     (parenthesized $ commaDelimited $ pattern ctx) >>= \case
-        [] -> return PUnit
         [x] -> return x
         elements -> return $ PTuple elements
 
@@ -621,9 +620,8 @@ parenTypeIdent = do
     elements <- parenthesized $ commaDelimited typeIdent
     (P.optionMaybe $ token TFatRightArrow) >>= \case
         Nothing -> return $ case elements of
-            [] -> UnitTypeIdent
             [x] -> x
-            _ -> error "TODO: tuple type ident"
+            _ -> TupleTypeIdent elements
         Just _arrowToken -> do
             resultType <- typeIdent
             return $ FunctionIdent elements resultType

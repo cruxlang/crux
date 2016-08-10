@@ -182,6 +182,12 @@ resolveVoidType :: Env -> Pos -> TC TypeVar
 resolveVoidType env pos = do
     resolveTypeReference env pos (KnownReference "void" "Void")
 
+resolveTupleType :: Env -> Pos -> [TypeVar] -> TC TypeVar
+resolveTupleType env pos elements = do
+    let tupleReference = KnownReference "tuple" $ "Tuple" <> (Text.pack $ show $ length elements)
+    tupleType <- resolveTypeReference env pos tupleReference
+    applyTypeFunction env pos tupleReference DisallowTypeFunctions tupleType elements
+
 data RecordSubst
     = SFree RowVariable
     | SQuant RowVariable

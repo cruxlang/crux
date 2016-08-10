@@ -32,8 +32,7 @@ data Pattern tag
     = PWildcard
     | PBinding Name
     | PConstructor UnresolvedReference tag [Pattern tag]
-    | PUnit
-    | PTuple [Pattern tag]
+    | PTuple [Pattern tag] -- empty list is unit type
     deriving (Show, Eq)
 
 instance IsString (Pattern tagtype) where
@@ -264,12 +263,12 @@ setEdata expr e = case expr of
     EInstanceArgument _ a -> EInstanceArgument e a
 
 data TypeIdent
-    = UnitTypeIdent
     -- TODO: split into two?  TypeIdent and TypeApplication
-    | TypeIdent UnresolvedReference [TypeIdent]
+    = TypeIdent UnresolvedReference [TypeIdent]
     | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
+    | TupleTypeIdent [TypeIdent]
     | OptionIdent TypeIdent
     deriving (Show, Eq)
 

@@ -889,16 +889,31 @@ importDecl = do
     segments' <- P.sepBy1 anyIdentifierWithPos (token TDot)
     let ((_, pos):_) = segments'
     let segments = fmap fst segments'
-    let prefix = fmap ModuleSegment $ init segments
-    let base = ModuleSegment $ last segments
-    let moduleName = ModuleName prefix base
-    let defaultAlias = unModuleSegment base
-    alias <- P.option (Just defaultAlias) (token TAs *> ((Just <$> anyIdentifier) <|> (token TWildcard *> return Nothing)))
-    (P.optionMaybe $ parenthesized $ token TEllipsis) >>= \case
-        Nothing -> do
-            return (pos, QualifiedImport moduleName alias)
-        Just _ -> do
-            return (pos, UnqualifiedImport moduleName)
+    let prefix = init segments
+    let base = last segments
+
+    let prefix' = fmap ModuleSegment prefix
+    let base' = ModuleSegment base
+    let moduleName = ModuleName prefix' base'
+
+    let unconditionalImport = do
+            _ <- token TEllipsis
+            return $ UnqualifiedImport moduleName
+    
+    let selectiveImport = do
+            names <- commaDelimited anyIdentifier
+            return $ SelectiveImport moduleName names
+
+    let unqualifiedImport = do
+            parenthesized $ unconditionalImport <|> selectiveImport
+
+    let qualifiedImport = do
+            alias <- P.option (Just base) $ do
+                _ <- token TAs
+                (Just <$> anyIdentifier) <|> (token TWildcard >> return Nothing)
+            return $ QualifiedImport moduleName alias
+
+    fmap (pos,) $ unqualifiedImport <|> qualifiedImport
 
 imports :: Parser [(Pos, Import)]
 imports = do

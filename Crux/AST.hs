@@ -103,6 +103,7 @@ resolvedReferenceName (_, n) = n
 
 data Import
     = UnqualifiedImport ModuleName
+    | SelectiveImport ModuleName [Name]
     | QualifiedImport ModuleName (Maybe Name)
     deriving (Show, Eq)
 

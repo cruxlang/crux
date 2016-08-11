@@ -210,6 +210,39 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
             for_ (lmExportedExceptions importedModule) $ \(name, exc) -> do
                 SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates name exc
 
+        (pos, SelectiveImport moduleName names) -> do
+            importedModule <- case HashMap.lookup moduleName loadedModules of
+                Just im -> return im
+                Nothing -> failICE $ Error.DependentModuleNotLoaded pos moduleName
+            
+            for_ (HashMap.toList $ lmKnownInstances importedModule) $ \((a, b), c) -> do
+                HashTable.insert (a, b) c $ eKnownInstances env
+
+            -- populate types
+            for_ (lmExportedTypes importedModule) $ \(name, typeVar) -> do
+                when (name `elem` names) $ do
+                    SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name typeVar
+
+            -- populate values
+            for_ (lmExportedValues importedModule) $ \(name, (resolvedReference, mutability, tr)) -> do
+                when (name `elem` names) $ do
+                    SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates name (ValueReference resolvedReference mutability tr)
+
+            -- populate patterns
+            for_ (lmExportedPatterns importedModule) $ \(name, pb) -> do
+                when (name `elem` names) $ do
+                    SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates name pb
+
+            -- populate traits
+            for_ (lmExportedTraits importedModule) $ \(name, trait) -> do
+                when (name `elem` names) $ do
+                    SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name trait
+
+            -- populate exceptions
+            for_ (lmExportedExceptions importedModule) $ \(name, exc) -> do
+                when (name `elem` names) $ do
+                    SymbolTable.insert (eExceptionBindings env) pos SymbolTable.DisallowDuplicates name exc
+
         (pos, QualifiedImport moduleName importName) -> do
             importedModule <- case HashMap.lookup moduleName loadedModules of
                 Just im -> return im

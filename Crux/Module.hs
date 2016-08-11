@@ -161,6 +161,7 @@ loadModuleFromSource source = runEitherT $ do
 
 getModuleName :: AST.Import -> ModuleName
 getModuleName (AST.UnqualifiedImport mn) = mn
+getModuleName (AST.SelectiveImport mn _) = mn
 getModuleName (AST.QualifiedImport mn _) = mn
 
 importsOf :: AST.Module a b c -> [(Pos, ModuleName)]

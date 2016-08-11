@@ -1,0 +1,8 @@
+import {
+  mymod(value, Type, Constructor)
+}
+
+let p: Type = Constructor(value)
+let _ = print(match p {
+  Constructor(v) => v
+})

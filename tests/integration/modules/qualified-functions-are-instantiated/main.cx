@@ -1,2 +1,2 @@
-import { mymod }
+import mymod
 let _ = print(mymod.func(1, 2))

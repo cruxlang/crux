@@ -1,9 +1,7 @@
 pragma { NoBuiltin }
 
-import {
-  boolean(...)
-  cmp(...)
-}
+import boolean(...)
+import cmp(...)
 
 export data Option<a> {
   Some(a),

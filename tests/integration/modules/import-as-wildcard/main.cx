@@ -1,4 +1,2 @@
-import {
-  mymod as _
-}
+import mymod as _
 let _ = print("in main")

@@ -1,14 +1,9 @@
 pragma { NoBuiltin }
 
-import {
-  boolean
-  number
-  length
-  cmp
-}
-
-// TODO: implement selective import
-type Number = number.Number
+import boolean
+import number(Number)
+import length
+import cmp
 
 export data Array<a> {}
 

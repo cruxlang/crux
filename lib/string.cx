@@ -1,16 +1,11 @@
 pragma { NoBuiltin }
 
-import {
-  cmp(...)
-  boolean(...)
-  array
-  number
-  length
-  js.unsafe
-}
-
-// TODO: implement selective import
-type Number = number.Number
+import cmp(...)
+import boolean(...)
+import array
+import number(Number)
+import length
+import js.unsafe
 
 export data String {}
 

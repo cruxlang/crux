@@ -1,4 +1,4 @@
-import { mymod }
+import mymod
 
 let a: mymod.DT = mymod.V
 let _ = a->run()

@@ -2,18 +2,16 @@ pragma { NoBuiltin }
 
 // because the typechecker relies on certain modules being loaded, the
 // sequence of imports matters here.
-import {
-    cmp
-    length
-    boolean
-    option
-    result
-    array
-    mutarray
-    string
-    number
-    tuple // TODO: this is not actually used, but it isn't codegenned in the right place if not imported here
-}
+import cmp
+import length
+import boolean
+import option
+import result
+import array
+import mutarray
+import string
+import number
+import tuple // TODO: this is not actually used, but it isn't codegenned in the right place if not imported here
 
 export import cmp
 export import length

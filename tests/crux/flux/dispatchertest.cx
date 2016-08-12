@@ -1,8 +1,6 @@
-import {
-  test(...)
-  assert
-  flux.dispatcher
-}
+import test(...)
+import assert
+import flux.dispatcher
 
 data ActionType {
   Test1,

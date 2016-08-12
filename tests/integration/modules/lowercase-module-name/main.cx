@@ -1,6 +1,4 @@
-import {
-  mymodule
-}
+import mymodule
 
 fun main() {
   mymodule.thing()

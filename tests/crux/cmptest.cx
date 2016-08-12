@@ -1,7 +1,5 @@
-import {
-  test(...)
-  assert
-}
+import test(...)
+import assert
 
 let _ = test("number min and max", fun() {
   assert.equal(1, min(1, 2))

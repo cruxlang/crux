@@ -886,8 +886,9 @@ pragmas = do
 
 importDecl :: Parser (Pos, Import)
 importDecl = do
+    importToken <- token TImport
+
     segments' <- P.sepBy1 anyIdentifierWithPos (token TDot)
-    let ((_, pos):_) = segments'
     let segments = fmap fst segments'
     let prefix = init segments
     let base = last segments
@@ -914,16 +915,10 @@ importDecl = do
             return $ QualifiedImport alias
 
     importType <- unqualifiedImport <|> qualifiedImport
-    return (pos, Import moduleName importType)
+    return (tokenData importToken, Import moduleName importType)
 
 imports :: Parser [(Pos, Import)]
-imports = do
-    importToken <- token TImport
-    withIndentation (IRDeeper importToken) $ do
-        (_, importDecls) <- bracedLines $ do
-            (pos, i) <- importDecl
-            return (pos, (pos, i))
-        return importDecls
+imports = P.many importDecl
 
 parseModule :: Parser ParsedModule
 parseModule = do

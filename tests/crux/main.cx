@@ -1,13 +1,11 @@
-import {
-    test
+import test
 
-    arraytest as _
-    booltest as _
-    cmptest as _
-    numbertest as _
-    stringtest as _
-    pathtest as _
-    flux.dispatchertest as _
-}
+import arraytest as _
+import booltest as _
+import cmptest as _
+import numbertest as _
+import stringtest as _
+import pathtest as _
+import flux.dispatchertest as _
 
 let _ = test.run()

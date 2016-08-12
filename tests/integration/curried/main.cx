@@ -1,5 +1,5 @@
 // TODO: why do i need to import cmp here?
-import { cmp }
+import cmp
 
 let u = () => () => ()
 let _: () = u()()

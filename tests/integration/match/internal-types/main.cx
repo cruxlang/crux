@@ -1,7 +1,9 @@
-import { mymod(...) }
+import mymod(...)
+
 fun main() {
   match Exported(value) {
     Exported(e) => handle(e)
   }
 }
+
 let _ = main()

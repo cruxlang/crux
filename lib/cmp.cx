@@ -1,9 +1,7 @@
 pragma { NoBuiltin }
 
-import {
-  boolean(...)
-  js.unsafe
-}
+import boolean(...)
+import js.unsafe
 
 export trait Eq {
   eq(self, self): Boolean

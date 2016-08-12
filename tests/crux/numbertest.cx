@@ -1,7 +1,5 @@
-import {
-    test(...)
-    assert
-}
+import test(...)
+import assert
 
 let _ = test("numbers add", fun() {
     assert.equal(3, 1 + 2)

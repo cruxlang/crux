@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-import { number(...) }
+import number(...)
 
 export trait HasLength {
   len: self => Number

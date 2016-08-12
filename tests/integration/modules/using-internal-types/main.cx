@@ -1,6 +1,4 @@
-import {
-    mymod
-}
+import mymod
 
 fun main() {
     let a = mymod.theValue

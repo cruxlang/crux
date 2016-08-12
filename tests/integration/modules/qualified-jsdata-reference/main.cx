@@ -1,2 +1,2 @@
-import { builtin }
+import builtin
 let _ = builtin.True

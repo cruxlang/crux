@@ -1,6 +1,5 @@
-import {
-  MyModule(...)
-}
+import MyModule(...)
+
 fun main() {
   print("outside")
   fn()

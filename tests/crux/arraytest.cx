@@ -1,7 +1,5 @@
-import {
-  test(...)
-  assert
-}
+import test(...)
+import assert
 
 let _ = test("array length", fun() {
   assert.equal(0, len([]))

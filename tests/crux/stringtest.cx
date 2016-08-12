@@ -1,7 +1,5 @@
-import {
-    test(...)
-    assert
-}
+import test(...)
+import assert
 
 let _ = test("startsWith", fun() {
     assert.true("foo"->startsWith("f"))

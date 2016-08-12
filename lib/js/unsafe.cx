@@ -1,11 +1,6 @@
 pragma { NoBuiltin }
 
-import {
-  boolean
-}
-
-// TODO: implement non-wildcard unqualified imports
-type Boolean = boolean.Boolean
+import boolean(Boolean)
 
 export let eq<a, b>: fun(a, b) -> Boolean = _unsafe_js(
   "function eq(lhs, rhs) { return lhs === rhs; }"

@@ -1,4 +1,4 @@
-import { foo(...) }
+import foo(...)
 
 fun main() {
     let x: Foo = Foo

@@ -1,6 +1,4 @@
-import {
-  m
-}
+import m
 
 let _ = m.f(m.D)
 let _ = m.f(m.E("hello"))

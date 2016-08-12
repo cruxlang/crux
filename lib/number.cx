@@ -1,9 +1,7 @@
 pragma { NoBuiltin }
 
-import {
-  cmp(...)
-  js.unsafe
-}
+import cmp(...)
+import js.unsafe
 
 export data Number {}
 

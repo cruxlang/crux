@@ -1,14 +1,9 @@
 pragma { NoBuiltin }
 
-import {
-    array
-    string
-    number
-    length
-}
-
-// TODO: implement selective import
-type Number = number.Number
+import array
+import string
+import number(Number)
+import length
 
 export data MutableArray<a> {}
 

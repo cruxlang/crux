@@ -1,0 +1,12 @@
+fun main() {
+  if False {
+    let x = 1
+    print(x)
+  } else if True {
+    let x = 2
+    print(x)
+  } else {
+    print(3)
+  }
+}
+let _ = main()

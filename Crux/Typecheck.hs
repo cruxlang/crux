@@ -61,7 +61,7 @@ buildPatternEnv env pos exprType mut = \case
 
     PTuple elements -> do
         let ctorRef = case elements of
-                [] -> KnownReference "void" "Void"
+                [] -> KnownReference "types" "Void"
                 _ -> KnownReference "tuple" $ "Tuple" <> (Text.pack $ show $ length elements)
         buildPatternEnv env pos exprType mut $ PConstructor ctorRef () elements
 

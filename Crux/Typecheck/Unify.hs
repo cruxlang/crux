@@ -180,7 +180,7 @@ resolveStringType env pos = do
 
 resolveVoidType :: Env -> Pos -> TC TypeVar
 resolveVoidType env pos = do
-    resolveTypeReference env pos (KnownReference "void" "Void")
+    resolveTypeReference env pos (KnownReference "types" "Void")
 
 resolveTupleType :: Env -> Pos -> [TypeVar] -> TC TypeVar
 resolveTupleType env pos elements = do

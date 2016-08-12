@@ -218,7 +218,7 @@ loadProgram loader main = runEitherT $ do
     let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules Nothing n
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
-    loadSyntaxDependency "void"
+    loadSyntaxDependency "types"
     -- any module that uses tuples depends on 'tuple'
     loadSyntaxDependency "tuple"
     -- any module that uses == or != depends on 'cmp'

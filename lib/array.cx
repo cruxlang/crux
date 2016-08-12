@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-import boolean
+import types(...)
 import number(Number)
 import length
 import cmp
@@ -28,18 +28,18 @@ impl cmp.Eq Array<a: cmp.Eq> {
     let lhs_length = length.len(lhs)
     let rhs_length = length.len(rhs)
     if lhs_length != rhs_length {
-      return boolean.False
+      return False
     }
 
     let mutable i = 0
     while i < lhs_length {
       if get(lhs, i) != get(rhs, i) {
-        return boolean.False
+        return False
       }
       i = i + 1
     }
 
-    boolean.True
+    True
   }
 }
 

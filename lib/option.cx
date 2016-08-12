@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-import boolean(...)
+import types(...)
 import cmp(...)
 
 export data Option<a> {

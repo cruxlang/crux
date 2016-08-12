@@ -1,13 +1,6 @@
 pragma { NoBuiltin }
 
-export data jsffi Boolean {
-    True = true,
-    False = false,
-}
+import types(Boolean)
+import js.unsafe
 
-export fun not(b: Boolean): Boolean {
-    match b {
-        True => False
-        False => True
-    }
-}
+export let not: Boolean => Boolean = unsafe.not

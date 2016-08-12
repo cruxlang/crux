@@ -2,6 +2,7 @@ pragma { NoBuiltin }
 
 // because the typechecker relies on certain modules being loaded, the
 // sequence of imports matters here.
+import types
 import cmp
 import length
 import boolean
@@ -13,6 +14,7 @@ import string
 import number
 import tuple // TODO: this is not actually used, but it isn't codegenned in the right place if not imported here
 
+export import types
 export import cmp
 export import length
 export import boolean

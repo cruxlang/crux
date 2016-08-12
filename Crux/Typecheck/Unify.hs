@@ -168,7 +168,7 @@ resolveOptionType env pos = do
 
 resolveBooleanType :: Env -> Pos -> TC TypeVar
 resolveBooleanType env pos = do
-    resolveTypeReference env pos (KnownReference "boolean" "Boolean")
+    resolveTypeReference env pos (KnownReference "types" "Boolean")
 
 resolveNumberType :: Env -> Pos -> TC TypeVar
 resolveNumberType env pos = do

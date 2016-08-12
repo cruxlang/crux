@@ -1,5 +1,10 @@
 pragma { NoBuiltin }
 
+export data jsffi Boolean {
+    True = true,
+    False = false,
+}
+
 // TODO: allow () as a type name
 export data jsffi Void {
   Void = undefined

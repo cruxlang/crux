@@ -1,7 +1,7 @@
 pragma { NoBuiltin }
 
 import cmp(...)
-import boolean(...)
+import types(...)
 import array
 import number(Number)
 import length

@@ -47,7 +47,7 @@ test_return_from_branch = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "boolean", "True"))
+            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "types", "True"))
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Return $ Gen.Literal $ AST.LInteger 2
@@ -62,7 +62,7 @@ test_branch_with_value = do
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet (AST.PBinding "x")
             [ Gen.EmptyTemporary 0
-            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "boolean", "True"))
+            , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "types", "True"))
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 1
                 ]
                 [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 2

@@ -290,19 +290,25 @@ parseString = do
     ELiteral _ (LString s) <- stringLiteralExpression
     return s
 
+lambdaTail :: Pos -> [ParsePattern] -> Parser ParseExpression
+lambdaTail pos params = do
+    body <- blockExpression <|> noSemiExpression
+    return $ EFun pos $ FunctionDecl
+        { fdParams = fmap (\x -> (x, Nothing)) params
+        , fdReturnAnnot = Nothing
+        , fdBody = body
+        }
+
 identifierExpression :: Parser ParseExpression
 identifierExpression = do
     (txt, pos) <- anyIdentifierWithPos
-    let fn = do
+
+    let lambdaForm = do
             _ <- token TFatRightArrow
-            body <- noSemiExpression
-            return $ EFun pos $ FunctionDecl
-                { fdParams = [(PBinding txt, Nothing)]
-                , fdReturnAnnot = Nothing
-                , fdBody = body
-                }
+            lambdaTail pos [PBinding txt]
+
     let ident = EIdentifier pos $ UnqualifiedReference txt
-    fn <|> return ident
+    lambdaForm <|> return ident
 
 functionGuts :: Pos -> Parser ParseExpression
 functionGuts pos = do
@@ -412,12 +418,7 @@ parenExpression = do
         Just _ -> do
             -- attempt as lambda form
             patterns <- for elements asPattern
-            body <- noSemiExpression
-            return $ EFun pos FunctionDecl
-                { fdParams = fmap (\p -> (p, Nothing)) patterns
-                , fdReturnAnnot = Nothing
-                , fdBody = body
-                }
+            lambdaTail pos patterns
 
 basicExpression :: Parser ParseExpression
 basicExpression =

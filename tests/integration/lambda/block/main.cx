@@ -1,0 +1,6 @@
+let f = x => {
+  print(x)
+  print(x)
+}
+
+let _ = f("hello")

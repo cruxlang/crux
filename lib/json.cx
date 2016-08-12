@@ -130,3 +130,21 @@ fun encodeBoolean(v: Boolean): JSONValue {
 
 
 export let renderJSON: JSONValue => String = _unsafe_js("JSON.stringify")
+
+export type Value = JSONValue
+
+export trait ToJSON {
+    toJSON: self => Value
+}
+
+impl ToJSON Array<a: ToJSON> {
+    toJSON = array => _unsafe_coerce(array->map(toJSON))
+}
+
+impl ToJSON String {
+    toJSON = str => _unsafe_coerce(str)
+}
+
+export fun encode<V: ToJSON>(value: V): String {
+    renderJSON(toJSON(value))
+}

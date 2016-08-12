@@ -75,3 +75,7 @@ export fun sliceTo<a>(arr: [a], end: Number): [a] {
 export fun slice<a>(arr: [a], start: Number, end: Number): [a] {
     _unsafe_coerce(arr).slice(start, end)
 }
+
+export fun map<a, b>(array: [a], fn: a => b): [b] {
+    _unsafe_coerce(array).map(fn)
+}

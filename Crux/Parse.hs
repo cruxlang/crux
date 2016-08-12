@@ -898,11 +898,11 @@ importDecl = do
 
     let unconditionalImport = do
             _ <- token TEllipsis
-            return $ UnqualifiedImport moduleName
+            return $ UnqualifiedImport
     
     let selectiveImport = do
             names <- commaDelimited anyIdentifier
-            return $ SelectiveImport moduleName names
+            return $ SelectiveImport names
 
     let unqualifiedImport = do
             parenthesized $ unconditionalImport <|> selectiveImport
@@ -911,9 +911,10 @@ importDecl = do
             alias <- P.option (Just base) $ do
                 _ <- token TAs
                 (Just <$> anyIdentifier) <|> (token TWildcard >> return Nothing)
-            return $ QualifiedImport moduleName alias
+            return $ QualifiedImport alias
 
-    fmap (pos,) $ unqualifiedImport <|> qualifiedImport
+    importType <- unqualifiedImport <|> qualifiedImport
+    return (pos, Import moduleName importType)
 
 imports :: Parser [(Pos, Import)]
 imports = do

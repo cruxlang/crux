@@ -101,10 +101,12 @@ type ResolvedReference = (ReferenceType, Name)
 resolvedReferenceName :: ResolvedReference -> Text
 resolvedReferenceName (_, n) = n
 
-data Import
-    = UnqualifiedImport ModuleName
-    | SelectiveImport ModuleName [Name]
-    | QualifiedImport ModuleName (Maybe Name)
+data ImportType
+    = UnqualifiedImport
+    | SelectiveImport [Name]
+    | QualifiedImport (Maybe Name)
+    deriving (Show, Eq)
+data Import = Import ModuleName ImportType
     deriving (Show, Eq)
 
 data Pragma

@@ -76,6 +76,11 @@ An unordered set of interesting language design resources.
 
 * https://quaxio.com/on_the_design_of_hack
 
+## Error Usability
+
+* [Dynamic Witnesses for Static Type Errors](http://lambda-the-ultimate.org/node/5355)
+
+
 ## Other AltJS Languages
 
 * http://www.scala-js.org/

@@ -46,6 +46,7 @@ An unordered set of interesting language design resources.
 
 * [Myrrdin](https://github.com/oridb/mc/blob/master/doc/lang.txt)
 * [Opa](http://opalang.org/)
+* [Koka](http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf)
 
 ## Software Engineering
 
@@ -58,3 +59,24 @@ An unordered set of interesting language design resources.
 ## Existential Types
 
 * [Representing existential data types with isomorphic simple types](http://okmij.org/ftp/Computation/Existentials.html)
+
+## Usability
+
+* https://news.ycombinator.com/item?id=10595195
+
+* https://news.ycombinator.com/item?id=10595131
+
+* http://elm-lang.org/blog/compilers-as-assistants
+
+* https://news.ycombinator.com/item?id=9805978
+
+* https://lists.swift.org/pipermail/swift-evolution/Week-of-Mon-20151207/001948.html
+
+* http://blog.ezyang.com/2015/12/the-convergence-of-compilers-build-systems-and-package-managers/
+
+* https://quaxio.com/on_the_design_of_hack
+
+## Other AltJS Languages
+
+* http://www.scala-js.org/
+

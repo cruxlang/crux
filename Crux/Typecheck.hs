@@ -114,6 +114,11 @@ check env expr = do
     newType <- freshType env
     checkExpecting newType env expr
 
+checkInNewScope :: Env -> ParsedExpression -> TC TypedExpression
+checkInNewScope env expr = do
+    env' <- childEnv env
+    check env' expr
+
 checkExpecting :: TypeVar -> Env -> ParsedExpression -> TC TypedExpression
 checkExpecting expectedType env expr = do
     e <- check' expectedType env expr
@@ -476,10 +481,10 @@ check' expectedType env = \case
     EIfThenElse pos condition ifTrue ifFalse -> do
         booleanType <- resolveBooleanType env pos
 
-        condition' <- check env condition
+        condition' <- checkInNewScope env condition
         unify env pos booleanType (edata condition')
-        ifTrue' <- check env ifTrue
-        ifFalse' <- check env ifFalse
+        ifTrue' <- checkInNewScope env ifTrue
+        ifFalse' <- checkInNewScope env ifFalse
 
         unify env pos (edata ifTrue') (edata ifFalse')
 

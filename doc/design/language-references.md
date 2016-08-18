@@ -84,3 +84,6 @@ An unordered set of interesting language design resources.
 
 * http://www.scala-js.org/
 
+## Editor Support
+
+* [VS Code Common Language Protocol](https://code.visualstudio.com/blogs/2016/06/27/common-language-protocol)

@@ -1,12 +1,15 @@
+import cmp
+
 data TimerId(Number)
 
+// TODO: derive unwrap
 fun unTimerId(TimerId(t)) {
     t
 }
 
 let COMPILE_DELAY = 1000 // milliseconds
 
-forall { a } fun as_bool(a: a): Boolean {
+fun unsafe_as_bool<a>(a: a): Boolean {
     let to_bool = _unsafe_js("function (x) { return !!x; }");
     to_bool(_unsafe_coerce(a))
 }
@@ -27,9 +30,9 @@ fun clearTimeout(tid: TimerId) {
     _unsafe_js("window").clearTimeout(unTimerId(tid))
 }
 
-fun compileCrux(source): Result String String {
+fun compileCrux(source): Result<String, String> {
     let rawRes = _unsafe_js("window").compileCrux(source)
-    if as_bool(rawRes.error) {
+    if unsafe_as_bool(rawRes.error) {
         Err(rawRes.error)
     } else {
         Ok(rawRes.result)
@@ -49,13 +52,13 @@ fun parseJson(s) {
 }
 
 type XHR = {
-    open: (String, String) -> (),
-    setRequestHeader: (String, String) -> (),
-    abort: () -> (),
-    send: (String) -> (),
-    onload: () -> (),
-    onerror: (String) -> (),
-    ontimeout: () -> (),
+    open: fun(String, String) -> (),
+    setRequestHeader: fun(String, String) -> (),
+    abort: fun() -> (),
+    send: fun(String) -> (),
+    onload: fun() -> (),
+    onerror: fun(String) -> (),
+    ontimeout: fun() -> (),
     response: String,
     mutable timeout: Number,
 }
@@ -68,8 +71,14 @@ data CompilerState {
 
 data LastCompile(String, Boolean)
 
+impl cmp.Eq LastCompile {
+  eq = fun(LastCompile(a, b), LastCompile(c, d)) {
+    a == c && b == d
+  }
+}
+
 data Compiler({
-    onresult: (Result String String) -> (),
+    onresult: Result<String, String> => (),
     mutable state: CompilerState,
     mutable lastCompile: ?LastCompile,
 })
@@ -96,7 +105,7 @@ fun compile(Compiler(this), source, optimize) {
 
     this.state = Idle
 
-    if this.lastCompile->eq(Some(LastCompile(source, optimize))) {
+    if this.lastCompile == Some(LastCompile(source, optimize)) {
         return ()
     }
 

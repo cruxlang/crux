@@ -16,6 +16,7 @@ import qualified Crux.AST as AST
 import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
+import Crux.ModuleName (ModuleName)
 import qualified Data.HashMap.Strict as HashMap
 import GHCJS.Marshal.Pure (pFromJSVal, pToJSVal)
 import qualified Data.Text.Encoding as TE
@@ -26,7 +27,7 @@ baseModuleFiles = $(embedDir "../crux/lib")
 rtsFile :: ByteString
 rtsFile = $(embedFile "../crux/rts/rts.js")
 
-compile :: Text -> IO (Either (AST.ModuleName, Error.Error) Text)
+compile :: Text -> IO (Either (Maybe ModuleName, Error.Error) Text)
 compile source = do
     let decodeBaseModule (path, contents) =
             (pathToModuleName path, decodeUtf8 contents)

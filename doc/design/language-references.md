@@ -63,18 +63,17 @@ An unordered set of interesting language design resources.
 ## Usability
 
 * https://news.ycombinator.com/item?id=10595195
-
 * https://news.ycombinator.com/item?id=10595131
-
 * http://elm-lang.org/blog/compilers-as-assistants
-
 * https://news.ycombinator.com/item?id=9805978
-
 * https://lists.swift.org/pipermail/swift-evolution/Week-of-Mon-20151207/001948.html
-
 * http://blog.ezyang.com/2015/12/the-convergence-of-compilers-build-systems-and-package-managers/
-
 * https://quaxio.com/on_the_design_of_hack
+
+## Macros
+
+* [What Template Haskell Gets Wrong and Rackets Gets Right](http://blog.ezyang.com/2016/07/what-template-haskell-gets-wrong-and-racket-gets-right/)
+  * [HN Comments](https://news.ycombinator.com/item?id=12116309)
 
 ## Error Usability
 

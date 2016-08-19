@@ -9,6 +9,7 @@ import {-@ HTF_TESTS @-} JSBackendTest
 import {-@ HTF_TESTS @-} ParseTest
 import {-@ HTF_TESTS @-} TypecheckTest
 import {-@ HTF_TESTS @-} UnifyTest
+import {-@ HTF_TESTS @-} ModuleTest
 
 main :: IO ()
 main = do

@@ -46,7 +46,7 @@ data TypeError
 data Error
     = LexError P.ParseError
     | ParseError P.ParseError
-    | ModuleNotFound ModuleName
+    | ModuleNotFound ModuleName [FilePath]
     | CircularImport ModuleName
     | InternalCompilerError InternalCompilerError
     | TypeError Pos TypeError
@@ -62,7 +62,7 @@ renderError' :: Error -> IO String
 renderError' = \case
     LexError e -> return $ "Lex error: " ++ show e
     ParseError e -> return $ "Parse error: " ++ show e
-    ModuleNotFound mn -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn)
+    ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
     InternalCompilerError ice -> return $ "ICE: " ++ case ice of
         DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
@@ -80,7 +80,7 @@ getErrorName :: Error -> Text
 getErrorName = \case
     LexError _ -> "text"
     ParseError _ -> "parse"
-    ModuleNotFound _ -> "module-not-found"
+    ModuleNotFound _ _ -> "module-not-found"
     CircularImport _ -> "circular-import"
     InternalCompilerError _ -> "internal"
     TypeError _ _ -> "type"

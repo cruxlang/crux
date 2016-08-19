@@ -42,10 +42,14 @@ import System.IO.Error (isDoesNotExistError)
 type ModuleLoader = ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
 newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
-newChainedModuleLoader [] moduleName = return $ Left $ Error.ModuleNotFound moduleName
-newChainedModuleLoader (loader:rest) moduleName = do
+newChainedModuleLoader = newChainedModuleLoader' []
+
+newChainedModuleLoader' :: [FilePath] -> [ModuleLoader] -> ModuleLoader
+newChainedModuleLoader' triedPaths [] moduleName = do
+    return $ Left $ Error.ModuleNotFound moduleName triedPaths
+newChainedModuleLoader' triedPaths (loader:rest) moduleName = do
     loader moduleName >>= \case
-        Left (Error.ModuleNotFound _) -> newChainedModuleLoader rest moduleName
+        Left (Error.ModuleNotFound _ triedPaths') -> newChainedModuleLoader' (triedPaths <> triedPaths') rest moduleName
         Left e -> return $ Left e
         Right m -> return $ Right m
 
@@ -73,7 +77,7 @@ newProjectModuleLoader config root mainModulePath =
         mainLoader moduleName =
             if moduleName == "main"
             then parseModuleFromFile moduleName mainModulePath
-            else return $ Left $ Error.ModuleNotFound moduleName
+            else return $ Left $ Error.ModuleNotFound moduleName []
     in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
 
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
@@ -83,7 +87,7 @@ newMemoryLoader sources moduleName = do
             ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
             source
         Nothing ->
-            return $ Left $ Error.ModuleNotFound moduleName
+            return $ Left $ Error.ModuleNotFound moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
@@ -151,7 +155,8 @@ parseModuleFromSource filename source = do
 
 parseModuleFromFile :: ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromFile moduleName filename = runEitherT $ do
-    source <- EitherT $ tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName else Nothing) $ BS.readFile filename
+    source <- EitherT $ do
+        tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
     EitherT $ parseModuleFromSource filename $ TE.decodeUtf8 source
 
 loadModuleFromSource :: Text -> IO (ProgramLoadResult AST.LoadedModule)
@@ -242,9 +247,14 @@ loadProgramFromDirectoryAndModule sourceDir mainModule = do
 
 pathToModuleName :: FilePath -> ModuleName
 pathToModuleName path =
-    case FP.splitExtension path of
-        (p, ".cx") -> fromString p
-        _ -> error "Please load .cx file"
+    case FP.splitPath path of
+        [] -> error "pathToModuleName called on empty path"
+        segments ->
+            let prefix = fmap FP.dropTrailingPathSeparator $ init segments
+                base = last segments
+            in case FP.splitExtension base of
+                (base', ".cx") -> ModuleName (fmap fromString prefix) (fromString base')
+                _ -> error "Please load .cx file"
 
 loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do

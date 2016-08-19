@@ -9,6 +9,9 @@ newtype ModuleSegment = ModuleSegment { unModuleSegment :: Text }
     deriving (Show, Eq, Ord, Generic)
 instance Hashable ModuleSegment
 
+instance IsString ModuleSegment where
+    fromString = ModuleSegment . fromString
+
 data ModuleName = ModuleName [ModuleSegment] ModuleSegment
     deriving (Eq, Ord, Generic)
 instance Show ModuleName where

@@ -2,8 +2,18 @@ pragma { NoBuiltin }
 
 import types(Boolean)
 
+// TODO: move String into types module
+
+export let typeof<a, TODOString>: a => TODOString = _unsafe_js(
+  "function typeof_(x) { return typeof x; }"
+)
+
 export let not<a>: a => Boolean = _unsafe_js(
   "function not(b) { return !b; }"
+)
+
+export let truthy<a>: a => Boolean = _unsafe_js(
+  "function truthy(b) { return !!b; }"
 )
 
 export let eq<a, b>: (a, b) => Boolean = _unsafe_js(

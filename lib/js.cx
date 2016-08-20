@@ -1,0 +1,27 @@
+import js.unsafe
+
+export data Value {}
+
+export trait FromValue {
+  fromValue: Value => ?self
+}
+
+let checkAndCast = typeString => value => {
+  if unsafe.typeof(value) == typeString {
+    return Some(_unsafe_coerce(value))
+  } else {
+    return None
+  }
+}
+
+impl FromValue String {
+  fromValue = checkAndCast("string")
+}
+
+impl FromValue Number {
+  fromValue = checkAndCast("number")
+}
+
+impl FromValue Boolean {
+  fromValue = checkAndCast("boolean")
+}

@@ -8,6 +8,7 @@ import stringtest as _
 import pathtest as _
 import jsontest as _
 import jstest as _
+import dicttest as _
 import flux.dispatchertest as _
 
 let _ = test.run()

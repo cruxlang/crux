@@ -47,3 +47,11 @@ export let gt<a, b>: (a, b) => Boolean = _unsafe_js(
 export let gte<a, b>: (a, b) => Boolean = _unsafe_js(
   "function gte(lhs, rhs) { return lhs >= rhs; }"
 )
+
+export let setProperty<a, b, c>: (a, b, c) => c = _unsafe_js(
+  "function setProperty(o, k, v) { return o[k] = v; }"
+)
+
+export let getProperty<a, b, c>: (a, b) => c = _unsafe_js(
+  "function getProperty(o, k) { return o[k]; }"
+)

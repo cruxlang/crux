@@ -1,0 +1,25 @@
+import js
+import js.unsafe
+
+// Represented by a JavaScript Object
+data Dict<V> {}
+
+export fun new<V>(): Dict<V> {
+  _unsafe_js("Object").create(js.Null)
+}
+
+export fun set<V>(dict: Dict<V>, key: String, value: V) {
+  unsafe.setProperty(dict, key, value)
+}
+
+export fun get<V>(dict: Dict<V>, key: String): ?V {
+  let v = unsafe.getProperty(dict, key)
+  // non-strict equality with null catches undefined too
+  // NOTE: this means that Dict<Null> or Dict<Undefined> don't behave
+  // as you'd expect.
+  if unsafe.nseq(v, js.Null) {
+    None
+  } else {
+    Some(v)
+  }
+}

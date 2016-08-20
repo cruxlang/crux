@@ -4,17 +4,15 @@ import types(...)
 import number(Number)
 import length
 import cmp
+import js.unsafe
 
 export data Array<a> {}
 
-let _unsafe_new<a>: fun(Number) -> [a] =
+let _unsafe_new<a>: Number => [a] =
     _unsafe_js("function (len) { return new Array(len); }")
 
-let _unsafe_set = _unsafe_js("function (arr, idx, el) { arr[idx] = el; }")
-let _unsafe_get = _unsafe_js("function (arr, idx) { return arr[idx]; }")
-
 export fun get<t>(a: [t], idx: Number): t {
-    _unsafe_get(a, idx)
+  unsafe.getProperty(a, idx)
 }
 
 impl length.HasLength Array<a> {
@@ -48,7 +46,7 @@ export fun replicate<a>(element: a, n: Number): [a] {
 
     let mutable i = 0;
     while i < n {
-        _unsafe_set(arr, i, element)
+        unsafe.setProperty(arr, i, element)
         i = i + 1
     };
 
@@ -59,7 +57,7 @@ export fun each<a, b>(arr: [a], f: fun(a) -> b): () {
     let mutable i = 0
     let n = length.len(arr)
     while i < n {
-        f(_unsafe_get(arr, i))
+        f(unsafe.getProperty(arr, i))
         i = i + 1
     }
 }

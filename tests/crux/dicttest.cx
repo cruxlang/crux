@@ -1,0 +1,10 @@
+import dict
+import assert
+import test(...)
+
+let _ = test("basic dict", () => {
+  let d = dict.new()
+  assert.equal(None, d->get("hi"))
+  d->set("hi", 10)
+  assert.equal(Some(10), d->get("hi"))
+})

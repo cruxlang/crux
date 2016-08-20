@@ -2,5 +2,7 @@
 /.sass-cache/
 /stage/crux.js
 /stage/style.css
+/stage/playground.js
+/stage/compiler-worker.js
 /stage/*.css.map
 /dist/

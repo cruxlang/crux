@@ -17,7 +17,7 @@ export fun get<V>(dict: Dict<V>, key: String): ?V {
   // non-strict equality with null catches undefined too
   // NOTE: this means that Dict<Null> or Dict<Undefined> don't behave
   // as you'd expect.
-  if unsafe.nseq(v, js.Null) {
+  if unsafe.eqNonstrict(v, js.Null) {
     None
   } else {
     Some(v)

@@ -1,0 +1,21 @@
+import dom.webworker
+import crux
+import js
+
+type CompileRequest = {
+  source: String,
+}
+
+fun main() {
+    webworker.setHandler(message => {
+        let compileRequest: CompileRequest = _unsafe_coerce(message)
+        let result = match crux.compile(compileRequest.source) {
+            Err(err) => ({ success: False, result: err })
+            Ok(result) => ({ success: True, result: result })
+        }
+        let postedResult: js.Value = _unsafe_coerce(result)
+        webworker.postMessage(postedResult)
+    })
+}
+
+let _ = main()

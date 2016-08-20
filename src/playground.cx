@@ -1,4 +1,5 @@
 import cmp
+import crux
 
 data TimerId(Number)
 
@@ -8,11 +9,6 @@ fun unTimerId(TimerId(t)) {
 }
 
 let COMPILE_DELAY = 1000 // milliseconds
-
-fun unsafe_as_bool<a>(a: a): Boolean {
-    let to_bool = _unsafe_js("function (x) { return !!x; }");
-    to_bool(_unsafe_coerce(a))
-}
 
 fun querySelector(sel) {
     _unsafe_js("document").querySelector(sel)
@@ -28,15 +24,6 @@ fun setTimeout(f, delay): TimerId {
 
 fun clearTimeout(tid: TimerId) {
     _unsafe_js("window").clearTimeout(unTimerId(tid))
-}
-
-fun compileCrux(source): Result<String, String> {
-    let rawRes = _unsafe_js("window").compileCrux(source)
-    if unsafe_as_bool(rawRes.error) {
-        Err(rawRes.error)
-    } else {
-        Ok(rawRes.result)
-    }
 }
 
 fun newXmlHttpRequest(): XHR {
@@ -112,7 +99,7 @@ fun compile(Compiler(this), source, optimize) {
     this.state = Waiting(setTimeout(fun() {
         // TODO: set timer to null
 
-        let result = match compileCrux(source) {
+        let result = match crux.compile(source) {
             Err(error) => {
                 this.state = Idle;
                 this.lastCompile = Some(LastCompile(source, optimize))

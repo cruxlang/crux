@@ -2,6 +2,6 @@ import json
 import assert
 import test(...)
 
-let _ = test("foo", () => {
+let _ = test("encode array", () => {
   assert.equal("[\"hi\"]", json.encode(["hi"]))
 })

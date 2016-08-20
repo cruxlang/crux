@@ -16,6 +16,14 @@ export let truthy<a>: a => Boolean = _unsafe_js(
   "function truthy(b) { return !!b; }"
 )
 
+export let nseq<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function nseq(lhs, rhs) { return lhs == rhs; }"
+)
+
+export let nsneq<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function nsneq(lhs, rhs) { return lhs != rhs; }"
+)
+
 export let eq<a, b>: (a, b) => Boolean = _unsafe_js(
   "function eq(lhs, rhs) { return lhs === rhs; }"
 )

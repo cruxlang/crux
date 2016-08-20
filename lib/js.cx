@@ -2,6 +2,14 @@ import js.unsafe
 
 export data Value {}
 
+// TODO: should these have type Value?
+export data jsffi Null {
+  Null = null
+}
+export data jsffi Undefined {
+  Undefined = undefined
+}
+
 export trait FromValue {
   fromValue: Value => ?self
 }

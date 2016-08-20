@@ -10,6 +10,8 @@ export data jsffi Undefined {
   Undefined = undefined
 }
 
+// FromValue
+
 export trait FromValue {
   fromValue: Value => ?self
 }
@@ -32,4 +34,30 @@ impl FromValue Number {
 
 impl FromValue Boolean {
   fromValue = checkAndCast("boolean")
+}
+
+impl FromValue Value {
+  fromValue = Some
+}
+
+// ToValue
+
+export trait ToValue {
+  toValue: self => Value
+}
+
+impl ToValue String {
+  toValue = value => _unsafe_coerce(value)
+}
+
+impl ToValue Number {
+  toValue = value => _unsafe_coerce(value)
+}
+
+impl ToValue Boolean {
+  toValue = value => _unsafe_coerce(value)
+}
+
+impl ToValue Value {
+  toValue = value => value
 }

@@ -1,7 +1,7 @@
 import js
 
 export fun compile(source: String): Result<String, String> {
-    let rawRes = _unsafe_js("window").compileCrux(source)
+    let rawRes = _unsafe_js("self").compileCrux(source)
     match js.fromValue(rawRes.error) {
       Some(err) => Err(err)
       None => Ok(rawRes.result)

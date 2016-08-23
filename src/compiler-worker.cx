@@ -1,20 +1,29 @@
-import dom.webworker
+import dom.workerself
 import crux
 import js
 
 type CompileRequest = {
-  source: String,
+    compileID: Number,
+    source: String,
+}
+
+type CompileResponse = {
+    compileID: Number,
+    success: Boolean,
+    result: String,
 }
 
 fun main() {
-    webworker.setHandler(message => {
+    workerself.importScripts(["crux.js"])
+
+    workerself.setHandler(message => {
         let compileRequest: CompileRequest = _unsafe_coerce(message)
         let result = match crux.compile(compileRequest.source) {
-            Err(err) => ({ success: False, result: err })
-            Ok(result) => ({ success: True, result: result })
+            Err(err) => ({ compileID: compileRequest.compileID, success: False, result: err })
+            Ok(result) => ({ compileID: compileRequest.compileID, success: True, result: result })
         }
         let postedResult: js.Value = _unsafe_coerce(result)
-        webworker.postMessage(postedResult)
+        workerself.postMessage(postedResult)
     })
 }
 

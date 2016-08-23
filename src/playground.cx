@@ -1,5 +1,6 @@
 import cmp
 import crux
+import dom.worker
 
 data TimerId(Number)
 
@@ -53,6 +54,11 @@ type XHR = {
 data CompilerState {
     Idle,
     Waiting(TimerId),
+    Compiling({
+        compileID: CompileID,
+        source: String,
+        optimize: Boolean,
+    }),
     Optimizing(XHR),
 }
 
@@ -64,19 +70,15 @@ impl cmp.Eq LastCompile {
   }
 }
 
+type CompileID = Number // TODO: ints
+
 data Compiler({
+    worker: worker.Worker,
+    mutable nextCompileID: CompileID,
     onresult: Result<String, String> => (),
     mutable state: CompilerState,
     mutable lastCompile: ?LastCompile,
 })
-
-fun newCompiler(onresult) {
-    return Compiler({
-        onresult: onresult,
-        state: Idle,
-        lastCompile: None,
-    })
-}
 
 fun compile(Compiler(this), source, optimize) {
     match this.state {
@@ -84,6 +86,9 @@ fun compile(Compiler(this), source, optimize) {
         }
         Waiting(tid) => {
             clearTimeout(tid)
+        }
+        Compiling(_) => {
+            // TODO: tell worker to cancel this request
         }
         Optimizing(xhr) => {
             xhr.abort()
@@ -96,53 +101,96 @@ fun compile(Compiler(this), source, optimize) {
         return ()
     }
 
-    this.state = Waiting(setTimeout(fun() {
+    this.state = Waiting(setTimeout(() => {
         // TODO: set timer to null
 
-        let result = match crux.compile(source) {
-            Err(error) => {
-                this.state = Idle;
-                this.lastCompile = Some(LastCompile(source, optimize))
-                this.onresult(Err("Compile error:\n" + error))
-                return ()
-            }
-            Ok(res) => {
-                if not(optimize) {
-                    this.state = Idle;
-                    this.lastCompile = Some(LastCompile(source, optimize))
-                    this.onresult(Ok(res))
-                    return ()
-                } else {
-                    res
-                }
-            }
-        }
+        let compileID = this.nextCompileID
+        this.nextCompileID = this.nextCompileID + 1
 
-        let xhr = newXmlHttpRequest()
-        xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
-        xhr.setRequestHeader("content-type", "application/json")
-        xhr.timeout = 60000 // 60s
-        xhr.send(toJson({source: result}))
-        this.state = Optimizing(xhr)
-
-        xhr.onload = fun() {
-            // TODO: allow this kind of shadowing
-            let result2 = parseJson(xhr.response)
-            this.state = Idle
-            this.lastCompile = Some(LastCompile(source, optimize))
-            this.onresult(Ok(result2.source))
-        }
-
-        xhr.onerror = fun(e) {
-            this.lastCompile = None
-            this.onresult(Err("Network error:\n" + e))
-        }
-
-        xhr.ontimeout = fun() {
-            this.lastCompile = None
-            this.onresult(Err("Network timeout"))
-        }
+        // compilation request
+        this.worker->postMessage(_unsafe_coerce({
+            compileID: compileID,
+            source: source,
+        }))
+        this.state = Compiling({
+            compileID: compileID,
+            source: source,
+            optimize: optimize,
+        })
     }, COMPILE_DELAY))
+}
+
+fun receiveCompilationResponse(Compiler(this), response) {
+    // TODO: this is a lot of code for something simple
+    let (source, optimize) = match this.state {
+        Compiling(settings) => {
+            if settings.compileID != response.compileID {
+                return
+            }
+            (settings.source, settings.optimize)
+        }
+        _ => return
+    }
+
+    let result = if response.success {
+        if not(optimize) {
+            this.state = Idle;
+            this.lastCompile = Some(LastCompile(source, optimize))
+            this.onresult(Ok(response.result))
+            return ()
+        } else {
+            response.result
+        }
+    } else {
+        this.state = Idle;
+        this.lastCompile = Some(LastCompile(source, optimize))
+        this.onresult(Err("Compile error:\n" + response.result))
+        return ()
+    }
+
+    let xhr = newXmlHttpRequest()
+    xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
+    xhr.setRequestHeader("content-type", "application/json")
+    xhr.timeout = 60000 // 60s
+    xhr.send(toJson({source: result}))
+    this.state = Optimizing(xhr)
+
+    xhr.onload = fun() {
+        // TODO: allow this kind of shadowing
+        let result2 = parseJson(xhr.response)
+        this.state = Idle
+        this.lastCompile = Some(LastCompile(source, optimize))
+        this.onresult(Ok(result2.source))
+    }
+
+    xhr.onerror = fun(e) {
+        this.lastCompile = None
+        this.onresult(Err("Network error:\n" + e))
+    }
+
+    xhr.ontimeout = fun() {
+        this.lastCompile = None
+        this.onresult(Err("Network timeout"))
+    }
+}
+
+fun newCompiler(onresult) {
+    let compilerThread = worker.new("compiler-worker.js")
+    let compiler = Compiler({
+        worker: compilerThread,
+        nextCompileID: 0,
+        onresult: onresult,
+        state: Idle,
+        lastCompile: None,
+    })
+
+    compilerThread->setHandler(response => {
+        // TODO: allow TDNR of functions defined below their use?!
+        // TODO: and move newCompiler up
+        compiler->receiveCompilationResponse(_unsafe_coerce(response))
+    })
+
+    return compiler
 }
 
 fun main() {
@@ -157,7 +205,7 @@ fun main() {
         sourceTextArea.value = source
     }
 
-    let compiler = newCompiler(fun(result) {
+    let compiler = newCompiler(result => {
         match result {
             Ok(res) => {
                 outputTextArea.classList.remove("has-errors")

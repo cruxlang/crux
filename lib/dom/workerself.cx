@@ -1,0 +1,28 @@
+import js
+
+// should this module be specific to implementing webworkers? and another for sending?
+
+declare self<a>: a
+
+export fun close() {
+  self.close()
+}
+
+export fun importScripts(scripts: [String]) {
+  self.importScripts.apply(js.Null, scripts)
+}
+
+// TODO: allow keywords as record field names
+let getData = _unsafe_js("function(e) { return e.data; }")
+
+export fun setHandler(handler: js.Value => ()): () {
+  self.onmessage = event => {
+    handler(getData(event))
+  }
+}
+
+export fun postMessage<Value: js.ToValue>(value: Value) {
+  self.postMessage(value)
+}
+
+

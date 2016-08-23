@@ -21,6 +21,8 @@ export import boolean
 export import option
 export import result
 export type Array = array.Array
+export let replicate = array.replicate
+export let each = array.each
 export type String = string.String
 export import number
 

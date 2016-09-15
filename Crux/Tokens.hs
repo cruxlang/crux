@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 module Crux.Tokens where
 
 import Crux.Prelude

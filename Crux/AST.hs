@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveGeneric, DeriveTraversable,
-             OverloadedStrings, RecordWildCards, TypeFamilies #-}
+{-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveTraversable,
+             OverloadedStrings, TypeFamilies #-}
 
 module Crux.AST
     ( module Crux.AST

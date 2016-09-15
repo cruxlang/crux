@@ -344,7 +344,7 @@ parenPattern ctx = do
 -- mod.UPPER(...) - PConstructor
 pattern :: PatternContext -> Parser ParsePattern
 pattern ctx = parenPattern ctx <|> wildcardPattern <|> do
-    let lowerBinding = lowerIdentifier >>= return . PBinding . fst
+    let lowerBinding = (PBinding . fst) <$> lowerIdentifier
     let parseConstructor = do
             (constructorName, _) <- upperIdentifier
             -- TODO: if parenthesized, this should require at least one arg

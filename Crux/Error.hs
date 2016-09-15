@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
-
 module Crux.Error
     ( InternalCompilerError(..)
     , TypeError(..)

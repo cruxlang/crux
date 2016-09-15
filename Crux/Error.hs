@@ -41,6 +41,7 @@ data TypeError
     | NoTraitOnType TypeVar Name ModuleName
     | IncompleteImpl [Name]
     | UnexpectedImplMethod Name
+    | DuplicateSymbol Text
     deriving (Eq, Show)
 
 data Error
@@ -50,7 +51,6 @@ data Error
     | CircularImport ModuleName
     | InternalCompilerError InternalCompilerError
     | TypeError Pos TypeError
-    | DuplicateSymbol Pos Text
     deriving (Eq, Show)
 
 renderError :: Maybe ModuleName -> Error -> IO String
@@ -70,8 +70,6 @@ renderError' = \case
     TypeError pos ue -> do
         te <- typeErrorToString ue
         return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
-    DuplicateSymbol pos name -> do
-        return $ "Duplicate symbol at " ++ formatPos pos ++ ": " ++ Text.unpack name
 
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%i,%i" posLine posCol
@@ -84,7 +82,6 @@ getErrorName = \case
     CircularImport _ -> "circular-import"
     InternalCompilerError _ -> "internal"
     TypeError _ _ -> "type"
-    DuplicateSymbol _ _ -> "duplicate-symbol"
 
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case
@@ -102,6 +99,7 @@ getTypeErrorName = \case
     NoTraitOnType{} -> "no-trait-on-type"
     IncompleteImpl{} -> "incomplete-impl"
     UnexpectedImplMethod{} -> "unexpected-impl-method"
+    DuplicateSymbol{} -> "duplicate-symbol"
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
@@ -138,3 +136,5 @@ typeErrorToString (IncompleteImpl missingMethods) = do
     return $ "Impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
 typeErrorToString (UnexpectedImplMethod name) = do
     return $ "Impl has method not defined by trait: " <> Text.unpack name
+typeErrorToString (DuplicateSymbol name) = do
+        return $ "Duplicate symbol: " ++ Text.unpack name

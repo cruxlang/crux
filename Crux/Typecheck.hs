@@ -948,7 +948,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         values' <- for values $ \(methodName, expr) -> do
             when (1 < (length $ filter (\(name, _) -> name == methodName) values)) $ do
                 -- TODO: use the pos of the method here
-                failError $ DuplicateSymbol pos' methodName
+                failTypeError pos' $ DuplicateSymbol methodName
 
             methodTypeVar <- case lookup methodName newMethods of
                 Just tv -> return tv

@@ -11,8 +11,8 @@ module Crux.SymbolTable
 import Prelude hiding (lookup)
 import Crux.Prelude
 import qualified Data.HashMap.Strict as HashMap
-import Crux.Typecheck.Monad (TC, Warning(..), recordWarning, failError)
-import Crux.Error (Error(DuplicateSymbol))
+import Crux.Typecheck.Monad (TC, Warning(..), recordWarning, failTypeError)
+import Crux.Error (TypeError(DuplicateSymbol))
 import Crux.Pos (Pos)
 
 type Name = Text
@@ -43,7 +43,7 @@ insert (SymbolTable ref) pos policy key value = do
                 recordWarning Warning
                 writeIORef ref $ HashMap.insert key value hm
             DisallowDuplicates -> do
-                failError $ DuplicateSymbol pos key
+                failTypeError pos $ DuplicateSymbol key
 
 lookup :: MonadIO m => SymbolTable value -> Name -> m (Maybe value)
 lookup (SymbolTable ref) key = do

@@ -2,4 +2,4 @@
 set -e
 cd "$(dirname "$0")"/..
 
-.cabal-sandbox/bin/hlint -XNoPatternSynonyms -h src/HLint.hs Crux
+.cabal-sandbox/bin/hlint -XNoPatternSynonyms -h src/hlint.hs Crux

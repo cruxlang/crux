@@ -5,25 +5,22 @@ import Data.Maybe
 {-
 error = fromJust x ==> Data.Maybe.fromMaybe (error "A more informative error message") x
 error = read x ==> Safe.readNote (error "A more informative error message") x
-error = Debug.Trace.trace
-error = (!!) a b
 -}
 
-ignore "Use camelCase" -- this is currently tripping on a lot of things. Reenable this and fix those, maybe.
+--error = error x ==> throw SpecificError
+
+-- This one is interesting but shouldn't be enabled all the time.
 ignore "Reduce duplication"
-ignore "Use fewer imports"
 
 ignore "Redundant do"
 ignore "Use unless"
 ignore "Use null"
-ignore "Redundant =="
 ignore "Redundant bracket"
 ignore "Redundant do"
 ignore "Use unless"
 ignore "Use infix"
 ignore "Use liftM"
 ignore "Use isNothing"
-ignore "Use if"
 ignore "Eta reduce"
 ignore "Use zipWith"
 ignore "Redundant $"

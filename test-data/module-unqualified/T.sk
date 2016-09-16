@@ -1,3 +1,0 @@
-export fun run() {
-  print("Hello from a module!");
-}

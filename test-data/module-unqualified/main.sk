@@ -1,8 +1,0 @@
-import {
-    T (...)
-}
-
-fun main() {
-  run();
-}
-let _ = main();

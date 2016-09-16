@@ -20,7 +20,7 @@ type Name = Text
 
 data InternalCompilerError
     = DependentModuleNotLoaded Pos ModuleName
-    | StoppedCheckingWithNoError
+    | StoppedCheckingWithNoError Pos
     deriving (Eq, Show)
 
 data TypeError
@@ -64,7 +64,7 @@ renderError' = \case
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
     InternalCompilerError ice -> return $ "ICE: " ++ case ice of
         DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
-        StoppedCheckingWithNoError -> "Stopped type checking but no errors were recorder"
+        StoppedCheckingWithNoError _pos -> "Stopped type checking but no errors were recorder"
     TypeError pos ue -> do
         te <- typeErrorToString ue
         return $ "Type error at " ++ formatPos pos ++ "\n" ++ te

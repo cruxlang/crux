@@ -29,13 +29,9 @@ data TCState = TCState
 newtype TC a = TC (ReaderT TCState IO a)
     deriving (Functor, Applicative, Monad, MonadIO)
 
-data StopExecution = StopExecution
+data StopExecution = StopExecution Error
     deriving (Show)
 instance Exception StopExecution
-
-stopChecking :: TC a
-stopChecking = liftIO $ do
-    throwIO StopExecution
 
 recordError :: Error -> TC ()
 recordError e = do
@@ -44,13 +40,11 @@ recordError e = do
 
 failError :: Error -> TC a
 failError e = do
-    recordError e
-    stopChecking
+    liftIO $ throwIO $ StopExecution e
 
 failTypeError :: Pos -> TypeError -> TC a
 failTypeError pos te = do
-    recordError $ TypeError pos te
-    stopChecking
+    failError $ TypeError pos te
 
 failICE :: InternalCompilerError -> TC a
 failICE e = do
@@ -72,14 +66,14 @@ runTC (TC m) = do
     result <- try $ runReaderT m TCState{..}
     warnings <- reverse <$> readIORef tcWarnings
     errors <- reverse <$> readIORef tcErrors
-    if errors == [] then
-        case result of
-            Left StopExecution ->
-                return $ TCFail [InternalCompilerError StoppedCheckingWithNoError] warnings
-            Right r ->
+    case result of
+        Left (StopExecution lastError) -> do
+            return $ TCFail (errors ++ [lastError]) warnings
+        Right r -> do
+            if errors == [] then do
                 return $ TCSuccess r warnings
-    else
-        return $ TCFail errors warnings
+            else do
+                return $ TCFail errors warnings
 
 -- temporary -- used to convert existing code
 bridgeTC :: TC a -> IO (Either Error a)
@@ -90,8 +84,8 @@ bridgeTC (TC m) = do
     errors <- reverse <$> readIORef tcErrors
     case errors of
         [] -> case result of
-            Left StopExecution ->
-                return $ Left $ InternalCompilerError StoppedCheckingWithNoError
+            Left (StopExecution lastError) ->
+                return $ Left $ lastError
             Right r ->
                 return $ Right r
         (firstError:_) -> do

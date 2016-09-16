@@ -207,13 +207,13 @@ test_annotation_is_checked = do
         [ "let i: Number = \"hody\""
         ]
 
-    assertUnificationError (Pos 1 1 1) "Number" "String" result
+    assertUnificationError (Pos 1 1) "Number" "String" result
 
 test_arrays_of_different_types_cannot_unify = do
     result <- run $ T.unlines
         [ "let _ = [[0], [\"\"]]"
         ]
-    assertUnificationError (Pos 1 1 9) "Number" "String" result
+    assertUnificationError (Pos 1 9) "Number" "String" result
 
 test_record_annotation_is_checked2 = do
     result <- run $ T.unlines
@@ -224,7 +224,7 @@ test_record_annotation_is_checked2 = do
         , "let _ = main()"
         ]
 
-    assertUnificationError (Pos 5 3 5) "{}" "{log: (TUnbound fromList [] 10),..._11}" result
+    assertUnificationError (Pos 3 5) "{}" "{log: (TUnbound fromList [] 10),..._11}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_cannot_assign_to_immutable_binding = do
@@ -238,7 +238,7 @@ test_cannot_assign_to_immutable_binding = do
         ]
 
     -- assertEqual (Left "Not an lvar: EIdentifier (IPrimitive Number) (Local \"x\")") result
-    assertEqual (Left $ Error.TypeError (Pos 5 3 5) $ NotAnLVar "EIdentifier Pos 5 3 5 (UnqualifiedReference \"x\")") result
+    assertEqual (Left $ Error.TypeError (Pos 3 5) $ NotAnLVar "EIdentifier Pos 3 5 (UnqualifiedReference \"x\")") result
 
 test_cannot_assign_to_immutable_record_field = do
     result <- run $ T.unlines
@@ -252,7 +252,7 @@ test_cannot_assign_to_immutable_record_field = do
 
     assertEqual
         -- (Left "Not an lvar: ELookup (IPrimitive Number) (EIdentifier (IRecord (RecordType RecordClose [TypeRow {trName = \"x\", trMut = RImmutable, trTyVar = IPrimitive Number}])) (Local \"a\")) \"x\"")
-        (Left $ Error.TypeError (Pos 5 3 5) $ NotAnLVar "ELookup Pos 5 3 5 (EIdentifier Pos 5 3 5 (UnqualifiedReference \"a\")) \"x\"")
+        (Left $ Error.TypeError (Pos 3 5) $ NotAnLVar "ELookup Pos 3 5 (EIdentifier Pos 3 5 (UnqualifiedReference \"a\")) \"x\"")
         result
 
 test_mutable_record_field_requirement_is_inferred = do
@@ -270,7 +270,7 @@ test_mutable_record_field_requirement_is_inferred = do
         ]
 
     assertEqual
-        (Left $ Error.TypeError (Pos 5 8 10) $ RecordMutabilityUnificationError "x" "Record field mutability does not match")
+        (Left $ Error.TypeError (Pos 8 10) $ RecordMutabilityUnificationError "x" "Record field mutability does not match")
         result
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do
@@ -279,19 +279,19 @@ test_polymorphic_type_annotations_are_universally_quantified2 = do
         , "let g<a>: fun(a) -> a = fun (i) { i }"
         , "let _ = f(g(\"hello\"))"
         ]
-    assertUnificationError (Pos 1 3 11) "String" "Number" rv
+    assertUnificationError (Pos 3 11) "String" "Number" rv
 
 test_polymorphic_type_annotations_are_universally_quantified4 = do
     rv <- run $ T.unlines
         [ "let f<a>: fun(a) -> Number = fun (i) { i }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant Instantiation fromList [] 2" rv
+    assertUnificationError (Pos 1 1) "Number" "TQuant Instantiation fromList [] 2" rv
 
 test_type_annotations_on_function_decls2 = do
     rv <- run $ T.unlines
         [ "fun id_int<a>(x: a): Number { x }"
         ]
-    assertUnificationError (Pos 1 1 1) "Number" "TQuant Instantiation fromList [] 2" rv
+    assertUnificationError (Pos 1 1) "Number" "TQuant Instantiation fromList [] 2" rv
 
 test_escaped_strings = do
     result1 <- run $ T.unlines
@@ -316,4 +316,4 @@ test_row_variables_are_checked = do
         , "let a = double_x({ x : 22, y : 11 })"
         , "let _ = print(a.z)"
         ]
-    assertUnificationError (Pos 1 7 15) "{x: Number,y: Number}" "{z: (TUnbound fromList [] 34),..._35}" result
+    assertUnificationError (Pos 7 15) "{x: Number,y: Number}" "{z: (TUnbound fromList [] 34),..._35}" result

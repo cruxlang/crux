@@ -42,13 +42,23 @@ data TypeError
     deriving (Eq, Show)
 
 data Error
-    = LexError P.ParseError
+    = ModuleNotFound ModuleName [FilePath]
+    | LexError P.ParseError
     | ParseError P.ParseError
-    | ModuleNotFound ModuleName [FilePath]
     | CircularImport ModuleName
     | InternalCompilerError Pos InternalCompilerError
     | TypeError Pos TypeError
     deriving (Eq, Show)
+
+{-
+data ErrorLocation = ErrorLocation
+    { elFileName :: String
+    , elModuleName :: ModuleName
+    , elPos :: Pos
+    }
+-}
+
+-- data Error = Error ErrorLocation ErrorType
 
 renderError :: Maybe ModuleName -> Error -> IO String
 renderError moduleName err = do
@@ -68,7 +78,7 @@ renderError' = \case
         return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
 
 formatPos :: Pos -> String
-formatPos Pos{..} = printf "%i,%i" posLine posCol
+formatPos Pos{..} = printf "%i:%i" posLine posColumn
 
 getErrorName :: Error -> Text
 getErrorName = \case

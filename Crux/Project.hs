@@ -87,7 +87,7 @@ buildProjectAndRunTests = do
         loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
             Left (moduleName, err) -> do
                 message <- Error.renderError moduleName err
-                Exit.die $ "test build failed\n" ++ message
+                Exit.die message
             Right program -> do
                 program' <- Gen.generateProgram program
                 let source = JSBackend.generateJS rtsSource program'

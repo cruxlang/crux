@@ -171,7 +171,7 @@ importsOf :: AST.Module a b c -> [(Pos, ModuleName)]
 importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 
 addBuiltin :: AST.Module a b c -> AST.Module a b c
-addBuiltin m = m { AST.mImports = (Pos 0 0 0, AST.Import "builtin" AST.UnqualifiedImport) : AST.mImports m }
+addBuiltin m = m { AST.mImports = (Pos 0 0, AST.Import "builtin" AST.UnqualifiedImport) : AST.mImports m }
 
 type ProgramLoadResult a = Either (Maybe ModuleName, Error.Error) a
 

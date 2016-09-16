@@ -13,8 +13,9 @@ import qualified Text.Parsec as P
 
 type ParserState = (Int, Int) -- current line, start column
 type Parser a = P.ParsecT Text ParserState Identity a
+type LexToken = Token ParsePos
 
-pos :: Parser Pos
+pos :: Parser ParsePos
 pos = do
     p <- P.getPosition
     let sourceLine = P.sourceLine p
@@ -28,9 +29,15 @@ pos = do
         P.putState (sourceLine, sourceColumn)
         return sourceColumn
 
-    return $ Pos newLineStart sourceLine sourceColumn
+    return $ ParsePos
+        { ppLineStart = newLineStart
+        , ppPos = Pos
+            { posLine = sourceLine
+            , posColumn = sourceColumn
+            }
+        }
 
-integerLiteral :: Parser (Token Pos)
+integerLiteral :: Parser LexToken
 integerLiteral = do
     p <- pos
     digits <- P.many1 P.digit
@@ -80,7 +87,7 @@ stringChar = do
 
     P.many $ escape <|> normal
 
-stringLiteral :: Parser (Token Pos)
+stringLiteral :: Parser LexToken
 stringLiteral = do
     p <- pos
     _ <- P.char '"'
@@ -88,7 +95,7 @@ stringLiteral = do
     _ <- P.char '"'
     return $ Token p $ TString $ T.pack chars
 
-parseAnyIdentifier :: (Char -> Bool) -> (Text -> TokenType) -> Parser (Token Pos)
+parseAnyIdentifier :: (Char -> Bool) -> (Text -> TokenType) -> Parser LexToken
 parseAnyIdentifier isStartChar f = do
     p <- pos
     let isIdentifierChar x = isAlpha x || isNumber x || x == '_'
@@ -99,17 +106,17 @@ parseAnyIdentifier isStartChar f = do
 orUnderscore :: (Char -> Bool) -> Char -> Bool
 orUnderscore f x = f x || x == '_'
 
-parseUpperIdentifier :: Parser (Token Pos)
+parseUpperIdentifier :: Parser LexToken
 parseUpperIdentifier = parseAnyIdentifier isUpper TUpperIdentifier
 
-parseLowerIdentifier :: Parser (Token Pos)
+parseLowerIdentifier :: Parser LexToken
 parseLowerIdentifier = parseAnyIdentifier (orUnderscore isLower) TLowerIdentifier
 
-parseIdentifier :: Parser (Token Pos)
+parseIdentifier :: Parser LexToken
 parseIdentifier = parseUpperIdentifier <|> parseLowerIdentifier
 
 {-
-parseIdentifier :: Parser (Token Pos)
+parseIdentifier :: Parser LexToken
 parseIdentifier = do
     p <- pos
     let isIdentifierStart '_' = True
@@ -122,7 +129,7 @@ parseIdentifier = do
     return $ Token p $ TIdentifier $ T.pack (first:rest)
 -}
 
-token :: Parser (Token Pos)
+token :: Parser LexToken
 token =
     keyword
     <|> integerLiteral
@@ -130,7 +137,7 @@ token =
     <|> parseIdentifier
     <|> symbol
 
-keyword :: Parser (Token Pos)
+keyword :: Parser LexToken
 keyword = P.try $ do
     Token p (TLowerIdentifier i) <- parseLowerIdentifier
     fmap (Token p) $ case i of
@@ -164,7 +171,7 @@ keyword = P.try $ do
         "impl" -> return TImpl
         _ -> fail ""
 
-symbol :: Parser (Token Pos)
+symbol :: Parser LexToken
 symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym2 '=' '>' TFatRightArrow
      <|> sym2 '-' '>' TRightArrow
@@ -230,13 +237,13 @@ comments = do
         whitespace
     return ()
 
-document :: Parser [Token Pos]
+document :: Parser [LexToken]
 document = do
     comments
     r <- P.many $ token <* comments
     P.eof
     return r
 
-lexSource :: FilePath -> Text -> Either P.ParseError [Token Pos]
+lexSource :: FilePath -> Text -> Either P.ParseError [LexToken]
 lexSource fileName text =
     P.runParser document (-1, -1) fileName text

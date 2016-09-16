@@ -5,3 +5,7 @@ import test(...)
 let _ = test("encode array", () => {
   assert.equal("[\"hi\"]", json.encode(["hi"]))
 })
+
+let _ = test("encode null", () => {
+  assert.equal("null", json.encode(js.Null))
+})

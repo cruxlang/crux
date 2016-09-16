@@ -26,26 +26,27 @@ import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
 import Crux.ModuleName
 import qualified Crux.JSTree as JSTree
-import Crux.Pos (Pos(..))
+import Crux.Pos (Pos(..), ParsePos(..))
 import Crux.Prelude
 import Crux.Text (isCapitalized)
 import Crux.Tokens as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec as P
 
-type Parser = P.ParsecT [Token Pos] () (Reader IndentReq)
-type ParseData = Pos
+type Parser = P.ParsecT [ParseToken] () (Reader IndentReq)
+type ParseData = ParsePos
 type ParseExpression = Expression UnresolvedReference () ParseData
 type ParsePattern = Pattern ()
 type ParseDeclaration = DeclarationType UnresolvedReference () ParseData
+type ParseToken = Token ParsePos
 
 data IndentReq
     = IRLeftMost
     -- TODO: we can kill this if the appropriate parsers always returned the initial token
-    | IRAtColumn Pos
-    | IRNextLineAtColumn Pos
-    | IRDeeper (Token Pos)
-    | IRAtOrDeeper (Token Pos)
+    | IRAtColumn ParsePos
+    | IRNextLineAtColumn ParsePos
+    | IRDeeper ParseToken
+    | IRAtOrDeeper ParseToken
     deriving (Show)
 
 data IndentMatch
@@ -53,25 +54,31 @@ data IndentMatch
     | UnexpectedIndent String
     | UnexpectedDedent String
 
-indentationPredicate :: Pos -> IndentReq -> IndentMatch
+ppLine :: ParsePos -> Int
+ppLine = posLine . ppPos
+
+ppColumn :: ParsePos -> Int
+ppColumn = posColumn . ppPos
+
+indentationPredicate :: ParsePos -> IndentReq -> IndentMatch
 indentationPredicate p = \case
-    IRLeftMost -> if 1 == posLineStart p
+    IRLeftMost -> if 1 == ppLineStart p
         then IndentOK
-        else UnexpectedIndent $ "Expected LeftMost but got " ++ show (posLineStart p)
-    IRAtColumn indent -> if posLine p /= posLine indent && posLineStart p == posLineStart indent
+        else UnexpectedIndent $ "Expected LeftMost but got " ++ show (ppLineStart p)
+    IRAtColumn indent -> if ppLine p /= ppLine indent && ppLineStart p == ppLineStart indent
         then IndentOK
-        else if posCol p > posLineStart indent
+        else if ppColumn p > ppLineStart indent
             then UnexpectedIndent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
             else UnexpectedDedent $ "Expected indentation at " ++ show indent ++ " but it was " ++ show p
-    IRNextLineAtColumn indent -> if posLine p > posLine indent && posLineStart p == posLineStart indent
+    IRNextLineAtColumn indent -> if ppLine p > ppLine indent && ppLineStart p == ppLineStart indent
         then IndentOK
         else UnexpectedIndent $ "Must be on subsequent line but at same column"
     IRDeeper t -> let tPos = tokenData t in
-        if posLine tPos == posLine p || posCol p > posLineStart tPos
+        if ppLine tPos == ppLine p || ppColumn p > ppLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation past " ++ show t ++ " p = " ++ show p
     IRAtOrDeeper t -> let tPos = tokenData t in
-        if posLine tPos == posLine p || posCol p >= posLineStart tPos
+        if ppLine tPos == ppLine p || ppColumn p >= ppLineStart tPos
             then IndentOK
             else UnexpectedDedent $ "Expected indentation at or past " ++ show t ++ " p = " ++ show p
 
@@ -82,7 +89,7 @@ readIndentReq = ask
 withIndentation :: MonadReader a m => a -> m r -> m r
 withIndentation i = local $ \_ -> i
 
-enclosed :: Parser (Token Pos) -> Parser b -> Parser a -> Parser (Pos, a)
+enclosed :: Parser ParseToken -> Parser b -> Parser a -> Parser (ParsePos, a)
 enclosed open close body = do
     openToken <- open
     rv <- withIndentation (IRDeeper openToken) $ do
@@ -91,19 +98,19 @@ enclosed open close body = do
         void $ close
     return (tokenData openToken, rv)
 
-parenthesized' :: Parser a -> Parser (Pos, a)
+parenthesized' :: Parser a -> Parser (ParsePos, a)
 parenthesized' = enclosed (token TOpenParen) (token TCloseParen)
 
 parenthesized :: Parser a -> Parser a
 parenthesized p = fmap snd $ parenthesized' p
 
-braced' :: Parser a -> Parser (Pos, a)
+braced' :: Parser a -> Parser (ParsePos, a)
 braced' = enclosed (token TOpenBrace) (token TCloseBrace)
 
 braced :: Parser a -> Parser a
 braced p = fmap snd $ braced' p
 
-bracketed' :: Parser a -> Parser (Pos, a)
+bracketed' :: Parser a -> Parser (ParsePos, a)
 bracketed' = enclosed (token TOpenBracket) (token TCloseBracket)
 
 bracketed :: Parser a -> Parser a
@@ -112,20 +119,20 @@ bracketed p = fmap snd $ bracketed' p
 angleBracketed :: Parser a -> Parser a
 angleBracketed p = fmap snd $ angleBracketed' p
 
-angleBracketed' :: Parser a -> Parser (Pos, a)
+angleBracketed' :: Parser a -> Parser (ParsePos, a)
 angleBracketed' = enclosed (token TLess) (token TGreater)
 
-getToken :: P.Stream s m (Token Pos)
-         => (Token Pos -> Maybe a) -> P.ParsecT s u m a
+getToken :: P.Stream s m ParseToken
+         => (ParseToken -> Maybe a) -> P.ParsecT s u m a
 getToken predicate = P.tokenPrim show nextPos predicate
   where
     nextPos pos t _ =
         -- This appears to be incorrect logic per the docs, but our errors all
         -- have correct line numbers...
-        let Pos{..} = tokenData t
-        in P.setSourceLine (P.setSourceColumn pos posCol) posLine
+        let Pos{..} = ppPos $ tokenData t
+        in P.setSourceLine (P.setSourceColumn pos posColumn) posLine
 
-tokenBy :: (TokenType -> Maybe a) -> Parser (a, Token Pos)
+tokenBy :: (TokenType -> Maybe a) -> Parser (a, ParseToken)
 tokenBy predicate = do
     indentReq <- readIndentReq
     let testTok tok@(Token pos ttype) = case predicate ttype of
@@ -136,33 +143,33 @@ tokenBy predicate = do
           Nothing -> Nothing
     getToken testTok
 
-token :: TokenType -> Parser (Token Pos)
+token :: TokenType -> Parser ParseToken
 token expected = do
     ((), t) <- tokenBy $ \t ->
         if expected == t then Just () else Nothing
     return t
 
-identifier :: Text -> Parser (Token Pos)
+identifier :: Text -> Parser ParseToken
 identifier name = fmap snd $ tokenBy $ \case
     TUpperIdentifier t | t == name -> Just ()
     TLowerIdentifier t | t == name -> Just ()
     _ -> Nothing
 
-lowerIdentifier :: Parser (Text, Pos)
+lowerIdentifier :: Parser (Text, ParsePos)
 lowerIdentifier = do
     (t, Token pos _) <- tokenBy $ \case
         TLowerIdentifier t -> Just t
         _ -> Nothing
     return (t, pos)
 
-upperIdentifier :: Parser (Text, Pos)
+upperIdentifier :: Parser (Text, ParsePos)
 upperIdentifier = do
     (t, Token pos _) <- tokenBy $ \case
         TUpperIdentifier t -> Just t
         _ -> Nothing
     return (t, pos)
 
-anyIdentifierWithPos :: Parser (Text, Pos)
+anyIdentifierWithPos :: Parser (Text, ParsePos)
 anyIdentifierWithPos = do
     lowerIdentifier <|> upperIdentifier
 
@@ -290,7 +297,7 @@ parseString = do
     ELiteral _ (LString s) <- stringLiteralExpression
     return s
 
-lambdaTail :: Pos -> [ParsePattern] -> Parser ParseExpression
+lambdaTail :: ParsePos -> [ParsePattern] -> Parser ParseExpression
 lambdaTail pos params = do
     body <- blockExpression <|> noSemiExpression
     return $ EFun pos $ FunctionDecl
@@ -310,7 +317,7 @@ identifierExpression = do
     let ident = EIdentifier pos $ UnqualifiedReference txt
     lambdaForm <|> return ident
 
-functionGuts :: Pos -> Parser ParseExpression
+functionGuts :: ParsePos -> Parser ParseExpression
 functionGuts pos = do
     fdParams <- parenthesized $ commaDelimited funArgument
     fdReturnAnnot <- P.optionMaybe $ do
@@ -665,7 +672,7 @@ declareDeclaration = do
         ti <- typeIdent
         return $ DDeclare (tokenData declareToken) name forall ti
 
-variantDefinition :: Parser (Variant Pos)
+variantDefinition :: Parser (Variant ParsePos)
 variantDefinition = do
     (ctorname, pos) <- anyIdentifierWithPos
 
@@ -674,7 +681,7 @@ variantDefinition = do
 
     return $ Variant pos ctorname ctordata
 
-cruxDataDeclaration :: Pos -> Parser ParseDeclaration
+cruxDataDeclaration :: ParsePos -> Parser ParseDeclaration
 cruxDataDeclaration pos = do
     name <- typeName
     typeVars <- P.option [] explicitTypeVariableList
@@ -704,7 +711,7 @@ jsVariantDefinition = do
     ctorvalue <- jsValue
     return $ JSVariant ctorname ctorvalue
 
-jsDataDeclaration :: Pos -> Parser ParseDeclaration
+jsDataDeclaration :: ParsePos -> Parser ParseDeclaration
 jsDataDeclaration pos = do
     _ <- token TJSFFI
     name <- typeName
@@ -736,7 +743,7 @@ funArgument = do
         typeIdent
     return (n, ann)
 
-bracedLines :: Parser (Pos, a) -> Parser (Pos, [a])
+bracedLines :: Parser (ParsePos, a) -> Parser (ParsePos, [a])
 bracedLines lineParser = do
     br <- token TOpenBrace
     firstLine <- withIndentation (IRDeeper br) $ P.optionMaybe lineParser
@@ -772,7 +779,7 @@ typeVarIdent :: Parser TypeVarIdent
 typeVarIdent = do
     (name, pos) <- anyIdentifierWithPos
     traits <- P.option [] $ token TColon >> plusDelimited unresolvedReference
-    return $ TypeVarIdent name pos traits
+    return $ TypeVarIdent name (ppPos pos) traits
 
 explicitTypeVariableList :: Parser [TypeVarIdent]
 explicitTypeVariableList = do
@@ -872,9 +879,9 @@ declaration = do
         , implDeclaration
         , exceptionDeclaration
         ] ++ extra
-    return $ Declaration exportFlag pos declType
+    return $ Declaration exportFlag (ppPos pos) declType
 
-pragma :: Parser (Pos, Pragma)
+pragma :: Parser (ParsePos, Pragma)
 pragma = do
     p <- identifier "NoBuiltin"
     return (tokenData p, PNoBuiltin)
@@ -885,7 +892,7 @@ pragmas = do
     withIndentation (IRDeeper pragmaToken) $ do
         snd <$> bracedLines pragma
 
-importDecl :: Parser (Pos, Import)
+importDecl :: Parser (ParsePos, Import)
 importDecl = do
     importToken <- token TImport
 
@@ -918,7 +925,7 @@ importDecl = do
     importType <- unqualifiedImport <|> qualifiedImport
     return (tokenData importToken, Import moduleName importType)
 
-imports :: Parser [(Pos, Import)]
+imports :: Parser [(ParsePos, Import)]
 imports = P.many importDecl
 
 parseModule :: Parser ParsedModule
@@ -929,14 +936,14 @@ parseModule = do
     P.eof
     return Module
         { mPragmas = prags
-        , mImports = imp
-        , mDecls = doc
+        , mImports = fmap (\(a, b) -> (ppPos a, b)) imp
+        , mDecls = fmap (fmap ppPos) doc
         }
 
-runParser :: Parser a -> P.SourceName -> [Token Pos] -> Either P.ParseError a
+runParser :: Parser a -> P.SourceName -> [ParseToken] -> Either P.ParseError a
 runParser parser sourceName tokens = do
     let parseResult = P.runParserT parser () sourceName tokens
     runReader parseResult IRLeftMost
 
-parse :: P.SourceName -> [Token Pos] -> Either P.ParseError ParsedModule
+parse :: P.SourceName -> [ParseToken] -> Either P.ParseError ParsedModule
 parse = runParser parseModule

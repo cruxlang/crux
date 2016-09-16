@@ -5,14 +5,19 @@ module Crux.Pos where
 -- (Except emacs.  Emacs users will have to deal with column numbers being off
 -- by one.)
 data Pos = Pos
-    -- The start column of the line containing this token.
-    { posLineStart :: Int
     -- This token's line number.
-    , posLine      :: Int
+    { posLine      :: Int
     -- This token's column number.
-    , posCol       :: Int
+    , posColumn    :: Int
     }
     deriving (Eq)
 
 instance Show Pos where
-    show Pos{..} = "Pos " ++ show posLineStart ++ " " ++ show posLine ++ " " ++ show posCol
+    show Pos{..} = "Pos " ++ show posLine ++ " " ++ show posColumn
+
+
+data ParsePos = ParsePos
+    { ppLineStart :: Int
+    , ppPos :: Pos
+    }
+    deriving (Show)

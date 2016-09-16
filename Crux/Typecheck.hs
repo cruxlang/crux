@@ -664,7 +664,7 @@ resolveInstanceDictPlaceholders env = recurse
 
                         instanceType <- instantiate env $ idTypeVar instanceDesc
                         traits <- accumulateTraitReferences [instanceType]
-                        unify env (Pos 0 0 0) instanceType tv
+                        unify env (Pos 0 0) instanceType tv
 
                         let thisDict = EInstanceDict tv traitIdentity dtid
                         case traits of

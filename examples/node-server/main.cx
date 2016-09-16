@@ -1,0 +1,16 @@
+declare require : fun (String) -> a
+
+let http = require("http")
+let console = require("console")
+
+let PORT = 8080
+
+fun handleRequest(request, response) {
+    response.end("Path Hit: " + request.url)
+}
+
+let server = http.createServer(handleRequest)
+
+let _ = server.listen(PORT, fun() {
+    console.log("Server listening on: http://localhost:%s", PORT)
+})

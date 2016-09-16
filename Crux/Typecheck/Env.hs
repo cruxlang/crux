@@ -184,7 +184,7 @@ buildTypeEnvironment thisModuleName loadedModules thisModule = do
     for_ imports $ \(pos, Import moduleName importType) -> do
         importedModule <- case HashMap.lookup moduleName loadedModules of
             Just im -> return im
-            Nothing -> failICE $ Error.DependentModuleNotLoaded pos moduleName
+            Nothing -> failICE pos $ Error.DependentModuleNotLoaded moduleName
 
         for_ (HashMap.toList $ lmKnownInstances importedModule) $ \((a, b), c) -> do
             HashTable.insert (a, b) c $ eKnownInstances env

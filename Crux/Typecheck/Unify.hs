@@ -47,7 +47,7 @@ findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> Pos -> ModuleName ->
 findExportByName getExports env pos moduleName valueName = do
     modul <- case HashMap.lookup moduleName (eLoadedModules env) of
         Just modul -> return modul
-        Nothing -> failError $ InternalCompilerError $ DependentModuleNotLoaded pos moduleName
+        Nothing -> failICE pos $ DependentModuleNotLoaded moduleName
     let r = findFirstOf (getExports modul) $ \(name, v) ->
             if name == valueName then
                 Just v

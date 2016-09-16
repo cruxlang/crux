@@ -46,9 +46,9 @@ failTypeError :: Pos -> TypeError -> TC a
 failTypeError pos te = do
     failError $ TypeError pos te
 
-failICE :: InternalCompilerError -> TC a
-failICE e = do
-    failError $ InternalCompilerError e
+failICE :: Pos -> InternalCompilerError -> TC a
+failICE pos e = do
+    failError $ InternalCompilerError pos e
 
 recordWarning :: Warning -> TC ()
 recordWarning w = do

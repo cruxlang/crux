@@ -19,8 +19,7 @@ import Crux.Pos (Pos(..))
 type Name = Text
 
 data InternalCompilerError
-    = DependentModuleNotLoaded Pos ModuleName
-    | StoppedCheckingWithNoError Pos
+    = DependentModuleNotLoaded ModuleName
     deriving (Eq, Show)
 
 data TypeError
@@ -47,7 +46,7 @@ data Error
     | ParseError P.ParseError
     | ModuleNotFound ModuleName [FilePath]
     | CircularImport ModuleName
-    | InternalCompilerError InternalCompilerError
+    | InternalCompilerError Pos InternalCompilerError
     | TypeError Pos TypeError
     deriving (Eq, Show)
 
@@ -62,9 +61,8 @@ renderError' = \case
     ParseError e -> return $ "Parse error: " ++ show e
     ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
-    InternalCompilerError ice -> return $ "ICE: " ++ case ice of
-        DependentModuleNotLoaded _pos mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
-        StoppedCheckingWithNoError _pos -> "Stopped type checking but no errors were recorder"
+    InternalCompilerError _pos ice -> return $ "ICE: " ++ case ice of
+        DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
     TypeError pos ue -> do
         te <- typeErrorToString ue
         return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
@@ -78,7 +76,7 @@ getErrorName = \case
     ParseError _ -> "parse"
     ModuleNotFound _ _ -> "module-not-found"
     CircularImport _ -> "circular-import"
-    InternalCompilerError _ -> "internal"
+    InternalCompilerError _ _ -> "internal"
     TypeError _ _ -> "type"
 
 getTypeErrorName :: TypeError -> Text

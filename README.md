@@ -61,3 +61,18 @@ Not done:
 * Native code generation
 * Interpreter
 * Type classes / traits
+
+# Compiling
+
+The Crux compiler is a Haskell program, but you don't need to be a Haskell programmer to build or use it.
+
+If you're familiar with building Haskell software, we expect the compiler to build either with cabal or stack.
+
+If not, read on:
+
+1. Get stack. https://docs.haskellstack.org/en/stable/README/
+2. `git clone https://github.com/cruxlang/crux`
+3. `cd crux`
+4. `stack install`
+
+This will build crux and install it to `~/.local/bin/crux`.

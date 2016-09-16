@@ -56,8 +56,6 @@ library
                  , yaml
                  , process
 
-    build-tools: hlint
-
     default-extensions: OverloadedStrings
                       , MultiWayIf
                       , LambdaCase

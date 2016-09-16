@@ -22,4 +22,4 @@ before_install:
   - if [ -n "$QC" ]; then cabal install $QC; fi
 
 script:
-  - cabal install --only-dependencies --enable-tests && cabal configure --enable-tests && cabal build && cabal test && dist/build/crux/crux test && s/lint
+  - cabal install --only-dependencies --enable-tests && cabal install hlint && cabal configure --enable-tests && cabal build && cabal test && dist/build/crux/crux test && s/lint

@@ -33,8 +33,9 @@ import Crux.Tokens as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec as P
 
-type Parser = P.ParsecT [ParseToken] () (Reader IndentReq)
-type ParseData = ParsePos
+type PosInflater = ParsePos -> Pos
+type Parser = P.ParsecT [ParseToken] PosInflater (Reader IndentReq)
+type ParseData = ParsePos -- TODO: benchmark whether the fmap at the end is faster than inflating at each node
 type ParseExpression = Expression UnresolvedReference () ParseData
 type ParsePattern = Pattern ()
 type ParseDeclaration = DeclarationType UnresolvedReference () ParseData
@@ -53,12 +54,6 @@ data IndentMatch
     = IndentOK
     | UnexpectedIndent String
     | UnexpectedDedent String
-
-ppLine :: ParsePos -> Int
-ppLine = posLine . ppPos
-
-ppColumn :: ParsePos -> Int
-ppColumn = posColumn . ppPos
 
 indentationPredicate :: ParsePos -> IndentReq -> IndentMatch
 indentationPredicate p = \case
@@ -88,6 +83,14 @@ readIndentReq = ask
 -- Temporarily adjust the indentation policy for a parser
 withIndentation :: MonadReader a m => a -> m r -> m r
 withIndentation i = local $ \_ -> i
+
+inflatePos :: ParsePos -> Parser Pos
+inflatePos p = do
+    -- I put the inflater in the state slot because it was convenient
+    -- and avoided allocating a tuple in the ReaderT, but it should never
+    -- be modified.
+    inflater <- P.getState
+    return $ inflater p
 
 enclosed :: Parser ParseToken -> Parser b -> Parser a -> Parser (ParsePos, a)
 enclosed open close body = do
@@ -129,8 +132,8 @@ getToken predicate = P.tokenPrim show nextPos predicate
     nextPos pos t _ =
         -- This appears to be incorrect logic per the docs, but our errors all
         -- have correct line numbers...
-        let Pos{..} = ppPos $ tokenData t
-        in P.setSourceLine (P.setSourceColumn pos posColumn) posLine
+        let ParsePos{..} = tokenData t
+        in P.setSourceLine (P.setSourceColumn pos ppColumn) ppLine
 
 tokenBy :: (TokenType -> Maybe a) -> Parser (a, ParseToken)
 tokenBy predicate = do
@@ -779,7 +782,8 @@ typeVarIdent :: Parser TypeVarIdent
 typeVarIdent = do
     (name, pos) <- anyIdentifierWithPos
     traits <- P.option [] $ token TColon >> plusDelimited unresolvedReference
-    return $ TypeVarIdent name (ppPos pos) traits
+    pos' <- inflatePos pos
+    return $ TypeVarIdent name pos' traits
 
 explicitTypeVariableList :: Parser [TypeVarIdent]
 explicitTypeVariableList = do
@@ -879,7 +883,8 @@ declaration = do
         , implDeclaration
         , exceptionDeclaration
         ] ++ extra
-    return $ Declaration exportFlag (ppPos pos) declType
+    pos' <- inflatePos pos
+    return $ Declaration exportFlag pos' declType
 
 pragma :: Parser (ParsePos, Pragma)
 pragma = do
@@ -930,19 +935,27 @@ imports = P.many importDecl
 
 parseModule :: Parser ParsedModule
 parseModule = do
+    inflater <- P.getState
+
     prags <- P.option [] pragmas
     imp <- P.option [] imports
     doc <- P.many $ declaration
     P.eof
     return Module
         { mPragmas = prags
-        , mImports = fmap (\(a, b) -> (ppPos a, b)) imp
-        , mDecls = fmap (fmap ppPos) doc
+        , mImports = fmap (\(a, b) -> (inflater a, b)) imp
+        , mDecls = fmap (fmap inflater) doc
         }
 
 runParser :: Parser a -> P.SourceName -> [ParseToken] -> Either P.ParseError a
 runParser parser sourceName tokens = do
-    let parseResult = P.runParserT parser () sourceName tokens
+    let inflater ParsePos{..} = Pos
+            { posFileName = sourceName
+            , posModuleName = "" -- TODO
+            , posLine = ppLine
+            , posColumn = ppColumn
+            }
+    let parseResult = P.runParserT parser inflater sourceName tokens
     runReader parseResult IRLeftMost
 
 parse :: P.SourceName -> [ParseToken] -> Either P.ParseError ParsedModule

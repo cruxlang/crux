@@ -10,7 +10,7 @@ import qualified Crux.HashTable as HashTable
 import Crux.Module.Types
 import Crux.ModuleName as ModuleName
 import qualified Crux.SymbolTable as SymbolTable
-import Crux.Pos (Pos(..))
+import Crux.Pos (Pos(..), dummyPos)
 import Crux.Prelude
 import Crux.Typecheck.Env
 import Crux.Typecheck.Monad
@@ -664,7 +664,8 @@ resolveInstanceDictPlaceholders env = recurse
 
                         instanceType <- instantiate env $ idTypeVar instanceDesc
                         traits <- accumulateTraitReferences [instanceType]
-                        unify env (Pos 0 0) instanceType tv
+                        -- TODO: find a real Pos somewhere
+                        unify env dummyPos instanceType tv
 
                         let thisDict = EInstanceDict tv traitIdentity dtid
                         case traits of

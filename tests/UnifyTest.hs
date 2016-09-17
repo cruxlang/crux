@@ -4,7 +4,7 @@
 module UnifyTest (htf_thisModulesTests) where
 
 import Crux.IORef
-import Crux.Pos (Pos (..))
+import Crux.Pos (dummyPos)
 import Crux.Typecheck.Env (newEnv)
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Unify
@@ -33,7 +33,7 @@ test_function_taking_record = do
 
     rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
     let recordLiteralType = TRecord rect2
-    (Right ()) <- bridgeTC $ unify env (Pos 0 0) argTypei recordLiteralType
+    (Right ()) <- bridgeTC $ unify env dummyPos argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei
     assertEqual "({x: Number}) -> {x: Number}" s

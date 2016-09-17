@@ -31,10 +31,8 @@ pos = do
 
     return $ ParsePos
         { ppLineStart = newLineStart
-        , ppPos = Pos
-            { posLine = sourceLine
-            , posColumn = sourceColumn
-            }
+        , ppLine = sourceLine
+        , ppColumn = sourceColumn
         }
 
 integerLiteral :: Parser LexToken

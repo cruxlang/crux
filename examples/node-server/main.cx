@@ -1,4 +1,4 @@
-declare require : fun (String) -> a
+declare require<a> : fun (String) -> a
 
 let http = require("http")
 let console = require("console")

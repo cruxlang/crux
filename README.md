@@ -1,6 +1,11 @@
-# Crux web playground
+# What is Crux.js
 
-This is a tiny GHCJS application that embeds the compiler in a webpage.
+This project is the tooling that compiles the Crux compiler (written in Haskell) into a JavaScript binary that
+can run in web browsers or via npm.  The native Crux compiler is much, much faster, but sometimes it's useful to run the
+compiler from JavaScript.
+
+Crux.js is built with GHCJS.
+
 
 ## How to compile
 

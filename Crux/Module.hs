@@ -38,6 +38,8 @@ import System.Directory (doesFileExist, getCurrentDirectory)
 import System.Environment (getExecutablePath)
 import qualified System.FilePath as FP
 import System.IO.Error (isDoesNotExistError)
+import qualified Text.Parsec as P
+import qualified Text.Parsec.Error as P
 
 type ModuleLoader = ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
@@ -141,15 +143,31 @@ loadRTSSource = do
     bytes <- BS.readFile $ FP.combine (rtsPath config) "rts.js"
     return $ TE.decodeUtf8 bytes
 
+posFromSourcePos :: P.SourcePos -> Pos
+posFromSourcePos sourcePos = Pos
+    { posFileName = P.sourceName sourcePos
+    , posLine = P.sourceLine sourcePos
+    , posColumn = P.sourceColumn sourcePos
+    }
+
+errorFromParseError :: (Pos -> String -> e) -> P.ParseError -> e
+errorFromParseError ctor parseError = ctor pos message
+  where
+    pos = posFromSourcePos $ P.errorPos parseError
+    message = stringify (P.errorMessages parseError)
+    stringify = P.showErrorMessages
+        "or" "unknown parse error"
+        "expecting" "unexpected" "end of input"
+
 parseModuleFromSource :: FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
 parseModuleFromSource filename source = do
     case Lex.lexSource filename source of
-        Left err ->
-            return $ Left $ Error.LexError err
+        Left err -> do
+            return $ Left $ errorFromParseError Error.LexError err
         Right tokens -> do
             case Parse.parse filename tokens of
                 Left err ->
-                    return $ Left $ Error.ParseError err
+                    return $ Left $ errorFromParseError Error.ParseError err
                 Right mod' ->
                     return $ Right mod'
 

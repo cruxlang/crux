@@ -14,7 +14,6 @@ import Test.Framework
 makePos :: Int -> Int -> Pos
 makePos l c = Pos
     { posFileName = "<>"
-    , posModuleName = ""
     , posLine = l
     , posColumn = c
     }

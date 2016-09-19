@@ -951,7 +951,6 @@ runParser :: Parser a -> P.SourceName -> [ParseToken] -> Either P.ParseError a
 runParser parser sourceName tokens = do
     let inflater ParsePos{..} = Pos
             { posFileName = sourceName
-            , posModuleName = "" -- TODO
             , posLine = ppLine
             , posColumn = ppColumn
             }

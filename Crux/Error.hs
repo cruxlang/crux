@@ -12,7 +12,6 @@ import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
 import Crux.TypeVar (TypeVar, renderTypeVarIO)
 import qualified Data.Text as Text
-import qualified Text.Parsec as P
 import Text.Printf
 import Crux.Pos (Pos(..))
 
@@ -43,47 +42,41 @@ data TypeError
 
 data Error
     = ModuleNotFound ModuleName [FilePath]
-    | LexError P.ParseError
-    | ParseError P.ParseError
+    | LexError Pos String
+    | ParseError Pos String
     | CircularImport ModuleName
     | InternalCompilerError Pos InternalCompilerError
     | TypeError Pos TypeError
     deriving (Eq, Show)
-
-{-
-data ErrorLocation = ErrorLocation
-    { elFileName :: String
-    , elModuleName :: ModuleName
-    , elPos :: Pos
-    }
--}
 
 -- data Error = Error ErrorLocation ErrorType
 
 renderError :: Maybe ModuleName -> Error -> IO String
 renderError moduleName err = do
     e <- renderError' err
-    return $ "In module " ++ Text.unpack (maybe "<root>" printModuleName moduleName) ++ ": " ++ e
+    return $ "While compiling module " ++ Text.unpack (maybe "<root>" printModuleName moduleName) ++ ":\n" ++ e
 
 renderError' :: Error -> IO String
 renderError' = \case
-    LexError e -> return $ "Lex error: " ++ show e
-    ParseError e -> return $ "Parse error: " ++ show e
+    LexError _pos e -> do
+        return $ "Lex error: " ++ show e
+    ParseError _pos e -> do
+        return $ "Parse error: " ++ show e
     ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
     InternalCompilerError _pos ice -> return $ "ICE: " ++ case ice of
         DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
     TypeError pos ue -> do
         te <- typeErrorToString ue
-        return $ "Type error at " ++ formatPos pos ++ "\n" ++ te
+        return $ formatPos pos ++ "\n" ++ te
 
 formatPos :: Pos -> String
-formatPos Pos{..} = printf "%i:%i" posLine posColumn
+formatPos Pos{..} = printf "%s:%i:%i" posFileName posLine posColumn
 
 getErrorName :: Error -> Text
 getErrorName = \case
-    LexError _ -> "text"
-    ParseError _ -> "parse"
+    LexError _ _ -> "text"
+    ParseError _ _ -> "parse"
     ModuleNotFound _ _ -> "module-not-found"
     CircularImport _ -> "circular-import"
     InternalCompilerError _ _ -> "internal"

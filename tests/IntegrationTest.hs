@@ -52,7 +52,6 @@ runProgram' p = do
 makePos :: Int -> Int -> Pos
 makePos l c = Pos
     { posFileName = "<main>"
-    , posModuleName = ""
     , posLine = l
     , posColumn = c
     }

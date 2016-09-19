@@ -41,7 +41,7 @@ data TypeError
     deriving (Eq, Show)
 
 data Error
-    = ModuleNotFound ModuleName [FilePath]
+    = ModuleNotFound Pos ModuleName [FilePath]
     | LexError Pos String
     | ParseError Pos String
     | CircularImport ModuleName
@@ -62,7 +62,7 @@ renderError' = \case
         return $ "Lex error: " ++ show e
     ParseError _pos e -> do
         return $ "Parse error: " ++ show e
-    ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
+    ModuleNotFound _ mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
     InternalCompilerError _pos ice -> return $ "ICE: " ++ case ice of
         DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
@@ -77,7 +77,7 @@ getErrorName :: Error -> Text
 getErrorName = \case
     LexError _ _ -> "text"
     ParseError _ _ -> "parse"
-    ModuleNotFound _ _ -> "module-not-found"
+    ModuleNotFound _ _ _ -> "module-not-found"
     CircularImport _ -> "circular-import"
     InternalCompilerError _ _ -> "internal"
     TypeError _ _ -> "type"

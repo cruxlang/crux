@@ -41,17 +41,18 @@ import System.IO.Error (isDoesNotExistError)
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Error as P
 
-type ModuleLoader = ModuleName -> IO (Either Error.Error AST.ParsedModule)
+-- Given an import source location and a module name, return a parsed module or an error.
+type ModuleLoader = Pos -> ModuleName -> IO (Either Error.Error AST.ParsedModule)
 
 newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
 newChainedModuleLoader = newChainedModuleLoader' []
 
 newChainedModuleLoader' :: [FilePath] -> [ModuleLoader] -> ModuleLoader
-newChainedModuleLoader' triedPaths [] moduleName = do
-    return $ Left $ Error.ModuleNotFound moduleName triedPaths
-newChainedModuleLoader' triedPaths (loader:rest) moduleName = do
-    loader moduleName >>= \case
-        Left (Error.ModuleNotFound _ triedPaths') -> newChainedModuleLoader' (triedPaths <> triedPaths') rest moduleName
+newChainedModuleLoader' triedPaths [] pos moduleName = do
+    return $ Left $ Error.ModuleNotFound pos moduleName triedPaths
+newChainedModuleLoader' triedPaths (loader:rest) pos moduleName = do
+    loader pos moduleName >>= \case
+        Left (Error.ModuleNotFound _ _ triedPaths') -> newChainedModuleLoader' (triedPaths <> triedPaths') rest pos moduleName
         Left e -> return $ Left e
         Right m -> return $ Right m
 
@@ -63,9 +64,9 @@ moduleNameToPath (ModuleName prefix m) =
         (toPathSegment m <> ".cx")
 
 newFSModuleLoader :: FilePath -> ModuleLoader
-newFSModuleLoader includePath moduleName = do
+newFSModuleLoader includePath pos moduleName = do
     let path = includePath FP.</> moduleNameToPath moduleName
-    parseModuleFromFile moduleName path
+    parseModuleFromFile pos moduleName path
 
 newBaseLoader :: IO ModuleLoader
 newBaseLoader = do
@@ -76,20 +77,20 @@ newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newProjectModuleLoader config root mainModulePath =
     let baseLoader = newFSModuleLoader $ baseLibraryPath config
         projectLoader = newFSModuleLoader root
-        mainLoader moduleName =
+        mainLoader pos moduleName =
             if moduleName == "main"
-            then parseModuleFromFile moduleName mainModulePath
-            else return $ Left $ Error.ModuleNotFound moduleName []
+            then parseModuleFromFile pos moduleName mainModulePath
+            else return $ Left $ Error.ModuleNotFound pos moduleName []
     in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
 
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
-newMemoryLoader sources moduleName = do
+newMemoryLoader sources pos moduleName = do
     case HashMap.lookup moduleName sources of
         Just source -> parseModuleFromSource
             ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
             source
         Nothing ->
-            return $ Left $ Error.ModuleNotFound moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
+            return $ Left $ Error.ModuleNotFound pos moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
@@ -171,10 +172,10 @@ parseModuleFromSource filename source = do
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
-parseModuleFromFile moduleName filename = runEitherT $ do
+parseModuleFromFile :: Pos -> ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
+parseModuleFromFile pos moduleName filename = runEitherT $ do
     source <- EitherT $ do
-        tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
+        tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound pos moduleName [filename] else Nothing) $ BS.readFile filename
     EitherT $ parseModuleFromSource filename $ TE.decodeUtf8 source
 
 loadModuleFromSource :: Text -> IO (ProgramLoadResult AST.LoadedModule)
@@ -201,9 +202,10 @@ loadModule ::
     -> IORef (HashMap ModuleName AST.LoadedModule)
     -> IORef (HashSet ModuleName)
     -> Maybe ModuleName
+    -> Pos
     -> ModuleName
     -> IO (ProgramLoadResult AST.LoadedModule)
-loadModule loader loadedModules loadingModules referencingModule moduleName = runEitherT $ do
+loadModule loader loadedModules loadingModules referencingModule importPos moduleName = runEitherT $ do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
@@ -213,7 +215,7 @@ loadModule loader loadedModules loadingModules referencingModule moduleName = ru
                 left (Just moduleName, Error.CircularImport moduleName)
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
-            parsedModuleResult <- lift $ loader moduleName
+            parsedModuleResult <- lift $ loader importPos moduleName
             parsedModule <- case parsedModuleResult of
                 Left err -> left (referencingModule, err)
                 Right m -> do
@@ -222,8 +224,8 @@ loadModule loader loadedModules loadingModules referencingModule moduleName = ru
                     else
                         return $ addBuiltin m
 
-            for_ (importsOf parsedModule) $ \(_, referencedModule) -> do
-                EitherT $ loadModule loader loadedModules loadingModules (Just moduleName) referencedModule
+            for_ (importsOf parsedModule) $ \(pos, referencedModule) -> do
+                EitherT $ loadModule loader loadedModules loadingModules (Just moduleName) pos referencedModule
 
             lm <- readIORef loadedModules
             (lift $ bridgeTC $ Typecheck.run lm parsedModule moduleName) >>= \case
@@ -238,7 +240,12 @@ loadProgram loader main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
-    let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules Nothing n
+    let syntaxPos = Pos
+            { posFileName = "<syntax>"
+            , posLine = 0
+            , posColumn = 0
+            }
+    let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules Nothing syntaxPos n
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
     loadSyntaxDependency "types"
@@ -251,7 +258,7 @@ loadProgram loader main = runEitherT $ do
     -- any module that uses a number literal depends on 'number' being loaded
     loadSyntaxDependency "number"
 
-    mainModule <- EitherT $ loadModule loader loadedModules loadingModules Nothing main
+    mainModule <- EitherT $ loadModule loader loadedModules loadingModules Nothing syntaxPos main
 
     otherModules <- readIORef loadedModules
     return AST.Program

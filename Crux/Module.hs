@@ -211,7 +211,7 @@ loadModule loader loadedModules loadingModules importPos moduleName = runEitherT
         Nothing -> do
             loadingModuleSet <- readIORef loadingModules
             when (HashSet.member moduleName loadingModuleSet) $ do
-                left $ Error.CircularImport moduleName
+                left $ Error.CircularImport importPos moduleName
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
             parsedModuleResult <- EitherT $ loader importPos moduleName

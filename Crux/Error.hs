@@ -5,7 +5,6 @@ module Crux.Error
     , getErrorName
     , getTypeErrorName
     , renderError
-    , renderError'
     ) where
 
 import Crux.ModuleName (ModuleName, printModuleName)
@@ -51,13 +50,8 @@ data Error
 
 -- data Error = Error ErrorLocation ErrorType
 
-renderError :: Maybe ModuleName -> Error -> IO String
-renderError moduleName err = do
-    e <- renderError' err
-    return $ "While compiling module " ++ Text.unpack (maybe "<root>" printModuleName moduleName) ++ ":\n" ++ e
-
-renderError' :: Error -> IO String
-renderError' = \case
+renderError :: Error -> IO String
+renderError = \case
     LexError _pos e -> do
         return $ "Lex error: " ++ show e
     ParseError _pos e -> do

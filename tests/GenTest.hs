@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 
 module GenTest (htf_thisModulesTests) where
 
@@ -15,9 +15,8 @@ import Test.Framework
 
 genDoc' :: Text -> IO (Either Error.Error Gen.Module)
 genDoc' src = do
-    mod' <- Crux.Module.loadModuleFromSource src
-    case mod' of
-        Left (_, err) ->
+    Crux.Module.loadModuleFromSource src >>= \case
+        Left err ->
             return $ Left err
         Right m -> do
             fmap Right $ Gen.generateModule "GenTest" $ Crux.Module.Types.lmModule m
@@ -26,7 +25,7 @@ genDoc :: Text -> IO Gen.Module
 genDoc src = do
     rv <- genDoc' src
     case rv of
-        Left err -> error =<< Error.renderError' err
+        Left err -> error =<< Error.renderError err
         Right stmts -> return stmts
 
 test_return_at_top_level_is_error = do

@@ -62,8 +62,8 @@ buildTarget rtsSource targetName TargetConfig{..} = do
     let targetPath = combine "build" $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-        Left (moduleName, err) -> do
-            message <- Error.renderError moduleName err
+        Left err -> do
+            message <- Error.renderError err
             Exit.die $ "project build failed\n" ++ message
         Right program -> do
             program' <- Gen.generateProgram program
@@ -85,8 +85,8 @@ buildProjectAndRunTests = do
     config <- loadProjectBuild
     for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
         loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-            Left (moduleName, err) -> do
-                message <- Error.renderError moduleName err
+            Left err -> do
+                message <- Error.renderError err
                 Exit.die message
             Right program -> do
                 program' <- Gen.generateProgram program

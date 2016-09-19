@@ -192,7 +192,7 @@ importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 addBuiltin :: AST.Module a b c -> AST.Module a b c
 addBuiltin m = m { AST.mImports = (dummyPos, AST.Import "builtin" AST.UnqualifiedImport) : AST.mImports m }
 
-type ProgramLoadResult a = Either (Maybe ModuleName, Error.Error) a
+type ProgramLoadResult a = Either Error.Error a
 
 hasNoBuiltinPragma :: AST.Module a b c -> Bool
 hasNoBuiltinPragma AST.Module{..} = AST.PNoBuiltin `elem` mPragmas
@@ -201,39 +201,33 @@ loadModule ::
        ModuleLoader
     -> IORef (HashMap ModuleName AST.LoadedModule)
     -> IORef (HashSet ModuleName)
-    -> Maybe ModuleName
     -> Pos
     -> ModuleName
     -> IO (ProgramLoadResult AST.LoadedModule)
-loadModule loader loadedModules loadingModules referencingModule importPos moduleName = runEitherT $ do
+loadModule loader loadedModules loadingModules importPos moduleName = runEitherT $ do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
         Nothing -> do
             loadingModuleSet <- readIORef loadingModules
             when (HashSet.member moduleName loadingModuleSet) $ do
-                left (Just moduleName, Error.CircularImport moduleName)
+                left $ Error.CircularImport moduleName
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
-            parsedModuleResult <- lift $ loader importPos moduleName
-            parsedModule <- case parsedModuleResult of
-                Left err -> left (referencingModule, err)
-                Right m -> do
-                    if hasNoBuiltinPragma m then
-                        return m
+            parsedModuleResult <- EitherT $ loader importPos moduleName
+            let parsedModule =
+                    if hasNoBuiltinPragma parsedModuleResult then
+                        parsedModuleResult
                     else
-                        return $ addBuiltin m
+                        addBuiltin parsedModuleResult
 
             for_ (importsOf parsedModule) $ \(pos, referencedModule) -> do
-                EitherT $ loadModule loader loadedModules loadingModules (Just moduleName) pos referencedModule
+                EitherT $ loadModule loader loadedModules loadingModules pos referencedModule
 
             lm <- readIORef loadedModules
-            (lift $ bridgeTC $ Typecheck.run lm parsedModule moduleName) >>= \case
-                Left typeError -> do
-                    left (Just moduleName, typeError)
-                Right loadedModule -> do
-                    HashTable.insert moduleName loadedModule loadedModules
-                    return loadedModule
+            loadedModule <- EitherT $ bridgeTC $ Typecheck.run lm parsedModule moduleName
+            HashTable.insert moduleName loadedModule loadedModules
+            return loadedModule
 
 loadProgram :: ModuleLoader -> ModuleName -> IO (ProgramLoadResult AST.Program)
 loadProgram loader main = runEitherT $ do
@@ -245,7 +239,7 @@ loadProgram loader main = runEitherT $ do
             , posLine = 0
             , posColumn = 0
             }
-    let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules Nothing syntaxPos n
+    let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules syntaxPos n
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
     loadSyntaxDependency "types"
@@ -258,7 +252,7 @@ loadProgram loader main = runEitherT $ do
     -- any module that uses a number literal depends on 'number' being loaded
     loadSyntaxDependency "number"
 
-    mainModule <- EitherT $ loadModule loader loadedModules loadingModules Nothing syntaxPos main
+    mainModule <- EitherT $ loadModule loader loadedModules loadingModules syntaxPos main
 
     otherModules <- readIORef loadedModules
     return AST.Program

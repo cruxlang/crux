@@ -59,13 +59,13 @@ makePos l c = Pos
 run :: Text -> IO (Either Error.Error String)
 run src = do
     Crux.Module.loadProgramFromSource src >>= \case
-        Left (_, e) -> return $ Left e
+        Left e -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
 runMultiModule :: HashMap.HashMap ModuleName Text -> IO (Either Error.Error String)
 runMultiModule sources = do
     Crux.Module.loadProgramFromSources sources >>= \case
-        Left (_, e) -> return $ Left e
+        Left e -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
 assertCompiles src = do
@@ -93,9 +93,9 @@ assertUnificationError _ _ _ (Left err) =
 assertUnificationError _ _ _ _ =
     assertFailure "Expected a unification error"
 
-failWithError :: String -> Maybe ModuleName -> Error.Error -> IO ()
-failWithError root moduleName err = do
-    err' <- Error.renderError moduleName err
+failWithError :: String -> Error.Error -> IO ()
+failWithError root err = do
+    err' <- Error.renderError err
     assertFailure $ "\nError in: " <> root <> "\n" <> err'
 
 data ErrorConfig = ErrorConfig
@@ -120,7 +120,7 @@ assertErrorMatches ErrorConfig{..} err = do
         (Just typeErrorName', Error.TypeError _pos te) -> do
             assertEqual typeErrorName' $ Error.getTypeErrorName te
         (Just _, _) -> do
-            msg <- Error.renderError' err
+            msg <- Error.renderError err
             assertFailure $ "type-error-name specified, but not a type error!\n" ++ msg
         (Nothing, _) -> do
             return ()
@@ -144,9 +144,9 @@ runIntegrationTest root = do
         expected <- readFile stdoutPath
 
         case program' of
-            Left (moduleName, err) -> do
+            Left err -> do
                 return $ do
-                    failWithError root moduleName err
+                    failWithError root err
             Right program -> do
                 --traceMarkerIO "running program"
                 stdoutBody <- runProgram' program
@@ -158,7 +158,7 @@ runIntegrationTest root = do
         case (errorConfig', program') of
             (Left err, _) -> return $ assertFailure $ show err
             (_, Right _) -> return $ assertFailure "Program should have produced a compile error"
-            (Right errorConfig, Left (_moduleName, err)) -> return $ assertErrorMatches errorConfig err
+            (Right errorConfig, Left err) -> return $ assertErrorMatches errorConfig err
     else do
         return $ do
             assertFailure "Program needs either a stdout.txt or error.yaml"

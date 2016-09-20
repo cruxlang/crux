@@ -53,9 +53,9 @@ Working:
 Partially done:
 * JS FFI
 * Modules
+* Exceptions
 
 Not done:
-* Exceptions
 * Asynchrony
 * Class definitions
 * Native code generation
@@ -76,3 +76,16 @@ If not, read on:
 4. `stack install`
 
 This will build crux and install it to `~/.local/bin/crux`.
+
+# A Tour of the Code
+
+1. Lex.hs converts bytes into Tokens (see Token.hs)
+2. Parse.hs converts Tokens into the AST (see AST.hs)
+3. Typecheck.hs type-checks the AST, producing a typed AST (see TypeVar.hs and Unify.hs)
+4. Gen.hs converts the AST into an IR
+5. JSBackend.hs converts the IR into JS
+6. JSTree.hs converts the JS AST into output bytes
+
+Main.hs is the general command-line interface.
+
+Look at Module.hs and Project.hs for the code to load modules and projects.

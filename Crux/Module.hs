@@ -33,6 +33,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.HashSet as HashSet
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
+import Data.Char (isSpace)
 import Data.Yaml
 import System.Directory (doesFileExist, getCurrentDirectory)
 import System.Environment (getExecutablePath)
@@ -156,7 +157,7 @@ errorFromParseError :: (String -> ErrorType) -> P.ParseError -> Error
 errorFromParseError ctor parseError = Error pos $ ctor message
   where
     pos = posFromSourcePos $ P.errorPos parseError
-    message = stringify (P.errorMessages parseError)
+    message = dropWhile isSpace $ stringify (P.errorMessages parseError)
     stringify = P.showErrorMessages
         "or" "unknown parse error"
         "expecting" "unexpected" "end of input"

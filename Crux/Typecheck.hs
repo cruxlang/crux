@@ -125,9 +125,9 @@ checkExpecting expectedType env expr = do
     unify env (edata expr) (edata e) expectedType
     return e
 
--- We could have this return a poison type.
+-- TODO: We should have this return a poison type.
 resumableTypeError :: Pos -> TypeError -> TC a
-resumableTypeError pos = failError . TypeError pos
+resumableTypeError pos = failTypeError pos
 
 weaken :: MonadIO m => TypeLevel -> TypedExpression -> m TypedExpression
 weaken level e = do

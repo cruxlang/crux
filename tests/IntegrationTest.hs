@@ -81,7 +81,7 @@ assertOutput src outp = do
         Left err -> assertFailure $ "Compile failure: " ++ show err
 
 assertUnificationError :: Pos -> String -> String -> Either Error.Error a -> IO ()
-assertUnificationError pos a b (Left (Error.TypeError actualPos (UnificationError _ at bt))) = do
+assertUnificationError pos a b (Left (Error.Error actualPos (Error.TypeError (UnificationError _ at bt)))) = do
     assertEqual pos actualPos
 
     as <- renderTypeVarIO at
@@ -109,7 +109,7 @@ instance Yaml.FromJSON ErrorConfig where
     parseJSON _ = fail "error config must be an object"
 
 assertErrorMatches :: ErrorConfig -> Error.Error -> IO ()
-assertErrorMatches ErrorConfig{..} err = do
+assertErrorMatches ErrorConfig{..} theErr@(Error.Error _ err) = do
     case errorName of
         Just errorName' -> do
             assertEqual errorName' $ Error.getErrorName err
@@ -117,10 +117,10 @@ assertErrorMatches ErrorConfig{..} err = do
             return ()
 
     case (typeErrorName, err) of
-        (Just typeErrorName', Error.TypeError _pos te) -> do
+        (Just typeErrorName', Error.TypeError te) -> do
             assertEqual typeErrorName' $ Error.getTypeErrorName te
         (Just _, _) -> do
-            msg <- Error.renderError err
+            msg <- Error.renderError theErr
             assertFailure $ "type-error-name specified, but not a type error!\n" ++ msg
         (Nothing, _) -> do
             return ()

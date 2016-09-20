@@ -44,11 +44,11 @@ failError e = do
 
 failTypeError :: Pos -> TypeError -> TC a
 failTypeError pos te = do
-    failError $ TypeError pos te
+    failError $ Error pos $ TypeError te
 
 failICE :: Pos -> InternalCompilerError -> TC a
 failICE pos e = do
-    failError $ InternalCompilerError pos e
+    failError $ Error pos $ InternalCompilerError e
 
 recordWarning :: Warning -> TC ()
 recordWarning w = do

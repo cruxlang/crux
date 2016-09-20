@@ -17,7 +17,7 @@ module Crux.Module
 
 import Control.Exception (tryJust)
 import qualified Crux.AST as AST
-import qualified Crux.Error as Error
+import Crux.Error (Error(..), ErrorType(..))
 import qualified Crux.Lex as Lex
 import Crux.ModuleName
 import Crux.Module.Types as AST
@@ -42,17 +42,18 @@ import qualified Text.Parsec as P
 import qualified Text.Parsec.Error as P
 
 -- Given an import source location and a module name, return a parsed module or an error.
-type ModuleLoader = Pos -> ModuleName -> IO (Either Error.Error AST.ParsedModule)
+type ModuleLoader = Pos -> ModuleName -> IO (Either Error AST.ParsedModule)
 
 newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
 newChainedModuleLoader = newChainedModuleLoader' []
 
 newChainedModuleLoader' :: [FilePath] -> [ModuleLoader] -> ModuleLoader
 newChainedModuleLoader' triedPaths [] pos moduleName = do
-    return $ Left $ Error.ModuleNotFound pos moduleName triedPaths
+    return $ Left $ Error pos $ ModuleNotFound moduleName triedPaths
 newChainedModuleLoader' triedPaths (loader:rest) pos moduleName = do
     loader pos moduleName >>= \case
-        Left (Error.ModuleNotFound _ _ triedPaths') -> newChainedModuleLoader' (triedPaths <> triedPaths') rest pos moduleName
+        Left (Error _ (ModuleNotFound _ triedPaths')) -> do
+            newChainedModuleLoader' (triedPaths <> triedPaths') rest pos moduleName
         Left e -> return $ Left e
         Right m -> return $ Right m
 
@@ -80,7 +81,7 @@ newProjectModuleLoader config root mainModulePath =
         mainLoader pos moduleName =
             if moduleName == "main"
             then parseModuleFromFile pos moduleName mainModulePath
-            else return $ Left $ Error.ModuleNotFound pos moduleName []
+            else return $ Left $ Error pos $ ModuleNotFound moduleName []
     in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
 
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
@@ -90,7 +91,7 @@ newMemoryLoader sources pos moduleName = do
             ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
             source
         Nothing ->
-            return $ Left $ Error.ModuleNotFound pos moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
+            return $ Left $ Error pos $ ModuleNotFound moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
 
 findCompilerConfig :: IO (Maybe FilePath)
 findCompilerConfig = do
@@ -151,8 +152,8 @@ posFromSourcePos sourcePos = Pos
     , posColumn = P.sourceColumn sourcePos
     }
 
-errorFromParseError :: (Pos -> String -> e) -> P.ParseError -> e
-errorFromParseError ctor parseError = ctor pos message
+errorFromParseError :: (String -> ErrorType) -> P.ParseError -> Error
+errorFromParseError ctor parseError = Error pos $ ctor message
   where
     pos = posFromSourcePos $ P.errorPos parseError
     message = stringify (P.errorMessages parseError)
@@ -160,22 +161,22 @@ errorFromParseError ctor parseError = ctor pos message
         "or" "unknown parse error"
         "expecting" "unexpected" "end of input"
 
-parseModuleFromSource :: FilePath -> Text -> IO (Either Error.Error AST.ParsedModule)
+parseModuleFromSource :: FilePath -> Text -> IO (Either Error AST.ParsedModule)
 parseModuleFromSource filename source = do
     case Lex.lexSource filename source of
         Left err -> do
-            return $ Left $ errorFromParseError Error.LexError err
+            return $ Left $ errorFromParseError LexError err
         Right tokens -> do
             case Parse.parse filename tokens of
                 Left err ->
-                    return $ Left $ errorFromParseError Error.ParseError err
+                    return $ Left $ errorFromParseError ParseError err
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: Pos -> ModuleName -> FilePath -> IO (Either Error.Error AST.ParsedModule)
+parseModuleFromFile :: Pos -> ModuleName -> FilePath -> IO (Either Error AST.ParsedModule)
 parseModuleFromFile pos moduleName filename = runEitherT $ do
     source <- EitherT $ do
-        tryJust (\e -> if isDoesNotExistError e then Just $ Error.ModuleNotFound pos moduleName [filename] else Nothing) $ BS.readFile filename
+        tryJust (\e -> if isDoesNotExistError e then Just $ Error pos $ ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
     EitherT $ parseModuleFromSource filename $ TE.decodeUtf8 source
 
 loadModuleFromSource :: Text -> IO (ProgramLoadResult AST.LoadedModule)
@@ -192,7 +193,7 @@ importsOf m = fmap (fmap getModuleName) $ AST.mImports m
 addBuiltin :: AST.Module a b c -> AST.Module a b c
 addBuiltin m = m { AST.mImports = (dummyPos, AST.Import "builtin" AST.UnqualifiedImport) : AST.mImports m }
 
-type ProgramLoadResult a = Either Error.Error a
+type ProgramLoadResult a = Either Error a
 
 hasNoBuiltinPragma :: AST.Module a b c -> Bool
 hasNoBuiltinPragma AST.Module{..} = AST.PNoBuiltin `elem` mPragmas
@@ -211,7 +212,7 @@ loadModule loader loadedModules loadingModules importPos moduleName = runEitherT
         Nothing -> do
             loadingModuleSet <- readIORef loadingModules
             when (HashSet.member moduleName loadingModuleSet) $ do
-                left $ Error.CircularImport importPos moduleName
+                left $ Error importPos $ CircularImport moduleName
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
             parsedModuleResult <- EitherT $ loader importPos moduleName

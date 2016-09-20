@@ -1,6 +1,7 @@
 module Crux.Error
     ( InternalCompilerError(..)
     , TypeError(..)
+    , ErrorType(..)
     , Error(..)
     , getErrorName
     , getTypeErrorName
@@ -39,42 +40,48 @@ data TypeError
     | DuplicateSymbol Text
     deriving (Eq, Show)
 
-data Error
-    = ModuleNotFound Pos ModuleName [FilePath]
-    | LexError Pos String
-    | ParseError Pos String
-    | CircularImport Pos ModuleName
-    | InternalCompilerError Pos InternalCompilerError
-    | TypeError Pos TypeError
+data ErrorType
+    = ModuleNotFound ModuleName [FilePath]
+    | LexError String
+    | ParseError String
+    | CircularImport ModuleName
+    | InternalCompilerError InternalCompilerError
+    | TypeError TypeError
     deriving (Eq, Show)
 
--- data Error = Error ErrorLocation ErrorType
+data Error = Error Pos ErrorType
+    deriving (Eq, Show)
+
+renderErrorType :: ErrorType -> IO String
+renderErrorType = \case
+    LexError s -> do
+        return s
+    ParseError s -> do
+        return s
+    ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
+    CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
+    InternalCompilerError ice -> return $ "ICE: " ++ case ice of
+        DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
+    TypeError ue -> do
+        typeErrorToString ue
 
 renderError :: Error -> IO String
-renderError = \case
-    LexError _pos e -> do
-        return $ "Lex error: " ++ show e
-    ParseError _pos e -> do
-        return $ "Parse error: " ++ show e
-    ModuleNotFound _ mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
-    CircularImport _ mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
-    InternalCompilerError _pos ice -> return $ "ICE: " ++ case ice of
-        DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
-    TypeError pos ue -> do
-        te <- typeErrorToString ue
-        return $ formatPos pos ++ "\n" ++ te
+renderError (Error pos errorType) = do
+    let loc = formatPos pos
+    rendered <- renderErrorType errorType
+    return $ loc ++ ": error: " ++ rendered
 
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%s:%i:%i" posFileName posLine posColumn
 
-getErrorName :: Error -> Text
+getErrorName :: ErrorType -> Text
 getErrorName = \case
-    LexError _ _ -> "text"
-    ParseError _ _ -> "parse"
-    ModuleNotFound _ _ _ -> "module-not-found"
-    CircularImport _ _ -> "circular-import"
-    InternalCompilerError _ _ -> "internal"
-    TypeError _ _ -> "type"
+    LexError _ -> "text"
+    ParseError _ -> "parse"
+    ModuleNotFound _ _ -> "module-not-found"
+    CircularImport _ -> "circular-import"
+    InternalCompilerError _ -> "internal"
+    TypeError _ -> "type"
 
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case

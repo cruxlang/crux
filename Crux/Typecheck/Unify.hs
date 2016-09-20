@@ -317,14 +317,11 @@ instantiateAll env container = do
     recordSubst <- HashTable.new
     for container $ instantiate' subst recordSubst env
 
-typeError :: Pos -> TypeError -> TC a
-typeError pos = failError . TypeError pos
-
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
     TypeVar ref -> readIORef ref >>= \case
         TUnbound _ _ _ q | tvn == q -> do
-            typeError pos OccursCheckFailed
+            failTypeError pos OccursCheckFailed
         TUnbound {} -> do
             return ()
         TBound next -> do
@@ -345,7 +342,7 @@ occurs pos tvn = \case
 
 unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
 unificationError pos message a b = do
-    typeError pos $ UnificationError message a b
+    failTypeError pos $ UnificationError message a b
 
 lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
 lookupTypeRow name = \case
@@ -375,7 +372,7 @@ unifyRecord env pos av bv = do
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         case unifyRecordMutability (trMut lhs) (trMut rhs) of
-            Left err -> typeError pos $ RecordMutabilityUnificationError (trName lhs) err
+            Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
             Right mut -> do
                 unify env pos (trTyVar lhs) (trTyVar rhs)
                 return TypeRow

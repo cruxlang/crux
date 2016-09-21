@@ -147,7 +147,7 @@ impl ToJSON String {
 }
 
 impl ToJSON js.Null {
-    toJSON = fun(_) { nullJSValue }
+    toJSON = _ => nullJSValue
 }
 
 export fun encode<V: ToJSON>(value: V): String {

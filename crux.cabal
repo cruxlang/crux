@@ -55,6 +55,7 @@ library
                  , optparse-applicative
                  , yaml
                  , process
+                 , ansi-terminal
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

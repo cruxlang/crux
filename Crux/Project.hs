@@ -63,8 +63,8 @@ buildTarget rtsSource targetName TargetConfig{..} = do
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left err -> do
-            message <- Error.renderError err
-            Exit.die $ "project build failed\n" ++ message
+            Error.printError stderr err
+            Exit.die $ "project build failed"
         Right program -> do
             program' <- Gen.generateProgram program
             TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
@@ -86,8 +86,8 @@ buildProjectAndRunTests = do
     for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
         loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
             Left err -> do
-                message <- Error.renderError err
-                Exit.die message
+                Error.printError stderr err
+                Exit.die "project build failed"
             Right program -> do
                 program' <- Gen.generateProgram program
                 let source = JSBackend.generateJS rtsSource program'

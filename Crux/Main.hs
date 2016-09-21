@@ -49,7 +49,7 @@ main = do
             rtsSource <- loadRTSSource
             loadProgramFromFile fn >>= \case
                 Left err -> do
-                    Error.renderError err >>= hPutStrLn stderr
+                    Error.printError stderr err
                     exitWith $ ExitFailure 1
                 Right program -> do
                     program'' <- Gen.generateProgram program
@@ -59,7 +59,7 @@ main = do
             rtsSource <- loadRTSSource
             loadProgramFromFile fn >>= \case
                 Left err -> do
-                    Error.renderError err >>= hPutStrLn stderr
+                    Error.printError stderr err
                     exitWith $ ExitFailure 1
                 Right program -> do
                     program'' <- Gen.generateProgram program

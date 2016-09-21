@@ -6,13 +6,16 @@ module Crux.Error
     , getErrorName
     , getTypeErrorName
     , renderError
+    , printError
     ) where
 
 import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
 import Crux.TypeVar (TypeVar, renderTypeVarIO)
 import qualified Data.Text as Text
+import System.Console.ANSI
 import Text.Printf
+import System.IO (Handle, hPutStr, hIsTerminalDevice)
 import Crux.Pos (Pos(..))
 
 type Name = Text
@@ -73,6 +76,17 @@ renderError (Error pos errorType) = do
     let loc = formatPos pos
     rendered <- renderErrorType errorType
     return $ loc ++ ": error: " ++ rendered
+
+printError :: Handle -> Error -> IO ()
+printError handle (Error pos errorType) = do
+    isatty' <- hIsTerminalDevice handle
+    let errorString = if isatty'
+            then setSGRCode [SetColor Foreground Vivid Red] ++ "error" ++ setSGRCode []
+            else "error"
+
+    let loc = formatPos pos
+    rendered <- renderErrorType errorType
+    hPutStr handle $ loc ++ ": " ++ errorString ++ ": " ++ rendered
 
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%s:%i:%i" posFileName posLine posColumn

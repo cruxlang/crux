@@ -15,7 +15,7 @@ import Crux.TypeVar (TypeVar, renderTypeVarIO)
 import qualified Data.Text as Text
 import System.Console.ANSI
 import Text.Printf
-import System.IO (Handle, hPutStr, hIsTerminalDevice)
+import System.IO (Handle, hPutStrLn, hIsTerminalDevice)
 import Crux.Pos (Pos(..))
 
 type Name = Text
@@ -86,7 +86,7 @@ printError handle (Error pos errorType) = do
 
     let loc = formatPos pos
     rendered <- renderErrorType errorType
-    hPutStr handle $ loc ++ ": " ++ errorString ++ ": " ++ rendered
+    hPutStrLn handle $ loc ++ ": " ++ errorString ++ ": " ++ rendered
 
 formatPos :: Pos -> String
 formatPos Pos{..} = printf "%s:%i:%i" posFileName posLine posColumn

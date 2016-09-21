@@ -64,7 +64,7 @@ buildTarget rtsSource targetName TargetConfig{..} = do
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left err -> do
             Error.printError stderr err
-            Exit.die $ "project build failed"
+            Exit.exitWith $ Exit.ExitFailure 1
         Right program -> do
             program' <- Gen.generateProgram program
             TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
@@ -87,7 +87,7 @@ buildProjectAndRunTests = do
         loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
             Left err -> do
                 Error.printError stderr err
-                Exit.die "project build failed"
+                Exit.exitWith $ Exit.ExitFailure 1
             Right program -> do
                 program' <- Gen.generateProgram program
                 let source = JSBackend.generateJS rtsSource program'

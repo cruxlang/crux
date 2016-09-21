@@ -1,3 +1,4 @@
+import js
 import json
 import assert
 import test(...)

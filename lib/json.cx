@@ -1,3 +1,4 @@
+import js
 
 data Error {
     Error(String)
@@ -143,6 +144,10 @@ impl ToJSON Array<a: ToJSON> {
 
 impl ToJSON String {
     toJSON = str => _unsafe_coerce(str)
+}
+
+impl ToJSON js.Null {
+    toJSON = fun(_) { nullJSValue }
 }
 
 export fun encode<V: ToJSON>(value: V): String {

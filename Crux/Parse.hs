@@ -430,11 +430,23 @@ parenExpression = do
             patterns <- for elements asPattern
             lambdaTail pos patterns
 
+wildcardLambda :: Parser ParseExpression
+wildcardLambda = do
+    twildcard <- token TWildcard
+    _ <- token TFatRightArrow
+    body <- noSemiExpression
+    return $ EFun (tokenData twildcard) $ FunctionDecl
+        { fdParams = [(PWildcard, Nothing)]
+        , fdReturnAnnot = Nothing
+        , fdBody = body
+        }
+
 basicExpression :: Parser ParseExpression
 basicExpression =
     identifierExpression
     <|> literalExpression
     <|> parenExpression
+    <|> wildcardLambda
 
 applicationExpression :: Parser ParseExpression
 applicationExpression = do

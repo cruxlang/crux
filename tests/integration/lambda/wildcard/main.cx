@@ -1,0 +1,3 @@
+let a = _ => 10
+let b = a("hello")
+let _ = print(b)

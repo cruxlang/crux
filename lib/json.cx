@@ -146,6 +146,14 @@ impl ToJSON String {
     toJSON = str => _unsafe_coerce(str)
 }
 
+impl ToJSON Number {
+    toJSON = num => _unsafe_coerce(num)
+}
+
+impl ToJSON Boolean {
+    toJSON = b => _unsafe_coerce(b)
+}
+
 impl ToJSON js.Null {
     toJSON = _ => nullJSValue
 }

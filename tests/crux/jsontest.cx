@@ -3,8 +3,16 @@ import json
 import assert
 import test(...)
 
-let _ = test("encode array", () => {
+let _ = test("encode string array", () => {
   assert.equal("[\"hi\"]", json.encode(["hi"]))
+})
+
+let _ = test("encode number array", () => {
+  assert.equal("[1,2]", json.encode([1, 2]))
+})
+
+let _ = test("encode booleans", () => {
+  assert.equal("[true,false]", json.encode([True,False]))
 })
 
 let _ = test("encode null", () => {

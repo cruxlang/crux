@@ -41,11 +41,14 @@ data TypeError
     deriving (Eq, Show)
 
 data ErrorType
+    -- Loading Errors
     = ModuleNotFound ModuleName [FilePath]
     | LexError String
     | ParseError String
     | CircularImport ModuleName
+    -- Internal Compiler Errors
     | InternalCompilerError InternalCompilerError
+    -- Type Errors
     | TypeError TypeError
     deriving (Eq, Show)
 

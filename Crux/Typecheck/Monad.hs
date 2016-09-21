@@ -33,22 +33,22 @@ data StopExecution = StopExecution Error
     deriving (Show)
 instance Exception StopExecution
 
-recordError :: Error -> TC ()
-recordError e = do
+recordError :: Pos -> ErrorType -> TC ()
+recordError pos e = do
     state <- TC ask
-    modifyIORef' (tcErrors state) (e:)
+    modifyIORef' (tcErrors state) (Error pos e :)
 
-failError :: Error -> TC a
-failError e = do
-    liftIO $ throwIO $ StopExecution e
+failError :: Pos -> ErrorType -> TC a
+failError pos e = do
+    liftIO $ throwIO $ StopExecution $ Error pos e
 
 failTypeError :: Pos -> TypeError -> TC a
 failTypeError pos te = do
-    failError $ Error pos $ TypeError te
+    failError pos $ TypeError te
 
 failICE :: Pos -> InternalCompilerError -> TC a
 failICE pos e = do
-    failError $ Error pos $ InternalCompilerError e
+    failError pos $ InternalCompilerError e
 
 recordWarning :: Warning -> TC ()
 recordWarning w = do

@@ -150,8 +150,8 @@ typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
     ts <- renderTypeVarIO typeVar
     return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
 typeErrorToString (IncompleteImpl missingMethods) = do
-    return $ "Impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
+    return $ "impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
 typeErrorToString (UnexpectedImplMethod name) = do
-    return $ "Impl has method not defined by trait: " <> Text.unpack name
+    return $ "impl has method not defined by trait: " <> Text.unpack name
 typeErrorToString (DuplicateSymbol name) = do
         return $ "Duplicate symbol: " ++ Text.unpack name

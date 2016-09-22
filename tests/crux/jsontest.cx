@@ -1,3 +1,4 @@
+import dict
 import js
 import json
 import assert
@@ -12,9 +13,17 @@ let _ = test("encode number array", () => {
 })
 
 let _ = test("encode booleans", () => {
-  assert.equal("[true,false]", json.encode([True,False]))
+  assert.equal("[true,false]", json.encode([True, False]))
 })
 
 let _ = test("encode null", () => {
   assert.equal("null", json.encode(js.Null))
+})
+
+let _ = test("encode dict", () => {
+  let a = dict.new()
+  assert.equal("{}", json.encode(a))
+
+  a->set("hello", True)
+  assert.equal("{\"hello\":true}", json.encode(a))
 })

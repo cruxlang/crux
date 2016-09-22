@@ -2,14 +2,17 @@ import js
 import js.unsafe
 
 // Represented by a JavaScript Object
-data Dict<V> {}
+export data Dict<V> {}
 
 export fun new<V>(): Dict<V> {
   _unsafe_js("Object").create(js.Null)
 }
 
-export fun set<V>(dict: Dict<V>, key: String, value: V) {
+export fun set<V>(dict: Dict<V>, key: String, value: V): () {
   unsafe.setProperty(dict, key, value)
+  // TODO: the following does not compile if it's just ()
+  // I suspect a parse error: foo<newline>() probably parses as foo()
+  return ()
 }
 
 export fun get<V>(dict: Dict<V>, key: String): ?V {
@@ -22,4 +25,18 @@ export fun get<V>(dict: Dict<V>, key: String): ?V {
   } else {
     Some(v)
   }
+}
+
+export fun keys<V>(dict: Dict<V>): [String] {
+  _unsafe_js("Object").keys(dict)
+}
+
+export fun map<U, V>(dict: Dict<U>, fn: U => V): Dict<V> {
+  let result = new()
+  for key in dict->keys() {
+    let prop = unsafe.getProperty(dict, key)
+    let newProp = fn(prop)
+    set(result, key, newProp)
+  }
+  return result
 }

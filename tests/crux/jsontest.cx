@@ -27,3 +27,7 @@ let _ = test("encode dict", () => {
   a->set("hello", True)
   assert.equal("{\"hello\":true}", json.encode(a))
 })
+
+let _ = test("encode options", () => {
+  assert.equal("[null,10]", json.encode([None, Some(10)]))
+})

@@ -12,7 +12,7 @@ export fun new() {
   })
 }
 
-export fun register<action>(Dispatcher(self), callback: action => ()): DispatchToken {
+export fun register(Dispatcher(self), callback): DispatchToken {
   self.currentToken = self.currentToken + 1
   let token = DispatchToken(self.currentToken)
   self.callbacks->append((token, callback))
@@ -21,14 +21,14 @@ export fun register<action>(Dispatcher(self), callback: action => ()): DispatchT
 
 export fun unregister(Dispatcher(self), DispatchToken(token)) {
   // TODO: this has linear complexity
-  // TODO: add support for ((token2, cb)) => ... syntax
+  // TODO(crux): add support for ((token2, cb)) => ... syntax
   self.callbacks = self.callbacks->filter(fun((DispatchToken(token2), cb)) {
     return token != token2
   })
 }
 
-export fun dispatch<action>(Dispatcher(self), action: action) {
-  // TODO: add arbitrary patterns in the for loop body
+export fun dispatch(Dispatcher(self), action) {
+  // TODO(crux): support arbitrary patterns in for loops
   for cb in self.callbacks->freeze() {
     let (_, cb2) = cb
     cb2(action)

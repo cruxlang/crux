@@ -4,6 +4,7 @@ import array
 import string
 import number(Number)
 import length
+import types(Boolean)
 
 export data MutableArray<a> {}
 
@@ -67,5 +68,9 @@ export fun freeze<a>(arr: mutable [a]): [a] {
 
 // TODO: add comparator support
 export fun sort(arr: mutable [string.String]) {
-    _unsafe_coerce(arr).sort()
+  _unsafe_coerce(arr).sort()
+}
+
+export fun filter<a>(arr: mutable [a], pred: a => Boolean): mutable [a] {
+  _unsafe_coerce(arr).filter(pred)
 }

@@ -1,9 +1,9 @@
+data DispatchToken(Number)
+
 export data Dispatcher<action>({
   mutable currentToken: Number,
-  callbacks: mutable [fun(action) -> ()],
+  callbacks: mutable [(DispatchToken, fun(action) -> ())],
 })
-
-data DispatchToken(Number)
 
 export fun new() {
   Dispatcher({
@@ -12,19 +12,25 @@ export fun new() {
   })
 }
 
-export fun register<action>(Dispatcher(self), callback: fun(action) -> ()): DispatchToken {
-  self.callbacks->append(callback)
-
+export fun register<action>(Dispatcher(self), callback: action => ()): DispatchToken {
   self.currentToken = self.currentToken + 1
-  return DispatchToken(self.currentToken)
+  let token = DispatchToken(self.currentToken)
+  self.callbacks->append((token, callback))
+  return token
 }
 
-fun unregister(Dispatcher(self), token: DispatchToken) {
-
+export fun unregister(Dispatcher(self), DispatchToken(token)) {
+  // TODO: this has linear complexity
+  // TODO: add support for ((token2, cb)) => ... syntax
+  self.callbacks = self.callbacks->filter(fun((DispatchToken(token2), cb)) {
+    return token != token2
+  })
 }
 
 export fun dispatch<action>(Dispatcher(self), action: action) {
+  // TODO: add arbitrary patterns in the for loop body
   for cb in self.callbacks->freeze() {
-    cb(action)
+    let (_, cb2) = cb
+    cb2(action)
   }
 }

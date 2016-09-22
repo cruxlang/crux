@@ -7,17 +7,41 @@ data ActionType {
   Test2,
 }
 
+// TODO: need deriving(Eq)
+impl Eq ActionType {
+  eq = (lhs, rhs) => {
+    match (lhs, rhs) {
+      (Test1, Test1) => True
+      (Test2, Test2) => True
+      _ => False
+    }
+  }
+}
+
 let _ = test("actions are dispatched to registered callbacks", fun() {
   let actions = mutable []
 
   let d = dispatcher.new()
-  let _ = d->register(fun(action) {
+  let _ = d->register(action => {
     actions->append(action)
   })
 
   d->dispatch(Test1)
   d->dispatch(Test2)
 
-  // need traits, then enable this
-  // assert.equal([Test1, Test2], actions->freeze())
+  assert.equal([Test1, Test2], actions->freeze())
+})
+
+let _ = test("callbacks can be unregistered", fun() {
+  let actions = mutable []
+
+  let d = dispatcher.new()
+  let token = d->register(action => {
+    actions->append(action)
+  })
+
+  d->unregister(token)
+
+  d->dispatch(10)
+  assert.equal([], actions->freeze())
 })

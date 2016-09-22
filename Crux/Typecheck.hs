@@ -729,6 +729,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                             exportType export env pos' name' t
                         for_ (lmExportedPatterns loadedModule) $ \(name', p) -> do
                             exportPattern export env pos' name' p
+                        for_ (lmExportedTraits loadedModule) $ \(name', (traitRef, traitIdentity, traitDesc)) -> do
+                            exportTrait export env pos' name' traitRef traitIdentity traitDesc
                         for_ (lmExportedExceptions loadedModule) $ \(name', e) -> do
                             exportException export env pos' name' e
                         -- TODO: introduce some dummy type? we don't need a type here

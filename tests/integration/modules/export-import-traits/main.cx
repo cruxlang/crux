@@ -1,0 +1,15 @@
+import middle(...)
+
+fun f<F: Trait>(v: F) {
+  method(v)
+}
+
+impl Trait Number {
+  method = print
+}
+
+fun main() {
+  f(10)
+}
+
+let _ = main()

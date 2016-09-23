@@ -5,5 +5,3 @@ fun main() {
     Exported(e) => handle(e)
   }
 }
-
-let _ = main()

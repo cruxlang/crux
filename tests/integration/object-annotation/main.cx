@@ -2,4 +2,3 @@ let c: {log: fun(String) -> ()} = _unsafe_js("console")
 fun main() {
     c.log("Hoop")
 }
-let _ = main()

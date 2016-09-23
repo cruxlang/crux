@@ -9,4 +9,3 @@ fun main() {
     print(3)
   }
 }
-let _ = main()

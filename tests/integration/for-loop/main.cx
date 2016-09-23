@@ -3,4 +3,3 @@ fun main() {
     print(x)
   }
 }
-let _ = main()

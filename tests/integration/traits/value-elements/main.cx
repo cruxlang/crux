@@ -13,5 +13,3 @@ impl Monoid Number {
 fun main() {
   print(concat(empty, concat(1, 2)))
 }
-
-let _ = main()

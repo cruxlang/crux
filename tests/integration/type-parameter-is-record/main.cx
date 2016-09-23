@@ -8,3 +8,6 @@ type Hody = {
 fun foo(): ?{ x: Number, y: Number } {
     Some({x: 5, y: 22 })
 }
+
+fun main() {
+}

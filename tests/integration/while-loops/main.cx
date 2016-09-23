@@ -19,5 +19,3 @@ fun main() {
         i = i + 1
     }
 }
-
-let _ = main()

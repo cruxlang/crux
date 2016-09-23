@@ -1,3 +1,5 @@
 let x = 1
 let y = x
-let _ = print(toString(y))
+fun main() {
+  print(toString(y))
+}

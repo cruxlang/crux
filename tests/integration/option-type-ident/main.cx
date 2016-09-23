@@ -10,5 +10,3 @@ fun main() {
     None => print("none")
   }
 }
-
-let _ = main()

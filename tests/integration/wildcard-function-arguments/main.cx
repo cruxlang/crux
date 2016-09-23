@@ -1,4 +1,6 @@
 fun f(_: Number, _: String) {
     print("inner")
 }
-let _ = f(10, "arg")
+fun main() {
+  f(10, "arg")
+}

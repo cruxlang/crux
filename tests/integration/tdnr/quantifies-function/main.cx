@@ -1,4 +1,6 @@
 let a = [1, 2, 3]
-let _ = a->each(fun(i) {
+fun main() {
+  a->each(fun(i) {
     print(i)
-})
+  })
+}

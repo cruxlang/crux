@@ -34,4 +34,3 @@ fun main() {
   print(e(Some(10), Some(11)))
   print(e(Some(12), Some(12)))
 }
-let _ = main()

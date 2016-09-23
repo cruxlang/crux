@@ -7,5 +7,3 @@ fun main() {
     print(manhattan(zero))
     print(manhattan(myhouse))
 }
-
-let _ = main()

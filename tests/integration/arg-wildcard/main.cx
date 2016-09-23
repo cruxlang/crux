@@ -2,4 +2,6 @@ fun f(_, _) {
   "two wildcards"
 }
 
-let _ = print(f(1, "foo"))
+fun main() {
+  print(f(1, "foo"))
+}

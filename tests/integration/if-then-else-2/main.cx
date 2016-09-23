@@ -1,3 +1,5 @@
-let _ = if False then if True then print("One")
-        else print("Two")
-        else print("Three")
+fun main() {
+  let _ = if False then if True then print("One")
+          else print("Two")
+          else print("Three")
+}

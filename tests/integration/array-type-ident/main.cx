@@ -1,2 +1,4 @@
 let a: [Number] = []
 let b: mutable [Number] = mutable []
+
+fun main() {}

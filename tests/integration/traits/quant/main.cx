@@ -15,5 +15,3 @@ fun go(x, y) {
 fun main() {
   go(10, 5)
 }
-
-let _ = main()

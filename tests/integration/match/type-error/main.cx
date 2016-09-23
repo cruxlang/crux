@@ -7,5 +7,3 @@ fun main() {
     Wrapped(x) => x == 1
   }
 }
-
-let _ = main()

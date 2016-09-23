@@ -9,4 +9,7 @@ let length = match list {
     Element(numOne, Element(numTwo, Nil)) => 2
     Nil => 0
 }
-let _ = print(length)
+
+fun main() {
+  print(length)
+}

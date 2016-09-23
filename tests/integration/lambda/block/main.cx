@@ -3,4 +3,6 @@ let f = x => {
   print(x)
 }
 
-let _ = f("hello")
+fun main() {
+  f("hello")
+}

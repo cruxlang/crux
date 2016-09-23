@@ -1,2 +1,5 @@
 import mymod
-let _ = print(mymod.func(1, 2))
+
+fun main() {
+  print(mymod.func(1, 2))
+}

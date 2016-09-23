@@ -3,5 +3,7 @@ fun double_x(r) {
     r
 }
 
-let a = double_x({ x : 22, y : 11 })
-let _ = print(a.y)
+fun main() {
+  let a = double_x({ x : 22, y : 11 })
+  print(a.y)
+}

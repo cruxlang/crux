@@ -4,3 +4,5 @@ export fun delete() {
 let _ = delete()
 export let class = delete
 let _ = class()
+
+fun main() {}

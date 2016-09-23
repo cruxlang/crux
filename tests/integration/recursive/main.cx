@@ -6,4 +6,7 @@ fun length(l) {
         Cons(num, tail) => 1 + length(tail)
     }
 }
-let _ = print(length(Cons(5, Nil)))
+
+fun main() {
+  print(length(Cons(5, Nil)))
+}

@@ -18,3 +18,5 @@ let _ = print(h(1)(2))
 let sel = x => (y, z) => if x then y else z
 let s<a>: Boolean => (a, a) => a = sel
 let _ = print(s(False)(8, 9))
+
+fun main() {}

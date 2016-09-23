@@ -36,5 +36,3 @@ fun main() {
     decodeExample()
     encodeExample()
 }
-
-let _ = main()

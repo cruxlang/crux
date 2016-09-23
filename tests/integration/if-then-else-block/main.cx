@@ -3,3 +3,4 @@ let _ = if False {
 } else if True {
     print("yay")
 }
+fun main() {}

@@ -13,11 +13,13 @@ impl C String {
   two = "2"
 }
 
-let one_ = one
-let two_ = two
+fun main() {
+  let one_ = one
+  let two_ = two
 
-let one__: Number = one_
-let two__: String = two_
+  let one__: Number = one_
+  let two__: String = two_
 
-let _ = print(one__)
-let _ = print(two__)
+  let _ = print(one__)
+  let _ = print(two__)
+}

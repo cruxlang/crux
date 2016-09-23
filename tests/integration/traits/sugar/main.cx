@@ -12,5 +12,3 @@ fun main() {
   print(c(True))
   print(c(False))
 }
-
-let _ = main()

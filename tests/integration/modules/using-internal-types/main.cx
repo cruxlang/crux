@@ -4,5 +4,3 @@ fun main() {
     let a = mymod.theValue
     mymod.foo(a)
 }
-
-let _ = main()

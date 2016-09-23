@@ -24,5 +24,3 @@ fun main() {
   print(g(4))
   print(h(5))
 }
-
-let _ = main()

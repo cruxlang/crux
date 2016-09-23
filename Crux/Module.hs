@@ -201,12 +201,13 @@ hasNoBuiltinPragma AST.Module{..} = AST.PNoBuiltin `elem` mPragmas
 
 loadModule ::
        ModuleLoader
+    -> (AST.ParsedModule -> AST.ParsedModule)
     -> IORef (HashMap ModuleName AST.LoadedModule)
     -> IORef (HashSet ModuleName)
     -> Pos
     -> ModuleName
     -> IO (ProgramLoadResult AST.LoadedModule)
-loadModule loader loadedModules loadingModules importPos moduleName = runEitherT $ do
+loadModule loader transformer loadedModules loadingModules importPos moduleName = runEitherT $ do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
@@ -217,31 +218,53 @@ loadModule loader loadedModules loadingModules importPos moduleName = runEitherT
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
             parsedModuleResult <- EitherT $ loader importPos moduleName
-            let parsedModule =
+            let parsedModule = transformer $
                     if hasNoBuiltinPragma parsedModuleResult then
                         parsedModuleResult
                     else
                         addBuiltin parsedModuleResult
 
             for_ (importsOf parsedModule) $ \(pos, referencedModule) -> do
-                EitherT $ loadModule loader loadedModules loadingModules pos referencedModule
+                EitherT $ loadModule loader id loadedModules loadingModules pos referencedModule
 
             lm <- readIORef loadedModules
             loadedModule <- EitherT $ bridgeTC $ Typecheck.run lm parsedModule moduleName
             HashTable.insert moduleName loadedModule loadedModules
             return loadedModule
 
-loadProgram :: ModuleLoader -> ModuleName -> IO (ProgramLoadResult AST.Program)
-loadProgram loader main = runEitherT $ do
+addMainCall :: AST.ParsedModule -> AST.ParsedModule
+addMainCall AST.Module{..} = AST.Module
+    { mPragmas = mPragmas
+    , mImports = mImports
+    , mDecls = mDecls ++ [mainCallDecl]
+    }
+  where
+    mainCallDecl = AST.Declaration AST.NoExport sourcePos mainCallDeclType
+    mainCallDeclType = AST.DLet sourcePos AST.Immutable AST.PWildcard [] Nothing mainCall
+    mainCall = AST.EApp sourcePos (AST.EIdentifier sourcePos (AST.UnqualifiedReference "main")) []
+    -- TODO: add a Pos variant to represent this special case
+    sourcePos = Pos
+        -- TODO: represent an accurate filename
+        { posFileName = "<generated-main-call>"
+        , posLine = 0
+        , posColumn = 0
+        }
+
+data MainModuleMode = AddMainCall | NoTransformation
+
+loadProgram :: MainModuleMode -> ModuleLoader -> ModuleName -> IO (ProgramLoadResult AST.Program)
+loadProgram mode loader main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
+    -- TODO: add a Pos variant to represent this special case
     let syntaxPos = Pos
+            -- TODO: represent an accurate filename
             { posFileName = "<syntax>"
             , posLine = 0
             , posColumn = 0
             }
-    let loadSyntaxDependency n = void $ EitherT $ loadModule loader loadedModules loadingModules syntaxPos n
+    let loadSyntaxDependency n = void $ EitherT $ loadModule loader id loadedModules loadingModules syntaxPos n
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
     loadSyntaxDependency "types"
@@ -254,7 +277,10 @@ loadProgram loader main = runEitherT $ do
     -- any module that uses a number literal depends on 'number' being loaded
     loadSyntaxDependency "number"
 
-    mainModule <- EitherT $ loadModule loader loadedModules loadingModules syntaxPos main
+    let transformer = case mode of
+            AddMainCall -> addMainCall 
+            NoTransformation -> id
+    mainModule <- EitherT $ loadModule loader transformer loadedModules loadingModules syntaxPos main
 
     otherModules <- readIORef loadedModules
     return AST.Program
@@ -282,7 +308,7 @@ loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
-    loadProgram loader "main"
+    loadProgram AddMainCall loader "main"
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
@@ -293,4 +319,4 @@ loadProgramFromSources sources = do
     base <- newBaseLoader
     let mem = newMemoryLoader sources
     let loader = newChainedModuleLoader [mem, base]
-    loadProgram loader "main"
+    loadProgram NoTransformation loader "main"

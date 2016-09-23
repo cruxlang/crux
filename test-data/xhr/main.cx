@@ -10,5 +10,3 @@ fun main() {
         document.write(xhr.responseText)
     })
 }
-
-let _ = main()

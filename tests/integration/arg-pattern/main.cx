@@ -12,5 +12,3 @@ fun main() {
   print(f(W("Hello")))
   print(g(W(W("further"))))
 }
-
-let _ = main()

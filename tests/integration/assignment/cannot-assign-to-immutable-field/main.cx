@@ -3,4 +3,3 @@ fun main() {
     a.x = 22
     print(a)
 }
-let _ = main()

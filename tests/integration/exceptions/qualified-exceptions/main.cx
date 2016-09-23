@@ -25,5 +25,3 @@ fun main() {
     throw mymod.MyException "other module"
   })
 }
-
-let _ = main()

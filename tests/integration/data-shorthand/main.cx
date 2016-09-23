@@ -6,4 +6,3 @@ fun main() {
     Foo(q) => print(q)
   }
 }
-let _ = main()

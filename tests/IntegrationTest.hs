@@ -228,7 +228,6 @@ test_record_annotation_is_checked2 = do
         , "fun main() {"
         , "    c.log(\"Hoop\")"
         , "}"
-        , "let _ = main()"
         ]
 
     assertUnificationError (makePos 3 5) "{}" "{log: (TUnbound fromList [] 10),..._11}" result

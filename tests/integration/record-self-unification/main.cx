@@ -1,5 +1,7 @@
 let r = {}
-fun main(o) {
+fun main2(o) {
     if False then o else r
 }
-let _ = main(r)
+fun main() {
+  main2(r)
+}

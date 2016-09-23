@@ -1,2 +1,3 @@
 import builtin
 let _ = builtin.True
+fun main() {}

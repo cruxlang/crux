@@ -5,3 +5,5 @@ fun handleRequest(response) {
     errorResponse(response, 405)
     errorResponse(response, 404)
 }
+fun main() {
+}

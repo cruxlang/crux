@@ -11,5 +11,3 @@ impl Trait Number {
 fun main() {
   f(10)
 }
-
-let _ = main()

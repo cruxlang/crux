@@ -4,6 +4,8 @@ fun p(N(i)) {
     print(i)
 }
 
-let _ = for i in [N(1), N(2), N(3)] {
+fun main() {
+  for i in [N(1), N(2), N(3)] {
     i->p()
+  }
 }

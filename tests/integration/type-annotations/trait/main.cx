@@ -13,5 +13,3 @@ fun f<a: Plop>(a: a) {
 fun main() {
   f(Flip)
 }
-
-let _ = main()

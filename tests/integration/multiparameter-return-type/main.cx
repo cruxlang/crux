@@ -11,5 +11,3 @@ fun main() {
     Err(q) => print("Bad: " + q)
   }
 }
-
-let _ = main()

@@ -7,4 +7,6 @@ fun run(thing) {
   print(this)
 }
 
-let _ = Thing("hello oop world")->run()
+fun main() {
+  let _ = Thing("hello oop world")->run()
+}

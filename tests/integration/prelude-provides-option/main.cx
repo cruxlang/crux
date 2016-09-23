@@ -1,2 +1,4 @@
-let a = None
-let b = Some(8)
+fun main() {
+  let a = None
+  let b = Some(8)
+}

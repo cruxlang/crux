@@ -19,4 +19,3 @@ fun main() {
   one.go(D("one"))
   two.go(D("two"))
 }
-let _ = main()

@@ -23,5 +23,3 @@ fun main() {
   print(r)
   print(t(False))
 }
-
-let _ = main()

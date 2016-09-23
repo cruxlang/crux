@@ -10,3 +10,6 @@ fun toMaybeString(o) {
         then None2
         else Some2(_unsafe_coerce(o))
 }
+
+fun main() {
+}

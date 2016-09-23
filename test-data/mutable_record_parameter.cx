@@ -9,5 +9,3 @@ fun main() {
     let b: {mutable x:Number, mutable y:Number} = {x:0, y:0}
     manhattan(b)
 }
-
-let _ = main()

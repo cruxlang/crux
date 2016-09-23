@@ -1,1 +1,2 @@
 fun id_int(x: Number): Number { x }
+fun main() {}

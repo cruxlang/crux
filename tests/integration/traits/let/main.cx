@@ -12,4 +12,6 @@ fun go(x, y) {
   print(display(method(x, y)))
 }
 
-let _ = go(10, 5)
+fun main() {
+  go(10, 5)
+}

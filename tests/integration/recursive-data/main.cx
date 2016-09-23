@@ -12,4 +12,6 @@ fun length(list) {
     }
 }
 
-let _ = print(length(s))
+fun main() {
+  print(length(s))
+}

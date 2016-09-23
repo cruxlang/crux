@@ -27,5 +27,3 @@ fun main() {
     spam(u)
     spam("spam")
 }
-
-let _ = main()

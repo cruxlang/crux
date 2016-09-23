@@ -4,6 +4,8 @@ fun p(N(i)) {
   print(i)
 }
 
-let _ = [N(1), N(2), N(3)]->each(fun(n) {
+fun main() {
+  [N(1), N(2), N(3)]->each(fun(n) {
     n->p()
-})
+  })
+}

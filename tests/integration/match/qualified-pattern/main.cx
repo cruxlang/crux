@@ -1,7 +1,10 @@
 import mymod
-let x = mymod.Red
-let _ = match x {
-  mymod.Red => print("red")
-  mymod.Green => print("green")
-  mymod.Blue => print("blue")
+
+fun main() {
+  let x = mymod.Red
+  match x {
+    mymod.Red => print("red")
+    mymod.Green => print("green")
+    mymod.Blue => print("blue")
+  }
 }

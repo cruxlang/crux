@@ -4,4 +4,3 @@ fun main() {
     _ => "none"
   })
 }
-let _ = main()

@@ -5,3 +5,5 @@ type C = B
 let x: A = B(Z)
 let y: B = B(Z)
 let z: C = B(Z)
+
+fun main() {}

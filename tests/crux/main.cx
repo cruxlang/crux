@@ -11,4 +11,4 @@ import jstest as _
 import dicttest as _
 import flux.dispatchertest as _
 
-let _ = test.run()
+let main = test.run

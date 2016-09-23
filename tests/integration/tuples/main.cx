@@ -5,5 +5,3 @@ fun main() {
   print(x)
   print(y)
 }
-
-let _ = main()

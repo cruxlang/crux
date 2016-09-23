@@ -3,5 +3,3 @@ import mymod
 fun main() {
   print(mymod.String(12))
 }
-
-let _ = main()

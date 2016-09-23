@@ -1,8 +1,10 @@
-let _ = match Some(10) {
-  Some(x) => {
-    print(x)
-  }
-  None => {
-    print("none")
+fun main() {
+  match Some(10) {
+    Some(x) => {
+      print(x)
+    }
+    None => {
+      print("none")
+    }
   }
 }

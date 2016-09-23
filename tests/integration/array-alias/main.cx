@@ -9,6 +9,8 @@ fun gimme(): TheList {
 
 let blink: AlsoArray<TheRecord> = _unsafe_coerce(gimme())
 
-let _ = for g in blink {
-  print(g.a)
+fun main() {
+  for g in blink {
+    print(g.a)
+  }
 }

@@ -1,2 +1,4 @@
-let c = _unsafe_js("console")
-let _ = c.log("hoop")
+fun main() {
+  let c = _unsafe_js("console")
+  c.log("hoop")
+}

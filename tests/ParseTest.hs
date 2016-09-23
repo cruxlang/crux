@@ -6,13 +6,13 @@ module ParseTest (htf_thisModulesTests) where
 import Crux.AST
 import qualified Crux.Lex as Lex
 import Crux.Parse
-import Crux.Pos (Pos(..))
+import Crux.Pos (Pos(..), PosRec(..))
 import Data.HashMap.Strict (fromList)
 import qualified Data.Text as T
 import Test.Framework
 
 makePos :: Int -> Int -> Pos
-makePos l c = Pos
+makePos l c = Pos $ PosRec
     { posFileName = "<>"
     , posLine = l
     , posColumn = c

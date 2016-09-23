@@ -17,7 +17,7 @@ import qualified Crux.JSBackend as JS
 import qualified Crux.Module
 import Crux.Module.Types as AST
 import Crux.ModuleName
-import Crux.Pos (Pos (..))
+import Crux.Pos (Pos(..), PosRec(..))
 import Crux.TypeVar (renderTypeVarIO)
 import Data.Foldable (for_)
 import qualified Data.HashMap.Strict as HashMap
@@ -50,7 +50,7 @@ runProgram' p = do
             fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderr
 
 makePos :: Int -> Int -> Pos
-makePos l c = Pos
+makePos l c = Pos $ PosRec
     { posFileName = "<main>"
     , posLine = l
     , posColumn = c

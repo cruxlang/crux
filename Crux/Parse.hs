@@ -26,7 +26,7 @@ import Control.Monad.Trans.Reader (Reader, runReader)
 import Crux.AST as AST
 import Crux.ModuleName
 import qualified Crux.JSTree as JSTree
-import Crux.Pos (Pos(..), ParsePos(..))
+import Crux.Pos (Pos(..), ParsePos(..), PosRec(..))
 import Crux.Prelude
 import Crux.Text (isCapitalized)
 import Crux.Tokens as Tokens
@@ -961,7 +961,7 @@ parseModule = do
 
 runParser :: Parser a -> P.SourceName -> [ParseToken] -> Either P.ParseError a
 runParser parser sourceName tokens = do
-    let inflater ParsePos{..} = Pos
+    let inflater ParsePos{..} = Pos $ PosRec
             { posFileName = sourceName
             , posLine = ppLine
             , posColumn = ppColumn

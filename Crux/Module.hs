@@ -147,7 +147,7 @@ loadRTSSource = do
     return $ TE.decodeUtf8 bytes
 
 posFromSourcePos :: P.SourcePos -> Pos
-posFromSourcePos sourcePos = Pos
+posFromSourcePos sourcePos = Pos $ PosRec
     { posFileName = P.sourceName sourcePos
     , posLine = P.sourceLine sourcePos
     , posColumn = P.sourceColumn sourcePos
@@ -232,8 +232,8 @@ loadModule loader transformer loadedModules loadingModules importPos moduleName 
             HashTable.insert moduleName loadedModule loadedModules
             return loadedModule
 
-addMainCall :: AST.ParsedModule -> AST.ParsedModule
-addMainCall AST.Module{..} = AST.Module
+addMainCall :: FilePath -> AST.ParsedModule -> AST.ParsedModule
+addMainCall filename AST.Module{..} = AST.Module
     { mPragmas = mPragmas
     , mImports = mImports
     , mDecls = mDecls ++ [mainCallDecl]
@@ -243,27 +243,16 @@ addMainCall AST.Module{..} = AST.Module
     mainCallDeclType = AST.DLet sourcePos AST.Immutable AST.PWildcard [] Nothing mainCall
     mainCall = AST.EApp sourcePos (AST.EIdentifier sourcePos (AST.UnqualifiedReference "main")) []
     -- TODO: add a Pos variant to represent this special case
-    sourcePos = Pos
-        -- TODO: represent an accurate filename
-        { posFileName = "<generated-main-call>"
-        , posLine = 0
-        , posColumn = 0
-        }
+    sourcePos = GeneratedMainCall filename
 
 data MainModuleMode = AddMainCall | NoTransformation
 
-loadProgram :: MainModuleMode -> ModuleLoader -> ModuleName -> IO (ProgramLoadResult AST.Program)
-loadProgram mode loader main = runEitherT $ do
+loadProgram :: MainModuleMode -> ModuleLoader -> FilePath -> ModuleName -> IO (ProgramLoadResult AST.Program)
+loadProgram mode loader filename main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
-    -- TODO: add a Pos variant to represent this special case
-    let syntaxPos = Pos
-            -- TODO: represent an accurate filename
-            { posFileName = "<syntax>"
-            , posLine = 0
-            , posColumn = 0
-            }
+    let syntaxPos = SyntaxDependency filename
     let loadSyntaxDependency n = void $ EitherT $ loadModule loader id loadedModules loadingModules syntaxPos n
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
@@ -278,7 +267,7 @@ loadProgram mode loader main = runEitherT $ do
     loadSyntaxDependency "number"
 
     let transformer = case mode of
-            AddMainCall -> addMainCall 
+            AddMainCall -> addMainCall filename
             NoTransformation -> id
     mainModule <- EitherT $ loadModule loader transformer loadedModules loadingModules syntaxPos main
 
@@ -308,7 +297,7 @@ loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
-    loadProgram AddMainCall loader "main"
+    loadProgram AddMainCall loader path "main"
 
 loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
@@ -319,4 +308,4 @@ loadProgramFromSources sources = do
     base <- newBaseLoader
     let mem = newMemoryLoader sources
     let loader = newChainedModuleLoader [mem, base]
-    loadProgram NoTransformation loader "main"
+    loadProgram NoTransformation loader "<source>" "main"

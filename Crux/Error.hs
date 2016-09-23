@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 import System.Console.ANSI
 import Text.Printf
 import System.IO (Handle, hPutStrLn, hIsTerminalDevice)
-import Crux.Pos (Pos(..))
+import Crux.Pos (Pos(..), PosRec(..))
 
 type Name = Text
 
@@ -89,7 +89,9 @@ printError handle (Error pos errorType) = do
     hPutStrLn handle $ loc ++ ": " ++ errorString ++ ": " ++ rendered
 
 formatPos :: Pos -> String
-formatPos Pos{..} = printf "%s:%i:%i" posFileName posLine posColumn
+formatPos (Pos PosRec{..}) = printf "%s:%i:%i" posFileName posLine posColumn
+formatPos (SyntaxDependency filename) = printf "%s:<syntax-dependency>" filename
+formatPos (GeneratedMainCall filename) = printf "%s:<generated-main-call>" filename
 
 getErrorName :: ErrorType -> Text
 getErrorName = \case

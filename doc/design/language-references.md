@@ -79,7 +79,7 @@ An unordered set of interesting language design resources.
 ## Error Usability
 
 * [Dynamic Witnesses for Static Type Errors](http://lambda-the-ultimate.org/node/5355)
-
+* [The Shape of Errors to Come (Rust)](https://blog.rust-lang.org/2016/08/10/Shape-of-errors-to-come.html)
 
 ## Other AltJS Languages
 

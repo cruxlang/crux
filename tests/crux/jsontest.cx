@@ -28,6 +28,14 @@ let _ = test("encode dict", () => {
   assert.equal("{\"hello\":true}", json.encode(a))
 })
 
+/*
+let _ = test("encode object literals", () => {
+  assert.equal("{\"hello\":true}", json.encode({
+    hello: True,
+  }))
+})
+*/
+
 let _ = test("encode options", () => {
   assert.equal("[null,10]", json.encode([None, Some(10)]))
 })

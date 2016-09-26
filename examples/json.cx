@@ -1,7 +1,4 @@
-
-import {
-    Json (...)
-}
+import json(...)
 
 fun decodeHorpen(o) {
     decodeKey(decodeNullable(decodeString), o, "hello")

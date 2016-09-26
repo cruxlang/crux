@@ -38,6 +38,7 @@ data TypeError
     | TypeApplicationMismatch Name Int Int
     -- trait errors
     | NoTraitOnType TypeVar Name ModuleName
+    | NoTraitOnRecord TypeVar Name ModuleName
     | IncompleteImpl [Name]
     | UnexpectedImplMethod Name
     | DuplicateSymbol Text
@@ -116,6 +117,7 @@ getTypeErrorName = \case
     IllegalTypeApplication{} -> "illegal-type-application"
     TypeApplicationMismatch{} -> "type-application-mismatch"
     NoTraitOnType{} -> "no-trait-on-type"
+    NoTraitOnRecord{} -> "no-trait-on-record"
     IncompleteImpl{} -> "incomplete-impl"
     UnexpectedImplMethod{} -> "unexpected-impl-method"
     DuplicateSymbol{} -> "duplicate-symbol"
@@ -151,6 +153,9 @@ typeErrorToString (TypeApplicationMismatch name total applied) = do
 typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
     ts <- renderTypeVarIO typeVar
     return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
+typeErrorToString (NoTraitOnRecord typeVar traitName traitModule) = do
+    ts <- renderTypeVarIO typeVar
+    return $ printf "Record types do not implement traits\n... when trying to validate %s has impl for %s (defined in %s)" ts traitName (Text.unpack $ printModuleName traitModule)
 typeErrorToString (IncompleteImpl missingMethods) = do
     return $ "impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
 typeErrorToString (UnexpectedImplMethod name) = do

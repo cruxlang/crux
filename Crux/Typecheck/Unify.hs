@@ -484,7 +484,7 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TRecord _ -> do
-        fail "Records do not implement traits"
+        failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ (TDataType def) -> do
         let key = (trait, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case

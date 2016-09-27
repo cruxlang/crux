@@ -71,6 +71,95 @@ fun from<P>(r: {...q where q: P}): Dict<P> {
 }
 ``` 
 
-# A Strawman
+# Thoughts
 
-TODO
+```
+let r = {x: 10}
+let d = dict.from(r)
+d.delete('x')
+r.x
+```
+
+This is not sound, so dict.from must copy in general.
+(We could have an unsafeFrom or special-case literals.)
+
+The optimizer could elide the copy, so it's not worth messing
+with language semantics there.
+
+What are things we'd like to say about constrained records?  The
+only possibility is "all field types have this constraint".
+
+The two possible constraints are "all fields have this type" and
+"all fields implement this trait".
+
+There are three things we might want to do with such a record:
+
+1. make a field-wise copy (if coercing into a mutable data structure)
+2. unsafe coerce into something like a js.Value
+3. make a copy, applying a function to each value
+
+### Unified Properties
+
+Whether copying or not, the first two can be solved with a special
+type of record annotation:
+
+```
+let r = {x: 10, y: 20}
+let p: {... =Number} = r
+```
+
+They unify, but `r` and `p` remain different types.  The only thing
+that can be done with p is to coerce it (perhaps via something like
+`dict.from`.)
+
+### Constrained Properties
+
+Now let's consider the case where we want a constraint on each property.
+
+```
+let r = {x: 10, y: "hello"}
+let p: {... :ToString} = r
+```
+
+This is _not_ a coercion - code would need to be generated to wrap
+each value in a ToString existential.  So this case is equivalent to
+the map case.
+
+### Mapping Each Property
+
+Let's consider the case above and the JSON case: we want to write
+
+```
+json.encode({
+  foo: 10,
+  bar: "hello",
+  baz: (True, js.Null)
+})
+```
+
+Each property's TypeVar is independent, and in general can't
+be coerced directly into a json.Value.  That is, each property's
+value must be run through json.toJSON.  This is not a simple
+unification - code must be generated.
+
+Unification never produces code in general.  (Perhaps it's
+possible but we don't yet have the algebra for that.)
+How could this work then?
+
+json.encode accepts a trait dict, and we could produce a trait
+impl for this record:
+
+```
+impl json.ToJSON {...: json.ToJSON} {
+  fieldTransform = json.toJSON
+  toJSON(record: {... =json.Value}) = json.toJSON(dict.from(record))
+  finalize({... :Value}) = json.toJSON(dict.from(x))
+}
+```
+
+Generating an instance for a record would look up the fieldTransform,
+_statically_ apply it to all the fields (instantiating each time),
+unify all the result type vars, and then run finalize.
+
+We'd generate a new ToJSON impl for each record, but that could be
+inlined out.

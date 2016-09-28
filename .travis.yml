@@ -28,8 +28,8 @@ install:
       cabal)
         cabal --version
         travis_retry cabal update
-        cabal install --only-dependencies --enable-tests
-        cabal install hlint
+        cabal install -j --only-dependencies --enable-tests
+        cabal install -j hlint
         ;;
     esac
 
@@ -37,7 +37,7 @@ script:
   - |
     case "$BUILD" in
       cabal)
-        cabal configure --enable-tests
+        cabal configure --enable-tests --ghc-options="-j +RTS -A128m -s -RTS"
         cabal build
         cabal test 
         dist/build/crux/crux test

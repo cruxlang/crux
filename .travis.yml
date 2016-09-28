@@ -12,7 +12,7 @@ cache:
 
 matrix:
   include:
-  - env: CABALVER=1.22 GHCVER=7.10.3 HAPPYVER=1.19.5
+  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5
   - compiler: ":#GHC 7.10.3"
   - addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,cabal-install-1.22], sources: [hvr-ghc]}}
 

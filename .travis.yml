@@ -37,7 +37,7 @@ script:
   - |
     case "$BUILD" in
       cabal)
-        cabal configure --enable-tests --ghc-options="-j +RTS -A128m -s -RTS"
+        cabal configure --enable-tests --ghc-options="-j +RTS -A64m -s -RTS"
         cabal build
         cabal test 
         dist/build/crux/crux test

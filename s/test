@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")"/..
+
+cabal test
+cabal build exe:crux
+crux test

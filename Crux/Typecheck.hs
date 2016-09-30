@@ -101,7 +101,7 @@ isLValue env expr = case expr of
                     Nothing -> do
                         -- This should  be impossible because type inference should have either failed, or
                         -- caused this record type to include the field by now.
-                        ltys <- showTypeVarIO lty'
+                        ltys <- renderTypeVarIO lty'
                         error $ printf "Internal compiler error: calling isLValue on a nonexistent property %s of record %s" (show propName) ltys
             _ ->
                 error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
@@ -440,7 +440,7 @@ check' expectedType env = \case
             TDataType TDataTypeDef{..} -> do
                 return tuModuleName
             _ -> do
-                ts <- showTypeVarIO $ edata lhs'
+                ts <- renderTypeVarIO $ edata lhs'
                 resumableTypeError pos $ TdnrLhsTypeUnknown ts
 
         check env $ EApp

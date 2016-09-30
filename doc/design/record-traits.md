@@ -163,3 +163,8 @@ unify all the result type vars, and then run finalize.
 
 We'd generate a new ToJSON impl for each record, but that could be
 inlined out.
+
+### TODO: js.Coercible
+
+### TODO: mutability
+

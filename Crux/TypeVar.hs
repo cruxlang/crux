@@ -22,7 +22,6 @@ module Crux.TypeVar
     , followRecordTypeVar'
     , followRecordTypeVar
     , followTypeVar
-    , showTypeVarIO
     , renderTypeVarIO
     , dataTypeIdentity
     ) where
@@ -32,6 +31,7 @@ import Crux.Prelude
 import qualified Data.Text as Text
 import System.IO.Unsafe (unsafePerformIO)
 import Crux.Pos
+import qualified Data.Map.Strict as Map
 
 type Name = Text
 
@@ -198,11 +198,24 @@ writeTypeVar :: TypeVar -> MutableTypeVar -> IO ()
 writeTypeVar (TypeVar r) = writeIORef r
 -}
 
-showRecordTypeVarIO' :: MonadIO m => Bool -> IORef RecordTypeVar -> m String
-showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
+-- TypeVar Renderer state
+data TVRState = TVRState
+    { tvrCount :: IORef Int
+    , tvrNames :: IORef (Map.Map Int String)
+    }
+
+getNextVarName :: MonadIO m => TVRState -> m String
+getNextVarName state = do
+    current <- readIORef $ tvrCount state
+    let next = current + 1
+    writeIORef (tvrCount state) next
+    return $ "_t" <> show next
+
+showRecordTypeVarIO' :: MonadIO m => TVRState -> IORef RecordTypeVar -> m String
+showRecordTypeVarIO' state ref = readIORef ref >>= \case
     RRecord (RecordType open' rows') -> do
         let rowNames = map trName rows'
-        rowTypes <- for rows' $ showTypeVarIO' showBound . trTyVar
+        rowTypes <- for rows' $ showTypeVarIO' state . trTyVar
         let showRow (name, ty) = Text.unpack name <> ": " <> ty
         let dotdotdot = case open' of
                 RecordFree i -> ["..._" ++ show i]
@@ -210,41 +223,55 @@ showRecordTypeVarIO' showBound ref = readIORef ref >>= \case
                 RecordClose -> []
         return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
     RBound ref' -> do
-        inner <- showRecordTypeVarIO' showBound ref'
-        return $ if showBound
-            then "(RBound " ++ inner ++ ")"
-            else inner
-
-showTypeVarIO' :: MonadIO m => Bool -> TypeVar -> m String
-showTypeVarIO' showBound = \case
+        showRecordTypeVarIO' state ref'
+        
+showTypeVarIO' :: MonadIO m => TVRState -> TypeVar -> m String
+showTypeVarIO' state = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound str _level constraints i -> do
-            let strstr | str == Strong = ""
-                       | otherwise = "Weak "
-            return $ "(TUnbound " ++ strstr ++ show constraints ++ " " ++ show i ++ ")"
+        TUnbound _strength _level _constraints i -> do
+            -- TODO: should we show the user the strength?
+            -- TODO: put constraints in an addendum list
+            names <- readIORef $ tvrNames state
+            case Map.lookup i names of
+                Just name -> return name
+                Nothing -> do
+                    name <- getNextVarName state
+                    writeIORef (tvrNames state) $ Map.insert i name names
+                    return name
         TBound tv -> do
-            inner <- showTypeVarIO' showBound tv
-            if showBound
-                then return $ "(TBound " ++ inner ++ ")"
-                else return inner
+            showTypeVarIO' state tv
     TQuant typeSource constraints i -> do
         return $ "TQuant " ++ show typeSource ++ " " ++ show constraints ++ " " ++ show i
     TFun args ret -> do
-        as <- for args $ showTypeVarIO' showBound
-        rs <- showTypeVarIO' showBound ret
-        return $ "(" ++ intercalate "," as ++ ") -> " ++ rs
+        as <- for args $ showTypeVarIO' state
+        rs <- showTypeVarIO' state ret
+        return $ "(" ++ intercalate "," as ++ ") => " ++ rs
     TDataType def -> do
-        tvs <- for (tuParameters def) $ showTypeVarIO' showBound
-        return $ (Text.unpack $ tuName def) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
+        tvs <- for (tuParameters def) $ showTypeVarIO' state
+        return $ case (tuModuleName def, tuName def) of
+            ("tuple", "Tuple2") -> "(" <> intercalate ", " tvs <> ")"
+            ("tuple", "Tuple3") -> "(" <> intercalate ", " tvs <> ")"
+            ("tuple", "Tuple4") -> "(" <> intercalate ", " tvs <> ")"
+            ("tuple", "Tuple5") -> "(" <> intercalate ", " tvs <> ")"
+            ("tuple", "Tuple6") -> "(" <> intercalate ", " tvs <> ")"
+            ("tuple", "Tuple7") -> "(" <> intercalate ", " tvs <> ")"
+            ("tuple", "Tuple8") -> "(" <> intercalate ", " tvs <> ")"
+            _ -> (Text.unpack $ tuName def) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
     TRecord rtv -> do
-        showRecordTypeVarIO' showBound rtv
+        showRecordTypeVarIO' state rtv
     TTypeFun args ret -> do
-        args' <- for args $ showTypeVarIO' showBound
-        rs <- showTypeVarIO' showBound ret
+        args' <- for args $ showTypeVarIO' state
+        rs <- showTypeVarIO' state ret
         return $ "TTypeFun " ++ show args' ++ " " ++ rs
 
-showTypeVarIO :: MonadIO m => TypeVar -> m String
-showTypeVarIO = showTypeVarIO' True
-
+-- | Returns a human-readable representation of a given TypeVar
+-- in Crux syntax.
 renderTypeVarIO :: MonadIO m => TypeVar -> m String
-renderTypeVarIO = showTypeVarIO' False
+renderTypeVarIO tv = do
+    count <- newIORef 0
+    names <- newIORef mempty
+    let state = TVRState
+            { tvrCount = count
+            , tvrNames = names
+            }
+    showTypeVarIO' state tv

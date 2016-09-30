@@ -390,7 +390,7 @@ traitDictName traitName' typeVar = do
         TDataType def ->
             return $ dataTypeIdentity def
         tv2 -> do
-            s <- showTypeVarIO tv2
+            s <- renderTypeVarIO tv2
             error $ "Unexpected traitDictName " ++ s
 
 generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag TypeVar -> DeclarationWriter ()

@@ -8,8 +8,8 @@ Object types are enclosed in curly braces.
 
 ```
 type Point = {
-    x : Number,
-    y : Number,
+    x: Number,
+    y: Number,
 }
 ```
 
@@ -27,8 +27,8 @@ Objects can be created with the same syntax you see in JS:
 
 ```
 let mypoint = {
-    x : 5,
-    y : 2,
+    x: 5,
+    y: 2,
 }
 ```
 

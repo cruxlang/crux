@@ -36,4 +36,4 @@ test_function_taking_record = do
     (Right ()) <- bridgeTC $ unify env dummyPos argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei
-    assertEqual "({x: Number}) -> {x: Number}" s
+    assertEqual "({x: Number}) => {x: Number}" s

@@ -120,6 +120,9 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         unify env pos elementType' elementType''
         return optionType
 
+    go WildcardIdent = do
+        freshType env
+
 registerTypeVarIdent :: Env -> TypeVarIdent -> TC TypeVar
 registerTypeVarIdent env (TypeVarIdent name pos traits) = do
     traitIdentities <- for traits $ \traitName -> do

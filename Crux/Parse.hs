@@ -627,6 +627,11 @@ sumIdent = do
             return $ FunctionIdent [it] rv
     funner <|> return it
 
+wildcardTypeIdent :: Parser TypeIdent
+wildcardTypeIdent = do
+    _ <- token TWildcard
+    return WildcardIdent
+
 arrayTypeIdent :: Parser TypeIdent
 arrayTypeIdent = do
     mutability <- P.option Immutable (token TMutable *> return Mutable)
@@ -652,7 +657,8 @@ parenTypeIdent = do
 
 typeIdent :: Parser TypeIdent
 typeIdent = asum
-    [ arrayTypeIdent
+    [ wildcardTypeIdent
+    , arrayTypeIdent
     , optionTypeIdent
     , functionTypeIdent
     , recordTypeIdent

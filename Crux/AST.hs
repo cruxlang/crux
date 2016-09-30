@@ -273,6 +273,7 @@ data TypeIdent
     | ArrayIdent Mutability TypeIdent
     | TupleTypeIdent [TypeIdent]
     | OptionIdent TypeIdent
+    | WildcardIdent
     deriving (Show, Eq)
 
 data TypeConstraint

@@ -1,0 +1,10 @@
+fun f(x: _ as a): a {
+  let y: a = x
+  return "prefix " + y
+}
+
+let g: String => String = f
+
+fun main() {
+  print(f("world"))
+}

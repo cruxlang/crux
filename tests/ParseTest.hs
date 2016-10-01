@@ -140,15 +140,15 @@ test_return_unit = do
 
 test_fun_with_argument_annotations = do
     assertExprParses funDeclaration "fun f(x: Number) { 1 }"
-        (DFun () "f" [] FunctionDecl { fdParams=[("x", Just $ TypeIdent "Number" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () $ LInteger 1})
+        (DFun () "f" [] FunctionDecl { fdParams=[("x", Just (TypeIdent "Number" [], Nothing))], fdReturnAnnot=Nothing, fdBody=ELiteral () $ LInteger 1})
 
 test_fun_with_forall = do
     assertExprParses funDeclaration "fun f<T>(x: T) {}"
-        (DFun () "f" [TypeVarIdent "T" (makePos 1 7) []] FunctionDecl { fdParams=[("x", Just $ TypeIdent "T" [])], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit})
+        (DFun () "f" [TypeVarIdent "T" (makePos 1 7) []] FunctionDecl { fdParams=[("x", Just (TypeIdent "T" [], Nothing))], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit})
 
 test_fun_that_takes_function = do
     assertExprParses funDeclaration "fun f(x: fun(Number) -> String) { x(1) }"
-        (DFun () "f" [] FunctionDecl { fdParams=[("x", Just $ FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []))], fdReturnAnnot=Nothing, fdBody=EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1]})
+        (DFun () "f" [] FunctionDecl { fdParams=[("x", Just (FunctionIdent [TypeIdent "Number" []] (TypeIdent "String" []), Nothing))], fdReturnAnnot=Nothing, fdBody=EApp () (EIdentifier () "x") [ELiteral () $ LInteger 1]})
 
 test_fun_with_return_annotation = do
     assertExprParses funDeclaration "fun f() : Number { 5 }"

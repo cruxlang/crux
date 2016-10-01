@@ -244,9 +244,12 @@ check' expectedType env = \case
             }
 
         params' <- for (zip fdParams paramTypes) $ \((p, pAnn), pt) -> do
-            for_ pAnn $ \ann -> do
+            for_ pAnn $ \(ann, maybeAlias) -> do
                 annTy <- resolveTypeIdent env' pos ann
                 unify env pos pt annTy
+                for maybeAlias $ \alias -> do
+                    SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates alias annTy
+
             -- TODO: exhaustiveness check on this pattern
             param' <- buildPatternEnv env' pos pt Immutable p
             return (param', pAnn)

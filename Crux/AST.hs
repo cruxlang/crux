@@ -39,7 +39,7 @@ instance IsString (Pattern tagtype) where
     fromString = PBinding . fromString
 
 data FunctionDecl idtype tagtype edata = FunctionDecl
-    { fdParams      :: ![(Pattern tagtype, Maybe TypeIdent)]
+    { fdParams      :: ![(Pattern tagtype, Maybe (TypeIdent, Maybe Name))]
     , fdReturnAnnot :: !(Maybe TypeIdent)
     , fdBody        :: !(Expression idtype tagtype edata)
     } deriving (Eq, Show, Functor, Foldable, Traversable)

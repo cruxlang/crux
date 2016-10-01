@@ -756,12 +756,16 @@ aliasDeclaration = do
         ty <- typeIdent
         return $ DTypeAlias (tokenData typeToken) name vars ty
 
-funArgument :: Parser (ParsePattern, Maybe TypeIdent)
+funArgument :: Parser (ParsePattern, Maybe (TypeIdent, Maybe Name))
 funArgument = do
     n <- pattern IrrefutableContext
     ann <- P.optionMaybe $ do
         _ <- token TColon
-        typeIdent
+        ident <- typeIdent
+        alias <- P.optionMaybe $ do
+            _ <- token TAs
+            anyIdentifier
+        return (ident, alias)
     return (n, ann)
 
 bracedLines :: Parser (ParsePos, a) -> Parser (ParsePos, [a])

@@ -257,15 +257,15 @@ arrayLiteralExpression = do
             return $ EArrayLiteral pos Immutable exprs
     mutableArray <|> immutableArray
 
-recordLiteralExpression :: Parser ParseExpression
-recordLiteralExpression = do
+objectLiteralExpression :: Parser ParseExpression
+objectLiteralExpression = do
     (pos, pairs) <- braced' $ commaDelimited $ do
         name <- anyIdentifier
         _ <- token TColon
         expr <- noSemiExpression
         return (name, expr)
 
-    return $ ERecordLiteral pos (HashMap.fromList pairs)
+    return $ EObjectLiteral pos (HashMap.fromList pairs)
 
 integerLiteralExpression :: Parser ParseExpression
 integerLiteralExpression = do
@@ -284,7 +284,7 @@ stringLiteralExpression = do
 literalExpression :: Parser ParseExpression
 literalExpression =
     arrayLiteralExpression <|>
-    recordLiteralExpression <|>
+    objectLiteralExpression <|>
     functionExpression <|>
     -- TODO: fix tokenBy, make this primitiveLiteralExpression
     integerLiteralExpression <|>
@@ -583,8 +583,8 @@ commaDelimited = delimited $ token TComma
 plusDelimited :: Parser a -> Parser [a]
 plusDelimited = delimited $ token TPlus
 
-recordField :: Parser (Text, Maybe Mutability, TypeIdent)
-recordField = do
+objectField :: Parser (Text, Maybe Mutability, TypeIdent)
+objectField = do
     mut <- P.optionMaybe (
         (token TMutable *> pure Mutable) <|>
         (token TConst *> pure Immutable))
@@ -594,8 +594,13 @@ recordField = do
     return (name, mut, ty)
 
 recordTypeIdent :: Parser TypeIdent
-recordTypeIdent =
-    RecordIdent <$> braced (commaDelimited recordField)
+recordTypeIdent = do
+    braced $ do
+        rows <- commaDelimited objectField
+        state <- P.option ObjectIdentClosed $ do
+            _ <- token TEllipsis
+            return ObjectIdentOpen
+        return $ ObjectIdent rows state
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do

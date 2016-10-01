@@ -92,7 +92,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         typeArguments' <- for typeArguments $ resolveTypeIdent env pos
         applyTypeFunction env pos typeName AllowTypeFunctions ty typeArguments'
 
-    go (RecordIdent rows) = do
+    go (ObjectIdent rows state) = do
         rows' <- for rows $ \(trName, mut, rowTypeIdent) -> do
             let trMut = case mut of
                     Nothing -> RFree
@@ -100,8 +100,13 @@ resolveTypeIdent env@Env{..} pos typeIdent =
                     Just Immutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
-        ref <- newIORef $ RRecord $ RecordType RecordClose rows'
-        return $ TRecord $ ref
+        recordOpen <- case state of
+            ObjectIdentOpen -> do
+                rowVariable <- freshRowVariable env
+                return $ RecordQuantified rowVariable
+            ObjectIdentClosed -> return RecordClose
+        ref <- newIORef $ RRecord $ RecordType recordOpen rows'
+        return $ TObject $ ref
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- for argTypes go

@@ -22,7 +22,7 @@ test_function_taking_record = do
             , tuVariants = []
             }
     rect <- newIORef $ RRecord $ RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy]
-    let argType = TRecord $ rect
+    let argType = TObject $ rect
     bref <- newIORef $ TBound argType
     let retType = TypeVar bref
     let funType = TFun [argType] retType
@@ -32,7 +32,7 @@ test_function_taking_record = do
         return a
 
     rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
-    let recordLiteralType = TRecord rect2
+    let recordLiteralType = TObject rect2
     (Right ()) <- bridgeTC $ unify env dummyPos argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei

@@ -1,0 +1,12 @@
+fun f(x: {foo: String, ...} as Rec): Rec {
+  print(x.foo)
+  return x
+}
+
+fun main() {
+  let y = f({
+    foo: "Hello",
+    bar: "World",
+  })
+  print(y.bar)
+}

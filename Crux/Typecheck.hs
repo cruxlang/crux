@@ -81,7 +81,7 @@ isLValue env expr = case expr of
     ELookup _ lhs propName -> do
         lty' <- followTypeVar (edata lhs)
         case lty' of
-            TRecord ref' -> followRecordTypeVar' ref' >>= \(ref, RecordType recordEData rows) -> do
+            TObject ref' -> followRecordTypeVar' ref' >>= \(ref, RecordType recordEData rows) -> do
                 case lookupTypeRow propName rows of
                     Just (RMutable, _) ->
                         return True
@@ -157,7 +157,7 @@ weaken level e = do
         TDataType typeDef -> do
             tyvars' <- for (tuParameters typeDef) weaken'
             return $ TDataType typeDef{ tuParameters=tyvars' }
-        TRecord rtv -> do
+        TObject rtv -> do
             weakenRecord rtv
             return t
         TTypeFun a b -> do
@@ -193,7 +193,7 @@ accumulateTraitReferences' seen out tv = case tv of
     TDataType TDataTypeDef{..} -> do
         for_ tuParameters $
             accumulateTraitReferences' seen out
-    TRecord ref -> do
+    TObject ref -> do
         followRecord ref
     TTypeFun _ _ -> do
         fail "ICE: what does this mean"
@@ -318,7 +318,7 @@ check' expectedType env = \case
                 ty <- freshType env
                 row <- freshRowVariable env
                 rec <- newIORef $ RRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
-                unify env pos (edata lhs') $ TRecord rec
+                unify env pos (edata lhs') $ TObject rec
                 return $ ELookup ty lhs' propName
         case lhs of
             EIdentifier pos' (UnqualifiedReference name) -> do
@@ -392,7 +392,7 @@ check' expectedType env = \case
         let ctor = EIdentifier pos $ KnownReference "tuple" $ "Tuple" <> (Text.pack $ show $ length elements)
         check env $ EApp pos ctor elements
 
-    ERecordLiteral pos fields -> do
+    EObjectLiteral pos fields -> do
         env' <- childEnv env
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
             ty <- freshType env'
@@ -403,8 +403,8 @@ check' expectedType env = \case
         let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
 
         rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
-        let recordTy = TRecord rec
-        return $ ERecordLiteral recordTy (HashMap.fromList fields')
+        let recordTy = TObject rec
+        return $ EObjectLiteral recordTy (HashMap.fromList fields')
 
     -- TODO: put all the intrinsics in one list so we can do a simple membership test here and not duplicate in the EApp handler
     EIdentifier pos (UnqualifiedReference "_unsafe_js") ->
@@ -603,9 +603,9 @@ resolveInstanceDictPlaceholders env = recurse
             EFun tv fd@FunctionDecl{fdBody} -> do
                 fdBody' <- recurse fdBody
                 return $ EFun tv fd{fdBody=fdBody'}
-            ERecordLiteral tv fields -> do
+            EObjectLiteral tv fields -> do
                 fields' <- for fields recurse
-                return $ ERecordLiteral tv fields'
+                return $ EObjectLiteral tv fields'
             EArrayLiteral tv mut elements -> do
                 elements' <- for elements recurse
                 return $ EArrayLiteral tv mut elements'
@@ -680,7 +680,7 @@ resolveInstanceDictPlaceholders env = recurse
                                     --quantify typeVar -- this feels dirty
                                     resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
                                 return $ EApp tv thisDict argDicts
-                    TRecord _ref -> do
+                    TObject _ref -> do
                         fail "No traits on records"
                     TTypeFun _ _ -> do
                         fail "ICE: what does this mean"

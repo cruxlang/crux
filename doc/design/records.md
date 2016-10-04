@@ -15,6 +15,15 @@ fun f(x) {
 
 ```
 fun f(x) {
-    
+    x.prop = 10
 }
+// x: {prop: mutable Number}
 ```
+
+## Record Unification
+
+| A  | B  | Output
+|---|---|---|---|---|
+| {x: T, ...} | {y: T, ...} | {x: T, y: T, ...}
+|   | aoeub
+|   |   |

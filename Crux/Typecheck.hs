@@ -73,32 +73,16 @@ checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
                 pure ()
             (_, Immutable, _) -> do
                 resumableTypeError pos $ ImmutableAssignment ImmutableBinding $ getUnresolvedReferenceLeaf name
-    (ELookup pos _ _, ELookup _ lhs propName) -> do
+    (ELookup pos _ _, ELookup lookupType lhs propName) -> do
         let lhsType = edata lhs
-        followTypeVar lhsType >>= \case
-            TObject ref' -> followRecordTypeVar' ref' >>= \(ref, RecordType recordEData rows) -> do
-                case lookupTypeRow propName rows of
-                    Just (RMutable, _) ->
-                        return ()
-                    Just (RQuantified, _) -> do
-                        resumableTypeError pos $ ImmutableAssignment MaybeImmutableProperty propName
-                    Just (RImmutable, _) -> do
-                        resumableTypeError pos $ ImmutableAssignment ImmutableProperty propName
-                    Just (RFree, rowTy) -> do
-                        -- Update this record field to be a mutable field
-                        let newRow = TypeRow{trName=propName, trMut=RMutable, trTyVar=rowTy}
-                        let newFields = newRow:[tr | tr <- rows, trName tr /= propName]
-
-                        -- TODO: just unify this thing with a record with a mutable field
-                        writeIORef ref $ RRecord $ RecordType recordEData newFields
-                    Nothing -> do
-                        -- This should  be impossible because type inference should have either failed, or
-                        -- caused this record type to include the field by now.
-                        ltys <- renderTypeVarIO lhsType
-                        error $ printf "Internal compiler error: calling isLValue on a nonexistent property %s of record %s" (show propName) ltys
-            _ -> do
-                typeVar' <- renderTypeVarIO lhsType
-                error $ "Internal compiler error: calling isLValue on a property lookup of a non-record type: " <> typeVar'
+        recordVar <- freshRowVariable env
+        let row = TypeRow
+                { trName = propName
+                , trMut = RMutable
+                , trTyVar = lookupType
+                }
+        rec <- newIORef $ RRecord $ RecordType (RecordFree recordVar) [row]
+        unify env pos lhsType $ TObject rec
     _ -> fail "Unsupported assignment"
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but

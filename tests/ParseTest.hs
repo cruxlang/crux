@@ -76,7 +76,7 @@ test_let_with_type_annotation = do
         (ELet () Immutable (PBinding "a") [] (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
-    assertParses typeIdent "{x:Number,}" (ObjectIdent [("x", Nothing, TypeIdent "Number" [])] ObjectIdentClosed)
+    assertParses typeIdent "{x:Number,}" (ObjectIdent [("x", Just Immutable, TypeIdent "Number" [])] ObjectIdentClosed)
 
 test_multi_arg_type_ident = do
     assertParses
@@ -91,8 +91,8 @@ test_multi_arg_type_ident = do
 test_let_with_record_annotation = do
     assertExprParses letExpression "let a: {x:Number, y:Number} = ()"
         (ELet () Immutable (PBinding "a") [] (Just (ObjectIdent
-            [ ("x", Nothing, TypeIdent "Number" [])
-            , ("y", Nothing, TypeIdent "Number" [])
+            [ ("x", Just Immutable, TypeIdent "Number" [])
+            , ("y", Just Immutable, TypeIdent "Number" [])
             ] ObjectIdentClosed)) (ELiteral () LUnit))
 
 test_let_with_function_annotation = do
@@ -184,4 +184,4 @@ test_record_literal_trailing_comma = do
             , "}"
             ]
     assertExprParses letDeclaration source
-        (DLet () Immutable PWildcard [] Nothing $ EObjectLiteral () $ fromList [("a", ELiteral () $ LInteger 1), ("b", ELiteral () $ LInteger 2)])
+        (DLet () Immutable PWildcard [] Nothing $ ERecordLiteral () $ fromList [("a", ELiteral () $ LInteger 1), ("b", ELiteral () $ LInteger 2)])

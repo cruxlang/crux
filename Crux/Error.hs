@@ -1,5 +1,6 @@
 module Crux.Error
     ( InternalCompilerError(..)
+    , AssignmentType(..)
     , TypeError(..)
     , ErrorType(..)
     , Error(..)
@@ -24,10 +25,17 @@ data InternalCompilerError
     = DependentModuleNotLoaded ModuleName
     deriving (Eq, Show)
 
+data AssignmentType
+    = ImmutableBinding
+    | ImmutableProperty
+    | MaybeImmutableProperty
+    deriving (Eq, Show)
+
 data TypeError
     = UnificationError String TypeVar TypeVar
     | RecordMutabilityUnificationError Name String
     | UnboundSymbol String Name
+    | ImmutableAssignment AssignmentType Name
     | OccursCheckFailed
     | IntrinsicError String
     | NotAnLVar String
@@ -108,6 +116,7 @@ getTypeErrorName = \case
     UnificationError{} -> "unification"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
     UnboundSymbol t _ -> "unbound-" <> Text.pack t
+    ImmutableAssignment{} -> "immutable-assignment"
     OccursCheckFailed{} -> "occurs-check"
     IntrinsicError{} -> "intrinsic"
     NotAnLVar{} -> "not-an-lvar"
@@ -134,6 +143,12 @@ typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
 typeErrorToString (UnboundSymbol type_ name) =
     return $ (printf "unbound %s `" type_) ++ Text.unpack name ++ "`"
+typeErrorToString (ImmutableAssignment atype name) = do
+    let atype' = case atype of
+            ImmutableBinding -> "immutable binding"
+            ImmutableProperty -> "immutable property"
+            MaybeImmutableProperty -> "possibly-immutable property"
+    return $ printf "assignment to %s %s" (atype' :: String) name
 typeErrorToString (OccursCheckFailed) =
     return $ printf "occurs check failed"
 typeErrorToString (IntrinsicError message) =

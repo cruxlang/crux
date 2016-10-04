@@ -2,7 +2,7 @@ data DispatchToken(Number)
 
 export data Dispatcher<action>({
   mutable currentToken: Number,
-  callbacks: mutable [(DispatchToken, fun(action) -> ())],
+  mutable callbacks: mutable [(DispatchToken, fun(action) -> ())],
 })
 
 export fun new() {

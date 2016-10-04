@@ -183,7 +183,7 @@ data Expression idtype tagtype edata
 
     -- literals
     | EFun edata (FunctionDecl idtype tagtype edata)
-    | EObjectLiteral edata (HashMap Name (Expression idtype tagtype edata))
+    | ERecordLiteral edata (HashMap Name (Expression idtype tagtype edata))
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ETupleLiteral edata [Expression idtype tagtype edata]
     | ELiteral edata Literal
@@ -220,7 +220,7 @@ edata expr = case expr of
     ELiteral ed _ -> ed
     EArrayLiteral ed _ _ -> ed
     ETupleLiteral ed _ -> ed
-    EObjectLiteral ed _ -> ed
+    ERecordLiteral ed _ -> ed
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
     EMethodApp ed _ _ _ -> ed
@@ -248,7 +248,7 @@ setEdata expr e = case expr of
     ELiteral _ a          -> ELiteral e a
     EArrayLiteral _ a b   -> EArrayLiteral e a b
     ETupleLiteral _ a     -> ETupleLiteral e a
-    EObjectLiteral _ a    -> EObjectLiteral e a
+    ERecordLiteral _ a    -> ERecordLiteral e a
     EIdentifier _ a       -> EIdentifier e a
     ESemi _ a b           -> ESemi e a b
     EMethodApp _ a b c    -> EMethodApp e a b c

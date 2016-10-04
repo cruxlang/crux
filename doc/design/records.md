@@ -6,3 +6,15 @@ Facts we can know about records
 - The record has fields `x`, `y`, and `z` and perhaps more.
 - The record has fields `x`, `y`, and `z` and no more.
 
+```
+fun f(x) {
+    print(x.prop)
+}
+// x: {prop: mutable? a}
+```
+
+```
+fun f(x) {
+    
+}
+```

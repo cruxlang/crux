@@ -60,7 +60,6 @@ data TokenType
     | TIn
     | TDo
     | TReturn
-    | TConst
     | TMutable
     | TTrait
     | TImpl
@@ -129,7 +128,6 @@ showTokenType = \case
     TIn -> "in"
     TDo -> "do"
     TReturn -> "return"
-    TConst -> "const"
     TMutable -> "mutable"
     TTrait -> "trait"
     TImpl -> "impl"

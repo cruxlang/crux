@@ -257,15 +257,15 @@ arrayLiteralExpression = do
             return $ EArrayLiteral pos Immutable exprs
     mutableArray <|> immutableArray
 
-objectLiteralExpression :: Parser ParseExpression
-objectLiteralExpression = do
+recordLiteralExpression :: Parser ParseExpression
+recordLiteralExpression = do
     (pos, pairs) <- braced' $ commaDelimited $ do
         name <- anyIdentifier
         _ <- token TColon
         expr <- noSemiExpression
         return (name, expr)
 
-    return $ EObjectLiteral pos (HashMap.fromList pairs)
+    return $ ERecordLiteral pos (HashMap.fromList pairs)
 
 integerLiteralExpression :: Parser ParseExpression
 integerLiteralExpression = do
@@ -284,7 +284,7 @@ stringLiteralExpression = do
 literalExpression :: Parser ParseExpression
 literalExpression =
     arrayLiteralExpression <|>
-    objectLiteralExpression <|>
+    recordLiteralExpression <|>
     functionExpression <|>
     -- TODO: fix tokenBy, make this primitiveLiteralExpression
     integerLiteralExpression <|>
@@ -585,9 +585,9 @@ plusDelimited = delimited $ token TPlus
 
 objectField :: Parser (Text, Maybe Mutability, TypeIdent)
 objectField = do
-    mut <- P.optionMaybe (
-        (token TMutable *> pure Mutable) <|>
-        (token TConst *> pure Immutable))
+    mut <- P.option (Just Immutable) $ do
+        _ <- token TMutable
+        P.option (Just Mutable) (token TQuestionMark >> pure Nothing)
     name <- anyIdentifier
     _ <- token TColon
     ty <- typeIdent

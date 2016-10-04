@@ -65,30 +65,25 @@ buildPatternEnv env pos exprType mut = \case
                 _ -> KnownReference "tuple" $ "Tuple" <> (Text.pack $ show $ length elements)
         buildPatternEnv env pos exprType mut $ PConstructor ctorRef () elements
 
-lookupBinding :: MonadIO m => Name -> Env -> m (Maybe (ResolvedReference, Mutability, TypeVar))
-lookupBinding name Env{..} = do
-    SymbolTable.lookup eValueBindings name >>= \case
-        Just (ValueReference a b c) -> return $ Just (a, b, c)
-        _ -> return $ Nothing
-
-isLValue :: MonadIO m => Env -> TypedExpression -> m Bool
-isLValue env expr = case expr of
-    EIdentifier _ name -> do
-        l <- lookupBinding (resolvedReferenceName name) env
-        return $ case l of
-            Just (_, Mutable, _) -> True
-            _ -> False
-    ELookup _ lhs propName -> do
-        lty' <- followTypeVar (edata lhs)
-        case lty' of
+checkLValue :: Env -> ParsedExpression -> TypedExpression -> TC ()
+checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
+    (EIdentifier pos name, EIdentifier _ _) -> do
+        resolveValueReference env pos name >>= \case
+            (_, Mutable, _) -> do
+                pure ()
+            (_, Immutable, _) -> do
+                resumableTypeError pos $ ImmutableAssignment ImmutableBinding $ getUnresolvedReferenceLeaf name
+    (ELookup pos _ _, ELookup _ lhs propName) -> do
+        let lhsType = edata lhs
+        followTypeVar lhsType >>= \case
             TObject ref' -> followRecordTypeVar' ref' >>= \(ref, RecordType recordEData rows) -> do
                 case lookupTypeRow propName rows of
                     Just (RMutable, _) ->
-                        return True
+                        return ()
                     Just (RQuantified, _) -> do
-                        return False
+                        resumableTypeError pos $ ImmutableAssignment MaybeImmutableProperty propName
                     Just (RImmutable, _) -> do
-                        return False
+                        resumableTypeError pos $ ImmutableAssignment ImmutableProperty propName
                     Just (RFree, rowTy) -> do
                         -- Update this record field to be a mutable field
                         let newRow = TypeRow{trName=propName, trMut=RMutable, trTyVar=rowTy}
@@ -96,16 +91,15 @@ isLValue env expr = case expr of
 
                         -- TODO: just unify this thing with a record with a mutable field
                         writeIORef ref $ RRecord $ RecordType recordEData newFields
-
-                        return True
                     Nothing -> do
                         -- This should  be impossible because type inference should have either failed, or
                         -- caused this record type to include the field by now.
-                        ltys <- renderTypeVarIO lty'
+                        ltys <- renderTypeVarIO lhsType
                         error $ printf "Internal compiler error: calling isLValue on a nonexistent property %s of record %s" (show propName) ltys
-            _ ->
-                error "Internal compiler error: calling isLValue on a property lookup of a non-record type"
-    _ -> return False
+            _ -> do
+                typeVar' <- renderTypeVarIO lhsType
+                error $ "Internal compiler error: calling isLValue on a property lookup of a non-record type: " <> typeVar'
+    _ -> fail "Unsupported assignment"
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
 -- I don't know or care what type you will be." and port all uses of check to it.
@@ -366,9 +360,7 @@ check' expectedType env = \case
 
         unify env pos (edata lhs') (edata rhs')
 
-        islvalue <- isLValue env lhs'
-        when (not islvalue) $ do
-            resumableTypeError pos $ NotAnLVar $ show lhs
+        checkLValue env lhs lhs'
 
         unitType <- resolveVoidType env pos
         return $ EAssign unitType lhs' rhs'
@@ -392,7 +384,7 @@ check' expectedType env = \case
         let ctor = EIdentifier pos $ KnownReference "tuple" $ "Tuple" <> (Text.pack $ show $ length elements)
         check env $ EApp pos ctor elements
 
-    EObjectLiteral pos fields -> do
+    ERecordLiteral pos fields -> do
         env' <- childEnv env
         fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
             ty <- freshType env'
@@ -404,7 +396,7 @@ check' expectedType env = \case
 
         rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
         let recordTy = TObject rec
-        return $ EObjectLiteral recordTy (HashMap.fromList fields')
+        return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     -- TODO: put all the intrinsics in one list so we can do a simple membership test here and not duplicate in the EApp handler
     EIdentifier pos (UnqualifiedReference "_unsafe_js") ->
@@ -603,9 +595,9 @@ resolveInstanceDictPlaceholders env = recurse
             EFun tv fd@FunctionDecl{fdBody} -> do
                 fdBody' <- recurse fdBody
                 return $ EFun tv fd{fdBody=fdBody'}
-            EObjectLiteral tv fields -> do
+            ERecordLiteral tv fields -> do
                 fields' <- for fields recurse
-                return $ EObjectLiteral tv fields'
+                return $ ERecordLiteral tv fields'
             EArrayLiteral tv mut elements -> do
                 elements' <- for elements recurse
                 return $ EArrayLiteral tv mut elements'

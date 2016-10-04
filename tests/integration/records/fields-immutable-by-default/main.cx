@@ -1,0 +1,4 @@
+fun main() {
+  let x = {prop: 1}
+  x.prop = 2
+}

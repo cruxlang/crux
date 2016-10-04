@@ -163,7 +163,6 @@ keyword = P.try $ do
         "in" -> return TIn
         "do" -> return TDo
         "return" -> return TReturn
-        "const" -> return TConst
         "mutable" -> return TMutable
         "trait" -> return TTrait
         "impl" -> return TImpl

@@ -213,15 +213,20 @@ getNextVarName state = do
 
 showRecordTypeVarIO' :: MonadIO m => TVRState -> IORef RecordTypeVar -> m String
 showRecordTypeVarIO' state ref = readIORef ref >>= \case
-    RRecord (RecordType open' rows') -> do
-        let rowNames = map trName rows'
-        rowTypes <- for rows' $ showTypeVarIO' state . trTyVar
-        let showRow (name, ty) = Text.unpack name <> ": " <> ty
+    RRecord (RecordType open' rows) -> do
+        rows' <- for rows $ \TypeRow{..} -> do
+            typeName <- showTypeVarIO' state trTyVar
+            let mutPrefix = case trMut of
+                    RMutable -> "mutable "
+                    RImmutable -> ""
+                    RFree -> "mutable? "
+                    RQuantified -> "mutable? "
+            return $ mutPrefix <> (Text.unpack trName) <> ": " <> typeName
         let dotdotdot = case open' of
                 RecordFree i -> ["..._" ++ show i]
                 RecordQuantified i -> ["...t" ++ show i]
                 RecordClose -> []
-        return $ "{" <> (intercalate "," (map showRow (zip rowNames rowTypes) <> dotdotdot)) <> "}"
+        return $ "{" <> (intercalate "," (rows' <> dotdotdot)) <> "}"
     RBound ref' -> do
         showRecordTypeVarIO' state ref'
         

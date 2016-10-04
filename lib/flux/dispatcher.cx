@@ -7,8 +7,8 @@ export data Dispatcher<action>({
 
 export fun new() {
   Dispatcher({
-    currentToken: 0,
-    callbacks: mutable [],
+    mutable currentToken: 0,
+    mutable callbacks: mutable [],
   })
 }
 

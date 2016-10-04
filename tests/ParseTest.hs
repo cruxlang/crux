@@ -184,4 +184,9 @@ test_record_literal_trailing_comma = do
             , "}"
             ]
     assertExprParses letDeclaration source
-        (DLet () Immutable PWildcard [] Nothing $ ERecordLiteral () $ fromList [("a", ELiteral () $ LInteger 1), ("b", ELiteral () $ LInteger 2)])
+        (DLet () Immutable PWildcard [] Nothing $ ERecordLiteral
+            ()
+            (fromList
+                [ ("a", (Immutable, ELiteral () $ LInteger 1))
+                , ("b", (Immutable, ELiteral () $ LInteger 2))
+                ]))

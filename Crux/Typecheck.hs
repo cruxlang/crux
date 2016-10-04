@@ -386,13 +386,15 @@ check' expectedType env = \case
 
     ERecordLiteral pos fields -> do
         env' <- childEnv env
-        fields' <- for (HashMap.toList fields) $ \(name, fieldExpr) -> do
+        fields' <- for (HashMap.toList fields) $ \(name, (fieldMut, fieldExpr)) -> do
             ty <- freshType env'
             fieldExpr' <- check env' fieldExpr >>= weaken (eLevel env')
             unify env pos ty (edata fieldExpr')
-            return (name, fieldExpr')
+            return (name, (fieldMut, fieldExpr'))
 
-        let fieldTypes = map (\(name, ex) -> TypeRow{trName=name, trMut=RFree, trTyVar=edata ex}) fields'
+        let xlateMut Immutable = RImmutable
+            xlateMut Mutable = RMutable
+        let fieldTypes = map (\(name, (mut, ex)) -> TypeRow{trName=name, trMut=xlateMut mut, trTyVar=edata ex}) fields'
 
         rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
         let recordTy = TObject rec
@@ -596,7 +598,9 @@ resolveInstanceDictPlaceholders env = recurse
                 fdBody' <- recurse fdBody
                 return $ EFun tv fd{fdBody=fdBody'}
             ERecordLiteral tv fields -> do
-                fields' <- for fields recurse
+                fields' <- for fields $ \(mut, expr) -> do
+                    expr' <- recurse expr
+                    return (mut, expr')
                 return $ ERecordLiteral tv fields'
             EArrayLiteral tv mut elements -> do
                 elements' <- for elements recurse

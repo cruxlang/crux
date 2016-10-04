@@ -183,7 +183,7 @@ data Expression idtype tagtype edata
 
     -- literals
     | EFun edata (FunctionDecl idtype tagtype edata)
-    | ERecordLiteral edata (HashMap Name (Expression idtype tagtype edata))
+    | ERecordLiteral edata (HashMap Name (Mutability, Expression idtype tagtype edata))
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ETupleLiteral edata [Expression idtype tagtype edata]
     | ELiteral edata Literal

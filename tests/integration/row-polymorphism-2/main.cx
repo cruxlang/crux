@@ -4,6 +4,7 @@ fun double_x(r) {
 }
 
 fun main() {
-  let a = double_x({ x : 22, y : 11 })
+  let a = double_x({ mutable x: 22, y: 11 })
+  print(a.x)
   print(a.y)
 }

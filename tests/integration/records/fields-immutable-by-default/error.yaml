@@ -1,1 +1,2 @@
-type-error-name: mutating-immutable-field
+type-error-name: immutable-assignment
+

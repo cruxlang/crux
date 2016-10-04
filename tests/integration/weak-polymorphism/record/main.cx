@@ -2,7 +2,7 @@ pragma { NoBuiltin }
 
 data Maybe<a> { None, Some(a) }
 
-let a = { x : None }
+let a = { mutable x: None }
 
 fun main() {
     a.x = Some(4)

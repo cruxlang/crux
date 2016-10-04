@@ -4,6 +4,6 @@ fun swap(p) {
     p.y = t
 }
 fun main() {
-    let a: {const x: Number, const y: Number} = {x:44, y:0}
+    let a: {x: Number, y: Number} = {x:44, y:0}
     swap(a)
 }

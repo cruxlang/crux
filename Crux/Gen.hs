@@ -223,7 +223,8 @@ generate env = \case
         fail "Tuples should be eliminated during typechecking"
 
     AST.ERecordLiteral _ props -> do
-        props' <- runMaybeT $ for props $ MaybeT . generate env
+        props' <- runMaybeT $ for props $ \(_, expr) -> do
+            MaybeT $ generate env expr
         return $ fmap RecordLiteral props'
 
     AST.EIdentifier _ name -> do

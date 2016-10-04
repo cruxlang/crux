@@ -38,7 +38,6 @@ data TypeError
     | ImmutableAssignment AssignmentType Name
     | OccursCheckFailed
     | IntrinsicError String
-    | NotAnLVar String
     | TdnrLhsTypeUnknown String
     | ExportError String
     | ModuleReferenceError ModuleName Name
@@ -119,7 +118,6 @@ getTypeErrorName = \case
     ImmutableAssignment{} -> "immutable-assignment"
     OccursCheckFailed{} -> "occurs-check"
     IntrinsicError{} -> "intrinsic"
-    NotAnLVar{} -> "not-an-lvar"
     TdnrLhsTypeUnknown{} -> "tdnr-lhs-type-unknown"
     ExportError{} -> "export"
     ModuleReferenceError{} -> "module-reference"
@@ -153,8 +151,6 @@ typeErrorToString (OccursCheckFailed) =
     return $ printf "occurs check failed"
 typeErrorToString (IntrinsicError message) =
     return $ printf "%s" message
-typeErrorToString (NotAnLVar s) = do
-    return $ printf "Not an LVar\n\t%s" s
 typeErrorToString (TdnrLhsTypeUnknown s) = do
     return $ printf "Methods only work on values with known concrete types\n\t%s" s
 typeErrorToString (ExportError s) = do

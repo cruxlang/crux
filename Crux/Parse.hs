@@ -260,10 +260,11 @@ arrayLiteralExpression = do
 recordLiteralExpression :: Parser ParseExpression
 recordLiteralExpression = do
     (pos, pairs) <- braced' $ commaDelimited $ do
+        mut <- P.option Immutable $ token TMutable >> pure Mutable
         name <- anyIdentifier
         _ <- token TColon
         expr <- noSemiExpression
-        return (name, expr)
+        return (name, (mut, expr))
 
     return $ ERecordLiteral pos (HashMap.fromList pairs)
 

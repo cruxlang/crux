@@ -3,9 +3,9 @@ fun manhattan(p) {
 }
 
 fun main() {
-    let a: {x: Number, y: Number} = {x:44, y:0}
+    let a: {x: Number, y: Number} = {x: 44, y: 0}
     print(manhattan(a))
 
-    let b: {mutable x: Number, mutable y: Number} = {x:0, y:0}
+    let b: {mutable x: Number, mutable y: Number} = {mutable x: 0, mutable y: 0}
     print(manhattan(b))
 }

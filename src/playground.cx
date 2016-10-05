@@ -44,9 +44,9 @@ type XHR = {
     setRequestHeader: fun(String, String) -> (),
     abort: fun() -> (),
     send: fun(String) -> (),
-    onload: fun() -> (),
-    onerror: fun(String) -> (),
-    ontimeout: fun() -> (),
+    mutable onload: fun() -> (),
+    mutable onerror: fun(String) -> (),
+    mutable ontimeout: fun() -> (),
     response: String,
     mutable timeout: Number,
 }
@@ -178,10 +178,10 @@ fun newCompiler(onresult) {
     let compilerThread = worker.new("compiler-worker.js")
     let compiler = Compiler({
         worker: compilerThread,
-        nextCompileID: 0,
+        mutable nextCompileID: 0,
         onresult: onresult,
-        state: Idle,
-        lastCompile: None,
+        mutable state: Idle,
+        mutable lastCompile: None,
     })
 
     compilerThread->setHandler(response => {

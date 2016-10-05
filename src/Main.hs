@@ -4,7 +4,7 @@ module Main
     ( main
     ) where
 
-import Crux.Module (newMemoryLoader, loadProgram, pathToModuleName)
+import Crux.Module (newMemoryLoader, loadProgram, pathToModuleName, MainModuleMode(..))
 import Data.FileEmbed (embedDir, embedFile)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
@@ -27,7 +27,7 @@ baseModuleFiles = $(embedDir "../crux/lib")
 rtsFile :: ByteString
 rtsFile = $(embedFile "../crux/rts/rts.js")
 
-compile :: Text -> IO (Either (Maybe ModuleName, Error.Error) Text)
+compile :: Text -> IO (Either Error.Error Text)
 compile source = do
     let decodeBaseModule (path, contents) =
             (pathToModuleName path, decodeUtf8 contents)
@@ -38,13 +38,7 @@ compile source = do
             , HashMap.singleton "main" source
             ]
     let loader = newMemoryLoader mapping
-    {-
-        loader = newMemoryLoader $ HashMap.fromList
-            [ ("Prelude", preludeSource)
-            , ("Main", source)
-            ]
-    -}
-    loadProgram loader "main" >>= \case
+    loadProgram AddMainCall loader "<playground>" "main" >>= \case
         Left err -> return $ Left err
         Right program -> do
             program' <- Gen.generateProgram program
@@ -68,7 +62,7 @@ main = do
         case r of
             Right code ->
                 Object.setProp "result" (pToJSVal code) resultObject
-            Left (moduleName, err) -> do
-                s <- Error.renderError moduleName err
+            Left err -> do
+                s <- Error.renderError err
                 Object.setProp "error" (pToJSVal s) resultObject
         return $ jsval resultObject

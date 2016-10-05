@@ -10,6 +10,7 @@ module Crux.Module
     , loadRTSSource
 
       -- largely for cruxjs
+    , MainModuleMode(..)
     , pathToModuleName
     , newMemoryLoader
     , loadProgram

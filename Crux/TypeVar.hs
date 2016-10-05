@@ -93,6 +93,14 @@ instance Hashable RowVariable where
 instance Show RowVariable where
     show (RowVariable i) = show i
 
+instance Num RowVariable where
+    (+) = error "Cannot add RowVariable"
+    (*) = error "Cannot multiply RowVariable"
+    (-) = error "Cannot subtract RowVariable"
+    abs = error "Cannot abs RowVariable"
+    signum = error "Cannot signum RowVariable"
+    fromInteger = RowVariable . fromInteger
+
 -- An open record can be unified with another record type that has extra properties.
 -- F u F == Free record with union of properties
 -- F u Q == Verify that LHS fields are all present in RHS.  Unifies to RHS.

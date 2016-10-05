@@ -265,15 +265,15 @@ setEdata expr e = case expr of
     EInstanceDict _ a b -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
 
-data ObjectIdentState
-    = ObjectIdentOpen (Maybe TypeIdent)
-    | ObjectIdentClosed
+data RecordIdentState
+    = RecordIdentOpen (Maybe TypeIdent)
+    | RecordIdentClosed
     deriving (Show, Eq)
 
 data TypeIdent
     -- TODO: split into two?  TypeIdent and TypeApplication
     = TypeIdent UnresolvedReference [TypeIdent]
-    | ObjectIdent [(Name, Maybe Mutability, TypeIdent)] ObjectIdentState
+    | RecordIdent [(Name, Maybe Mutability, TypeIdent)] RecordIdentState
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
     | TupleTypeIdent [TypeIdent]

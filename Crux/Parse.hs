@@ -584,8 +584,8 @@ commaDelimited = delimited $ token TComma
 plusDelimited :: Parser a -> Parser [a]
 plusDelimited = delimited $ token TPlus
 
-objectField :: Parser (Text, Maybe Mutability, TypeIdent)
-objectField = do
+recordField :: Parser (Text, Maybe Mutability, TypeIdent)
+recordField = do
     mut <- P.option (Just Immutable) $ do
         _ <- token TMutable
         P.option (Just Mutable) (token TQuestionMark >> pure Nothing)
@@ -597,14 +597,14 @@ objectField = do
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent = do
     braced $ do
-        rows <- commaDelimited objectField
-        state <- P.option ObjectIdentClosed $ do
+        rows <- commaDelimited recordField
+        state <- P.option RecordIdentClosed $ do
             _ <- token TEllipsis
             constraint <- P.optionMaybe $ do
                 _ <- token TColon
                 typeIdent
-            return $ ObjectIdentOpen constraint
-        return $ ObjectIdent rows state
+            return $ RecordIdentOpen constraint
+        return $ RecordIdent rows state
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do

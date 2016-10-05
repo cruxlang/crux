@@ -76,7 +76,7 @@ test_let_with_type_annotation = do
         (ELet () Immutable (PBinding "a") [] (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
-    assertParses typeIdent "{x:Number,}" (ObjectIdent [("x", Just Immutable, TypeIdent "Number" [])] ObjectIdentClosed)
+    assertParses typeIdent "{x:Number,}" (RecordIdent [("x", Just Immutable, TypeIdent "Number" [])] RecordIdentClosed)
 
 test_multi_arg_type_ident = do
     assertParses
@@ -90,10 +90,10 @@ test_multi_arg_type_ident = do
 
 test_let_with_record_annotation = do
     assertExprParses letExpression "let a: {x:Number, y:Number} = ()"
-        (ELet () Immutable (PBinding "a") [] (Just (ObjectIdent
+        (ELet () Immutable (PBinding "a") [] (Just (RecordIdent
             [ ("x", Just Immutable, TypeIdent "Number" [])
             , ("y", Just Immutable, TypeIdent "Number" [])
-            ] ObjectIdentClosed)) (ELiteral () LUnit))
+            ] RecordIdentClosed)) (ELiteral () LUnit))
 
 test_let_with_function_annotation = do
     assertExprParses letExpression "let a: fun(Number) -> Unit = _unsafe_js(\"console.log\")"

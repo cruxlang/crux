@@ -1,4 +1,4 @@
-# What is Crux.js
+# What is Crux.js?
 
 This project is the tooling that compiles the Crux compiler (written in Haskell) into a JavaScript binary that
 can run in web browsers or via npm.  The native Crux compiler is much, much faster, but sometimes it's useful to run the

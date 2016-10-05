@@ -61,4 +61,4 @@ intercalate sep els =
 (??) :: Maybe t -> t -> t
 Nothing ?? d = d
 Just x ?? _ = x
-infix 9 ??
+infixl 8 ??

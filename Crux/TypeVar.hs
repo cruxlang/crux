@@ -160,7 +160,7 @@ data TypeVar
     | TQuant TypeSource (Set TraitIdentity) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
-    | TObject (IORef RecordTypeVar)
+    | TRecord (IORef RecordTypeVar)
     | TTypeFun [TypeVar] TypeVar
     deriving (Eq)
 
@@ -174,7 +174,7 @@ instance Show TypeVar where
     show (TQuant source constraints tn) = "(TQuant " ++ show source ++ " " ++ show constraints ++ " " ++ show tn ++ ")"
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
     show (TDataType def) = "(TDataType " ++ show def ++ ")"
-    show (TObject _) = "(TObject ???)" -- TODO
+    show (TRecord _) = "(TRecord ???)" -- TODO
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 data TypeState
@@ -281,7 +281,7 @@ showTypeVarIO' state = \case
             ("tuple", "Tuple7") -> "(" <> intercalate ", " tvs <> ")"
             ("tuple", "Tuple8") -> "(" <> intercalate ", " tvs <> ")"
             _ -> (Text.unpack $ tuName def) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
-    TObject rtv -> do
+    TRecord rtv -> do
         showRecordTypeVarIO' state rtv
     TTypeFun args ret -> do
         args' <- for args $ showTypeVarIO' state

@@ -229,7 +229,7 @@ instantiateRecord subst recordSubst env rows open = do
             return $ RecordClose
 
     objectType <- newIORef $ RRecord $ RecordType open' rows'
-    return $ TObject objectType
+    return $ TRecord objectType
 
 instantiate' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> m TypeVar
 instantiate' subst recordSubst env ty = case ty of
@@ -258,7 +258,7 @@ instantiate' subst recordSubst env ty = case ty of
     TDataType def -> do
         typeVars' <- for (tuParameters def) $ instantiate' subst recordSubst env
         return $ TDataType def{ tuParameters = typeVars' }
-    TObject ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
+    TRecord ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
         let rv = case open of
                 RecordFree r _ -> Just r
                 RecordQuantified r _ -> Just r
@@ -295,7 +295,7 @@ quantify ty = case ty of
         quantify ret
     TDataType def ->
         for_ (tuParameters def) quantify
-    TObject ref -> followRecordTypeVar ref >>= \(RecordType open rows) -> do
+    TRecord ref -> followRecordTypeVar ref >>= \(RecordType open rows) -> do
         for_ rows $ \TypeRow{..} -> do
             quantify trTyVar
         case open of
@@ -333,7 +333,7 @@ occurs pos tvn = \case
         occurs pos tvn ret
     TDataType def -> do
         for_ (tuParameters def) $ occurs pos tvn
-    TObject ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
+    TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
         for_ rows $ \TypeRow{..} ->
             occurs pos tvn trTyVar
     TQuant {} ->
@@ -360,8 +360,8 @@ unifyRecord env pos av bv = do
     --     putStr "\t" >> showTypeVarIO av >>= putStrLn
     --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
 
-    let TObject aRef = av
-    let TObject bRef = bv
+    let TRecord aRef = av
+    let TRecord bRef = bv
     RecordType aOpen aRows <- followRecordTypeVar aRef
     RecordType bOpen bRows <- followRecordTypeVar bRef
     let aFields = sort $ map trName aRows
@@ -440,7 +440,7 @@ unifyRecord env pos av bv = do
                 -- Is this a bug? I copied it verbatim from what was here. -- chad
                 writeIORef aRef $ RBound bRef
                 {-
-                writeTypeVar av (TObject $ RecordType aOpen coincidentRows')
+                writeTypeVar av (TRecord $ RecordType aOpen coincidentRows')
                 writeTypeVar av (TBound bv)
                 -}
 
@@ -492,7 +492,7 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
                 return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
-    TObject _ -> do
+    TRecord _ -> do
         failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ (TDataType def) -> do
         let key = (trait, dataTypeIdentity def)
@@ -546,7 +546,7 @@ unify env pos av' bv' = do
             | otherwise -> do
                 unificationError pos "" av bv
 
-        (TObject {}, TObject {}) ->
+        (TRecord {}, TRecord {}) ->
             unifyRecord env pos av bv
 
         (TFun aa ar, TFun ba br) -> do

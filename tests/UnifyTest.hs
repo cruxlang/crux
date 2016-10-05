@@ -23,7 +23,7 @@ test_function_taking_record = do
     env <- newEnv "unifytest" HashMap.empty Nothing
 
     rect <- newIORef $ RRecord $ RecordType (RecordQuantified 1 Nothing) [TypeRow "x" RImmutable numTy]
-    let argType = TObject $ rect
+    let argType = TRecord $ rect
     bref <- newIORef $ TBound argType
     let retType = TypeVar bref
     let funType = TFun [argType] retType
@@ -33,7 +33,7 @@ test_function_taking_record = do
         return a
 
     rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
-    let recordLiteralType = TObject rect2
+    let recordLiteralType = TRecord rect2
     (Right ()) <- bridgeTC $ unify env dummyPos argTypei recordLiteralType
 
     s <- renderTypeVarIO funTypei
@@ -46,8 +46,8 @@ test_free_records_unify_by_merging_fields = do
     env <- newEnv "unifytest" HashMap.empty Nothing
     lhsObject <- newIORef $ RRecord $ RecordType (RecordFree 0 Nothing) [rowA]
     rhsObject <- newIORef $ RRecord $ RecordType (RecordFree 1 Nothing) [rowB]
-    let lhs = TObject $ lhsObject
-    let rhs = TObject $ rhsObject
+    let lhs = TRecord $ lhsObject
+    let rhs = TRecord $ rhsObject
     Right () <- bridgeTC $ unify env dummyPos lhs rhs
     lhs' <- readIORef lhsObject
     RRecord rhsRecord <- readIORef rhsObject

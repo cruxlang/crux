@@ -107,7 +107,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
                 return $ RecordQuantified rowVariable constraint'
             ObjectIdentClosed -> return RecordClose
         ref <- newIORef $ RRecord $ RecordType recordOpen rows'
-        return $ TObject $ ref
+        return $ TRecord $ ref
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- for argTypes go

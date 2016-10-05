@@ -82,7 +82,7 @@ checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
                 , trTyVar = lookupType
                 }
         rec <- newIORef $ RRecord $ RecordType (RecordFree recordVar Nothing) [row]
-        unify env pos lhsType $ TObject rec
+        unify env pos lhsType $ TRecord rec
     _ -> fail "Unsupported assignment"
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
@@ -135,7 +135,7 @@ weaken level e = do
         TDataType typeDef -> do
             tyvars' <- for (tuParameters typeDef) weaken'
             return $ TDataType typeDef{ tuParameters=tyvars' }
-        TObject rtv -> do
+        TRecord rtv -> do
             weakenRecord rtv
             return t
         TTypeFun a b -> do
@@ -171,7 +171,7 @@ accumulateTraitReferences' seen out tv = case tv of
     TDataType TDataTypeDef{..} -> do
         for_ tuParameters $
             accumulateTraitReferences' seen out
-    TObject ref -> do
+    TRecord ref -> do
         followRecord ref
     TTypeFun _ _ -> do
         fail "ICE: what does this mean"
@@ -296,7 +296,7 @@ check' expectedType env = \case
                 ty <- freshType env
                 row <- freshRowVariable env
                 rec <- newIORef $ RRecord $ RecordType (RecordFree row Nothing) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
-                unify env pos (edata lhs') $ TObject rec
+                unify env pos (edata lhs') $ TRecord rec
                 return $ ELookup ty lhs' propName
         case lhs of
             EIdentifier pos' (UnqualifiedReference name) -> do
@@ -381,7 +381,7 @@ check' expectedType env = \case
         let fieldTypes = map (\(name, (mut, ex)) -> TypeRow{trName=name, trMut=xlateMut mut, trTyVar=edata ex}) fields'
 
         rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
-        let recordTy = TObject rec
+        let recordTy = TRecord rec
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     -- TODO: put all the intrinsics in one list so we can do a simple membership test here and not duplicate in the EApp handler
@@ -660,7 +660,7 @@ resolveInstanceDictPlaceholders env = recurse
                                     --quantify typeVar -- this feels dirty
                                     resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
                                 return $ EApp tv thisDict argDicts
-                    TObject _ref -> do
+                    TRecord _ref -> do
                         fail "No traits on records"
                     TTypeFun _ _ -> do
                         fail "ICE: what does this mean"

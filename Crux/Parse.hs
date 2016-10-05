@@ -600,7 +600,10 @@ recordTypeIdent = do
         rows <- commaDelimited objectField
         state <- P.option ObjectIdentClosed $ do
             _ <- token TEllipsis
-            return ObjectIdentOpen
+            constraint <- P.optionMaybe $ do
+                _ <- token TColon
+                typeIdent
+            return $ ObjectIdentOpen constraint
         return $ ObjectIdent rows state
 
 functionTypeIdent :: Parser TypeIdent

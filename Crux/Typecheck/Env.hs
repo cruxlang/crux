@@ -101,9 +101,10 @@ resolveTypeIdent env@Env{..} pos typeIdent =
             trTyVar <- go rowTypeIdent
             return TypeRow{..}
         recordOpen <- case state of
-            ObjectIdentOpen -> do
+            ObjectIdentOpen constraint -> do
                 rowVariable <- freshRowVariable env
-                return $ RecordQuantified rowVariable
+                constraint' <- for constraint $ resolveTypeIdent env pos
+                return $ RecordQuantified rowVariable constraint'
             ObjectIdentClosed -> return RecordClose
         ref <- newIORef $ RRecord $ RecordType recordOpen rows'
         return $ TObject $ ref

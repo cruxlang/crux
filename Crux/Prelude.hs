@@ -20,6 +20,7 @@ module Crux.Prelude
     , module GHC.Generics
     , module Data.Traversable
     , intercalate
+    , (??)
     ) where
 
 import Control.Applicative (pure, (*>), (<$>), (<*), (<*>))
@@ -56,3 +57,8 @@ intercalate sep els =
         [] -> []
         [x] -> [x]
         (x:rest) -> x:sep:h rest
+
+(??) :: Maybe t -> t -> t
+Nothing ?? d = d
+Just x ?? _ = x
+infix 9 ??

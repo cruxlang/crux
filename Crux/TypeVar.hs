@@ -101,8 +101,8 @@ instance Show RowVariable where
 -- F u C == Fields of free record must be present in the closed record and they must unify.  Closed record.
 -- Q u C == I think this always fails to unify.
 data RecordOpen
-    = RecordFree RowVariable
-    | RecordQuantified RowVariable
+    = RecordFree RowVariable (Maybe TypeVar)
+    | RecordQuantified RowVariable (Maybe TypeVar)
     | RecordClose
     deriving (Show, Eq)
 
@@ -225,10 +225,18 @@ showRecordTypeVarIO' state ref = readIORef ref >>= \case
                     RFree -> "mutable? "
                     RQuantified -> "mutable? "
             return $ mutPrefix <> (Text.unpack trName) <> ": " <> typeName
-        let dotdotdot = case open' of
-                RecordFree i -> ["..._" ++ show i]
-                RecordQuantified i -> ["...t" ++ show i]
-                RecordClose -> []
+        dotdotdot <- case open' of
+            RecordFree i constraint -> do
+                constr <- for constraint $ \tv -> do
+                    tv' <- showTypeVarIO' state tv
+                    return $ ": " ++ tv'
+                return ["..._" ++ show i ++ constr ?? ""]
+            RecordQuantified i constraint -> do
+                constr <- for constraint $ \tv -> do
+                    tv' <- showTypeVarIO' state tv
+                    return $ ": " ++ tv'
+                return ["...t" ++ show i ++ constr ?? ""]
+            RecordClose -> return []
         return $ "{" <> (intercalate "," (rows' <> dotdotdot)) <> "}"
     RBound ref' -> do
         showRecordTypeVarIO' state ref'

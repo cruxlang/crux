@@ -1,0 +1,8 @@
+fun f(x: {...: String}) {
+}
+
+fun main() {
+  f({foo: "hello", bar: "world"})
+  f({})
+  f({baz: "hello"})
+}

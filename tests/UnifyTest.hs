@@ -21,7 +21,7 @@ test_function_taking_record = do
             , tuParameters = []
             , tuVariants = []
             }
-    rect <- newIORef $ RRecord $ RecordType (RecordQuantified (RowVariable 1)) [TypeRow "x" RImmutable numTy]
+    rect <- newIORef $ RRecord $ RecordType (RecordQuantified (RowVariable 1) Nothing) [TypeRow "x" RImmutable numTy]
     let argType = TObject $ rect
     bref <- newIORef $ TBound argType
     let retType = TypeVar bref

@@ -220,9 +220,10 @@ instantiateRecord subst recordSubst env rows open = do
         return TypeRow{trName, trMut=mut', trTyVar=rowTy'}
 
     open' <- case open of
-        RecordQuantified i -> do
-            return $ RecordFree i
-        RecordFree _ -> do
+        RecordQuantified i constraint -> do
+            constraint' <- for constraint $ instantiate' subst recordSubst env
+            return $ RecordFree i constraint'
+        RecordFree _ _ -> do
             fail $ "Instantiation of a free row variable -- this should never happen"
         RecordClose -> do
             return $ RecordClose
@@ -259,8 +260,8 @@ instantiate' subst recordSubst env ty = case ty of
         return $ TDataType def{ tuParameters = typeVars' }
     TObject ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
         let rv = case open of
-                RecordFree r -> Just r
-                RecordQuantified r -> Just r
+                RecordFree r _ -> Just r
+                RecordQuantified r _ -> Just r
                 _ -> Nothing
         case rv of
             Just rv' -> do
@@ -298,8 +299,9 @@ quantify ty = case ty of
         for_ rows $ \TypeRow{..} -> do
             quantify trTyVar
         case open of
-            RecordFree ti -> do
-                writeIORef ref $ RRecord $ RecordType (RecordQuantified ti) rows
+            RecordFree ti constraint -> do
+                for_ constraint quantify
+                writeIORef ref $ RRecord $ RecordType (RecordQuantified ti constraint) rows
             _ -> return ()
     TTypeFun args rv -> do
         for_ args quantify
@@ -419,7 +421,7 @@ unifyRecord env pos av bv = do
                 writeIORef bRef $ RBound aRef
             | otherwise ->
                 error "rhs record has rows not in quantified record"
-        (RecordQuantified a, RecordQuantified b)
+        (RecordQuantified a constraintA, RecordQuantified b constraintB)
             | not (null aOnlyRows) ->
                 error "lhs quantified record has rows not in rhs quantified record"
             | not (null bOnlyRows) ->
@@ -427,6 +429,13 @@ unifyRecord env pos av bv = do
             | a /= b ->
                 error "Quantified records do not have the same qvar!"
             | otherwise -> do
+                case (constraintA, constraintB) of
+                    (Nothing, Nothing) -> pure ()
+                    (Just atv, Just btv) -> unify env pos atv btv
+                    _ -> error "invalid constraints"
+
+                -- TODO: should we unify the constraint with the fields
+
                 writeIORef aRef $ RRecord $ RecordType aOpen coincidentRows'
                 -- Is this a bug? I copied it verbatim from what was here. -- chad
                 writeIORef aRef $ RBound bRef

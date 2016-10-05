@@ -265,7 +265,9 @@ setEdata expr e = case expr of
     EInstanceDict _ a b -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
 
-data ObjectIdentState = ObjectIdentOpen | ObjectIdentClosed
+data ObjectIdentState
+    = ObjectIdentOpen (Maybe TypeIdent)
+    | ObjectIdentClosed
     deriving (Show, Eq)
 
 data TypeIdent

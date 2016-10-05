@@ -81,7 +81,7 @@ checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
                 , trMut = RMutable
                 , trTyVar = lookupType
                 }
-        rec <- newIORef $ RRecord $ RecordType (RecordFree recordVar) [row]
+        rec <- newIORef $ RRecord $ RecordType (RecordFree recordVar Nothing) [row]
         unify env pos lhsType $ TObject rec
     _ -> fail "Unsupported assignment"
 
@@ -295,7 +295,7 @@ check' expectedType env = \case
                 lhs' <- check env lhs
                 ty <- freshType env
                 row <- freshRowVariable env
-                rec <- newIORef $ RRecord $ RecordType (RecordFree row) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+                rec <- newIORef $ RRecord $ RecordType (RecordFree row Nothing) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
                 unify env pos (edata lhs') $ TObject rec
                 return $ ELookup ty lhs' propName
         case lhs of

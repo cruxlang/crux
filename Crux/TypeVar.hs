@@ -100,7 +100,10 @@ instance Show RowVariable where
 -- C u C == Fields must intersect exactly.  Types unify.  Closed record.
 -- F u C == Fields of free record must be present in the closed record and they must unify.  Closed record.
 -- Q u C == I think this always fails to unify.
-data RecordOpen = RecordFree RowVariable | RecordQuantified RowVariable | RecordClose
+data RecordOpen
+    = RecordFree RowVariable
+    | RecordQuantified RowVariable
+    | RecordClose
     deriving (Show, Eq)
 
 data RecordTypeVar

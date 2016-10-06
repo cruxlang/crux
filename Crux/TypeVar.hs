@@ -263,7 +263,8 @@ showTypeVarIO' state = \case
                     name <- getNextVarName state
                     writeIORef (tvrNames state) $ Map.insert i name names
                     return name
-            return $ name' <> ": " <> intercalate "+" (fmap (\(TraitIdentity _m n) -> Text.unpack n) $ Set.toList constraints)
+            let constraintsString = intercalate "+" (fmap (\(TraitIdentity _m n) -> Text.unpack n) $ Set.toList constraints)
+            return $ name' <> if constraints == mempty then "" else (": " <> constraintsString)
         TBound tv -> do
             showTypeVarIO' state tv
     TQuant typeSource constraints i -> do

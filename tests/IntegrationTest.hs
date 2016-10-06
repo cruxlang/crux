@@ -230,7 +230,7 @@ test_record_annotation_is_checked2 = do
         , "}"
         ]
 
-    assertUnificationError (makePos 3 5) "{}" "{mutable? log: _t1,..._11}" result
+    assertUnificationError (makePos 3 5) "{}" "{mutable? log: _t1, ..._11}" result
     -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
 
 test_polymorphic_type_annotations_are_universally_quantified2 = do

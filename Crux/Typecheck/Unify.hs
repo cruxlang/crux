@@ -353,6 +353,19 @@ lookupTypeRow name = \case
         | trName == name -> Just (trMut, trTyVar)
         | otherwise -> lookupTypeRow name rest
 
+unifyFieldConstraint :: Env -> Pos -> Maybe TypeVar -> TypeRow TypeVar -> TC (TypeRow TypeVar)
+unifyFieldConstraint env pos constraint tr@TypeRow{..} = do
+    case constraint of
+        Nothing -> return tr
+        Just ctv -> do
+            trMut' <- case trMut of
+                RMutable -> failTypeError pos $ RecordMutabilityUnificationError trName "Row variable constraints don't support mutable fields"
+                RImmutable -> return RImmutable
+                RQuantified -> failTypeError pos $ RecordMutabilityUnificationError trName "Row variable constraints don't support mutable (even quantified) fields"
+                RFree -> return RImmutable
+            unify env pos ctv trTyVar
+            return tr{ trMut=trMut' }
+
 unifyRecord :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
 unifyRecord env pos av bv = do
     -- do
@@ -397,10 +410,8 @@ unifyRecord env pos av bv = do
         -- closed and free
         (RecordClose, RecordFree _ constraint)
             | null bOnlyRows -> do
-                for_ constraint $ \ctv -> do
-                    for_ aOnlyRows $ \TypeRow{trTyVar} -> do
-                        unify env pos ctv trTyVar
-                writeIORef aRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows)
+                aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraint
+                writeIORef aRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows')
                 writeIORef bRef $ RBound $ aRef
             | otherwise ->
                 unificationError pos (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
@@ -415,23 +426,19 @@ unifyRecord env pos av bv = do
 
         -- free and free
         (RecordFree aVar constraintA, RecordFree _ constraintB) -> do
+            aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraintB
+            bOnlyRows' <- for bOnlyRows $ unifyFieldConstraint env pos constraintA
             newConstraint <- case (constraintA, constraintB) of
                 (Nothing, Nothing) -> do
                     return Nothing
                 (Just a, Nothing) -> do
-                    for_ bOnlyRows $ \TypeRow{trTyVar} -> do
-                        unify env pos a trTyVar
                     return $ Just a
                 (Nothing, Just b) -> do
-                    for_ aOnlyRows $ \TypeRow{trTyVar} -> do
-                        unify env pos b trTyVar
                     return $ Just b
                 (Just a, Just b) -> do
                     unify env pos a b
-                    for_ (aOnlyRows <> bOnlyRows) $ \TypeRow{trTyVar} -> do
-                        unify env pos a trTyVar
                     return $ Just a
-            writeIORef bRef $ RRecord $ RecordType (RecordFree aVar newConstraint) (coincidentRows' ++ aOnlyRows ++ bOnlyRows)
+            writeIORef bRef $ RRecord $ RecordType (RecordFree aVar newConstraint) (coincidentRows' ++ aOnlyRows' ++ bOnlyRows')
             writeIORef aRef $ RBound bRef
 
         -- free and quantified

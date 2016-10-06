@@ -8,6 +8,10 @@ export fun new<V>(): Dict<V> {
   _unsafe_js("Object").create(js.Null)
 }
 
+export fun from<V>(record: {...: V}): Dict<V> {
+  _unsafe_coerce(record)
+}
+
 export fun set<V>(dict: Dict<V>, key: String, value: V): () {
   unsafe.setProperty(dict, key, value)
   // TODO: the following does not compile if it's just ()

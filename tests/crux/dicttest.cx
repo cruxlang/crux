@@ -8,3 +8,13 @@ let _ = test("basic dict", () => {
   d->set("hi", 10)
   assert.equal(Some(10), d->get("hi"))
 })
+
+let _ = test("from record", () => {
+  let d = dict.from({
+    x: "hi",
+    y: "bye",
+  })
+  assert.equal(Some("hi"), d->get("x"))
+  assert.equal(Some("bye"), d->get("y"))
+  assert.equal(None, d->get("z"))
+})

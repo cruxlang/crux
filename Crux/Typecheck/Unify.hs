@@ -383,44 +383,53 @@ unifyRecord env pos av bv = do
                     , trTyVar = trTyVar lhs
                     }
 
+    let unifyRecordReversed = unifyRecord env pos bv av
+
     case (aOpen, bOpen) of
+        -- closed and closed
         (RecordClose, RecordClose)
             | null aOnlyRows && null bOnlyRows -> do
                 writeIORef bRef $ RRecord $ RecordType RecordClose coincidentRows'
                 writeIORef aRef $ RBound $ bRef
             | otherwise ->
                 unificationError pos "Closed row types must match exactly" av bv
-        (RecordClose, RecordFree {})
+
+        -- closed and free
+        (RecordClose, RecordFree _ constraint)
             | null bOnlyRows -> do
+                for_ constraint $ \ctv -> do
+                    for_ aOnlyRows $ \TypeRow{trTyVar} -> do
+                        unify env pos ctv trTyVar
                 writeIORef aRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows)
                 writeIORef bRef $ RBound $ aRef
             | otherwise ->
                 unificationError pos (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
-        (RecordFree {}, RecordClose)
-            | null aOnlyRows -> do
-                writeIORef bRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ bOnlyRows)
-                writeIORef aRef $ RBound bRef
-            | otherwise ->
-                unificationError pos (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
+        (RecordFree _ _, RecordClose) -> do
+            unifyRecordReversed
+
+        -- closed and quantified
         (RecordClose, RecordQuantified {}) ->
             unificationError pos "concrete record incompatible with record with explicit record type variable" av bv
         (RecordQuantified {}, RecordClose) ->
-            unificationError pos "concrete record incompatible with record with explicit record type variable" av bv
-        (RecordFree {}, RecordFree {}) -> do
+            unifyRecordReversed
+
+        -- free and free
+        (RecordFree _ _constraintA, RecordFree _ constraintB) -> do
+            -- TODO: unify constraints
             writeIORef bRef $ RRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows ++ bOnlyRows)
             writeIORef aRef $ RBound bRef
-        (RecordFree {}, RecordQuantified {})
+
+        -- free and quantified
+        (RecordFree _ constraintA, RecordQuantified _ constraintB)
             | null aOnlyRows -> do
                 writeIORef bRef $ RRecord $ RecordType bOpen (coincidentRows' ++ bOnlyRows)
                 writeIORef aRef $ RBound bRef
             | otherwise ->
                 error "lhs record has rows not in quantified record"
-        (RecordQuantified {}, RecordFree {})
-            | null bOnlyRows -> do
-                writeIORef aRef $ RRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows)
-                writeIORef bRef $ RBound aRef
-            | otherwise ->
-                error "rhs record has rows not in quantified record"
+        (RecordQuantified _ _, RecordFree _ _) -> do
+            unifyRecordReversed
+
+        -- quantified and quantified
         (RecordQuantified a constraintA, RecordQuantified b constraintB)
             | not (null aOnlyRows) ->
                 error "lhs quantified record has rows not in rhs quantified record"

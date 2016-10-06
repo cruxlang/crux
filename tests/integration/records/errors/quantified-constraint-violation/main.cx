@@ -1,0 +1,6 @@
+fun f(x: {...: String}) {
+}
+
+fun main() {
+  f({prop: 10})
+}

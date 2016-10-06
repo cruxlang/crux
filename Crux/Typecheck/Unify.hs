@@ -408,15 +408,30 @@ unifyRecord env pos av bv = do
             unifyRecordReversed
 
         -- closed and quantified
-        (RecordClose, RecordQuantified {}) ->
+        (RecordClose, RecordQuantified _ _) ->
             unificationError pos "concrete record incompatible with record with explicit record type variable" av bv
-        (RecordQuantified {}, RecordClose) ->
+        (RecordQuantified _ _, RecordClose) ->
             unifyRecordReversed
 
         -- free and free
-        (RecordFree _ _constraintA, RecordFree _ constraintB) -> do
-            -- TODO: unify constraints
-            writeIORef bRef $ RRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows ++ bOnlyRows)
+        (RecordFree aVar constraintA, RecordFree _ constraintB) -> do
+            newConstraint <- case (constraintA, constraintB) of
+                (Nothing, Nothing) -> do
+                    return Nothing
+                (Just a, Nothing) -> do
+                    for_ bOnlyRows $ \TypeRow{trTyVar} -> do
+                        unify env pos a trTyVar
+                    return $ Just a
+                (Nothing, Just b) -> do
+                    for_ aOnlyRows $ \TypeRow{trTyVar} -> do
+                        unify env pos b trTyVar
+                    return $ Just b
+                (Just a, Just b) -> do
+                    unify env pos a b
+                    for_ (aOnlyRows <> bOnlyRows) $ \TypeRow{trTyVar} -> do
+                        unify env pos a trTyVar
+                    return $ Just a
+            writeIORef bRef $ RRecord $ RecordType (RecordFree aVar newConstraint) (coincidentRows' ++ aOnlyRows ++ bOnlyRows)
             writeIORef aRef $ RBound bRef
 
         -- free and quantified

@@ -1,0 +1,6 @@
+fun f(r: {...}) {
+  if True then r else {}
+}
+
+fun main() {
+}

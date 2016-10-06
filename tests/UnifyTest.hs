@@ -54,3 +54,4 @@ test_free_records_unify_by_merging_fields = do
 
     assertEqual (RecordType (RecordFree 0 Nothing) [rowA, rowB]) rhsRecord
     assertEqualNoShow (RBound rhsObject) lhs'
+

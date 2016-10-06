@@ -403,9 +403,9 @@ unifyRecord env pos av bv = do
             | otherwise ->
                 unificationError pos (printf "Record has fields %s not in closed record" (show $ names aOnlyRows)) av bv
         (RecordClose, RecordQuantified {}) ->
-            error "Cannot unify closed record with quantified record"
+            unificationError pos "concrete record incompatible with record with explicit record type variable" av bv
         (RecordQuantified {}, RecordClose) ->
-            error "Cannot unify closed record with quantified record"
+            unificationError pos "concrete record incompatible with record with explicit record type variable" av bv
         (RecordFree {}, RecordFree {}) -> do
             writeIORef bRef $ RRecord $ RecordType aOpen (coincidentRows' ++ aOnlyRows ++ bOnlyRows)
             writeIORef aRef $ RBound bRef

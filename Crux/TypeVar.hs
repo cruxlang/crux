@@ -32,6 +32,7 @@ import qualified Data.Text as Text
 import System.IO.Unsafe (unsafePerformIO)
 import Crux.Pos
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 type Name = Text
 
@@ -245,23 +246,24 @@ showRecordTypeVarIO' state ref = readIORef ref >>= \case
                     return $ ": " ++ tv'
                 return ["...t" ++ show i ++ constr ?? ""]
             RecordClose -> return []
-        return $ "{" <> (intercalate "," (rows' <> dotdotdot)) <> "}"
+        return $ "{" <> (intercalate ", " (rows' <> dotdotdot)) <> "}"
     RBound ref' -> do
         showRecordTypeVarIO' state ref'
         
 showTypeVarIO' :: MonadIO m => TVRState -> TypeVar -> m String
 showTypeVarIO' state = \case
     TypeVar ref -> readIORef ref >>= \case
-        TUnbound _strength _level _constraints i -> do
+        TUnbound _strength _level constraints i -> do
             -- TODO: should we show the user the strength?
             -- TODO: put constraints in an addendum list
             names <- readIORef $ tvrNames state
-            case Map.lookup i names of
+            name' <- case Map.lookup i names of
                 Just name -> return name
                 Nothing -> do
                     name <- getNextVarName state
                     writeIORef (tvrNames state) $ Map.insert i name names
                     return name
+            return $ name' <> ": " <> intercalate "+" (fmap (\(TraitIdentity _m n) -> Text.unpack n) $ Set.toList constraints)
         TBound tv -> do
             showTypeVarIO' state tv
     TQuant typeSource constraints i -> do

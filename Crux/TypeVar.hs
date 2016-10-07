@@ -8,7 +8,7 @@ module Crux.TypeVar
     , RowMutability(..)
     , RowVariable(..)
     , TVariant(..)
-    , TDataTypeIdentity(..)
+    , TraitImplIdentity(..)
     , TDataTypeDef(..)
     , TraitDesc(..)
     , TraitIdentity(..)
@@ -55,13 +55,15 @@ data TDataTypeDef typevar = TDataTypeDef
     , tuVariants   :: ![TVariant typevar]
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
-data TDataTypeIdentity = TDataTypeIdentity Name ModuleName
+data TraitImplIdentity
+    = DataIdentity Name ModuleName
+    | RecordIdentity
     deriving (Show, Eq, Ord, Generic)
 
-instance Hashable TDataTypeIdentity
+instance Hashable TraitImplIdentity
     
-dataTypeIdentity :: TDataTypeDef a -> TDataTypeIdentity
-dataTypeIdentity ut = TDataTypeIdentity (tuName ut) (tuModuleName ut)
+dataTypeIdentity :: TDataTypeDef a -> TraitImplIdentity
+dataTypeIdentity ut = DataIdentity (tuName ut) (tuModuleName ut)
 
 data RowMutability
     = RMutable

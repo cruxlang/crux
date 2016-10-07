@@ -47,6 +47,12 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
 data TypeVarIdent = TypeVarIdent Name Pos [UnresolvedReference]
     deriving (Eq, Show)
 
+data ImplTypeIdent
+    -- type name, variables+constraints
+    = ImplNominalIdent UnresolvedReference [TypeVarIdent]
+    | ImplRecordIdent
+    deriving (Eq, Show)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype tagtype edata
@@ -65,8 +71,7 @@ data DeclarationType idtype tagtype edata
     | DImpl
         edata     -- ^TypeVar of the type parameter
         idtype    -- ^Trait name
-        UnresolvedReference -- ^Type name
-        [TypeVarIdent]    -- ^Type variables
+        ImplTypeIdent
         [(Name, Expression idtype tagtype edata)] -- ^Methods
         [Name] -- ^Context dict arguments
     -- Exceptions
@@ -204,7 +209,7 @@ data Expression idtype tagtype edata
     -- trait dictionary conversion
     -- instance dict placeholders to be resolved after quantification
     | EInstancePlaceholder edata TraitIdentity
-    | EInstanceDict edata TraitIdentity TDataTypeIdentity
+    | EInstanceDict edata TraitIdentity TraitImplIdentity
     | EInstanceArgument edata Name
 
     deriving (Show, Eq, Functor, Foldable, Traversable)

@@ -857,12 +857,22 @@ traitDeclaration = do
 
     return $ DTrait (tokenData ttrait) name decls
 
+implTypeIdent :: Parser ImplTypeIdent
+implTypeIdent = do
+    let nominal = do
+            typeName' <- unresolvedReference
+            forall <- P.option [] explicitTypeVariableList
+            return $ ImplNominalIdent typeName' forall
+    let record = braced $ do
+            _ <- token TEllipsis
+            return $ ImplRecordIdent
+    nominal <|> record
+
 implDeclaration :: Parser ParseDeclaration
 implDeclaration = do
     timpl <- token Tokens.TImpl
     traitName <- unresolvedReference
-    typeName' <- unresolvedReference
-    forall <- P.option [] explicitTypeVariableList
+    ident <- implTypeIdent
     (_, decls) <- bracedLines $ do
         -- TODO: indentation rules here probably aren't right
         (elementName, pos) <- anyIdentifierWithPos
@@ -874,7 +884,7 @@ implDeclaration = do
         expr <- sugar <|> trad
         return (pos, (elementName, expr))
 
-    return $ DImpl (tokenData timpl) traitName typeName' forall decls []
+    return $ DImpl (tokenData timpl) traitName ident decls []
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

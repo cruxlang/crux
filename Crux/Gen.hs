@@ -374,9 +374,12 @@ subBlockWithOutput env output expr = do
 renderModuleName :: ModuleName -> Name
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
 
-instanceDictName :: TraitIdentity -> TDataTypeIdentity -> Text
-instanceDictName (TraitIdentity traitModule traitName) (TDataTypeIdentity typeName typeModule) =
-    "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
+instanceDictName :: TraitIdentity -> TraitImplIdentity -> Text
+instanceDictName (TraitIdentity traitModule traitName) = \case
+    DataIdentity typeName typeModule ->
+        "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
+    RecordIdentity ->
+        "$$record$" <> traitName <> "$" <> renderModuleName traitModule
 
 traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
 traitDictName traitName' typeVar = do
@@ -384,7 +387,7 @@ traitDictName traitName' typeVar = do
     dti <- getDTI typeVar
     return $ instanceDictName (TraitIdentity traitModule traitName) dti
   where
-    getDTI :: MonadIO m => TypeVar -> m TDataTypeIdentity
+    getDTI :: MonadIO m => TypeVar -> m TraitImplIdentity
     getDTI tv = followTypeVar tv >>= \case
         TypeVar {} ->
             error "Unexpected traitDictName got unbound typevar"
@@ -429,7 +432,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
-    AST.DImpl typeVar traitName _ _typeIdent decls contextParameters -> do
+    AST.DImpl typeVar traitName _ident decls contextParameters -> do
         instanceName <- traitDictName traitName typeVar
         decls' <- for decls $ \(name, expr) -> do
             -- TODO: find some better way to guarantee that we never

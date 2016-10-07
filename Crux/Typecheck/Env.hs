@@ -450,17 +450,26 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     
     -- Phase 4b.
     for_ decls $ \case
-        DImpl pos traitReference typeReference forall _values _ -> do
+        DImpl pos traitReference ident _values _ -> do
             (_, traitNumber, _) <- resolveTraitReference env pos traitReference
-            typeVar <- resolveTypeReference env pos typeReference
 
-            env' <- childEnv env
-            instanceParameterTypes <- registerExplicitTypeVariables env' forall
-            instanceTypeVar <- applyTypeFunction env pos typeReference DisallowTypeFunctions typeVar instanceParameterTypes
+            (typeIdentity, instanceTypeVar) <- case ident of
+                ImplNominalIdent typeReference forall -> do
+                    typeVar <- resolveTypeReference env pos typeReference
 
-            typeIdentity <- case instanceTypeVar of
-                TDataType def -> return $ dataTypeIdentity def
-                _ -> fail $ "Type doesn't support traits: " ++ show (eThisModule env) ++ ": " ++ show typeVar
+                    env' <- childEnv env
+                    instanceParameterTypes <- registerExplicitTypeVariables env' forall
+                    instanceTypeVar <- applyTypeFunction env pos typeReference DisallowTypeFunctions typeVar instanceParameterTypes
+
+                    typeIdentity <- case instanceTypeVar of
+                        TDataType def -> return $ dataTypeIdentity def
+                        _ -> fail $ "Type doesn't support traits: " ++ show (eThisModule env) ++ ": " ++ show typeVar
+                    return (typeIdentity, instanceTypeVar)
+
+                ImplRecordIdent -> do
+                    -- TODO: we shouldn't need a TypeVar for records - we need custom unification logic
+                    typeVar <- freshType env
+                    return (RecordIdentity, typeVar)
 
             let instanceDesc = InstanceDesc
                     { idModuleName = eThisModule env

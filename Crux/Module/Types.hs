@@ -10,7 +10,7 @@ import Crux.ModuleName (ModuleName)
 import Crux.AST (Module, Mutability, ResolvedReference)
 import qualified Crux.JSTree as JSTree
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, TDataTypeDef, TraitIdentity, TraitDesc, TDataTypeIdentity)
+import Crux.TypeVar (TypeVar, TDataTypeDef, TraitIdentity, TraitDesc, TraitImplIdentity)
 
 type Name = Text
 
@@ -35,7 +35,7 @@ data LoadedModule = LoadedModule
     , lmExportedPatterns :: [(Name, PatternReference)]
     , lmExportedTraits :: [(Name, (ResolvedReference, TraitIdentity, TraitDesc))]
     , lmExportedExceptions :: [(Name, (ResolvedReference, TypeVar))]
-    , lmKnownInstances :: HashMap (TraitIdentity, TDataTypeIdentity) InstanceDesc
+    , lmKnownInstances :: HashMap (TraitIdentity, TraitImplIdentity) InstanceDesc
     } deriving (Eq)
 
 data Program = Program

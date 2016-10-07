@@ -534,7 +534,7 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
                 unify env pos idTypeVar' typeVar
                 return ()
             Nothing -> do
-                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
+                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ _ -> do
         fail "Wat? Type functions definitely don't implement constraints"
 

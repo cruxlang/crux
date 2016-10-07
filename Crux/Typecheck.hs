@@ -887,7 +887,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName contents'
 
-    DImpl pos' traitReference typeReference forall values _ -> do
+    DImpl pos' traitReference ident values _ -> do
+        (typeReference, forall) <- case ident of
+            ImplNominalIdent a b -> return (a, b)
+            _ -> fail "Unsupported impl"
+
         (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
         typeVar <- resolveTypeReference env pos' typeReference
 
@@ -945,7 +949,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             expr'' <- resolveInstanceDictPlaceholders env expr'
             return (methodName, expr'')
 
-        return $ DImpl typeVar' traitRef typeReference forall values' dictArgs
+        return $ DImpl typeVar' traitRef ident values' dictArgs
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment

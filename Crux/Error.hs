@@ -164,9 +164,9 @@ typeErrorToString (TypeApplicationMismatch name total applied) = do
 typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
     ts <- renderTypeVarIO typeVar
     return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
-typeErrorToString (NoTraitOnRecord typeVar traitName traitModule) = do
-    ts <- renderTypeVarIO typeVar
-    return $ printf "Record types do not implement traits\n... when trying to validate %s has impl for %s (defined in %s)" ts traitName (Text.unpack $ printModuleName traitModule)
+typeErrorToString (NoTraitOnRecord _typeVar traitName traitModule) = do
+    --_ts <- renderTypeVarIO typeVar
+    return $ printf "Record type does not implement trait %s (defined in %s)" traitName (Text.unpack $ printModuleName traitModule)
 typeErrorToString (IncompleteImpl missingMethods) = do
     return $ "impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
 typeErrorToString (UnexpectedImplMethod name) = do

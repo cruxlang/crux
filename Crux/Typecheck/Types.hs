@@ -11,7 +11,7 @@ import Crux.ModuleName (ModuleName)
 import Crux.AST (Mutability, ResolvedReference)
 import Crux.Module.Types (LoadedModule, PatternTag(..), PatternReference(..), InstanceDesc(..))
 import Crux.Prelude
-import Crux.TypeVar (TDataTypeIdentity, TraitIdentity, TraitDesc, TypeLevel(..), TypeVar(..))
+import Crux.TypeVar (TraitImplIdentity, TraitIdentity, TraitDesc, TypeLevel(..), TypeVar(..))
 import Crux.SymbolTable (SymbolTable)
 import Crux.HashTable (HashTable)
 
@@ -30,7 +30,7 @@ data Env = Env
     , eTraitBindings      :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
     , eExceptionBindings  :: SymbolTable (ResolvedReference, TypeVar)
 
-    , eKnownInstances     :: HashTable (TraitIdentity, TDataTypeIdentity) InstanceDesc
+    , eKnownInstances     :: HashTable (TraitIdentity, TraitImplIdentity) InstanceDesc
 
     , eReturnType         :: Maybe TypeVar -- Nothing if top-level expression
     , eInLoop             :: !Bool

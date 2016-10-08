@@ -47,11 +47,24 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
 data TypeVarIdent = TypeVarIdent Name Pos [UnresolvedReference]
     deriving (Eq, Show)
 
-data ImplTypeIdent
-    -- type name, variables+constraints
-    = ImplNominalIdent UnresolvedReference [TypeVarIdent]
-    | ImplRecordIdent
+data ImplNominal = ImplNominal
+    { inTypeName :: UnresolvedReference
+    , inTypeParams :: [TypeVarIdent]
+    , inContextDictArgs :: [Name]
+    }
     deriving (Eq, Show)
+
+data ImplRecord idtype tagtype edata = ImplRecord
+    { irFieldName :: Name -- ^ TODO: generalize to a pattern
+    , irFieldExpression :: Expression idtype tagtype edata
+    }
+    deriving (Eq, Show, Functor, Foldable, Traversable)
+
+data ImplType idtype tagtype edata
+    = ImplTypeNominal ImplNominal
+    -- TODO: generalize name to pattern
+    | ImplTypeRecord (ImplRecord idtype tagtype edata)
+    deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
@@ -69,11 +82,10 @@ data DeclarationType idtype tagtype edata
     -- Traits
     | DTrait edata Name [(Name, edata, TypeIdent)]
     | DImpl
-        edata     -- ^TypeVar of the type parameter
-        idtype    -- ^Trait name
-        ImplTypeIdent
-        [(Name, Expression idtype tagtype edata)] -- ^Methods
-        [Name] -- ^Context dict arguments
+        edata     -- ^ TypeVar of the type parameter
+        UnresolvedReference -- ^ Trait name
+        (ImplType idtype tagtype edata) -- ^ nominal vs. record ident
+        [(Name, Expression idtype tagtype edata)] -- ^ methods
     -- Exceptions
     | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

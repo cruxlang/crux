@@ -777,10 +777,10 @@ funArgument = do
         return (ident, alias)
     return (n, ann)
 
-bracedLines :: Parser (ParsePos, a) -> Parser (ParsePos, [a])
-bracedLines lineParser = do
+bracedLines' :: Parser (ParsePos, a) -> Parser (ParsePos, a) -> Parser (ParsePos, [a])
+bracedLines' firstLineParser lineParser = do
     br <- token TOpenBrace
-    firstLine <- withIndentation (IRDeeper br) $ P.optionMaybe lineParser
+    firstLine <- withIndentation (IRDeeper br) $ P.optionMaybe firstLineParser
     body <- case firstLine of
       Nothing -> return []
       Just (linePos, first) -> do
@@ -797,6 +797,9 @@ bracedLines lineParser = do
     withIndentation (IRAtOrDeeper br) $ do
         void $ token TCloseBrace
     return (tokenData br, body)
+
+bracedLines :: Parser (ParsePos, a) -> Parser (ParsePos, [a])
+bracedLines lineParser = bracedLines' lineParser lineParser
 
 blockExpression :: Parser ParseExpression
 blockExpression = do
@@ -857,6 +860,11 @@ traitDeclaration = do
 
     return $ DTrait (tokenData ttrait) name decls
 
+data ImplTypeIdent
+    -- type name, variables+constraints
+    = ImplNominalIdent UnresolvedReference [TypeVarIdent]
+    | ImplRecordIdent
+
 implTypeIdent :: Parser ImplTypeIdent
 implTypeIdent = do
     let nominal = do
@@ -868,23 +876,60 @@ implTypeIdent = do
             return $ ImplRecordIdent
     nominal <|> record
 
+data ImplMethod = ImplFor Name ParseExpression
+                | ImplMethod Name ParseExpression
+
+implFor :: Parser (ParsePos, ImplMethod)
+implFor = do
+    tfor <- token TFor
+    name <- anyIdentifier
+    expr <- blockExpression
+    return (tokenData tfor, ImplFor name expr)
+
+implMethod :: Parser (ParsePos, ImplMethod)
+implMethod = do
+    (elementName, pos) <- anyIdentifierWithPos
+    let trad = do
+            tequal <- token TEqual
+            withIndentation (IRDeeper tequal) noSemiExpression
+    let sugar = functionGuts pos
+    expr <- sugar <|> trad
+    return (pos, ImplMethod elementName expr)
+
 implDeclaration :: Parser ParseDeclaration
 implDeclaration = do
     timpl <- token Tokens.TImpl
     traitName <- unresolvedReference
-    ident <- implTypeIdent
-    (_, decls) <- bracedLines $ do
+    implIdent <- implTypeIdent
+    (_, methods) <- bracedLines $ do
         -- TODO: indentation rules here probably aren't right
-        (elementName, pos) <- anyIdentifierWithPos
-        let trad = do
-                tequal <- token TEqual
-                withIndentation (IRDeeper tequal) noSemiExpression
-        let sugar = functionGuts pos
+        implFor <|> implMethod
 
-        expr <- sugar <|> trad
-        return (pos, (elementName, expr))
-
-    return $ DImpl (tokenData timpl) traitName ident decls []
+    case implIdent of
+        ImplNominalIdent typeName' typeVars -> do
+            let it = ImplTypeNominal $ ImplNominal
+                    { inTypeName = typeName'
+                    , inTypeParams = typeVars
+                    , inContextDictArgs = []
+                    }
+            methods' <- for methods $ \case
+                ImplFor _ _ -> do
+                    -- TODO: set the right source position? ideally we'd point at the correct line
+                    P.unexpected "Data type impls do not support field transformers"
+                ImplMethod methodName methodExpr -> do
+                    return (methodName, methodExpr)
+            return $ DImpl (tokenData timpl) traitName it methods'
+        ImplRecordIdent -> do
+            (fieldName, fieldExpression) <- case [x | x@ImplFor{} <- methods] of
+                [] -> P.unexpected "Record type impl must specify field transformer"
+                [ImplFor fieldName fieldExpression] -> return (fieldName, fieldExpression)
+                _ -> P.unexpected "Record type impl has duplicate field transformers"
+            let it = ImplTypeRecord $ ImplRecord
+                    { irFieldName = fieldName
+                    , irFieldExpression = fieldExpression
+                    }
+            let methods' = [(methodName, methodExpr) | ImplMethod methodName methodExpr <- methods]
+            return $ DImpl (tokenData timpl) traitName it methods'
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

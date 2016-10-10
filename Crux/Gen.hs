@@ -432,15 +432,17 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
-    AST.DImpl typeVar traitName _ident decls contextParameters -> do
-        instanceName <- traitDictName traitName typeVar
-        decls' <- for decls $ \(name, expr) -> do
-            -- TODO: find some better way to guarantee that we never
-            -- define an instance value to be be flow control
-            (Just value, instructions) <- subBlock' env expr
-            return (name, (value, instructions))
+    AST.DImpl typeVar traitName implType decls -> do
+        case implType of
+            AST.ImplTypeNominal AST.ImplNominal{..} -> do
+                instanceName <- traitDictName traitName typeVar
+                decls' <- for decls $ \(name, expr) -> do
+                    -- TODO: find some better way to guarantee that we never
+                    -- define an instance value to be be flow control
+                    (Just value, instructions) <- subBlock' env expr
+                    return (name, (value, instructions))
 
-        writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextParameters
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

@@ -83,7 +83,7 @@ data DeclarationType idtype tagtype edata
     | DTrait edata Name [(Name, edata, TypeIdent)]
     | DImpl
         edata     -- ^ TypeVar of the type parameter
-        UnresolvedReference -- ^ Trait name
+        idtype -- ^ Trait name
         (ImplType idtype tagtype edata) -- ^ nominal vs. record ident
         [(Name, Expression idtype tagtype edata)] -- ^ methods
     -- Exceptions

@@ -887,41 +887,56 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName contents'
 
-    DImpl pos' traitReference ident values -> do
-        (typeReference, forall) <- case ident of
-            ImplTypeNominal (ImplNominal{..}) -> return (inTypeName, inTypeParams)
-            _ -> fail "Unsupported impl"
-
+    DImpl pos' traitReference implType implValues -> do
         (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
-        typeVar <- resolveTypeReference env pos' typeReference
-
         env' <- childEnv env
 
-        -- TODO: assert the list of type variables matches the kind of the data type
+        (typeVar, implType') <- case implType of
+            ImplTypeNominal ImplNominal{..} -> do
+                typeVar <- resolveTypeReference env pos' inTypeName
 
-        let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
-        let implNames = Set.fromList $ fmap fst values
+                -- TODO: assert the list of type variables matches the kind of the data type
 
-        let notImplemented = Set.difference traitNames implNames
-        when (not $ Set.null notImplemented) $ do
-            failTypeError pos' $ IncompleteImpl $ Set.toList notImplemented
+                let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
+                let implNames = Set.fromList $ fmap fst implValues
 
-        typeVars <- registerExplicitTypeVariables env' forall
-        traitRefs <- accumulateTraitReferences typeVars
-        dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
-            return $ renderInstanceArgumentName traitIdentity typeNumber
+                let notImplemented = Set.difference traitNames implNames
+                when (not $ Set.null notImplemented) $ do
+                    failTypeError pos' $ IncompleteImpl $ Set.toList notImplemented
 
-        typeVar' <- followTypeVar typeVar >>= \case
-            TDataType _def -> do
-                -- TODO: assert typeVars == []
-                return typeVar
-            TTypeFun _params _rt -> do
-                -- TODO: assert len(params) == len(typeVars)
-                (TTypeFun params' rt') <- instantiate env' typeVar
-                for_ (zip params' typeVars) $ \(a, b) -> do
-                    unify env pos' a b
-                return rt'
-            _ -> fail "hot dog"
+                typeVars <- registerExplicitTypeVariables env' inTypeParams
+                traitRefs <- accumulateTraitReferences typeVars
+                dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
+                    return $ renderInstanceArgumentName traitIdentity typeNumber
+
+                typeVar' <- followTypeVar typeVar >>= \case
+                    TDataType _def -> do
+                        -- TODO: assert typeVars == []
+                        return typeVar
+                    TTypeFun _params _rt -> do
+                        -- TODO: assert len(params) == len(typeVars)
+                        (TTypeFun params' rt') <- instantiate env' typeVar
+                        for_ (zip params' typeVars) $ \(a, b) -> do
+                            unify env pos' a b
+                        return rt'
+                    _ -> fail "hot dog"
+
+                let implType' = ImplTypeNominal $ ImplNominal
+                        { inTypeName = inTypeName
+                        , inTypeParams = inTypeParams
+                        , inContextDictArgs = dictArgs
+                        }
+                return (typeVar', implType')
+
+            ImplTypeRecord ImplRecord{..} -> do
+                typeVar <- freshType env'
+
+                irFieldExpression' <- check env' irFieldExpression
+                let implType' = ImplTypeRecord $ ImplRecord
+                        { irFieldName = irFieldName
+                        , irFieldExpression = irFieldExpression'
+                        }
+                return (typeVar, implType')
 
         -- instantiate all of the methods in the same subst dict
         -- so the typevar is unified across methods
@@ -929,14 +944,14 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         recordSubst <- newIORef mempty
         let inst = instantiate' subst recordSubst env'
         traitParameter <- inst $ tdTypeVar traitDesc
+        unify env' pos' typeVar traitParameter
+
         newMethods <- for (tdMethods traitDesc) $ \(name, methodType) -> do
             methodType' <- inst methodType
             return (name, methodType')
 
-        unify env' pos' typeVar' traitParameter
-
-        values' <- for values $ \(methodName, expr) -> do
-            when (1 < (length $ filter (\(name, _) -> name == methodName) values)) $ do
+        values' <- for implValues $ \(methodName, expr) -> do
+            when (1 < (length $ filter (\(name, _) -> name == methodName) implValues)) $ do
                 -- TODO: use the pos of the method here
                 failTypeError pos' $ DuplicateSymbol methodName
 
@@ -948,8 +963,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             expr' <- checkExpecting methodTypeVar env expr
             expr'' <- resolveInstanceDictPlaceholders env expr'
             return (methodName, expr'')
-
-        return $ DImpl typeVar' traitRef ident values' dictArgs
+        
+        return $ DImpl typeVar traitRef implType' values'
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment

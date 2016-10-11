@@ -26,9 +26,9 @@ install:
   - |
     case "$BUILD" in
       cabal)
-        cabal --version
-        travis_retry cabal update
-        cabal install -j --only-dependencies --enable-tests
+        cabal --version && \
+        travis_retry cabal update && \
+        cabal install -j --only-dependencies --enable-tests && \
         cabal install -j hlint
         ;;
     esac
@@ -37,9 +37,9 @@ script:
   - |
     case "$BUILD" in
       cabal)
-        cabal configure --enable-tests --ghc-options="-j +RTS -A84m -n2m -s -RTS"
-        cabal build
-        cabal test 
+        cabal configure --enable-tests --ghc-options="-j +RTS -A84m -n2m -s -RTS" && \
+        cabal build && \
+        cabal test  && \
         dist/build/crux/crux test
         ;;
     esac

@@ -26,9 +26,9 @@ install:
   - |
     case "$BUILD" in
       cabal)
-        cabal --version
-        travis_retry cabal update
-        cabal install -j --only-dependencies --enable-tests
+        cabal --version && \
+        travis_retry cabal update && \
+        cabal install -j --only-dependencies --enable-tests && \
         cabal install -j hlint
         ;;
     esac

@@ -547,128 +547,132 @@ renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
 -- nested functions, so we should switch the placeholders over to IORefs
 resolveInstanceDictPlaceholders :: Env -> TypedExpression -> TC TypedExpression
 resolveInstanceDictPlaceholders env = recurse
-  where recurse = \case
-            ELet tv mut pat forall typeIdent body -> do
+  where
+    recurse = \case
+        ELet tv mut pat forall typeIdent body -> do
+            body' <- recurse body
+            return $ ELet tv mut pat forall typeIdent body'
+        ELookup tv body name -> do
+            body' <- recurse body
+            return $ ELookup tv body' name
+        EApp tv fn args -> do
+            fn' <- recurse fn
+            args' <- for args recurse
+            return $ EApp tv fn' args'
+        EMatch tv expr cases -> do
+            expr' <- recurse expr
+            cases' <- for cases $ \(Case pat body) -> do
                 body' <- recurse body
-                return $ ELet tv mut pat forall typeIdent body'
-            ELookup tv body name -> do
-                body' <- recurse body
-                return $ ELookup tv body' name
-            EApp tv fn args -> do
-                fn' <- recurse fn
-                args' <- for args recurse
-                return $ EApp tv fn' args'
-            EMatch tv expr cases -> do
+                return $ Case pat body'
+            return $ EMatch tv expr' cases'
+        EAssign tv lhs rhs -> do
+            lhs' <- recurse lhs
+            rhs' <- recurse rhs
+            return $ EAssign tv lhs' rhs'
+        expr@EIdentifier{} -> do
+            return expr
+        ESemi tv lhs rhs -> do
+            lhs' <- recurse lhs
+            rhs' <- recurse rhs
+            return $ ESemi tv lhs' rhs'
+        EMethodApp tv expr name args -> do
+            expr' <- recurse expr
+            args' <- for args recurse
+            return $ EMethodApp tv expr' name args'
+        EFun tv fd@FunctionDecl{fdBody} -> do
+            fdBody' <- recurse fdBody
+            return $ EFun tv fd{fdBody=fdBody'}
+        ERecordLiteral tv fields -> do
+            fields' <- for fields $ \(mut, expr) -> do
                 expr' <- recurse expr
-                cases' <- for cases $ \(Case pat body) -> do
-                    body' <- recurse body
-                    return $ Case pat body'
-                return $ EMatch tv expr' cases'
-            EAssign tv lhs rhs -> do
-                lhs' <- recurse lhs
-                rhs' <- recurse rhs
-                return $ EAssign tv lhs' rhs'
-            expr@EIdentifier{} -> do
-                return expr
-            ESemi tv lhs rhs -> do
-                lhs' <- recurse lhs
-                rhs' <- recurse rhs
-                return $ ESemi tv lhs' rhs'
-            EMethodApp tv expr name args -> do
-                expr' <- recurse expr
-                args' <- for args recurse
-                return $ EMethodApp tv expr' name args'
-            EFun tv fd@FunctionDecl{fdBody} -> do
-                fdBody' <- recurse fdBody
-                return $ EFun tv fd{fdBody=fdBody'}
-            ERecordLiteral tv fields -> do
-                fields' <- for fields $ \(mut, expr) -> do
-                    expr' <- recurse expr
-                    return (mut, expr')
-                return $ ERecordLiteral tv fields'
-            EArrayLiteral tv mut elements -> do
-                elements' <- for elements recurse
-                return $ EArrayLiteral tv mut elements'
-            ETupleLiteral tv elements -> do
-                elements' <- for elements recurse
-                return $ ETupleLiteral tv elements'
-            expr@ELiteral{} -> do
-                return expr
-            EBinIntrinsic tv bi lhs rhs -> do
-                lhs' <- recurse lhs
-                rhs' <- recurse rhs
-                return $ EBinIntrinsic tv bi lhs' rhs'
-            EIntrinsic tv intrinsic -> do
-                intrinsic' <- for intrinsic recurse
-                return $ EIntrinsic tv intrinsic'
-            EIfThenElse tv cond ifTrue ifFalse -> do
-                cond' <- recurse cond
-                ifTrue' <- recurse ifTrue
-                ifFalse' <- recurse ifFalse
-                return $ EIfThenElse tv cond' ifTrue' ifFalse'
-            EWhile tv cond body -> do
-                cond' <- recurse cond
-                body' <- recurse body
-                return $ EWhile tv cond' body'
-            EFor tv name iter body -> do
-                iter' <- recurse iter
-                body' <- recurse body
-                return $ EFor tv name iter' body'
-            EReturn tv value -> do
-                value' <- recurse value
-                return $ EReturn tv value'
-            EBreak tv -> do
-                return $ EBreak tv
-            EThrow tv ident value -> do
-                value' <- recurse value
-                return $ EThrow tv ident value'
-            ETryCatch tv try ident pat catch -> do
-                try' <- recurse try
-                catch' <- recurse catch
-                return $ ETryCatch tv try' ident pat catch'
+                return (mut, expr')
+            return $ ERecordLiteral tv fields'
+        EArrayLiteral tv mut elements -> do
+            elements' <- for elements recurse
+            return $ EArrayLiteral tv mut elements'
+        ETupleLiteral tv elements -> do
+            elements' <- for elements recurse
+            return $ ETupleLiteral tv elements'
+        expr@ELiteral{} -> do
+            return expr
+        EBinIntrinsic tv bi lhs rhs -> do
+            lhs' <- recurse lhs
+            rhs' <- recurse rhs
+            return $ EBinIntrinsic tv bi lhs' rhs'
+        EIntrinsic tv intrinsic -> do
+            intrinsic' <- for intrinsic recurse
+            return $ EIntrinsic tv intrinsic'
+        EIfThenElse tv cond ifTrue ifFalse -> do
+            cond' <- recurse cond
+            ifTrue' <- recurse ifTrue
+            ifFalse' <- recurse ifFalse
+            return $ EIfThenElse tv cond' ifTrue' ifFalse'
+        EWhile tv cond body -> do
+            cond' <- recurse cond
+            body' <- recurse body
+            return $ EWhile tv cond' body'
+        EFor tv name iter body -> do
+            iter' <- recurse iter
+            body' <- recurse body
+            return $ EFor tv name iter' body'
+        EReturn tv value -> do
+            value' <- recurse value
+            return $ EReturn tv value'
+        EBreak tv -> do
+            return $ EBreak tv
+        EThrow tv ident value -> do
+            value' <- recurse value
+            return $ EThrow tv ident value'
+        ETryCatch tv try ident pat catch -> do
+            try' <- recurse try
+            catch' <- recurse catch
+            return $ ETryCatch tv try' ident pat catch'
 
-            EInstancePlaceholder tv traitIdentity -> do
-                followTypeVar tv >>= \case
-                    TypeVar ref -> readIORef ref >>= \case
-                        TUnbound _str _level _constraints _typeNumber ->
-                            fail "should have been quantified by now"
-                        _ ->
-                            fail "never happens"
-                    TQuant _ _constraints typeNumber -> do
-                        return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
-                        --append constraints tv typeNumber
-                    TFun _paramTypes _returnType -> do
-                        fail "Don't support traits on functions"
-                    TDataType def -> do
-                        let dtid = dataTypeIdentity def
-                        instanceDesc <- HashTable.lookup (traitIdentity, dtid) (eKnownInstances env) >>= \case
-                            Just instanceDesc -> return instanceDesc
-                            Nothing -> fail "Unification has already validated we have an instance" -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
+        EInstancePlaceholder tv traitIdentity -> do
+            followTypeVar tv >>= \case
+                TypeVar ref -> readIORef ref >>= \case
+                    TUnbound _str _level _constraints _typeNumber ->
+                        fail "should have been quantified by now"
+                    _ ->
+                        fail "never happens"
+                TQuant _ _constraints typeNumber -> do
+                    return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
+                    --append constraints tv typeNumber
+                TFun _paramTypes _returnType -> do
+                    fail "Don't support traits on functions"
+                TDataType def -> do
+                    let dtid = dataTypeIdentity def
+                    generateImplReference tv traitIdentity dtid
+                TRecord _ref -> do
+                    generateImplReference tv traitIdentity RecordIdentity
+                TTypeFun _ _ -> do
+                    fail "ICE: what does this mean"
 
-                        instanceType <- instantiate env $ idTypeVar instanceDesc
-                        traits <- accumulateTraitReferences [instanceType]
-                        -- TODO: find a real Pos somewhere
-                        unify env dummyPos instanceType tv
+        EInstanceDict _ _ _ -> do
+            fail "I don't think we're supposed to do this"
+        EInstanceArgument _ _ -> do
+            fail "I don't think we're supposed to do this either"
 
-                        let thisDict = EInstanceDict tv traitIdentity dtid
-                        case traits of
-                            [] -> do
-                                return thisDict
-                            _ -> do
-                                --liftIO $ putStrLn $ "def = " <> show def
-                                argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
-                                    --quantify typeVar -- this feels dirty
-                                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
-                                return $ EApp tv thisDict argDicts
-                    TRecord _ref -> do
-                        fail "No traits on records"
-                    TTypeFun _ _ -> do
-                        fail "ICE: what does this mean"
+    generateImplReference :: TypeVar -> TraitIdentity -> TraitImplIdentity -> TC TypedExpression
+    generateImplReference tv traitIdentity traitImplIdentity = do
+        instanceDesc <- HashTable.lookup (traitIdentity, traitImplIdentity) (eKnownInstances env) >>= \case
+            Just instanceDesc -> return instanceDesc
+            Nothing -> fail "Unification has already validated we have an instance" -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
 
-            EInstanceDict _ _ _ -> do
-                fail "I don't think we're supposed to do this"
-            EInstanceArgument _ _ -> do
-                fail "I don't think we're supposed to do this either"
+        instanceType <- instantiate env $ idTypeVar instanceDesc
+        traits <- accumulateTraitReferences [instanceType]
+        -- TODO: find a real Pos somewhere
+        unify env dummyPos instanceType tv
+
+        let thisDict = EInstanceDict tv traitIdentity traitImplIdentity
+        case traits of
+            [] -> do
+                return thisDict
+            _ -> do
+                argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
+                    --quantify typeVar -- this feels dirty
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                return $ EApp tv thisDict argDicts
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do

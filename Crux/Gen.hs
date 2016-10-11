@@ -443,6 +443,16 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     return (name, (value, instructions))
 
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
+            AST.ImplTypeRecord AST.ImplRecord{..} -> do
+                -- TODO: this needs to be different from the path above.  Or merge the code.
+                instanceName <- traitDictName traitName typeVar
+                decls' <- for decls $ \(name, expr) -> do
+                    -- TODO: find some better way to guarantee that we never
+                    -- define an instance value to be be flow control
+                    (Just value, instructions) <- subBlock' env expr
+                    return (name, (value, instructions))
+
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') []
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

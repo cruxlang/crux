@@ -168,3 +168,143 @@ inlined out.
 
 ### TODO: mutability
 
+
+
+
+### Chad does some thinking
+
+hit a snag on record traits
+
+[8:16]  
+trying to see if i can explain it
+
+[8:16]  
+so my goal is to make it possible to pass a concrete record into a function that takes a value that implements some trait
+
+[8:16]  
+like this:
+
+[8:17]  
+json.encode({ foo: "hello", bar: 10 })
+
+[8:17]  
+but let's think about the other direction:
+
+[8:18]  
+let r: {foo: String, bar: Number} = json.decode(somestr)
+
+[8:19]  
+we need to pass the appropriate instance dict into json.decode, which means we need to generate an instance dict
+
+[8:19]  
+which we can here: we know the concrete type
+
+[8:20]  
+the problem is, the impl syntax i've designed is one-directional
+
+[8:20]  
+basically it's sugar for transforming every property of an input record into a homogenous quantified record
+
+[8:23]  
+so the question is: where in the typechecker do we actually transform the input records
+
+[8:24]  
+we could do it at constraint validation time
+
+[8:24]  
+but that code only knows the _type_ of the record it's talking about, not the value
+
+[8:24]  
+so that seems wrong
+
+[8:28]  
+so what if i did it in the generated instance
+
+[8:29]  
+the instance by definition knows the closed set of properties and their types
+
+[8:29]  
+there is no polymorphism at that point
+
+[8:29]  
+actually that might not be true
+
+[8:30]  
+consider: `fun(x) { json.encode({x: x}) }`
+
+[8:30]  
+the instance there needs a parameter, which is the ToJSON dict for x
+
+[8:34]  
+ok, so when we take a closed record, the parameters to the instance are the instance dicts for the type parameters of the fields
+
+[8:34]  
+which we learn by unifying the field transformer across the concrete fields
+
+[8:35]  
+so in the `json.encode({x: x})` case, we unify the field transformer against the value x, and learn it has a constraint, and thus needs a dict passed into the instance
+
+[8:35]  
+maybe the dict constructor should just always take dicts, one for each field, in a dictionary itself
+
+[8:37]  
+back to the `fromJSON` case
+
+[8:37]  
+oh wait, before i talk about that, i need to think through the typevar side of things
+
+[8:40]  
+so a `toJSON {...}` instance has two steps
+
+[8:41]  
+1) map every field into a common type
+
+[8:42]  
+2) every method then takes a {...: T} for whatever common T
+
+[8:42]  
+ahhh i think i found my problem
+
+[8:43]  
+If {x: T} unifies with {...: T}, then {...: T} unifies with {x: T}
+
+[8:43]  
+which means i could perhaps write something like:
+
+[8:43]  
+fun f(): {...: Number} { ... }
+
+[8:43]  
+f().x
+
+[8:43]  
+let me see
+
+
+github BOT [8:44 AM]  
+[crux:record-traits] 1 new commit by Chad Austin:
+`05e5040`  another checkpoint - Chad Austin 
+
+chad [8:48 AM]  
+so i can't break the typechecker today, but i don't understand why
+
+[8:51]  
+OKAY
+
+[8:51]  
+so the instance typechecker creates a quantified record type with unified fields
+
+[8:51]  
+ToJSON {...} {
+
+[8:52]  
+for fieldName { transform(fieldName) }
+
+[8:52]  
+the `self` type becomes {...: T}
+
+[8:53]  
+{...: T} only works properly for arguments, not for return values
+
+[8:53]  
+this makes it some kind of covariant or something

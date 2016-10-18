@@ -297,6 +297,3 @@ data TypeIdent
     | OptionIdent TypeIdent
     | WildcardIdent
     deriving (Show, Eq)
-
-data TypeConstraint
-    = Unconstrained Name

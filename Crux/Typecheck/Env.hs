@@ -133,7 +133,7 @@ registerTypeVarIdent :: Env -> TypeVarIdent -> TC TypeVar
 registerTypeVarIdent env (TypeVarIdent name pos traits) = do
     traitIdentities <- for traits $ \traitName -> do
         (_, traitIdentity, _) <- resolveTraitReference env pos traitName
-        return traitIdentity
+        return $ TraitConstraint traitIdentity
     -- TODO: eliminate duplicates? at least warn
     tyVar <- freshTypeConstrained env $ Set.fromList traitIdentities
     quantify tyVar
@@ -155,7 +155,7 @@ newQuantifiedTypeVar env pos name = do
 
 newQuantifiedConstrainedTypeVar :: Env -> Pos -> Name -> TraitIdentity -> TC TypeVar
 newQuantifiedConstrainedTypeVar env pos name traitIdentity = do
-    tyVar <- freshTypeConstrained env $ Set.singleton traitIdentity
+    tyVar <- freshTypeConstrained env $ Set.singleton $ TraitConstraint traitIdentity
     quantify tyVar
 
     SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates name tyVar

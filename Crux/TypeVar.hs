@@ -16,6 +16,7 @@ module Crux.TypeVar
     , TypeSource(..)
     , TypeNumber
     , TypeVar(..)
+    , TypeConstraint(..)
     , TypeState(..)
     , TypeLevel(..)
     , newTypeVar
@@ -157,10 +158,18 @@ data TypeSource
     | Instantiation
     deriving (Eq, Show)
 
+data TypeConstraint = TraitConstraint TraitIdentity
+    deriving (Eq, Ord, Show)
+
+data TypeState
+    = TUnbound Strength TypeLevel (Set TypeConstraint) TypeNumber
+    | TBound TypeVar
+    deriving (Eq, Show)
+
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant TypeSource (Set TraitIdentity) TypeNumber
+    | TQuant TypeSource (Set TypeConstraint) TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -179,11 +188,6 @@ instance Show TypeVar where
     show (TDataType def) = "(TDataType " ++ show def ++ ")"
     show (TRecord _) = "(TRecord ???)" -- TODO
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
-
-data TypeState
-    = TUnbound Strength TypeLevel (Set TraitIdentity) TypeNumber
-    | TBound TypeVar
-    deriving (Eq, Show)
 
 newTypeVar :: MonadIO m => TypeState -> m TypeVar
 newTypeVar tv = TypeVar <$> newIORef tv
@@ -265,7 +269,7 @@ showTypeVarIO' state = \case
                     name <- getNextVarName state
                     writeIORef (tvrNames state) $ Map.insert i name names
                     return name
-            let constraintsString = intercalate "+" (fmap (\(TraitIdentity _m n) -> Text.unpack n) $ Set.toList constraints)
+            let constraintsString = intercalate "+" (fmap (\(TraitConstraint (TraitIdentity _m n)) -> Text.unpack n) $ Set.toList constraints)
             return $ name' <> if constraints == mempty then "" else (": " <> constraintsString)
         TBound tv -> do
             showTypeVarIO' state tv

@@ -189,8 +189,9 @@ accumulateTraitReferences' seen out tv = case tv of
             modifyIORef seen (Set.insert typeNumber)
 
             -- TODO: we need to sort this list into a canonical order
-            for_ (Set.toList constraints) $ \traitIdentity -> do
-                modifyIORef out ((typeVar, typeNumber, traitIdentity):)
+            for_ (Set.toList constraints) $ \case
+                TraitConstraint traitIdentity -> do
+                    modifyIORef out ((typeVar, typeNumber, traitIdentity):)
 
 accumulateTraitReferences :: MonadIO m => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
 accumulateTraitReferences typeVars = do

@@ -29,7 +29,7 @@ freshTypeIndex Env{eNextTypeIndex} = do
 freshType :: MonadIO m => Env -> m TypeVar
 freshType env = freshTypeConstrained env mempty
 
-freshTypeConstrained :: MonadIO m => Env -> Set TraitIdentity -> m TypeVar
+freshTypeConstrained :: MonadIO m => Env -> Set TypeConstraint -> m TypeVar
 freshTypeConstrained env constraints = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Strong (eLevel env) constraints index
@@ -492,43 +492,49 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-validateConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC ()
-validateConstraint env pos typeVar trait traitDesc = case typeVar of
+validateConstraint :: Env -> Pos -> TypeVar -> TypeConstraint -> TraitDesc -> TC ()
+validateConstraint env pos typeVar typeConstraint traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
     TQuant _source constraints _tn -> do
-        when (not $ Set.member trait constraints) $ do
+        when (not $ Set.member typeConstraint constraints) $ do
             failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TFun _ _ -> do
         fail "Functions do not implement traits (yet)"
     TDataType def -> do
-        let key = (trait, dataTypeIdentity def)
-        HashTable.lookup key (eKnownInstances env) >>= \case
-            Just InstanceDesc{idTypeVar} -> do
-                idTypeVar' <- instantiate env idTypeVar
-                unify env pos idTypeVar' typeVar
-                return ()
-            Nothing -> do
-                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
+        case typeConstraint of
+            TraitConstraint trait -> do
+                let key = (trait, dataTypeIdentity def)
+                HashTable.lookup key (eKnownInstances env) >>= \case
+                    Just InstanceDesc{idTypeVar} -> do
+                        idTypeVar' <- instantiate env idTypeVar
+                        unify env pos idTypeVar' typeVar
+                        return ()
+                    Nothing -> do
+                        failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TRecord ref -> do
-        RecordType recordOpen rows <- followRecordTypeVar ref
-        let key = (trait, RecordIdentity)
-        HashTable.lookup key (eKnownInstances env) >>= \case
-            Just InstanceDesc{..} -> do
-                -- TODO: what do we do here?
-                return ()
-            Nothing -> do
-                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
+        case typeConstraint of
+            TraitConstraint trait -> do
+                RecordType recordOpen rows <- followRecordTypeVar ref
+                let key = (trait, RecordIdentity)
+                HashTable.lookup key (eKnownInstances env) >>= \case
+                    Just InstanceDesc{..} -> do
+                        -- TODO: what do we do here?
+                        return ()
+                    Nothing -> do
+                        failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ (TDataType def) -> do
-        let key = (trait, dataTypeIdentity def)
-        HashTable.lookup key (eKnownInstances env) >>= \case
-            Just InstanceDesc{idTypeVar} -> do
-                -- generalize this code with TDataType above
-                idTypeVar' <- instantiate env idTypeVar
-                unify env pos idTypeVar' typeVar
-                return ()
-            Nothing -> do
-                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
+        case typeConstraint of
+            TraitConstraint trait -> do
+                let key = (trait, dataTypeIdentity def)
+                HashTable.lookup key (eKnownInstances env) >>= \case
+                    Just InstanceDesc{idTypeVar} -> do
+                        -- generalize this code with TDataType above
+                        idTypeVar' <- instantiate env idTypeVar
+                        unify env pos idTypeVar' typeVar
+                        return ()
+                    Nothing -> do
+                        failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ _ -> do
         fail "Wat? Type functions definitely don't implement constraints"
 
@@ -558,9 +564,9 @@ unify env pos av' bv' = do
             unify env pos bv av
         (_, TypeVar bref) -> do
             (TUnbound _ _ constraintsB b') <- readIORef bref
-            for_ (Set.toList constraintsB) $ \traitIdentity@(TraitIdentity moduleName name) -> do
+            for_ (Set.toList constraintsB) $ \constraint@(TraitConstraint (TraitIdentity moduleName name)) -> do
                 (_, _, desc) <- resolveTraitReference env pos $ KnownReference moduleName name
-                validateConstraint env pos av traitIdentity desc
+                validateConstraint env pos av constraint desc
             occurs pos b' av
             writeIORef bref $ TBound av
 

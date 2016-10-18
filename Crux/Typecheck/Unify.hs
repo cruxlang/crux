@@ -483,37 +483,24 @@ unifyRecord env pos av bv = do
 
 unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
+    (RFree, _) -> Right m2
+    (_, RFree) -> Right m1
     (RImmutable, RImmutable) -> Right RImmutable
     (RImmutable, RMutable) -> Left "Record field mutability does not match"
-    (RImmutable, RFree) -> Right RImmutable
     (RMutable, RMutable) -> Right RMutable
     (RMutable, RImmutable) -> Left "Record field mutability does not match"
-    (RMutable, RFree) -> Right RMutable
-    (RFree, RFree) -> Right RFree
-    (RFree, RImmutable) -> Right RImmutable
-    (RFree, RMutable) -> Right RMutable
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
-
-{-
-This function needs to exist but it has a crazy type right now.
-
-resolveTrait :: Env -> Pos -> TypeVar -> TraitIdentity -> TDataTypeIdentity -> TC TraitInstance
-resolveTrait env pos traitIdentity dataTypeIdentity = do
-    HashTable.lookup (trait, dataTypeIdentity) (eKnownInstances env) >>= \case
-        Just instanceDesc -> return instanceDesc
-        Nothing -> failTypeError pos $ NoTraitOnType 
--}
 
 validateConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC ()
 validateConstraint env pos typeVar trait traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
-    TQuant _source constraints _ -> do
+    TQuant _source constraints _tn -> do
         when (not $ Set.member trait constraints) $ do
             failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TFun _ _ -> do
-        fail "Functions do not implement traits"
+        fail "Functions do not implement traits (yet)"
     TDataType def -> do
         let key = (trait, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case
@@ -523,7 +510,8 @@ validateConstraint env pos typeVar trait traitDesc = case typeVar of
                 return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
-    TRecord _ -> do
+    TRecord ref -> do
+        RecordType recordOpen rows <- followRecordTypeVar ref
         let key = (trait, RecordIdentity)
         HashTable.lookup key (eKnownInstances env) >>= \case
             Just InstanceDesc{..} -> do

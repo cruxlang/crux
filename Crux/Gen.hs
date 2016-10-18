@@ -126,12 +126,16 @@ newTempOutput Env{..} = do
     writeIORef eCounter (value + 1)
     return value
 
+-- TODO: rename to GenDecl
 type DeclarationWriter a = WriterT [Declaration] IO a
 
 writeDeclaration :: Declaration -> DeclarationWriter ()
 writeDeclaration d = tell [d]
 
+-- TODO: rename to GenInst
 type InstructionWriter a = WriterT [Instruction] IO a
+
+-- TODO: add some kind of invariant error mechanism to Gen
 
 writeInstruction :: Instruction -> InstructionWriter ()
 writeInstruction i = tell [i]
@@ -390,12 +394,21 @@ traitDictName traitName' typeVar = do
     getDTI :: MonadIO m => TypeVar -> m TraitImplIdentity
     getDTI tv = followTypeVar tv >>= \case
         TypeVar {} ->
-            error "Unexpected traitDictName got unbound typevar"
+            fail "Unexpected traitDictName got unbound typevar"
         TDataType def ->
             return $ dataTypeIdentity def
+        TRecord ref -> do
+            RecordType recordOpen rows <- followRecordTypeVar ref
+            case recordOpen of
+                RecordFree _ _ -> do
+                    fail "Unexpected traitDictName for unbound record typevar"
+                RecordQuantified _ _ -> do
+                    fail "Unexpected traitDictName for quantified record typevar"
+                RecordClose -> do
+                    fail $ "TODO: compute dictname from rows: " <> show (fmap trName rows)
         tv2 -> do
             s <- renderTypeVarIO tv2
-            error $ "Unexpected traitDictName " ++ s
+            fail $ "Unexpected traitDictName " ++ s
 
 generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag TypeVar -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = case decl of
@@ -444,15 +457,9 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
 
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
             AST.ImplTypeRecord AST.ImplRecord{..} -> do
-                -- TODO: this needs to be different from the path above.  Or merge the code.
-                instanceName <- traitDictName traitName typeVar
-                decls' <- for decls $ \(name, expr) -> do
-                    -- TODO: find some better way to guarantee that we never
-                    -- define an instance value to be be flow control
-                    (Just value, instructions) <- subBlock' env expr
-                    return (name, (value, instructions))
-
-                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') []
+                -- We don't generate an impl here for records -- they are generated
+                -- implicitly during use when typechecking
+                return ()
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

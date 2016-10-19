@@ -241,18 +241,6 @@ test_polymorphic_type_annotations_are_universally_quantified2 = do
         ]
     assertUnificationError (makePos 3 11) "String" "Number" rv
 
-test_polymorphic_type_annotations_are_universally_quantified4 = do
-    rv <- run $ T.unlines
-        [ "let f<a>: fun(a) -> Number = fun (i) { i }"
-        ]
-    assertUnificationError (makePos 1 1) "Number" "TQuant Instantiation fromList [] 2" rv
-
-test_type_annotations_on_function_decls2 = do
-    rv <- run $ T.unlines
-        [ "fun id_int<a>(x: a): Number { x }"
-        ]
-    assertUnificationError (makePos 1 1) "Number" "TQuant Instantiation fromList [] 2" rv
-
 test_escaped_strings = do
     result1 <- run $ T.unlines
         [ [r|let _ = print("\0\a\b\f\n\r\t\v\\\'\"\?")|]

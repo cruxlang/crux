@@ -16,7 +16,8 @@ module Crux.TypeVar
     , TypeSource(..)
     , TypeNumber
     , TypeVar(..)
-    , TypeConstraint(..)
+    , ConstraintSet(..)
+    , emptyConstraintSet
     , TypeState(..)
     , TypeLevel(..)
     , newTypeVar
@@ -66,6 +67,9 @@ instance Hashable TraitImplIdentity
 dataTypeIdentity :: TDataTypeDef a -> TraitImplIdentity
 dataTypeIdentity ut = DataIdentity (tuName ut) (tuModuleName ut)
 
+-- Concrete, closed fields must be Mutable | Immutable
+-- Quantified type variables can be RQuantified
+-- Free type variables can be RFree
 data FieldMutability
     = RMutable
     | RImmutable
@@ -150,20 +154,27 @@ data TypeSource
     | Instantiation
     deriving (Eq, Show)
 
---data ConstraintSet = ConstraintSet 
+data RecordConstraint = RecordConstraint
+    { rcFields :: [RecordField TypeVar]
+    , rcFieldType :: Maybe TypeVar
+    }
+    deriving (Eq, Show)
 
-data TypeConstraint = TraitConstraint TraitIdentity
-    deriving (Eq, Ord, Show)
+data ConstraintSet = ConstraintSet (Maybe RecordConstraint) (Set TraitIdentity)
+    deriving (Eq, Show)
+
+emptyConstraintSet :: ConstraintSet
+emptyConstraintSet = ConstraintSet Nothing mempty
 
 data TypeState
-    = TUnbound Strength TypeLevel (Set TypeConstraint) TypeNumber
+    = TUnbound Strength TypeLevel ConstraintSet TypeNumber
     | TBound TypeVar
     deriving (Eq, Show)
 
 -- this should be called Type probably, but tons of code calls it TypeVar
 data TypeVar
     = TypeVar (IORef TypeState)
-    | TQuant TypeSource (Set TypeConstraint) TypeNumber
+    | TQuant TypeSource ConstraintSet TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
     | TRecord (IORef RecordTypeVar)
@@ -226,14 +237,7 @@ getNextVarName state = do
 showRecordTypeVarIO' :: MonadIO m => TVRState -> IORef RecordTypeVar -> m String
 showRecordTypeVarIO' state ref = readIORef ref >>= \case
     RRecord (RecordType open' rows) -> do
-        rows' <- for rows $ \RecordField{..} -> do
-            typeName <- showTypeVarIO' state trTyVar
-            let mutPrefix = case trMut of
-                    RMutable -> "mutable "
-                    RImmutable -> ""
-                    RFree -> "mutable? "
-                    RQuantified -> "mutable? "
-            return $ mutPrefix <> (Text.unpack trName) <> ": " <> typeName
+        rows' <- for rows $ showRecordField state
         dotdotdot <- case open' of
             RecordFree i constraint -> do
                 constr <- for constraint $ \tv -> do
@@ -249,7 +253,35 @@ showRecordTypeVarIO' state ref = readIORef ref >>= \case
         return $ "{" <> (intercalate ", " (rows' <> dotdotdot)) <> "}"
     RBound ref' -> do
         showRecordTypeVarIO' state ref'
-        
+
+showRecordField :: MonadIO m => TVRState -> RecordField TypeVar -> m String
+showRecordField state RecordField{..} = do
+    typeName <- showTypeVarIO' state trTyVar
+    let mutPrefix = case trMut of
+            RMutable -> "mutable "
+            RImmutable -> ""
+            RFree -> "mutable? "
+            RQuantified -> "mutable? "
+    return $ mutPrefix <> (Text.unpack trName) <> ": " <> typeName
+
+showRecordConstraint :: MonadIO m => TVRState -> RecordConstraint -> m String
+showRecordConstraint state RecordConstraint{..} = do
+    fields <- for rcFields $ showRecordField state
+    elts <- case rcFieldType of
+        Nothing -> return fields
+        Just tv -> do
+            first <- showTypeVarIO' state tv
+            return $ fields ++ ["...: " ++ first]
+    return $ "{" <> intercalate ", " elts <> "}"
+
+showConstraintSet :: MonadIO m => TVRState -> ConstraintSet -> m String
+showConstraintSet state (ConstraintSet recordConstraint traitSet) = do
+    x <- for recordConstraint $ showRecordConstraint state
+    let xs = fmap (\(TraitIdentity _m n) -> Text.unpack n) $ Set.toList traitSet
+    return $ intercalate "+" $ case x of
+        Nothing -> xs
+        Just one -> one : xs 
+
 showTypeVarIO' :: MonadIO m => TVRState -> TypeVar -> m String
 showTypeVarIO' state = \case
     TypeVar ref -> readIORef ref >>= \case
@@ -263,8 +295,8 @@ showTypeVarIO' state = \case
                     name <- getNextVarName state
                     writeIORef (tvrNames state) $ Map.insert i name names
                     return name
-            let constraintsString = intercalate "+" (fmap (\(TraitConstraint (TraitIdentity _m n)) -> Text.unpack n) $ Set.toList constraints)
-            return $ name' <> if constraints == mempty then "" else (": " <> constraintsString)
+            constraintsString <- showConstraintSet state constraints
+            return $ name' <> if constraints == emptyConstraintSet then "" else (": " <> constraintsString)
         TBound tv -> do
             showTypeVarIO' state tv
     TQuant typeSource constraints i -> do

@@ -27,9 +27,9 @@ freshTypeIndex Env{eNextTypeIndex} = do
     readIORef eNextTypeIndex
 
 freshType :: MonadIO m => Env -> m TypeVar
-freshType env = freshTypeConstrained env mempty
+freshType env = freshTypeConstrained env emptyConstraintSet
 
-freshTypeConstrained :: MonadIO m => Env -> Set TypeConstraint -> m TypeVar
+freshTypeConstrained :: MonadIO m => Env -> ConstraintSet -> m TypeVar
 freshTypeConstrained env constraints = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Strong (eLevel env) constraints index
@@ -37,7 +37,7 @@ freshTypeConstrained env constraints = do
 freshWeakQVar :: MonadIO m => Env -> m TypeVar
 freshWeakQVar env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound Weak (eLevel env) mempty index
+    newTypeVar $ TUnbound Weak (eLevel env) emptyConstraintSet index
 
 freshRowVariable :: MonadIO m => Env -> m RowVariable
 freshRowVariable env =
@@ -492,51 +492,60 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-validateConstraint :: Env -> Pos -> TypeVar -> TypeConstraint -> TraitDesc -> TC ()
-validateConstraint env pos typeVar typeConstraint traitDesc = case typeVar of
+validateTraitConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC ()
+validateTraitConstraint env pos typeVar traitIdentity traitDesc = case typeVar of
     TypeVar _ -> do
         fail "Internal Error: we already handled this case"
-    TQuant _source constraints _tn -> do
-        when (not $ Set.member typeConstraint constraints) $ do
+    TQuant _source (ConstraintSet _record traits) _tn -> do
+        when (not $ Set.member traitIdentity traits) $ do
             failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TFun _ _ -> do
         fail "Functions do not implement traits (yet)"
     TDataType def -> do
-        case typeConstraint of
-            TraitConstraint trait -> do
-                let key = (trait, dataTypeIdentity def)
-                HashTable.lookup key (eKnownInstances env) >>= \case
-                    Just InstanceDesc{idTypeVar} -> do
-                        idTypeVar' <- instantiate env idTypeVar
-                        unify env pos idTypeVar' typeVar
-                        return ()
-                    Nothing -> do
-                        failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
+        let key = (traitIdentity, dataTypeIdentity def)
+        HashTable.lookup key (eKnownInstances env) >>= \case
+            Just InstanceDesc{idTypeVar} -> do
+                idTypeVar' <- instantiate env idTypeVar
+                unify env pos idTypeVar' typeVar
+                return ()
+            Nothing -> do
+                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TRecord ref -> do
-        case typeConstraint of
-            TraitConstraint trait -> do
-                RecordType recordOpen rows <- followRecordTypeVar ref
-                let key = (trait, RecordIdentity)
-                HashTable.lookup key (eKnownInstances env) >>= \case
-                    Just InstanceDesc{..} -> do
-                        -- TODO: what do we do here?
-                        return ()
-                    Nothing -> do
-                        failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
+        RecordType recordOpen rows <- followRecordTypeVar ref
+        let key = (traitIdentity, RecordIdentity)
+        HashTable.lookup key (eKnownInstances env) >>= \case
+            Just InstanceDesc{..} -> do
+                -- TODO: what do we do here?
+                -- start unifying types with the transformer thing?
+                return ()
+            Nothing -> do
+                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ (TDataType def) -> do
-        case typeConstraint of
-            TraitConstraint trait -> do
-                let key = (trait, dataTypeIdentity def)
-                HashTable.lookup key (eKnownInstances env) >>= \case
-                    Just InstanceDesc{idTypeVar} -> do
-                        -- generalize this code with TDataType above
-                        idTypeVar' <- instantiate env idTypeVar
-                        unify env pos idTypeVar' typeVar
-                        return ()
-                    Nothing -> do
-                        failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
+        let key = (traitIdentity, dataTypeIdentity def)
+        HashTable.lookup key (eKnownInstances env) >>= \case
+            Just InstanceDesc{idTypeVar} -> do
+                -- generalize this code with TDataType above
+                idTypeVar' <- instantiate env idTypeVar
+                unify env pos idTypeVar' typeVar
+                return ()
+            Nothing -> do
+                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
     TTypeFun _ _ -> do
         fail "Wat? Type functions definitely don't implement constraints"
+
+-- TODO: how do we merge strength?
+mergeStrength :: Strength -> Strength -> Strength
+mergeStrength _left right = right
+
+-- TODO: how do we merge level?
+mergeLevel :: TypeLevel -> TypeLevel -> TypeLevel
+mergeLevel _left right = right
+
+mergeConstraints :: ConstraintSet -> ConstraintSet -> TC ConstraintSet
+mergeConstraints (ConstraintSet recordA traitsA) (ConstraintSet recordB traitsB) = do
+    -- TODO: implement merging record constraints
+    let _ = recordA
+    return $ ConstraintSet recordB $ traitsA <> traitsB
 
 unify :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
 unify env pos av' bv' = do
@@ -547,26 +556,27 @@ unify env pos av' bv' = do
     else case (av, bv) of
         -- thanks to followTypeVar, the only TypeVar case here is TUnbound
         (TypeVar aref, TypeVar bref) -> do
-            (TUnbound _ _ constraintsA a') <- readIORef aref
+            (TUnbound strengthA levelA constraintsA a') <- readIORef aref
             (TUnbound strengthB levelB constraintsB b') <- readIORef bref
 
             -- TODO: merge the constraints
             when ((constraintsA, a') /= (constraintsB, b')) $ do
                 occurs pos a' bv
                 writeIORef aref $ TBound bv
-                -- TODO: how do we merge strength?
-                -- TODO: how do we merge level?
+                let strength = mergeStrength strengthA strengthB
+                let level = mergeLevel levelA levelB
+                constraints <- mergeConstraints constraintsA constraintsB
                 -- TODO: instead of mutating both, maybe introduce a new type var and bind both?
-                writeIORef bref $ TUnbound strengthB levelB (constraintsA <> constraintsB) b'
+                writeIORef bref $ TUnbound strength level constraints b'
         (TypeVar _, _) -> do
             -- flip around so we only have to handle one case
             -- TODO: fix the error messages
             unify env pos bv av
         (_, TypeVar bref) -> do
-            (TUnbound _ _ constraintsB b') <- readIORef bref
-            for_ (Set.toList constraintsB) $ \constraint@(TraitConstraint (TraitIdentity moduleName name)) -> do
+            TUnbound _ _ (ConstraintSet _recordB traitsB) b' <- readIORef bref
+            for_ (Set.toList traitsB) $ \traitIdentity@(TraitIdentity moduleName name) -> do
                 (_, _, desc) <- resolveTraitReference env pos $ KnownReference moduleName name
-                validateConstraint env pos av constraint desc
+                validateTraitConstraint env pos av traitIdentity desc
             occurs pos b' av
             writeIORef bref $ TBound av
 

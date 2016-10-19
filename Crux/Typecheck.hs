@@ -172,26 +172,22 @@ accumulateTraitReferences' seen out tv = case tv of
         for_ tuParameters $
             accumulateTraitReferences' seen out
     TRecord ref -> do
-        followRecord ref
+        RecordType _open rows <- followRecordTypeVar ref
+        for_ rows $ \RecordField{..} ->
+            accumulateTraitReferences' seen out trTyVar
     TTypeFun _ _ -> do
         fail "ICE: what does this mean"
 
   where
-    followRecord ref = readIORef ref >>= \case
-        RBound ref2 ->
-            followRecord ref2
-        RRecord (RecordType _open rows) ->
-            for_ rows $ \RecordField{..} ->
-                accumulateTraitReferences' seen out trTyVar
-    append constraints typeVar typeNumber = do
+    append :: MonadIO m => ConstraintSet -> TypeVar -> TypeNumber -> m ()
+    append (ConstraintSet _record traits) typeVar typeNumber = do
         seen' <- readIORef seen
         when (not $ Set.member typeNumber seen') $ do
             modifyIORef seen (Set.insert typeNumber)
 
             -- TODO: we need to sort this list into a canonical order
-            for_ (Set.toList constraints) $ \case
-                TraitConstraint traitIdentity -> do
-                    modifyIORef out ((typeVar, typeNumber, traitIdentity):)
+            for_ (Set.toList traits) $ \traitIdentity -> do
+                modifyIORef out ((typeVar, typeNumber, traitIdentity):)
 
 accumulateTraitReferences :: MonadIO m => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
 accumulateTraitReferences typeVars = do

@@ -191,7 +191,7 @@ resolveTupleType env pos elements = do
 data RecordSubst
     = SFree RowVariable
     | SQuant RowVariable
-    | SRows [TypeRow TypeVar]
+    | SRows [RecordField TypeVar]
 
 instantiateDataTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TDataTypeDef TypeVar -> m (TDataTypeDef TypeVar)
 instantiateDataTypeDef' subst recordSubst env def = do
@@ -208,16 +208,16 @@ instantiateRecord
     => IORef (HashMap Int TypeVar)
     -> IORef (HashMap RowVariable TypeVar)
     -> Env
-    -> [TypeRow TypeVar]
+    -> [RecordField TypeVar]
     -> RecordOpen
     -> m TypeVar
 instantiateRecord subst recordSubst env rows open = do
-    rows' <- for rows $ \TypeRow{..} -> do
+    rows' <- for rows $ \RecordField{..} -> do
         rowTy' <- instantiate' subst recordSubst env trTyVar
         let mut' = case trMut of
                 RQuantified -> RFree
                 _ -> trMut
-        return TypeRow{trName, trMut=mut', trTyVar=rowTy'}
+        return RecordField{trName, trMut=mut', trTyVar=rowTy'}
 
     open' <- case open of
         RecordQuantified i constraint -> do
@@ -296,7 +296,7 @@ quantify ty = case ty of
     TDataType def ->
         for_ (tuParameters def) quantify
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType open rows) -> do
-        for_ rows $ \TypeRow{..} -> do
+        for_ rows $ \RecordField{..} -> do
             quantify trTyVar
         case open of
             RecordFree ti constraint -> do
@@ -334,7 +334,7 @@ occurs pos tvn = \case
     TDataType def -> do
         for_ (tuParameters def) $ occurs pos tvn
     TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
-        for_ rows $ \TypeRow{..} ->
+        for_ rows $ \RecordField{..} ->
             occurs pos tvn trTyVar
     TQuant {} ->
         return ()
@@ -346,15 +346,15 @@ unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
 unificationError pos message a b = do
     failTypeError pos $ UnificationError message a b
 
-lookupTypeRow :: Name -> [TypeRow t] -> Maybe (RowMutability, t)
-lookupTypeRow name = \case
+lookupRecordField :: Name -> [RecordField t] -> Maybe (FieldMutability, t)
+lookupRecordField name = \case
     [] -> Nothing
-    (TypeRow{..}:rest)
+    (RecordField{..}:rest)
         | trName == name -> Just (trMut, trTyVar)
-        | otherwise -> lookupTypeRow name rest
+        | otherwise -> lookupRecordField name rest
 
-unifyFieldConstraint :: Env -> Pos -> Maybe TypeVar -> TypeRow TypeVar -> TC (TypeRow TypeVar)
-unifyFieldConstraint env pos constraint tr@TypeRow{..} = do
+unifyFieldConstraint :: Env -> Pos -> Maybe TypeVar -> RecordField TypeVar -> TC (RecordField TypeVar)
+unifyFieldConstraint env pos constraint tr@RecordField{..} = do
     case constraint of
         Nothing -> return tr
         Just ctv -> do
@@ -390,7 +390,7 @@ unifyRecord env pos av bv = do
             Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
             Right mut -> do
                 unify env pos (trTyVar lhs) (trTyVar rhs)
-                return TypeRow
+                return RecordField
                     { trName = trName lhs
                     , trMut = mut
                     , trTyVar = trTyVar lhs
@@ -481,7 +481,7 @@ unifyRecord env pos av bv = do
     --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
     --     putStrLn ""
 
-unifyRecordMutability :: RowMutability -> RowMutability -> Either Prelude.String RowMutability
+unifyRecordMutability :: FieldMutability -> FieldMutability -> Either Prelude.String FieldMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
     (RFree, _) -> Right m2
     (_, RFree) -> Right m1

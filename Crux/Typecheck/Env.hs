@@ -99,7 +99,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
                     Just Mutable -> RMutable
                     Just Immutable -> RImmutable
             trTyVar <- go rowTypeIdent
-            return TypeRow{..}
+            return RecordField{..}
         recordOpen <- case state of
             RecordIdentOpen constraint -> do
                 rowVariable <- freshRowVariable env

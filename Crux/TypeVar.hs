@@ -4,8 +4,8 @@ module Crux.TypeVar
     ( RecordOpen(..)
     , RecordType(..)
     , RecordTypeVar(..)
-    , TypeRow(..)
-    , RowMutability(..)
+    , RecordField(..)
+    , FieldMutability(..)
     , RowVariable(..)
     , TVariant(..)
     , TraitImplIdentity(..)
@@ -66,16 +66,16 @@ instance Hashable TraitImplIdentity
 dataTypeIdentity :: TDataTypeDef a -> TraitImplIdentity
 dataTypeIdentity ut = DataIdentity (tuName ut) (tuModuleName ut)
 
-data RowMutability
+data FieldMutability
     = RMutable
     | RImmutable
     | RQuantified
     | RFree
     deriving (Show, Eq)
 
-data TypeRow typevar = TypeRow
+data RecordField typevar = RecordField
     { trName  :: Name
-    , trMut   :: RowMutability
+    , trMut   :: FieldMutability
     , trTyVar :: typevar
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -123,15 +123,7 @@ data RecordTypeVar
     | RRecord (RecordType TypeVar)
     deriving (Eq)
 
-followRecordTypeVar' :: MonadIO m => IORef RecordTypeVar -> m (IORef RecordTypeVar, RecordType TypeVar)
-followRecordTypeVar' ref = readIORef ref >>= \case
-    RBound ref' -> followRecordTypeVar' ref'
-    RRecord rt -> return (ref, rt)
-
-followRecordTypeVar :: MonadIO m => IORef RecordTypeVar -> m (RecordType TypeVar)
-followRecordTypeVar ref = snd <$> followRecordTypeVar' ref
-
-data RecordType typeVar = RecordType RecordOpen [TypeRow typeVar]
+data RecordType typeVar = RecordType RecordOpen [RecordField typeVar]
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TraitDesc = TraitDesc
@@ -157,6 +149,8 @@ data TypeSource
     -- TODO: put a source on Unbound type variables too
     | Instantiation
     deriving (Eq, Show)
+
+--data ConstraintSet = ConstraintSet 
 
 data TypeConstraint = TraitConstraint TraitIdentity
     deriving (Eq, Ord, Show)
@@ -232,7 +226,7 @@ getNextVarName state = do
 showRecordTypeVarIO' :: MonadIO m => TVRState -> IORef RecordTypeVar -> m String
 showRecordTypeVarIO' state ref = readIORef ref >>= \case
     RRecord (RecordType open' rows) -> do
-        rows' <- for rows $ \TypeRow{..} -> do
+        rows' <- for rows $ \RecordField{..} -> do
             typeName <- showTypeVarIO' state trTyVar
             let mutPrefix = case trMut of
                     RMutable -> "mutable "
@@ -308,3 +302,11 @@ renderTypeVarIO tv = do
             , tvrNames = names
             }
     showTypeVarIO' state tv
+
+followRecordTypeVar' :: MonadIO m => IORef RecordTypeVar -> m (IORef RecordTypeVar, RecordType TypeVar)
+followRecordTypeVar' ref = readIORef ref >>= \case
+    RBound ref' -> followRecordTypeVar' ref'
+    RRecord rt -> return (ref, rt)
+
+followRecordTypeVar :: MonadIO m => IORef RecordTypeVar -> m (RecordType TypeVar)
+followRecordTypeVar ref = snd <$> followRecordTypeVar' ref

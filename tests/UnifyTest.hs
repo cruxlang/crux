@@ -22,7 +22,7 @@ numTy = TDataType $ TDataTypeDef
 test_function_taking_record = do
     env <- newEnv "unifytest" HashMap.empty Nothing
 
-    rect <- newIORef $ RRecord $ RecordType (RecordQuantified 1 Nothing) [TypeRow "x" RImmutable numTy]
+    rect <- newIORef $ RRecord $ RecordType (RecordQuantified 1 Nothing) [RecordField "x" RImmutable numTy]
     let argType = TRecord $ rect
     bref <- newIORef $ TBound argType
     let retType = TypeVar bref
@@ -32,7 +32,7 @@ test_function_taking_record = do
     argTypei <- followTypeVar funTypei >>= \(TFun [a] _) ->
         return a
 
-    rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [TypeRow "x" RImmutable numTy]
+    rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [RecordField "x" RImmutable numTy]
     let recordLiteralType = TRecord rect2
     (Right ()) <- bridgeTC $ unify env dummyPos argTypei recordLiteralType
 
@@ -40,8 +40,8 @@ test_function_taking_record = do
     assertEqual "({x: Number}) => {x: Number}" s
 
 test_free_records_unify_by_merging_fields = do
-    let rowA = TypeRow { trName = "a", trMut = RImmutable, trTyVar = numTy }
-    let rowB = TypeRow { trName = "b", trMut = RImmutable, trTyVar = numTy }
+    let rowA = RecordField { trName = "a", trMut = RImmutable, trTyVar = numTy }
+    let rowB = RecordField { trName = "b", trMut = RImmutable, trTyVar = numTy }
 
     env <- newEnv "unifytest" HashMap.empty Nothing
     lhsObject <- newIORef $ RRecord $ RecordType (RecordFree 0 Nothing) [rowA]

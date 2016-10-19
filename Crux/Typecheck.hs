@@ -76,7 +76,7 @@ checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
     (ELookup pos _ _, ELookup lookupType lhs propName) -> do
         let lhsType = edata lhs
         recordVar <- freshRowVariable env
-        let row = TypeRow
+        let row = RecordField
                 { trName = propName
                 , trMut = RMutable
                 , trTyVar = lookupType
@@ -144,7 +144,7 @@ weaken level e = do
 
     weakenRecord rtv = readIORef rtv >>= \case
         RRecord (RecordType open rows) -> do
-            rows' <- for rows $ \tr@(TypeRow{..}) -> do
+            rows' <- for rows $ \tr@(RecordField{..}) -> do
                 ty' <- weaken' trTyVar
                 return tr { trTyVar = ty' }
             writeIORef rtv $ RRecord $ RecordType open rows'
@@ -181,7 +181,7 @@ accumulateTraitReferences' seen out tv = case tv of
         RBound ref2 ->
             followRecord ref2
         RRecord (RecordType _open rows) ->
-            for_ rows $ \TypeRow{..} ->
+            for_ rows $ \RecordField{..} ->
                 accumulateTraitReferences' seen out trTyVar
     append constraints typeVar typeNumber = do
         seen' <- readIORef seen
@@ -296,7 +296,7 @@ check' expectedType env = \case
                 lhs' <- check env lhs
                 ty <- freshType env
                 row <- freshRowVariable env
-                rec <- newIORef $ RRecord $ RecordType (RecordFree row Nothing) [TypeRow{trName=propName, trMut=RFree, trTyVar=ty}]
+                rec <- newIORef $ RRecord $ RecordType (RecordFree row Nothing) [RecordField{trName=propName, trMut=RFree, trTyVar=ty}]
                 unify env pos (edata lhs') $ TRecord rec
                 return $ ELookup ty lhs' propName
         case lhs of
@@ -379,7 +379,7 @@ check' expectedType env = \case
 
         let xlateMut Immutable = RImmutable
             xlateMut Mutable = RMutable
-        let fieldTypes = map (\(name, (mut, ex)) -> TypeRow{trName=name, trMut=xlateMut mut, trTyVar=edata ex}) fields'
+        let fieldTypes = map (\(name, (mut, ex)) -> RecordField{trName=name, trMut=xlateMut mut, trTyVar=edata ex}) fields'
 
         rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
         let recordTy = TRecord rec

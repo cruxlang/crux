@@ -74,15 +74,19 @@ checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
             (_, Immutable, _) -> do
                 resumableTypeError pos $ ImmutableAssignment ImmutableBinding $ getUnresolvedReferenceLeaf name
     (ELookup pos _ _, ELookup lookupType lhs propName) -> do
-        let lhsType = edata lhs
-        recordVar <- freshRowVariable env
-        let row = RecordField
+        let field = RecordField
                 { trName = propName
                 , trMut = RMutable
                 , trTyVar = lookupType
                 }
-        rec <- newIORef $ RRecord $ RecordType (RecordFree recordVar Nothing) [row]
-        unify env pos lhsType $ TRecord rec
+        let recordConstraint = RecordConstraint
+                { rcFields = [field]
+                , rcFieldType = Nothing
+                }
+        let constraintSet = ConstraintSet (Just recordConstraint) mempty
+        typeVar <- freshTypeConstrained env constraintSet
+
+        unify env pos (edata lhs) typeVar
     _ -> fail "Unsupported assignment"
 
 -- TODO: rename to checkNew or some other function that conveys "typecheck, but
@@ -117,9 +121,11 @@ weaken level e = do
             readIORef ref >>= \case
                 TUnbound Strong lvl constraints tn
                     | level <= lvl -> do
+                        -- TODO: weaken record typevars
                         writeIORef ref $ TUnbound Weak lvl constraints tn
                         return t
                 TUnbound {} ->
+                    -- TOD: weaken record typevars
                     return t
 
                 TBound tv -> do
@@ -135,22 +141,18 @@ weaken level e = do
         TDataType typeDef -> do
             tyvars' <- for (tuParameters typeDef) weaken'
             return $ TDataType typeDef{ tuParameters=tyvars' }
-        TRecord rtv -> do
-            weakenRecord rtv
+        TRecord fields -> do
+            weakenRecord fields
             return t
         TTypeFun a b -> do
             b' <- weaken' b
             return $ TTypeFun a b'
 
-    weakenRecord rtv = readIORef rtv >>= \case
-        RRecord (RecordType open rows) -> do
-            rows' <- for rows $ \tr@(RecordField{..}) -> do
-                ty' <- weaken' trTyVar
-                return tr { trTyVar = ty' }
-            writeIORef rtv $ RRecord $ RecordType open rows'
-
-        RBound rtv' ->
-            weakenRecord rtv'
+    weakenRecord fields = do
+        fields' <- for fields $ \field@RecordField{..} -> do
+            ty' <- weaken' trTyVar
+            return field { trTyVar = ty' }
+        return $ TRecord fields'
 
 accumulateTraitReferences' :: MonadIO m
     => IORef (Set TypeNumber)
@@ -171,8 +173,7 @@ accumulateTraitReferences' seen out tv = case tv of
     TDataType TDataTypeDef{..} -> do
         for_ tuParameters $
             accumulateTraitReferences' seen out
-    TRecord ref -> do
-        RecordType _open rows <- followRecordTypeVar ref
+    TRecord rows -> do
         for_ rows $ \RecordField{..} ->
             accumulateTraitReferences' seen out trTyVar
     TTypeFun _ _ -> do

@@ -1,12 +1,8 @@
 {-# LANGUAGE DeriveFoldable, DeriveFunctor, DeriveTraversable, DeriveGeneric #-}
 
 module Crux.TypeVar
-    ( RecordOpen(..)
-    , RecordType(..)
-    , RecordTypeVar(..)
-    , RecordField(..)
+    ( RecordField(..)
     , FieldMutability(..)
-    , RowVariable(..)
     , TVariant(..)
     , TraitImplIdentity(..)
     , TDataTypeDef(..)
@@ -18,11 +14,10 @@ module Crux.TypeVar
     , TypeVar(..)
     , ConstraintSet(..)
     , emptyConstraintSet
+    , RecordConstraint(..)
     , TypeState(..)
     , TypeLevel(..)
     , newTypeVar
-    , followRecordTypeVar'
-    , followRecordTypeVar
     , followTypeVar
     , renderTypeVarIO
     , dataTypeIdentity
@@ -92,23 +87,6 @@ We instantiate the argument type {x:Number, y:Number, ...} and unify with {x:Num
 This yields {x:Number, y:Number, z:Number}
 -}
 
-newtype RowVariable = RowVariable { unRowVariable :: Int }
-    deriving (Eq)
-
-instance Hashable RowVariable where
-    hashWithSalt salt (RowVariable i) = hashWithSalt salt i
-
-instance Show RowVariable where
-    show (RowVariable i) = show i
-
-instance Num RowVariable where
-    (+) = error "Cannot add RowVariable"
-    (*) = error "Cannot multiply RowVariable"
-    (-) = error "Cannot subtract RowVariable"
-    abs = error "Cannot abs RowVariable"
-    signum = error "Cannot signum RowVariable"
-    fromInteger = RowVariable . fromInteger
-
 -- An open record can be unified with another record type that has extra properties.
 -- F u F == Free record with union of properties
 -- F u Q == Verify that LHS fields are all present in RHS.  Unifies to RHS.
@@ -116,19 +94,6 @@ instance Num RowVariable where
 -- C u C == Fields must intersect exactly.  Types unify.  Closed record.
 -- F u C == Fields of free record must be present in the closed record and they must unify.  Closed record.
 -- Q u C == I think this always fails to unify.
-data RecordOpen
-    = RecordFree RowVariable (Maybe TypeVar)
-    | RecordQuantified RowVariable (Maybe TypeVar)
-    | RecordClose
-    deriving (Show, Eq)
-
-data RecordTypeVar
-    = RBound (IORef RecordTypeVar)
-    | RRecord (RecordType TypeVar)
-    deriving (Eq)
-
-data RecordType typeVar = RecordType RecordOpen [RecordField typeVar]
-    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data TraitDesc = TraitDesc
     { tdName :: Name
@@ -177,7 +142,7 @@ data TypeVar
     | TQuant TypeSource ConstraintSet TypeNumber
     | TFun [TypeVar] TypeVar
     | TDataType (TDataTypeDef TypeVar)
-    | TRecord (IORef RecordTypeVar)
+    | TRecord [RecordField TypeVar]
     | TTypeFun [TypeVar] TypeVar
     deriving (Eq)
 
@@ -191,7 +156,7 @@ instance Show TypeVar where
     show (TQuant source constraints tn) = "(TQuant " ++ show source ++ " " ++ show constraints ++ " " ++ show tn ++ ")"
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
     show (TDataType def) = "(TDataType " ++ show def ++ ")"
-    show (TRecord _) = "(TRecord ???)" -- TODO
+    show (TRecord rows) = "(TRecord " ++ show rows ++ ")"
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
 newTypeVar :: MonadIO m => TypeState -> m TypeVar
@@ -234,25 +199,10 @@ getNextVarName state = do
     writeIORef (tvrCount state) next
     return $ "_t" <> show next
 
-showRecordTypeVarIO' :: MonadIO m => TVRState -> IORef RecordTypeVar -> m String
-showRecordTypeVarIO' state ref = readIORef ref >>= \case
-    RRecord (RecordType open' rows) -> do
-        rows' <- for rows $ showRecordField state
-        dotdotdot <- case open' of
-            RecordFree i constraint -> do
-                constr <- for constraint $ \tv -> do
-                    tv' <- showTypeVarIO' state tv
-                    return $ ": " ++ tv'
-                return ["..._" ++ show i ++ constr ?? ""]
-            RecordQuantified i constraint -> do
-                constr <- for constraint $ \tv -> do
-                    tv' <- showTypeVarIO' state tv
-                    return $ ": " ++ tv'
-                return ["...t" ++ show i ++ constr ?? ""]
-            RecordClose -> return []
-        return $ "{" <> (intercalate ", " (rows' <> dotdotdot)) <> "}"
-    RBound ref' -> do
-        showRecordTypeVarIO' state ref'
+showRecordFieldsIO' :: MonadIO m => TVRState -> [RecordField TypeVar] -> m String
+showRecordFieldsIO' state fields = do
+    fields' <- for fields $ showRecordField state
+    return $ "{" <> intercalate ", " fields' <> "}"
 
 showRecordField :: MonadIO m => TVRState -> RecordField TypeVar -> m String
 showRecordField state RecordField{..} = do
@@ -316,8 +266,8 @@ showTypeVarIO' state = \case
             ("tuple", "Tuple7") -> "(" <> intercalate ", " tvs <> ")"
             ("tuple", "Tuple8") -> "(" <> intercalate ", " tvs <> ")"
             _ -> (Text.unpack $ tuName def) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
-    TRecord rtv -> do
-        showRecordTypeVarIO' state rtv
+    TRecord fields -> do
+        showRecordFieldsIO' state fields
     TTypeFun args ret -> do
         args' <- for args $ showTypeVarIO' state
         rs <- showTypeVarIO' state ret
@@ -334,11 +284,3 @@ renderTypeVarIO tv = do
             , tvrNames = names
             }
     showTypeVarIO' state tv
-
-followRecordTypeVar' :: MonadIO m => IORef RecordTypeVar -> m (IORef RecordTypeVar, RecordType TypeVar)
-followRecordTypeVar' ref = readIORef ref >>= \case
-    RBound ref' -> followRecordTypeVar' ref'
-    RRecord rt -> return (ref, rt)
-
-followRecordTypeVar :: MonadIO m => IORef RecordTypeVar -> m (RecordType TypeVar)
-followRecordTypeVar ref = snd <$> followRecordTypeVar' ref

@@ -39,10 +39,6 @@ freshWeakQVar env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Weak (eLevel env) emptyConstraintSet index
 
-freshRowVariable :: MonadIO m => Env -> m RowVariable
-freshRowVariable env =
-    RowVariable <$> freshTypeIndex env
-
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> Pos -> ModuleName -> Name -> TC a
 findExportByName getExports env pos moduleName valueName = do
     modul <- case HashMap.lookup moduleName (eLoadedModules env) of
@@ -188,27 +184,39 @@ resolveTupleType env pos elements = do
     tupleType <- resolveTypeReference env pos tupleReference
     applyTypeFunction env pos tupleReference DisallowTypeFunctions tupleType elements
 
-instantiateDataTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TDataTypeDef TypeVar -> m (TDataTypeDef TypeVar)
-instantiateDataTypeDef' subst recordSubst env def = do
-    for def $ instantiate' subst recordSubst env
+instantiateDataTypeDef' ::
+    MonadIO m =>
+    IORef (HashMap Int TypeVar) ->
+    Env ->
+    TDataTypeDef TypeVar ->
+    m (TDataTypeDef TypeVar)
+instantiateDataTypeDef' subst env def = do
+    for def $ instantiate' subst env
 
 instantiateDataTypeDef :: MonadIO m => Env -> TDataTypeDef TypeVar -> m (TDataTypeDef TypeVar)
 instantiateDataTypeDef env def = do
     subst <- HashTable.new
-    recordSubst <- HashTable.new
-    instantiateDataTypeDef' subst recordSubst env def
+    instantiateDataTypeDef' subst env def
 
+instantiateField :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> RecordField TypeVar -> m (RecordField TypeVar)
+instantiateField subst env RecordField{..} = do
+    trTyVar' <- instantiate' subst env trTyVar
+    let mut' = case trMut of
+            RQuantified -> RFree
+            _ -> trMut
+    return RecordField{trName, trMut=mut', trTyVar=trTyVar'}
+
+{-
 instantiateRecord
     :: MonadIO m
     => IORef (HashMap Int TypeVar)
-    -> IORef (HashMap RowVariable TypeVar)
     -> Env
     -> [RecordField TypeVar]
     -> RecordOpen
     -> m TypeVar
-instantiateRecord subst recordSubst env rows open = do
+instantiateRecord subst env rows open = do
     rows' <- for rows $ \RecordField{..} -> do
-        rowTy' <- instantiate' subst recordSubst env trTyVar
+        rowTy' <- instantiate' subst env trTyVar
         let mut' = case trMut of
                 RQuantified -> RFree
                 _ -> trMut
@@ -225,52 +233,43 @@ instantiateRecord subst recordSubst env rows open = do
 
     objectType <- newIORef $ RRecord $ RecordType open' rows'
     return $ TRecord objectType
+-}
 
-instantiate' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TypeVar -> m TypeVar
-instantiate' subst recordSubst env ty = case ty of
+instantiate' :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> TypeVar -> m TypeVar
+instantiate' subst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound {} -> do
+                -- TODO: should we instantiate record constraints here?
                 -- We instantiate unbound type variables when recursively
                 -- referencing a function whose parameter and return types are
                 -- not yet quantified.
                 return ty
             TBound tv' -> do
-                instantiate' subst recordSubst env tv'
+                instantiate' subst env tv'
     TQuant _ constraints name -> do
         HashTable.lookup name subst >>= \case
             Just v ->
                 return v
             Nothing -> do
-                -- propagate source
+                -- TODO: propagate source
+                -- TODO: instantiate record constraints
                 tv <- freshTypeConstrained env constraints
                 HashTable.insert name tv subst
                 return tv
     TFun param ret -> do
-        ty1 <- for param $ instantiate' subst recordSubst env
-        ty2 <- instantiate' subst recordSubst env ret
+        ty1 <- for param $ instantiate' subst env
+        ty2 <- instantiate' subst env ret
         return $ TFun ty1 ty2
     TDataType def -> do
-        typeVars' <- for (tuParameters def) $ instantiate' subst recordSubst env
+        typeVars' <- for (tuParameters def) $ instantiate' subst env
         return $ TDataType def{ tuParameters = typeVars' }
-    TRecord ref' -> followRecordTypeVar ref' >>= \(RecordType open rows) -> do
-        let rv = case open of
-                RecordFree r _ -> Just r
-                RecordQuantified r _ -> Just r
-                _ -> Nothing
-        case rv of
-            Just rv' -> do
-                HashTable.lookup rv' recordSubst >>= \case
-                    Just rec -> return rec
-                    Nothing -> do
-                        tr <- instantiateRecord subst recordSubst env rows open
-                        HashTable.insert rv' tr recordSubst
-                        return tr
-            Nothing ->
-                instantiateRecord subst recordSubst env rows open
+    TRecord fields -> do
+        fields' <- for fields $ instantiateField subst env
+        return $ TRecord fields'
     TTypeFun args rv -> do
-        args' <- for args $ instantiate' subst recordSubst env
-        rv' <- instantiate' subst recordSubst env rv
+        args' <- for args $ instantiate' subst env
+        rv' <- instantiate' subst env rv
         return $ TTypeFun args' rv'
 
 quantify :: MonadIO m => TypeVar -> m ()
@@ -290,14 +289,9 @@ quantify ty = case ty of
         quantify ret
     TDataType def ->
         for_ (tuParameters def) quantify
-    TRecord ref -> followRecordTypeVar ref >>= \(RecordType open rows) -> do
-        for_ rows $ \RecordField{..} -> do
+    TRecord fields -> do
+        for_ fields $ \RecordField{..} -> do
             quantify trTyVar
-        case open of
-            RecordFree ti constraint -> do
-                for_ constraint quantify
-                writeIORef ref $ RRecord $ RecordType (RecordQuantified ti constraint) rows
-            _ -> return ()
     TTypeFun args rv -> do
         for_ args quantify
         quantify rv
@@ -305,14 +299,12 @@ quantify ty = case ty of
 instantiate :: MonadIO m => Env -> TypeVar -> m TypeVar
 instantiate env t = do
     subst <- HashTable.new
-    recordSubst <- HashTable.new
-    instantiate' subst recordSubst env t
+    instantiate' subst env t
 
 instantiateAll :: (MonadIO m, Traversable c) => Env -> c TypeVar -> m (c TypeVar)
 instantiateAll env container = do
     subst <- HashTable.new
-    recordSubst <- HashTable.new
-    for container $ instantiate' subst recordSubst env
+    for container $ instantiate' subst env
 
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
@@ -328,8 +320,8 @@ occurs pos tvn = \case
         occurs pos tvn ret
     TDataType def -> do
         for_ (tuParameters def) $ occurs pos tvn
-    TRecord ref -> followRecordTypeVar ref >>= \(RecordType _open rows) -> do
-        for_ rows $ \RecordField{..} ->
+    TRecord fields -> do
+        for_ fields $ \RecordField{..} ->
             occurs pos tvn trTyVar
     TQuant {} ->
         return ()
@@ -361,6 +353,7 @@ unifyFieldConstraint env pos constraint tr@RecordField{..} = do
             unify env pos ctv trTyVar
             return tr{ trMut=trMut' }
 
+{-
 unifyRecord :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
 unifyRecord env pos av bv = do
     -- do
@@ -475,6 +468,33 @@ unifyRecord env pos av bv = do
     --     putStr "\t" >> showTypeVarIO av >>= putStrLn
     --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
     --     putStrLn ""
+-}
+
+unifyConcreteRecord :: Env -> Pos -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
+unifyConcreteRecord env pos fieldsA fieldsB = do
+    let aFields = sort $ map trName fieldsA
+    let bFields = sort $ map trName fieldsB
+
+    let coincidentRows = [(a, b) | a <- fieldsA, b <- fieldsB, trName a == trName b]
+    let aOnlyRows = filter (\row -> trName row `notElem` bFields) fieldsA
+    let bOnlyRows = filter (\row -> trName row `notElem` aFields) fieldsB
+    let names trs = map trName trs
+
+    coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
+        case unifyRecordMutability (trMut lhs) (trMut rhs) of
+            Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
+            Right mut -> do
+                unify env pos (trTyVar lhs) (trTyVar rhs)
+                return RecordField
+                    { trName = trName lhs
+                    , trMut = mut
+                    , trTyVar = trTyVar lhs
+                    }
+
+    if null aOnlyRows && null bOnlyRows then
+        return ()
+    else
+        unificationError pos "Closed row types must match exactly" undefined undefined -- fieldsA fieldsB
 
 unifyRecordMutability :: FieldMutability -> FieldMutability -> Either Prelude.String FieldMutability
 unifyRecordMutability m1 m2 = case (m1, m2) of
@@ -505,13 +525,12 @@ validateTraitConstraint env pos typeVar traitIdentity traitDesc = case typeVar o
                 return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
-    TRecord ref -> do
-        RecordType recordOpen rows <- followRecordTypeVar ref
+    TRecord _fields -> do
         let key = (traitIdentity, RecordIdentity)
         HashTable.lookup key (eKnownInstances env) >>= \case
             Just InstanceDesc{..} -> do
                 -- TODO: what do we do here?
-                -- start unifying types with the transformer thing?
+                -- start unifying types with the field transformer?
                 return ()
             Nothing -> do
                 failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
@@ -582,8 +601,8 @@ unify env pos av' bv' = do
             | otherwise -> do
                 unificationError pos "" av bv
 
-        (TRecord {}, TRecord {}) ->
-            unifyRecord env pos av bv
+        (TRecord fieldsA, TRecord fieldsB) ->
+            unifyConcreteRecord env pos fieldsA fieldsB
 
         (TFun aa ar, TFun ba br) -> do
             when (length aa /= length ba) $

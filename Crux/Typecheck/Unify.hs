@@ -188,11 +188,6 @@ resolveTupleType env pos elements = do
     tupleType <- resolveTypeReference env pos tupleReference
     applyTypeFunction env pos tupleReference DisallowTypeFunctions tupleType elements
 
-data RecordSubst
-    = SFree RowVariable
-    | SQuant RowVariable
-    | SRows [RecordField TypeVar]
-
 instantiateDataTypeDef' :: MonadIO m => IORef (HashMap Int TypeVar) -> IORef (HashMap RowVariable TypeVar) -> Env -> TDataTypeDef TypeVar -> m (TDataTypeDef TypeVar)
 instantiateDataTypeDef' subst recordSubst env def = do
     for def $ instantiate' subst recordSubst env

@@ -107,7 +107,9 @@ resolveTypeIdent env@Env{..} pos typeIdent =
                         { rcFields = fields'
                         , rcFieldType = constraint'
                         }
-                freshTypeConstrained env $ ConstraintSet (Just recordConstraint) mempty
+                tyVar <- freshTypeConstrained env $ ConstraintSet (Just recordConstraint) mempty
+                quantify tyVar
+                return tyVar
             RecordIdentClosed -> do
                 return $ TRecord fields'
 

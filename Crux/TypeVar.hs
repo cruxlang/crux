@@ -218,7 +218,8 @@ showRecordConstraint :: MonadIO m => TVRState -> RecordConstraint -> m String
 showRecordConstraint state RecordConstraint{..} = do
     fields <- for rcFields $ showRecordField state
     elts <- case rcFieldType of
-        Nothing -> return fields
+        Nothing -> do
+            return $ fields ++ ["..."]
         Just tv -> do
             first <- showTypeVarIO' state tv
             return $ fields ++ ["...: " ++ first]

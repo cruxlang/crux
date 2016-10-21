@@ -34,6 +34,7 @@ data AssignmentType
 
 data TypeError
     = UnificationError String TypeVar TypeVar
+    | RecordMissingField TypeVar Name
     | RecordMutabilityUnificationError Name String
     | UnboundSymbol String Name
     | ImmutableAssignment AssignmentType Name
@@ -116,6 +117,7 @@ getErrorName = \case
 getTypeErrorName :: TypeError -> Text
 getTypeErrorName = \case
     UnificationError{} -> "unification"
+    RecordMissingField{} -> "record-missing-field"
     RecordMutabilityUnificationError{} -> "record-mutability-unification"
     UnboundSymbol t _ -> "unbound-" <> Text.pack t
     ImmutableAssignment{} -> "immutable-assignment"
@@ -142,6 +144,9 @@ typeErrorToString (UnificationError message at bt) = do
     return $ printf "Unification error:\n\t%s\n\t%s\n%s" as bs m
 typeErrorToString (RecordMutabilityUnificationError key message) =
     return $ printf "Unification error: Could not unify mutability of record field %s: %s" (show key) message
+typeErrorToString (RecordMissingField type_ fieldName) = do
+    rt <- renderTypeVarIO type_
+    return $ printf "Unification error: type %s has no field %s" rt fieldName
 typeErrorToString (UnboundSymbol type_ name) =
     return $ (printf "unbound %s `" type_) ++ Text.unpack name ++ "`"
 typeErrorToString (ImmutableAssignment atype name) = do

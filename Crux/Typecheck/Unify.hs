@@ -504,15 +504,13 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
     --let names trs = map trName trs
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
-        case unifyRecordMutability (trMut lhs) (trMut rhs) of
-            Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
-            Right mut -> do
-                unify env pos (trTyVar lhs) (trTyVar rhs)
-                return RecordField
-                    { trName = trName lhs
-                    , trMut = mut
-                    , trTyVar = trTyVar lhs
-                    }
+        mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
+        unify env pos (trTyVar lhs) (trTyVar rhs)
+        return RecordField
+            { trName = trName lhs
+            , trMut = mut
+            , trTyVar = trTyVar lhs
+            }
 
     if null aOnlyRows && null bOnlyRows then do
         return ()
@@ -520,34 +518,55 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
         -- TODO: better error messages here
         unificationError pos "Closed row types must match exactly" undefined undefined -- fieldsA fieldsB
 
-unifyRecordMutability :: FieldMutability -> FieldMutability -> Either Prelude.String FieldMutability
-unifyRecordMutability m1 m2 = case (m1, m2) of
-    (RFree, _) -> Right m2
-    (_, RFree) -> Right m1
-    (RImmutable, RImmutable) -> Right RImmutable
-    (RImmutable, RMutable) -> Left "Record field mutability does not match"
-    (RMutable, RMutable) -> Right RMutable
-    (RMutable, RImmutable) -> Left "Record field mutability does not match"
-    (RQuantified, _) -> Left "Quant!! D:"
-    (_, RQuantified) -> Left "Quant2!! D:"
+unifyRecordMutability :: Name -> Pos -> FieldMutability -> FieldMutability -> TC FieldMutability
+unifyRecordMutability propName pos m1 m2 = case (m1, m2) of
+    (RFree, _) -> return m2
+    (_, RFree) -> return m1
+    (RImmutable, RImmutable) -> return RImmutable
+    (RImmutable, RMutable) -> failTypeError pos $ RecordMutabilityUnificationError propName "Record field mutability does not match"
+    (RMutable, RMutable) -> return RMutable
+    (RMutable, RImmutable) -> failTypeError pos $ RecordMutabilityUnificationError propName "Record field mutability does not match"
+    (RQuantified, _) -> fail "Quant!! D:"
+    (_, RQuantified) -> fail "Quant2!! D:"
+
+validateFields :: Env -> Pos -> TypeVar -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
+validateFields env pos actualType actual expected = do
+    for_ expected $ \field -> do
+        let found = filter (\f -> trName field == trName f) actual
+        case found of
+            [] -> failTypeError pos $ RecordMissingField actualType (trName field)
+            [cf] -> do
+                unifyRecordMutability (trName cf) pos (trMut cf) (trMut field)
+                unify env pos (trTyVar cf) (trTyVar field)
+            _ -> fail "Internal error: found multiple properties with the same name"
 
 validateRecordConstraint :: Env -> Pos -> RecordConstraint -> TypeVar -> TC ()
 validateRecordConstraint env pos (RecordConstraint fields fieldType) typeVar = case typeVar of
     TypeVar _ -> do
         fail "We already handled this case"
     TQuant _source (ConstraintSet record _traits) _number -> do
-        fail "sharknado1"
+        -- validate 
+        quantRecordConstraint <- case record of
+            Nothing -> fail "Quantified type variable is not a record"
+            Just rc -> return rc
+        
+        validateFields env pos typeVar (rcFields quantRecordConstraint) fields
+
+
+
+        --case (fieldType, rcFieldType) 
+
+        --fail "sharknado1"
     TFun _ _ -> do
         fail "Functions are not records"
     TDataType def -> do
         fail "Data types are not records"
     TRecord closedFields -> do
-        for_ fields $ \field -> do
-            let found = filter (\f -> trName field == trName f) closedFields
-            case found of
-                [] -> fail $ "Record has no field named " <> Text.unpack (trName field)
-                [cf] -> unify env pos (trTyVar cf) (trTyVar field)
-                _ -> fail "Internal error: found multiple properties with the same name"
+        validateFields env pos typeVar closedFields fields
+        for_ fieldType $ \ft -> do
+            for_ closedFields $ \cf -> do
+                when ([] == filter (\f -> trName cf == trName f) fields) $ do
+                    unify env pos (trTyVar cf) ft
     TTypeFun _ _ -> do
         fail "Type functions are not records"
 
@@ -619,15 +638,13 @@ unifyRecordConstraint env pos rcA rcB = do
     let names fields = map trName fields
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
-        case unifyRecordMutability (trMut lhs) (trMut rhs) of
-            Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
-            Right mut -> do
-                unify env pos (trTyVar lhs) (trTyVar rhs)
-                return RecordField
-                    { trName = trName lhs
-                    , trMut = mut
-                    , trTyVar = trTyVar lhs
-                    }
+        mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
+        unify env pos (trTyVar lhs) (trTyVar rhs)
+        return RecordField
+            { trName = trName lhs
+            , trMut = mut
+            , trTyVar = trTyVar lhs
+            }
 
     aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraintB
     bOnlyRows' <- for bOnlyRows $ unifyFieldConstraint env pos constraintA
@@ -641,6 +658,8 @@ unifyRecordConstraint env pos rcA rcB = do
         (Just a, Just b) -> do
             unify env pos a b
             return $ Just a
+
+    
 
     return $ RecordConstraint
         { rcFields = coincidentRows' <> aOnlyRows' <> bOnlyRows'

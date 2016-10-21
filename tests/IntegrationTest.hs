@@ -222,17 +222,6 @@ test_arrays_of_different_types_cannot_unify = do
         ]
     assertUnificationError (makePos 1 9) "Number" "String" result
 
-test_record_annotation_is_checked2 = do
-    result <- run $ T.unlines
-        [ "let c: {} = _unsafe_js(\"console\")"
-        , "fun main() {"
-        , "    c.log(\"Hoop\")"
-        , "}"
-        ]
-
-    assertUnificationError (makePos 3 5) "{}" "{mutable? log: _t1, ..._11}" result
-    -- assertEqual (Left "Unification error: Field 'log' not found in quantified record {} and {log: (TUnbound 6),f...}") result
-
 test_polymorphic_type_annotations_are_universally_quantified2 = do
     rv <- run $ T.unlines
         [ "let f: fun(Number) -> Number = fun (i) { i }"

@@ -12,9 +12,9 @@ module Crux.TypeVar
     , TypeSource(..)
     , TypeNumber
     , TypeVar(..)
+    , RecordConstraint(..)
     , ConstraintSet(..)
     , emptyConstraintSet
-    , RecordConstraint(..)
     , TypeState(..)
     , TypeLevel(..)
     , newTypeVar

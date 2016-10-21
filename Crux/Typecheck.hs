@@ -292,9 +292,17 @@ check' expectedType env = \case
                 -- else turn into QualifiedReference and go go go
                 lhs' <- check env lhs
                 ty <- freshType env
-                row <- freshRowVariable env
-                rec <- newIORef $ RRecord $ RecordType (RecordFree row Nothing) [RecordField{trName=propName, trMut=RFree, trTyVar=ty}]
-                unify env pos (edata lhs') $ TRecord rec
+                let field = RecordField
+                        { trName = propName
+                        , trMut = RFree
+                        , trTyVar = ty}
+                let recordConstraint = RecordConstraint
+                        { rcFields = [field]
+                        , rcFieldType = Nothing
+                        }
+                let constraintSet = ConstraintSet (Just recordConstraint) mempty
+                recordType <- freshTypeConstrained env constraintSet
+                unify env pos (edata lhs') recordType
                 return $ ELookup ty lhs' propName
         case lhs of
             EIdentifier pos' (UnqualifiedReference name) -> do
@@ -376,10 +384,13 @@ check' expectedType env = \case
 
         let xlateMut Immutable = RImmutable
             xlateMut Mutable = RMutable
-        let fieldTypes = map (\(name, (mut, ex)) -> RecordField{trName=name, trMut=xlateMut mut, trTyVar=edata ex}) fields'
-
-        rec <- newIORef $ RRecord $ RecordType RecordClose fieldTypes
-        let recordTy = TRecord rec
+        let mapField (name, (mut, ex)) = RecordField
+                { trName = name
+                , trMut = xlateMut mut
+                , trTyVar = edata ex
+                }
+        let fieldTypes = fmap mapField fields'
+        let recordTy = TRecord fieldTypes
         return $ ERecordLiteral recordTy (HashMap.fromList fields')
 
     -- TODO: put all the intrinsics in one list so we can do a simple membership test here and not duplicate in the EApp handler
@@ -943,8 +954,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         -- instantiate all of the methods in the same subst dict
         -- so the typevar is unified across methods
         subst <- newIORef mempty
-        recordSubst <- newIORef mempty
-        let inst = instantiate' subst recordSubst env'
+        let inst = instantiate' subst env'
         traitParameter <- inst $ tdTypeVar traitDesc
         unify env' pos' typeVar traitParameter
 

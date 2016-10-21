@@ -17,17 +17,25 @@ import Control.Exception (Exception, throwIO, try)
 import Control.Monad.Trans.Reader
 import Crux.Error
 import Crux.Prelude
-import Crux.Pos (Pos)
+import Crux.Pos (Pos(..))
 
 data Warning = Warning -- TODO: move this into Crux.Warning and give it real options
 
 data TCState = TCState
     { tcWarnings :: IORef [Warning]
     , tcErrors   :: IORef [Error]
+    , tcFileName :: FilePath
     }
 
-newtype TC a = TC (ReaderT TCState IO a)
-    deriving (Functor, Applicative, Monad, MonadIO)
+newtype TC a = TC { unTC :: ReaderT TCState IO a }
+    deriving (Functor, Applicative, MonadIO)
+
+instance Monad TC where
+    (TC m) >>= cb = TC $ m >>= unTC . cb
+    return = TC . return
+    fail str = do
+        TCState{tcFileName} <- TC ask
+        failICE (InternalErrorPos tcFileName) $ InternalError str
 
 data StopExecution = StopExecution Error
     deriving (Show)
@@ -59,8 +67,8 @@ data TCResult a
     = TCSuccess a [Warning]
     | TCFail [Error] [Warning]
 
-runTC :: TC a -> IO (TCResult a)
-runTC (TC m) = do
+runTC :: FilePath -> TC a -> IO (TCResult a)
+runTC tcFileName (TC m) = do
     tcWarnings <- newIORef []
     tcErrors <- newIORef []
     result <- try $ runReaderT m TCState{..}
@@ -76,8 +84,8 @@ runTC (TC m) = do
                 return $ TCFail errors warnings
 
 -- temporary -- used to convert existing code
-bridgeTC :: TC a -> IO (Either Error a)
-bridgeTC (TC m) = do
+bridgeTC :: FilePath -> TC a -> IO (Either Error a)
+bridgeTC tcFileName (TC m) = do
     tcWarnings <- newIORef []
     tcErrors <- newIORef []
     result <- try $ runReaderT m TCState{..}
@@ -92,5 +100,5 @@ bridgeTC (TC m) = do
             return $ Left firstError
 
 -- temporary -- used to convert existing code
-bridgeEitherTC :: TC a -> EitherT Error IO a
-bridgeEitherTC m = EitherT $ bridgeTC m
+bridgeEitherTC :: FilePath -> TC a -> EitherT Error IO a
+bridgeEitherTC fileName m = EitherT $ bridgeTC fileName m

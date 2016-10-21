@@ -397,15 +397,8 @@ traitDictName traitName' typeVar = do
             fail "Unexpected traitDictName got unbound typevar"
         TDataType def ->
             return $ dataTypeIdentity def
-        TRecord ref -> do
-            RecordType recordOpen rows <- followRecordTypeVar ref
-            case recordOpen of
-                RecordFree _ _ -> do
-                    fail "Unexpected traitDictName for unbound record typevar"
-                RecordQuantified _ _ -> do
-                    fail "Unexpected traitDictName for quantified record typevar"
-                RecordClose -> do
-                    fail $ "TODO: compute dictname from rows: " <> show (fmap trName rows)
+        TRecord fields -> do
+            fail $ "TODO: compute dictname from rows: " <> show (fmap trName fields)
         tv2 -> do
             s <- renderTypeVarIO tv2
             fail $ "Unexpected traitDictName " ++ s

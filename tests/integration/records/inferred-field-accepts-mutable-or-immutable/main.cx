@@ -2,6 +2,8 @@ fun manhattan(p) {
     p.x + p.y
 }
 
+let _ = _debug_type(manhattan)
+
 fun main() {
     let a: {x: Number, y: Number} = {x: 44, y: 0}
     print(manhattan(a))

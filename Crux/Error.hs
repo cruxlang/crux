@@ -23,6 +23,7 @@ type Name = Text
 
 data InternalCompilerError
     = DependentModuleNotLoaded ModuleName
+    | InternalError String
     deriving (Eq, Show)
 
 data AssignmentType
@@ -74,8 +75,9 @@ renderErrorType = \case
         return s
     ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
-    InternalCompilerError ice -> return $ "ICE: " ++ case ice of
+    InternalCompilerError ice -> return $ "compiler assertion failure: " ++ case ice of
         DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
+        InternalError str -> str
     TypeError ue -> do
         typeErrorToString ue
 
@@ -100,6 +102,7 @@ formatPos :: Pos -> String
 formatPos (Pos PosRec{..}) = printf "%s:%i:%i" posFileName posLine posColumn
 formatPos (SyntaxDependency filename) = printf "%s:<syntax-dependency>" filename
 formatPos (GeneratedMainCall filename) = printf "%s:<generated-main-call>" filename
+formatPos (InternalErrorPos filename) = printf "%s:<internal-error>" filename
 
 getErrorName :: ErrorType -> Text
 getErrorName = \case

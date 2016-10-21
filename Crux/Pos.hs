@@ -22,6 +22,7 @@ data Pos
     = Pos PosRec
     | SyntaxDependency FilePath
     | GeneratedMainCall FilePath
+    | InternalErrorPos FilePath
     deriving (Show, Eq)
 
 -- TODO: eliminate references to dummyPos

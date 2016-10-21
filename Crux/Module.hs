@@ -44,7 +44,7 @@ import qualified Text.Parsec as P
 import qualified Text.Parsec.Error as P
 
 -- Given an import source location and a module name, return a parsed module or an error.
-type ModuleLoader = Pos -> ModuleName -> IO (Either Error AST.ParsedModule)
+type ModuleLoader = Pos -> ModuleName -> IO (Either Error (FilePath, AST.ParsedModule))
 
 newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
 newChainedModuleLoader = newChainedModuleLoader' []
@@ -89,9 +89,11 @@ newProjectModuleLoader config root mainModulePath =
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
 newMemoryLoader sources pos moduleName = do
     case HashMap.lookup moduleName sources of
-        Just source -> parseModuleFromSource
-            ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
-            source
+        Just source -> runEitherT $ do
+            mod' <- EitherT $ parseModuleFromSource
+                ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
+                source
+            return ("<memory:" <> show moduleName <> ">", mod')
         Nothing ->
             return $ Left $ Error pos $ ModuleNotFound moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
 
@@ -175,11 +177,13 @@ parseModuleFromSource filename source = do
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: Pos -> ModuleName -> FilePath -> IO (Either Error AST.ParsedModule)
+parseModuleFromFile :: Pos -> ModuleName -> FilePath -> IO (Either Error (FilePath, AST.ParsedModule))
 parseModuleFromFile pos moduleName filename = runEitherT $ do
     source <- EitherT $ do
         tryJust (\e -> if isDoesNotExistError e then Just $ Error pos $ ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
-    EitherT $ parseModuleFromSource filename $ TE.decodeUtf8 source
+    mod' <- EitherT $ do
+        parseModuleFromSource filename $ TE.decodeUtf8 source
+    return (filename, mod')
 
 loadModuleFromSource :: Text -> IO (ProgramLoadResult AST.LoadedModule)
 loadModuleFromSource source = runEitherT $ do
@@ -218,7 +222,7 @@ loadModule loader transformer loadedModules loadingModules importPos moduleName 
                 left $ Error importPos $ CircularImport moduleName
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
-            parsedModuleResult <- EitherT $ loader importPos moduleName
+            (filePath, parsedModuleResult) <- EitherT $ loader importPos moduleName
             let parsedModule = transformer $
                     if hasNoBuiltinPragma parsedModuleResult then
                         parsedModuleResult
@@ -229,7 +233,7 @@ loadModule loader transformer loadedModules loadingModules importPos moduleName 
                 EitherT $ loadModule loader id loadedModules loadingModules pos referencedModule
 
             lm <- readIORef loadedModules
-            loadedModule <- EitherT $ bridgeTC $ Typecheck.run lm parsedModule moduleName
+            loadedModule <- EitherT $ bridgeTC filePath $ Typecheck.run lm parsedModule moduleName
             HashTable.insert moduleName loadedModule loadedModules
             return loadedModule
 

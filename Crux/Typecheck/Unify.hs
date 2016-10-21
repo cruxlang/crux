@@ -235,12 +235,26 @@ instantiateRecord subst env rows open = do
     return $ TRecord objectType
 -}
 
+instantiateConstraints :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> ConstraintSet -> m ConstraintSet
+instantiateConstraints subst env (ConstraintSet recordConstraint traits) = do
+    record' <- for recordConstraint $ \record -> do
+        fields' <- for (rcFields record) $ \field@RecordField{trTyVar} -> do
+            tyVar' <- instantiate' subst env trTyVar
+            return field{trTyVar=tyVar'}
+        fieldType' <- for (rcFieldType record) $ instantiate' subst env
+        return RecordConstraint
+                { rcFields = fields'
+                , rcFieldType = fieldType'
+                }
+    return $ ConstraintSet record' traits
+
 instantiate' :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> TypeVar -> m TypeVar
 instantiate' subst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
-            TUnbound {} -> do
-                -- TODO: should we instantiate record constraints here?
+            TUnbound strength level constraints number -> do
+                constraints' <- instantiateConstraints subst env constraints
+                newRef <- newIORef $ TUnbound strength level constraints' number
                 -- We instantiate unbound type variables when recursively
                 -- referencing a function whose parameter and return types are
                 -- not yet quantified.
@@ -253,8 +267,8 @@ instantiate' subst env ty = case ty of
                 return v
             Nothing -> do
                 -- TODO: propagate source
-                -- TODO: instantiate record constraints
-                tv <- freshTypeConstrained env constraints
+                constraints' <- instantiateConstraints subst env constraints
+                tv <- freshTypeConstrained env constraints'
                 HashTable.insert name tv subst
                 return tv
     TFun param ret -> do
@@ -272,13 +286,22 @@ instantiate' subst env ty = case ty of
         rv' <- instantiate' subst env rv
         return $ TTypeFun args' rv'
 
+quantifyConstraintSet :: MonadIO m => ConstraintSet -> m ()
+quantifyConstraintSet (ConstraintSet recordConstraint _traits) = do
+    for_ recordConstraint $ \RecordConstraint{..} -> do
+        for_ rcFields $ \RecordField{..} -> do
+            -- TODO: quantify mutability
+            quantify trTyVar
+
 quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound Strong _ constraints i -> do
+                quantifyConstraintSet constraints
                 writeIORef ref $ TBound $ TQuant Instantiation constraints i
-            TUnbound Weak _ _ _ -> do
+            TUnbound Weak _ constraints _ -> do
+                quantifyConstraintSet constraints
                 return ()
             TBound t -> do
                 quantify t
@@ -478,7 +501,7 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
     let coincidentRows = [(a, b) | a <- fieldsA, b <- fieldsB, trName a == trName b]
     let aOnlyRows = filter (\row -> trName row `notElem` bFields) fieldsA
     let bOnlyRows = filter (\row -> trName row `notElem` aFields) fieldsB
-    let names trs = map trName trs
+    --let names trs = map trName trs
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         case unifyRecordMutability (trMut lhs) (trMut rhs) of
@@ -491,9 +514,10 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
                     , trTyVar = trTyVar lhs
                     }
 
-    if null aOnlyRows && null bOnlyRows then
+    if null aOnlyRows && null bOnlyRows then do
         return ()
-    else
+    else do
+        -- TODO: better error messages here
         unificationError pos "Closed row types must match exactly" undefined undefined -- fieldsA fieldsB
 
 unifyRecordMutability :: FieldMutability -> FieldMutability -> Either Prelude.String FieldMutability
@@ -507,10 +531,30 @@ unifyRecordMutability m1 m2 = case (m1, m2) of
     (RQuantified, _) -> Left "Quant!! D:"
     (_, RQuantified) -> Left "Quant2!! D:"
 
-validateTraitConstraint :: Env -> Pos -> TypeVar -> TraitIdentity -> TraitDesc -> TC ()
-validateTraitConstraint env pos typeVar traitIdentity traitDesc = case typeVar of
+validateRecordConstraint :: Env -> Pos -> RecordConstraint -> TypeVar -> TC ()
+validateRecordConstraint env pos (RecordConstraint fields fieldType) typeVar = case typeVar of
     TypeVar _ -> do
-        fail "Internal Error: we already handled this case"
+        fail "We already handled this case"
+    TQuant _source (ConstraintSet record _traits) _number -> do
+        fail "sharknado1"
+    TFun _ _ -> do
+        fail "Functions are not records"
+    TDataType def -> do
+        fail "Data types are not records"
+    TRecord closedFields -> do
+        for_ fields $ \field -> do
+            let found = filter (\f -> trName field == trName f) closedFields
+            case found of
+                [] -> fail $ "Record has no field named " <> Text.unpack (trName field)
+                [cf] -> unify env pos (trTyVar cf) (trTyVar field)
+                _ -> fail "Internal error: found multiple properties with the same name"
+    TTypeFun _ _ -> do
+        fail "Type functions are not records"
+
+validateTraitConstraint :: Env -> Pos -> TraitIdentity -> TraitDesc -> TypeVar -> TC ()
+validateTraitConstraint env pos traitIdentity traitDesc typeVar = case typeVar of
+    TypeVar _ -> do
+        fail "We already handled this case"
     TQuant _source (ConstraintSet _record traits) _tn -> do
         when (not $ Set.member traitIdentity traits) $ do
             failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
@@ -547,19 +591,79 @@ validateTraitConstraint env pos typeVar traitIdentity traitDesc = case typeVar o
     TTypeFun _ _ -> do
         fail "Wat? Type functions definitely don't implement constraints"
 
--- TODO: how do we merge strength?
-mergeStrength :: Strength -> Strength -> Strength
-mergeStrength _left right = right
+-- TODO: is this right
+unifyStrength :: Strength -> Strength -> Strength
+unifyStrength Strong Strong = Strong
+unifyStrength Strong Weak = Weak
+unifyStrength Weak Strong = Weak
+unifyStrength Weak Weak = Weak
 
 -- TODO: how do we merge level?
-mergeLevel :: TypeLevel -> TypeLevel -> TypeLevel
-mergeLevel _left right = right
+unifyLevel :: TypeLevel -> TypeLevel -> TypeLevel
+unifyLevel _left right = right
 
-mergeConstraints :: ConstraintSet -> ConstraintSet -> TC ConstraintSet
-mergeConstraints (ConstraintSet recordA traitsA) (ConstraintSet recordB traitsB) = do
-    -- TODO: implement merging record constraints
-    let _ = recordA
-    return $ ConstraintSet recordB $ traitsA <> traitsB
+unifyRecordConstraint :: Env -> Pos -> RecordConstraint -> RecordConstraint -> TC RecordConstraint
+unifyRecordConstraint env pos rcA rcB = do
+    let aRows = rcFields rcA
+    let bRows = rcFields rcB
+
+    let constraintA = rcFieldType rcA
+    let constraintB = rcFieldType rcB
+
+    let aFields = sort $ map trName aRows
+    let bFields = sort $ map trName bRows
+
+    let coincidentRows = [(a, b) | a <- aRows, b <- bRows, trName a == trName b]
+    let aOnlyRows = filter (\row -> trName row `notElem` bFields) aRows
+    let bOnlyRows = filter (\row -> trName row `notElem` aFields) bRows
+    let names fields = map trName fields
+
+    coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
+        case unifyRecordMutability (trMut lhs) (trMut rhs) of
+            Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
+            Right mut -> do
+                unify env pos (trTyVar lhs) (trTyVar rhs)
+                return RecordField
+                    { trName = trName lhs
+                    , trMut = mut
+                    , trTyVar = trTyVar lhs
+                    }
+
+    aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraintB
+    bOnlyRows' <- for bOnlyRows $ unifyFieldConstraint env pos constraintA
+    newConstraint <- case (constraintA, constraintB) of
+        (Nothing, Nothing) -> do
+            return Nothing
+        (Just a, Nothing) -> do
+            return $ Just a
+        (Nothing, Just b) -> do
+            return $ Just b
+        (Just a, Just b) -> do
+            unify env pos a b
+            return $ Just a
+
+    return $ RecordConstraint
+        { rcFields = coincidentRows' <> aOnlyRows' <> bOnlyRows'
+        , rcFieldType = newConstraint
+        }
+
+unifyConstraints :: Env -> Pos -> ConstraintSet -> ConstraintSet -> TC ConstraintSet
+unifyConstraints env pos (ConstraintSet recordA traitsA) (ConstraintSet recordB traitsB) = do
+    mergedRecord <- case (recordA, recordB) of
+        (Nothing, Nothing) -> return Nothing
+        (Just a, Nothing) -> return $ Just a
+        (Nothing, Just b) -> return $ Just b
+        (Just a, Just b) -> Just <$> unifyRecordConstraint env pos a b
+
+    return $ ConstraintSet mergedRecord $ traitsA <> traitsB
+
+validateConstraintSet :: Env -> Pos -> ConstraintSet -> TypeVar -> TC ()
+validateConstraintSet env pos (ConstraintSet record traits) typeVar = do
+    for_ record $ \recordConstraint -> do
+        validateRecordConstraint env pos recordConstraint typeVar
+    for_ (Set.toList traits) $ \traitIdentity@(TraitIdentity moduleName name) -> do
+        (_, _, traitDesc) <- resolveTraitReference env pos $ KnownReference moduleName name
+        validateTraitConstraint env pos traitIdentity traitDesc typeVar
 
 unify :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
 unify env pos av' bv' = do
@@ -570,28 +674,24 @@ unify env pos av' bv' = do
     else case (av, bv) of
         -- thanks to followTypeVar, the only TypeVar case here is TUnbound
         (TypeVar aref, TypeVar bref) -> do
-            (TUnbound strengthA levelA constraintsA a') <- readIORef aref
-            (TUnbound strengthB levelB constraintsB b') <- readIORef bref
+            (TUnbound strengthA levelA constraintsA numberA) <- readIORef aref
+            (TUnbound strengthB levelB constraintsB numberB) <- readIORef bref
 
-            -- TODO: merge the constraints
-            when ((constraintsA, a') /= (constraintsB, b')) $ do
-                occurs pos a' bv
+            when (numberA /= numberB) $ do
+                occurs pos numberA bv
                 writeIORef aref $ TBound bv
-                let strength = mergeStrength strengthA strengthB
-                let level = mergeLevel levelA levelB
-                constraints <- mergeConstraints constraintsA constraintsB
-                -- TODO: instead of mutating both, maybe introduce a new type var and bind both?
-                writeIORef bref $ TUnbound strength level constraints b'
+                let strength = unifyStrength strengthA strengthB
+                let level = unifyLevel levelA levelB
+                constraints <- unifyConstraints env pos constraintsA constraintsB
+                writeIORef bref $ TUnbound strength level constraints numberB
         (TypeVar _, _) -> do
             -- flip around so we only have to handle one case
             -- TODO: fix the error messages
             unify env pos bv av
         (_, TypeVar bref) -> do
-            TUnbound _ _ (ConstraintSet _recordB traitsB) b' <- readIORef bref
-            for_ (Set.toList traitsB) $ \traitIdentity@(TraitIdentity moduleName name) -> do
-                (_, _, desc) <- resolveTraitReference env pos $ KnownReference moduleName name
-                validateTraitConstraint env pos av traitIdentity desc
-            occurs pos b' av
+            TUnbound _ _ constraintsB bNumber <- readIORef bref
+            validateConstraintSet env pos constraintsB av
+            occurs pos bNumber av
             writeIORef bref $ TBound av
 
         (TDataType ad, TDataType bd)

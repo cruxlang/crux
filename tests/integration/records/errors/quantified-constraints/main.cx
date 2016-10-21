@@ -1,0 +1,8 @@
+fun g(a: {...: String}) {
+}
+
+fun f(a: {y: Number, ...: String}) {
+  g(a)
+}
+
+fun main() {}

@@ -552,11 +552,14 @@ validateRecordConstraint env pos (RecordConstraint fields fieldType) typeVar = c
         
         validateFields env pos typeVar (rcFields quantRecordConstraint) fields
 
+        for_ fieldType $ \fieldType' -> do
+            for_ (rcFields quantRecordConstraint) $ \quantField -> do
+                when ([] == filter (\f -> trName quantField == trName f) fields) $ do
+                    unify env pos (trTyVar quantField) fieldType'
 
+            for_ (rcFieldType quantRecordConstraint) $ \qft -> do
+                unify env pos fieldType' qft
 
-        --case (fieldType, rcFieldType) 
-
-        --fail "sharknado1"
     TFun _ _ -> do
         fail "Functions are not records"
     TDataType def -> do

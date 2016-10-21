@@ -19,39 +19,21 @@ numTy = TDataType $ TDataTypeDef
             , tuVariants = []
             }
 
-test_function_taking_record = do
-    env <- newEnv "unifytest" HashMap.empty Nothing
-
-    rect <- newIORef $ RRecord $ RecordType (RecordQuantified 1 Nothing) [RecordField "x" RImmutable numTy]
-    let argType = TRecord $ rect
-    bref <- newIORef $ TBound argType
-    let retType = TypeVar bref
-    let funType = TFun [argType] retType
-
-    funTypei <- instantiate env funType
-    argTypei <- followTypeVar funTypei >>= \(TFun [a] _) ->
-        return a
-
-    rect2 <- newIORef $ RRecord $ RecordType (RecordClose) [RecordField "x" RImmutable numTy]
-    let recordLiteralType = TRecord rect2
-    (Right ()) <- bridgeTC $ unify env dummyPos argTypei recordLiteralType
-
-    s <- renderTypeVarIO funTypei
-    assertEqual "({x: Number}) => {x: Number}" s
-
 test_free_records_unify_by_merging_fields = do
     let rowA = RecordField { trName = "a", trMut = RImmutable, trTyVar = numTy }
     let rowB = RecordField { trName = "b", trMut = RImmutable, trTyVar = numTy }
 
     env <- newEnv "unifytest" HashMap.empty Nothing
-    lhsObject <- newIORef $ RRecord $ RecordType (RecordFree 0 Nothing) [rowA]
-    rhsObject <- newIORef $ RRecord $ RecordType (RecordFree 1 Nothing) [rowB]
-    let lhs = TRecord $ lhsObject
-    let rhs = TRecord $ rhsObject
-    Right () <- bridgeTC $ unify env dummyPos lhs rhs
-    lhs' <- readIORef lhsObject
-    RRecord rhsRecord <- readIORef rhsObject
+    lhsRecord <- freshTypeConstrained env $ ConstraintSet (Just $ RecordConstraint [rowA] Nothing) mempty
+    rhsRecord <- freshTypeConstrained env $ ConstraintSet (Just $ RecordConstraint [rowB] Nothing) mempty
+    Right () <- bridgeTC "unifytest" $ unify env dummyPos lhsRecord rhsRecord
 
-    assertEqual (RecordType (RecordFree 0 Nothing) [rowA, rowB]) rhsRecord
-    assertEqualNoShow (RBound rhsObject) lhs'
+    let (TypeVar lhs) = lhsRecord
+    let (TypeVar rhs) = rhsRecord
+
+    (TBound lhs') <- readIORef lhs
+    (TUnbound _strength _level mergedConstraints _tn) <- readIORef rhs
+
+    assertEqual (ConstraintSet (Just $ RecordConstraint [rowA, rowB] Nothing) mempty) mergedConstraints
+    assertEqual rhsRecord lhs'
 

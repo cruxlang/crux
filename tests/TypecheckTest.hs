@@ -37,7 +37,7 @@ test_qualified_import_of_module_with_types_leaves_type_bindings_empty = do
                     , lmExportedTraits = []
                     , lmExportedExceptions = []
                     , lmKnownInstances = mempty }) ]
-    (Right env) <- bridgeTC $ Env.buildTypeEnvironment "main" loadedModules thisModule
+    (Right env) <- bridgeTC "TypecheckTest.hs" $ Env.buildTypeEnvironment "main" loadedModules thisModule
 
     types <- SymbolTable.readAll (eTypeBindings env)
     assertEqual [] $ HashMap.keys types

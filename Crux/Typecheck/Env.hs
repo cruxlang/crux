@@ -32,6 +32,7 @@ import Crux.Pos (Pos)
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
+import Crux.Typecheck.Quantify
 import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap
 import Prelude hiding (String)

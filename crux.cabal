@@ -31,6 +31,7 @@ library
                    , Crux.Typecheck
                    , Crux.Typecheck.Monad
                    , Crux.Typecheck.Occurs
+                   , Crux.Typecheck.Quantify
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
                    , Crux.Typecheck.Env

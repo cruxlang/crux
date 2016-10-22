@@ -279,41 +279,6 @@ instantiateAll env container = do
     subst <- HashTable.new
     for container $ instantiate' subst env
 
--- Quantification
-
-quantifyConstraintSet :: MonadIO m => ConstraintSet -> m ()
-quantifyConstraintSet (ConstraintSet recordConstraint _traits) = do
-    for_ recordConstraint $ \RecordConstraint{..} -> do
-        for_ rcFields $ \RecordField{..} -> do
-            -- TODO: quantify mutability
-            quantify trTyVar
-
-quantify :: MonadIO m => TypeVar -> m ()
-quantify ty = case ty of
-    TypeVar ref -> do
-        readIORef ref >>= \case
-            TUnbound Strong _ constraints i -> do
-                quantifyConstraintSet constraints
-                writeIORef ref $ TBound $ TQuant Instantiation constraints i
-            TUnbound Weak _ constraints _ -> do
-                quantifyConstraintSet constraints
-                return ()
-            TBound t -> do
-                quantify t
-    TQuant {} -> do
-        return ()
-    TFun param ret -> do
-        for_ param quantify
-        quantify ret
-    TDataType def ->
-        for_ (tuParameters def) quantify
-    TRecord fields -> do
-        for_ fields $ \RecordField{..} -> do
-            quantify trTyVar
-    TTypeFun args rv -> do
-        for_ args quantify
-        quantify rv
-
 -- Unification
 
 unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a

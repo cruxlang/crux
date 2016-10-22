@@ -1,0 +1,11 @@
+fun f(x) {
+  print(x.x)
+  return x
+}
+
+fun main() {
+  f({x: 10})
+  let y = f({mutable x: "hi"})
+  y.x = "bye"
+  f(y)
+}

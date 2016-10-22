@@ -15,6 +15,7 @@ import Crux.Prelude
 import Crux.Typecheck.Env
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Types
+import Crux.Typecheck.Quantify
 import Crux.Typecheck.Unify
 import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap

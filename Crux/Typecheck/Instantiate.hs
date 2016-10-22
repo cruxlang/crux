@@ -11,8 +11,6 @@ import Crux.Typecheck.TypeAlloc
 import Crux.Typecheck.Types
 import qualified Crux.HashTable as HashTable
 
--- Instantiation
-
 -- TODO: move Env and the substitution table into a reader monad
 
 instantiateDataTypeDef' ::
@@ -55,8 +53,6 @@ instantiate' subst env ty = case ty of
     TypeVar ref -> do
         readIORef ref >>= \case
             TUnbound _strength _level _constraints _number -> do
-                --constraints' <- instantiateConstraints subst env constraints
-                --newRef <- newIORef $ TUnbound strength level constraints' number
                 -- We instantiate unbound type variables when recursively
                 -- referencing a function whose parameter and return types are
                 -- not yet quantified.
@@ -97,4 +93,3 @@ instantiateAll :: (MonadIO m, Traversable c) => Env -> c TypeVar -> m (c TypeVar
 instantiateAll env container = do
     subst <- HashTable.new
     for container $ instantiate' subst env
-

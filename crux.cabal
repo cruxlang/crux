@@ -30,6 +30,7 @@ library
                    , Crux.Tokens
                    , Crux.Typecheck
                    , Crux.Typecheck.Monad
+                   , Crux.Typecheck.Occurs
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
                    , Crux.Typecheck.Env

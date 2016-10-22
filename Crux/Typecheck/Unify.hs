@@ -7,6 +7,7 @@ import Crux.Error
 import qualified Crux.HashTable as HashTable
 import Crux.Prelude
 import Crux.Typecheck.Monad
+import Crux.Typecheck.Occurs
 import Crux.Typecheck.Types
 import Crux.TypeVar
 import Data.List (sort)
@@ -313,31 +314,6 @@ quantify ty = case ty of
         for_ args quantify
         quantify rv
 
--- Occurs check
-
-occurs :: Pos -> Int -> TypeVar -> TC ()
-occurs pos tvn = \case
-    TypeVar ref -> readIORef ref >>= \case
-        TUnbound _ _ _ q | tvn == q -> do
-            failTypeError pos OccursCheckFailed
-        TUnbound {} -> do
-            return ()
-        TBound next -> do
-            occurs pos tvn next
-    TFun arg ret -> do
-        for_ arg $ occurs pos tvn
-        occurs pos tvn ret
-    TDataType def -> do
-        for_ (tuParameters def) $ occurs pos tvn
-    TRecord fields -> do
-        for_ fields $ \RecordField{..} ->
-            occurs pos tvn trTyVar
-    TQuant {} ->
-        return ()
-    TTypeFun args rv -> do
-        for_ args $ occurs pos tvn
-        occurs pos tvn rv
-
 -- Unification
 
 unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
@@ -372,6 +348,7 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
     let coincidentRows = [(a, b) | a <- fieldsA, b <- fieldsB, trName a == trName b]
     let aOnlyRows = filter (\row -> trName row `notElem` bFields) fieldsA
     let bOnlyRows = filter (\row -> trName row `notElem` aFields) fieldsB
+    --let names trs = map trName trs
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
@@ -386,7 +363,7 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
         return ()
     else do
         -- TODO: better error messages here
-        unificationError pos "Closed row types must match exactly" undefined undefined
+        unificationError pos "Closed row types must match exactly" undefined undefined -- fieldsA fieldsB
 
 unifyRecordMutability :: Name -> Pos -> FieldMutability -> FieldMutability -> TC FieldMutability
 unifyRecordMutability propName pos m1 m2 = case (m1, m2) of

@@ -6,12 +6,20 @@ import Crux.Typecheck.Monad
 import Crux.Prelude
 import Crux.Error
 
+occursConstraintSet :: Pos -> Int -> ConstraintSet -> TC ()
+occursConstraintSet pos tvn (ConstraintSet record _traits) = do
+    for_ record $ \RecordConstraint{..} -> do
+        for_ rcFields $ \field -> do
+            occurs pos tvn $ trTyVar field
+        for_ rcFieldType $ occurs pos tvn
+
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
     TypeVar ref -> readIORef ref >>= \case
         TUnbound _ _ _ q | tvn == q -> do
             failTypeError pos OccursCheckFailed
-        TUnbound {} -> do
+        TUnbound _strength _level constraints _tn -> do
+            occursConstraintSet pos tvn constraints
             return ()
         TBound next -> do
             occurs pos tvn next
@@ -23,8 +31,8 @@ occurs pos tvn = \case
     TRecord fields -> do
         for_ fields $ \RecordField{..} ->
             occurs pos tvn trTyVar
-    TQuant {} ->
-        return ()
+    TQuant _source constraints _tn ->
+        occursConstraintSet pos tvn constraints
     TTypeFun args rv -> do
         for_ args $ occurs pos tvn
         occurs pos tvn rv

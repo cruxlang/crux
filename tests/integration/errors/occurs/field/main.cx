@@ -1,0 +1,5 @@
+fun f(x) {
+  x.x = x
+}
+fun main() {
+}

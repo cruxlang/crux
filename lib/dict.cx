@@ -9,6 +9,7 @@ export fun new<V>(): Dict<V> {
 }
 
 export fun from<V, Record: {...: V}>(record: Record): Dict<V> {
+  // TODO: this needs to copy
   _unsafe_coerce(record)
 }
 

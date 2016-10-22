@@ -4,4 +4,4 @@ cd "$(dirname "$0")"/..
 
 cabal test
 cabal build exe:crux
-crux test
+dist/build/crux/crux test

@@ -44,7 +44,13 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     , fdBody        :: !(Expression idtype tagtype edata)
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data TypeVarIdent = TypeVarIdent Name Pos [UnresolvedReference]
+data RecordConstraintIdent = RecordConstraintIdent [(Name, TypeIdent)] (Maybe TypeIdent)
+    deriving (Eq, Show)
+
+data ConstraintSetIdent = ConstraintSetIdent (Maybe RecordConstraintIdent) [UnresolvedReference]
+    deriving (Eq, Show)
+
+data TypeVarIdent = TypeVarIdent Name Pos ConstraintSetIdent
     deriving (Eq, Show)
 
 data ImplNominal = ImplNominal
@@ -282,15 +288,10 @@ setEdata expr e = case expr of
     EInstanceDict _ a b -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
 
-data RecordIdentState
-    = RecordIdentOpen (Maybe TypeIdent)
-    | RecordIdentClosed
-    deriving (Show, Eq)
-
 data TypeIdent
     -- TODO: split into two?  TypeIdent and TypeApplication
     = TypeIdent UnresolvedReference [TypeIdent]
-    | RecordIdent [(Name, Maybe Mutability, TypeIdent)] RecordIdentState
+    | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
     | TupleTypeIdent [TypeIdent]

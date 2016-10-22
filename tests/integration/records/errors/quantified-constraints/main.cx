@@ -1,7 +1,7 @@
-fun g(a: {...: String}) {
+fun g<Rec: {...: String}>(a: Rec) {
 }
 
-fun f(a: {y: Number, ...: String}) {
+fun f<Rec: {y: Number, ...: String}>(a: Rec) {
   g(a)
 }
 

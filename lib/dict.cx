@@ -8,7 +8,7 @@ export fun new<V>(): Dict<V> {
   _unsafe_js("Object").create(js.Null)
 }
 
-export fun from<V>(record: {...: V}): Dict<V> {
+export fun from<V, Record: {...: V}>(record: Record): Dict<V> {
   _unsafe_coerce(record)
 }
 

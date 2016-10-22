@@ -1,4 +1,4 @@
-fun f(r: {...}) {
+fun f<R: {}>(r: R) {
   if True then r else {}
 }
 

@@ -1,4 +1,4 @@
-fun f(x: {foo: String, ...} as Rec): Rec {
+fun f<Rec: {foo: String}>(x: Rec): Rec {
   print(x.foo)
   return x
 }

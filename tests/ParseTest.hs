@@ -76,7 +76,7 @@ test_let_with_type_annotation = do
         (ELet () Immutable (PBinding "a") [] (Just (TypeIdent "Number" [])) (ELiteral () (LInteger 5)))
 
 test_record_types_can_have_trailing_comma = do
-    assertParses typeIdent "{x:Number,}" (RecordIdent [("x", Just Immutable, TypeIdent "Number" [])] RecordIdentClosed)
+    assertParses typeIdent "{x:Number,}" (RecordIdent [("x", Just Immutable, TypeIdent "Number" [])])
 
 test_multi_arg_type_ident = do
     assertParses
@@ -93,7 +93,7 @@ test_let_with_record_annotation = do
         (ELet () Immutable (PBinding "a") [] (Just (RecordIdent
             [ ("x", Just Immutable, TypeIdent "Number" [])
             , ("y", Just Immutable, TypeIdent "Number" [])
-            ] RecordIdentClosed)) (ELiteral () LUnit))
+            ])) (ELiteral () LUnit))
 
 test_let_with_function_annotation = do
     assertExprParses letExpression "let a: fun(Number) -> Unit = _unsafe_js(\"console.log\")"
@@ -124,7 +124,7 @@ test_times = do
 
 test_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe<a> { Some(a), None, };"
-        (DData () "Maybe" [TypeVarIdent "a" (makePos 1 12) []] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])
+        (DData () "Maybe" [TypeVarIdent "a" (makePos 1 12) (ConstraintSetIdent Nothing [])] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"
@@ -144,7 +144,7 @@ test_fun_with_argument_annotations = do
 
 test_fun_with_forall = do
     assertExprParses funDeclaration "fun f<T>(x: T) {}"
-        (DFun () "f" [TypeVarIdent "T" (makePos 1 7) []] FunctionDecl { fdParams=[("x", Just (TypeIdent "T" [], Nothing))], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit})
+        (DFun () "f" [TypeVarIdent "T" (makePos 1 7) (ConstraintSetIdent Nothing [])] FunctionDecl { fdParams=[("x", Just (TypeIdent "T" [], Nothing))], fdReturnAnnot=Nothing, fdBody=ELiteral () LUnit})
 
 test_fun_that_takes_function = do
     assertExprParses funDeclaration "fun f(x: fun(Number) -> String) { x(1) }"

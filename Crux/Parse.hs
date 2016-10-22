@@ -595,16 +595,9 @@ recordField = do
     return (name, mut, ty)
 
 recordTypeIdent :: Parser TypeIdent
-recordTypeIdent = do
-    braced $ do
-        rows <- commaDelimited recordField
-        state <- P.option RecordIdentClosed $ do
-            _ <- token TEllipsis
-            constraint <- P.optionMaybe $ do
-                _ <- token TColon
-                typeIdent
-            return $ RecordIdentOpen constraint
-        return $ RecordIdent rows state
+recordTypeIdent = braced $ do
+    rows <- commaDelimited recordField
+    return $ RecordIdent rows
 
 functionTypeIdent :: Parser TypeIdent
 functionTypeIdent = do
@@ -812,12 +805,32 @@ blockExpression = do
         -- of all ESemi is wrong
         _ -> foldl1 (ESemi brPos) body
 
+recordConstraintIdent :: Parser RecordConstraintIdent
+recordConstraintIdent = braced $ do
+    fields <- commaDelimited $ do
+        name <- anyIdentifier
+        _ <- token TColon
+        ident <- typeIdent
+        return (name, ident)
+    fieldTypeConstraint <- P.optionMaybe $ do
+        _ <- token TEllipsis
+        _ <- token TColon
+        typeIdent
+    return $ RecordConstraintIdent fields fieldTypeConstraint
+
 typeVarIdent :: Parser TypeVarIdent
 typeVarIdent = do
     (name, pos) <- anyIdentifierWithPos
-    traits <- P.option [] $ token TColon >> plusDelimited unresolvedReference
+    constraints <- P.option (ConstraintSetIdent Nothing []) $ do
+        _ <- token TColon
+        rc <- P.optionMaybe $ recordConstraintIdent
+        traits <- case rc of
+            Nothing -> plusDelimited unresolvedReference
+            Just _ -> P.many $ token TPlus >> unresolvedReference
+        return $ ConstraintSetIdent rc traits
+
     pos' <- inflatePos pos
-    return $ TypeVarIdent name pos' traits
+    return $ TypeVarIdent name pos' constraints
 
 explicitTypeVariableList :: Parser [TypeVarIdent]
 explicitTypeVariableList = do

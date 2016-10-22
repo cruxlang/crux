@@ -1,4 +1,4 @@
-fun f(x: {...: String}) {
+fun f<Rec: {...: String}>(x: Rec) {
 }
 
 fun main() {

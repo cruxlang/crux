@@ -14,7 +14,6 @@ import Crux.Typecheck.Types
 import Crux.TypeVar
 import Data.List (sort)
 import qualified Data.HashMap.Strict as HashMap
-import Text.Printf (printf)
 import qualified Data.Set as Set
 import qualified Crux.SymbolTable as SymbolTable
 import Crux.Module.Types
@@ -210,7 +209,7 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
     let bOnlyRows = filter (\row -> trName row `notElem` aFields) fieldsB
     --let names trs = map trName trs
 
-    coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
+    for_ coincidentRows $ \(lhs, rhs) -> do
         mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
         unify env pos (trTyVar lhs) (trTyVar rhs)
         return RecordField
@@ -243,7 +242,8 @@ validateFields env pos actualType actual expected = do
         case found of
             [] -> failTypeError pos $ RecordMissingField actualType (trName field)
             [cf] -> do
-                unifyRecordMutability (trName cf) pos (trMut cf) (trMut field)
+                -- TODO: if we are going to unify record mutability, we need to actually put the new mutability state somewhere
+                _ <- unifyRecordMutability (trName cf) pos (trMut cf) (trMut field)
                 unify env pos (trTyVar cf) (trTyVar field)
             _ -> fail "Internal error: found multiple properties with the same name"
 
@@ -269,7 +269,7 @@ validateRecordConstraint env pos (RecordConstraint fields fieldType) typeVar = c
 
     TFun _ _ -> do
         fail "Functions are not records"
-    TDataType def -> do
+    TDataType _def -> do
         fail "Data types are not records"
     TRecord closedFields -> do
         validateFields env pos typeVar closedFields fields
@@ -345,7 +345,6 @@ unifyRecordConstraint env pos rcA rcB = do
     let coincidentRows = [(a, b) | a <- aRows, b <- bRows, trName a == trName b]
     let aOnlyRows = filter (\row -> trName row `notElem` bFields) aRows
     let bOnlyRows = filter (\row -> trName row `notElem` aFields) bRows
-    let names fields = map trName fields
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
@@ -368,8 +367,6 @@ unifyRecordConstraint env pos rcA rcB = do
         (Just a, Just b) -> do
             unify env pos a b
             return $ Just a
-
-    
 
     return $ RecordConstraint
         { rcFields = coincidentRows' <> aOnlyRows' <> bOnlyRows'

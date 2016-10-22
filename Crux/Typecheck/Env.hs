@@ -96,7 +96,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         typeArguments' <- for typeArguments $ resolveTypeIdent env pos
         applyTypeFunction env pos typeName AllowTypeFunctions ty typeArguments'
 
-    go (RecordIdent fields state) = do
+    go (RecordIdent fields) = do
         fields' <- for fields $ \(trName, mut, rowTypeIdent) -> do
             let trMut = case mut of
                     Nothing -> RFree
@@ -104,18 +104,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
                     Just Immutable -> RImmutable
             trTyVar <- go rowTypeIdent
             return RecordField{..}
-        case state of
-            RecordIdentOpen constraint -> do
-                constraint' <- for constraint $ resolveTypeIdent env pos
-                let recordConstraint = RecordConstraint
-                        { rcFields = fields'
-                        , rcFieldType = constraint'
-                        }
-                tyVar <- freshTypeConstrained env $ ConstraintSet (Just recordConstraint) mempty
-                quantify tyVar
-                return tyVar
-            RecordIdentClosed -> do
-                return $ TRecord fields'
+        return $ TRecord fields'
 
     go (FunctionIdent argTypes retPrimitive) = do
         argTypes' <- for argTypes go
@@ -138,12 +127,28 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         freshType env
 
 registerTypeVarIdent :: Env -> TypeVarIdent -> TC TypeVar
-registerTypeVarIdent env (TypeVarIdent name pos traits) = do
+registerTypeVarIdent env (TypeVarIdent name pos (ConstraintSetIdent recordConstraint traits)) = do
+
+    recordConstraint' <- for recordConstraint $ \(RecordConstraintIdent fields fieldType) -> do
+        fields' <- for fields $ \(fname, ident) -> do
+            tyVar <- resolveTypeIdent env pos ident
+            return RecordField
+                { trName = fname
+                , trMut = RImmutable
+                , trTyVar = tyVar
+                }
+        fieldType' <- for fieldType $ resolveTypeIdent env pos
+        return $ RecordConstraint
+            { rcFields = fields'
+            , rcFieldType = fieldType'
+            }
+    -- recordConstraint
+
     traitIdentities <- for traits $ \traitName -> do
         (_, traitIdentity, _) <- resolveTraitReference env pos traitName
         return traitIdentity
     -- TODO: eliminate duplicates? at least warn
-    let constraints = ConstraintSet Nothing $ Set.fromList traitIdentities
+    let constraints = ConstraintSet recordConstraint' $ Set.fromList traitIdentities
     tyVar <- freshTypeConstrained env constraints
     quantify tyVar
 

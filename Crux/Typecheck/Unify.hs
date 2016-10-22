@@ -6,7 +6,7 @@ import Crux.AST
 import Crux.Error
 import qualified Crux.HashTable as HashTable
 import Crux.Prelude
-import Crux.Typecheck.Instantiate
+import Crux.Typecheck.Inst
 import Crux.Typecheck.Monad
 import Crux.Typecheck.Occurs
 import Crux.Typecheck.TypeAlloc

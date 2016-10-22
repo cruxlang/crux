@@ -1,4 +1,4 @@
-module Crux.Typecheck.Instantiate
+module Crux.Typecheck.Inst
     ( instantiateDataTypeDef
     , instantiate
     , instantiate'

@@ -29,7 +29,7 @@ library
                    , Crux.Text
                    , Crux.Tokens
                    , Crux.Typecheck
-                   , Crux.Typecheck.Instantiate
+                   , Crux.Typecheck.Inst
                    , Crux.Typecheck.Monad
                    , Crux.Typecheck.Occurs
                    , Crux.Typecheck.Quantify

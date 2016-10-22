@@ -13,7 +13,7 @@ import qualified Crux.SymbolTable as SymbolTable
 import Crux.Pos (Pos(..), dummyPos)
 import Crux.Prelude
 import Crux.Typecheck.Env
-import Crux.Typecheck.Instantiate
+import Crux.Typecheck.Inst
 import Crux.Typecheck.Monad
 import Crux.Typecheck.TypeAlloc
 import Crux.Typecheck.Types

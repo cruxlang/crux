@@ -21,6 +21,8 @@ import Crux.ModuleName (ModuleName)
 import Crux.Util
 import qualified Data.Text as Text
 
+-- Type Allocation
+
 freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do
     modifyIORef' eNextTypeIndex (+1)
@@ -38,6 +40,8 @@ freshWeakQVar :: MonadIO m => Env -> m TypeVar
 freshWeakQVar env = do
     index <- freshTypeIndex env
     newTypeVar $ TUnbound Weak (eLevel env) emptyConstraintSet index
+
+-- Export Resolution
 
 findExportByName :: (LoadedModule -> [(Name, a)]) -> Env -> Pos -> ModuleName -> Name -> TC a
 findExportByName getExports env pos moduleName valueName = do
@@ -107,6 +111,8 @@ resolveTraitReference = resolveReference "trait" eTraitBindings lmExportedTraits
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TypeVar)
 resolveExceptionReference = resolveReference "exception" eExceptionBindings lmExportedExceptions
 
+-- Type Application
+
 data TypeApplicationPolicy = AllowTypeFunctions | DisallowTypeFunctions
     deriving (Eq)
 
@@ -139,6 +145,7 @@ applyTypeFunction env pos typeReference typeApplicationPolicy inputType typeArgu
                 -- TODO: make this error message sane
                 failTypeError pos $ Error.IllegalTypeApplication (Text.pack $ show ty)
 
+-- Builtin Type Resolution
 
 resolveArrayType :: Env -> Pos -> Mutability -> TC (TypeVar, TypeVar)
 resolveArrayType env pos mutability = do
@@ -184,6 +191,10 @@ resolveTupleType env pos elements = do
     tupleType <- resolveTypeReference env pos tupleReference
     applyTypeFunction env pos tupleReference DisallowTypeFunctions tupleType elements
 
+-- Instantiation
+
+-- TODO: move Env and the substitution table into a reader monad
+
 instantiateDataTypeDef' ::
     MonadIO m =>
     IORef (HashMap Int TypeVar) ->
@@ -205,35 +216,6 @@ instantiateField subst env RecordField{..} = do
             RQuantified -> RFree
             _ -> trMut
     return RecordField{trName, trMut=mut', trTyVar=trTyVar'}
-
-{-
-instantiateRecord
-    :: MonadIO m
-    => IORef (HashMap Int TypeVar)
-    -> Env
-    -> [RecordField TypeVar]
-    -> RecordOpen
-    -> m TypeVar
-instantiateRecord subst env rows open = do
-    rows' <- for rows $ \RecordField{..} -> do
-        rowTy' <- instantiate' subst env trTyVar
-        let mut' = case trMut of
-                RQuantified -> RFree
-                _ -> trMut
-        return RecordField{trName, trMut=mut', trTyVar=rowTy'}
-
-    open' <- case open of
-        RecordQuantified i constraint -> do
-            constraint' <- for constraint $ instantiate' subst recordSubst env
-            return $ RecordFree i constraint'
-        RecordFree _ _ -> do
-            fail $ "Instantiation of a free row variable -- this should never happen"
-        RecordClose -> do
-            return $ RecordClose
-
-    objectType <- newIORef $ RRecord $ RecordType open' rows'
-    return $ TRecord objectType
--}
 
 instantiateConstraints :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> ConstraintSet -> m ConstraintSet
 instantiateConstraints subst env (ConstraintSet recordConstraint traits) = do
@@ -286,6 +268,18 @@ instantiate' subst env ty = case ty of
         rv' <- instantiate' subst env rv
         return $ TTypeFun args' rv'
 
+instantiate :: MonadIO m => Env -> TypeVar -> m TypeVar
+instantiate env t = do
+    subst <- HashTable.new
+    instantiate' subst env t
+
+instantiateAll :: (MonadIO m, Traversable c) => Env -> c TypeVar -> m (c TypeVar)
+instantiateAll env container = do
+    subst <- HashTable.new
+    for container $ instantiate' subst env
+
+-- Quantification
+
 quantifyConstraintSet :: MonadIO m => ConstraintSet -> m ()
 quantifyConstraintSet (ConstraintSet recordConstraint _traits) = do
     for_ recordConstraint $ \RecordConstraint{..} -> do
@@ -319,15 +313,7 @@ quantify ty = case ty of
         for_ args quantify
         quantify rv
 
-instantiate :: MonadIO m => Env -> TypeVar -> m TypeVar
-instantiate env t = do
-    subst <- HashTable.new
-    instantiate' subst env t
-
-instantiateAll :: (MonadIO m, Traversable c) => Env -> c TypeVar -> m (c TypeVar)
-instantiateAll env container = do
-    subst <- HashTable.new
-    for container $ instantiate' subst env
+-- Occurs check
 
 occurs :: Pos -> Int -> TypeVar -> TC ()
 occurs pos tvn = \case
@@ -351,6 +337,8 @@ occurs pos tvn = \case
     TTypeFun args rv -> do
         for_ args $ occurs pos tvn
         occurs pos tvn rv
+
+-- Unification
 
 unificationError :: Pos -> String -> TypeVar -> TypeVar -> TC a
 unificationError pos message a b = do
@@ -376,123 +364,6 @@ unifyFieldConstraint env pos constraint tr@RecordField{..} = do
             unify env pos ctv trTyVar
             return tr{ trMut=trMut' }
 
-{-
-unifyRecord :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
-unifyRecord env pos av bv = do
-    -- do
-    --     putStrLn " -- unifyRecord --"
-    --     putStr "\t" >> showTypeVarIO av >>= putStrLn
-    --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
-
-    let TRecord aRef = av
-    let TRecord bRef = bv
-    RecordType aOpen aRows <- followRecordTypeVar aRef
-    RecordType bOpen bRows <- followRecordTypeVar bRef
-    let aFields = sort $ map trName aRows
-    let bFields = sort $ map trName bRows
-
-    let coincidentRows = [(a, b) | a <- aRows, b <- bRows, trName a == trName b]
-    let aOnlyRows = filter (\row -> trName row `notElem` bFields) aRows
-    let bOnlyRows = filter (\row -> trName row `notElem` aFields) bRows
-    let names trs = map trName trs
-
-    coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
-        case unifyRecordMutability (trMut lhs) (trMut rhs) of
-            Left err -> failTypeError pos $ RecordMutabilityUnificationError (trName lhs) err
-            Right mut -> do
-                unify env pos (trTyVar lhs) (trTyVar rhs)
-                return RecordField
-                    { trName = trName lhs
-                    , trMut = mut
-                    , trTyVar = trTyVar lhs
-                    }
-
-    let unifyRecordReversed = unifyRecord env pos bv av
-
-    case (aOpen, bOpen) of
-        -- closed and closed
-        (RecordClose, RecordClose)
-            | null aOnlyRows && null bOnlyRows -> do
-                writeIORef bRef $ RRecord $ RecordType RecordClose coincidentRows'
-                writeIORef aRef $ RBound $ bRef
-            | otherwise ->
-                unificationError pos "Closed row types must match exactly" av bv
-
-        -- closed and free
-        (RecordClose, RecordFree _ constraint)
-            | null bOnlyRows -> do
-                aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraint
-                writeIORef aRef $ RRecord $ RecordType RecordClose (coincidentRows' ++ aOnlyRows')
-                writeIORef bRef $ RBound $ aRef
-            | otherwise ->
-                unificationError pos (printf "Record has fields %s not in closed record" (show $ names bOnlyRows)) av bv
-        (RecordFree _ _, RecordClose) -> do
-            unifyRecordReversed
-
-        -- closed and quantified
-        (RecordClose, RecordQuantified _ _) ->
-            unificationError pos "concrete record incompatible with record with explicit record type variable" av bv
-        (RecordQuantified _ _, RecordClose) ->
-            unifyRecordReversed
-
-        -- free and free
-        (RecordFree aVar constraintA, RecordFree _ constraintB) -> do
-            aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraintB
-            bOnlyRows' <- for bOnlyRows $ unifyFieldConstraint env pos constraintA
-            newConstraint <- case (constraintA, constraintB) of
-                (Nothing, Nothing) -> do
-                    return Nothing
-                (Just a, Nothing) -> do
-                    return $ Just a
-                (Nothing, Just b) -> do
-                    return $ Just b
-                (Just a, Just b) -> do
-                    unify env pos a b
-                    return $ Just a
-            writeIORef bRef $ RRecord $ RecordType (RecordFree aVar newConstraint) (coincidentRows' ++ aOnlyRows' ++ bOnlyRows')
-            writeIORef aRef $ RBound bRef
-
-        -- free and quantified
-        (RecordFree _ constraintA, RecordQuantified _ constraintB)
-            | null aOnlyRows -> do
-                writeIORef bRef $ RRecord $ RecordType bOpen (coincidentRows' ++ bOnlyRows)
-                writeIORef aRef $ RBound bRef
-            | otherwise ->
-                error "lhs record has rows not in quantified record"
-        (RecordQuantified _ _, RecordFree _ _) -> do
-            unifyRecordReversed
-
-        -- quantified and quantified
-        (RecordQuantified a constraintA, RecordQuantified b constraintB)
-            | not (null aOnlyRows) ->
-                error "lhs quantified record has rows not in rhs quantified record"
-            | not (null bOnlyRows) ->
-                error "rhs quantified record has rows not in lhs quantified record"
-            | a /= b ->
-                error "Quantified records do not have the same qvar!"
-            | otherwise -> do
-                case (constraintA, constraintB) of
-                    (Nothing, Nothing) -> pure ()
-                    (Just atv, Just btv) -> unify env pos atv btv
-                    _ -> error "invalid constraints"
-
-                -- TODO: should we unify the constraint with the fields
-
-                writeIORef aRef $ RRecord $ RecordType aOpen coincidentRows'
-                -- Is this a bug? I copied it verbatim from what was here. -- chad
-                writeIORef aRef $ RBound bRef
-                {-
-                writeTypeVar av (TRecord $ RecordType aOpen coincidentRows')
-                writeTypeVar av (TBound bv)
-                -}
-
-    -- do
-    --     putStrLn "\t -- after --"
-    --     putStr "\t" >> showTypeVarIO av >>= putStrLn
-    --     putStr "\t" >> showTypeVarIO bv >>= putStrLn
-    --     putStrLn ""
--}
-
 unifyConcreteRecord :: Env -> Pos -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
 unifyConcreteRecord env pos fieldsA fieldsB = do
     let aFields = sort $ map trName fieldsA
@@ -501,7 +372,6 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
     let coincidentRows = [(a, b) | a <- fieldsA, b <- fieldsB, trName a == trName b]
     let aOnlyRows = filter (\row -> trName row `notElem` bFields) fieldsA
     let bOnlyRows = filter (\row -> trName row `notElem` aFields) fieldsB
-    --let names trs = map trName trs
 
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
@@ -516,7 +386,7 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
         return ()
     else do
         -- TODO: better error messages here
-        unificationError pos "Closed row types must match exactly" undefined undefined -- fieldsA fieldsB
+        unificationError pos "Closed row types must match exactly" undefined undefined
 
 unifyRecordMutability :: Name -> Pos -> FieldMutability -> FieldMutability -> TC FieldMutability
 unifyRecordMutability propName pos m1 m2 = case (m1, m2) of

@@ -33,12 +33,7 @@ import qualified Data.Set as Set
 
 type Name = Text
 
--- Per http://okmij.org/ftp/ML/generalization.html
-newtype TypeLevel = TypeLevel { unTypeLevel :: Int }
-    deriving (Eq, Num, Ord)
-
-instance Show TypeLevel where
-    show (TypeLevel i) = show i
+-- TDataTypeDef
 
 data TVariant typevar = TVariant
     { tvName       :: Name
@@ -52,6 +47,8 @@ data TDataTypeDef typevar = TDataTypeDef
     , tuVariants   :: ![TVariant typevar]
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
+-- Traits
+
 data TraitImplIdentity
     = DataIdentity Name ModuleName
     | RecordIdentity
@@ -61,6 +58,21 @@ instance Hashable TraitImplIdentity
     
 dataTypeIdentity :: TDataTypeDef a -> TraitImplIdentity
 dataTypeIdentity ut = DataIdentity (tuName ut) (tuModuleName ut)
+
+data TraitDesc = TraitDesc
+    { tdName :: Name
+    , tdModule :: ModuleName
+    , tdTypeVar :: TypeVar
+    , tdMethods :: [(Name, TypeVar)]
+    }
+    deriving (Eq, Show)
+
+data TraitIdentity = TraitIdentity ModuleName Name
+    deriving (Eq, Ord, Show, Generic)
+
+instance Hashable TraitIdentity
+
+-- Records
 
 -- Concrete, closed fields must be Mutable | Immutable
 -- Quantified type variables can be RQuantified
@@ -78,46 +90,7 @@ data RecordField typevar = RecordField
     , trTyVar :: typevar
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 
-{-
-fun hypot(p) { sqrt(p.x * p.x + p.y * p.y); };
-let p = { x:9,y:22,z:33 };
-let ps = hypot(p);
-
-We instantiate the argument type {x:Number, y:Number, ...} and unify with {x:Number, y:Number, z:Number}
-This yields {x:Number, y:Number, z:Number}
--}
-
--- An open record can be unified with another record type that has extra properties.
--- F u F == Free record with union of properties
--- F u Q == Verify that LHS fields are all present in RHS.  Unifies to RHS.
--- Q u Q == Quantified record with intersecting properties only
--- C u C == Fields must intersect exactly.  Types unify.  Closed record.
--- F u C == Fields of free record must be present in the closed record and they must unify.  Closed record.
--- Q u C == I think this always fails to unify.
-
-data TraitDesc = TraitDesc
-    { tdName :: Name
-    , tdModule :: ModuleName
-    , tdTypeVar :: TypeVar
-    , tdMethods :: [(Name, TypeVar)]
-    }
-    deriving (Eq, Show)
-
-data TraitIdentity = TraitIdentity ModuleName Name
-    deriving (Eq, Ord, Show, Generic)
-
-instance Hashable TraitIdentity
-
-type TypeNumber = Int
-
-data Strength = Strong | Weak
-    deriving (Eq, Show)
-
-data TypeSource
-    = ExplicitName Name Pos
-    -- TODO: put a source on Unbound type variables too
-    | Instantiation
-    deriving (Eq, Show)
+-- Constraints
 
 data RecordConstraint = RecordConstraint
     { rcFields :: [RecordField TypeVar]
@@ -130,6 +103,26 @@ data ConstraintSet = ConstraintSet (Maybe RecordConstraint) (Set TraitIdentity)
 
 emptyConstraintSet :: ConstraintSet
 emptyConstraintSet = ConstraintSet Nothing mempty
+
+-- Type Variables
+
+type TypeNumber = Int
+
+data Strength = Strong | Weak
+    deriving (Eq, Show)
+
+-- Per http://okmij.org/ftp/ML/generalization.html
+newtype TypeLevel = TypeLevel { unTypeLevel :: Int }
+    deriving (Eq, Num, Ord)
+
+instance Show TypeLevel where
+    show (TypeLevel i) = show i
+
+data TypeSource
+    = ExplicitName Name Pos
+    -- TODO: put a source on Unbound type variables too
+    | Instantiation
+    deriving (Eq, Show)
 
 data TypeState
     = TUnbound Strength TypeLevel ConstraintSet TypeNumber
@@ -145,6 +138,8 @@ data TypeVar
     | TRecord [RecordField TypeVar]
     | TTypeFun [TypeVar] TypeVar
     deriving (Eq)
+
+-- Functions and Instances
 
 unsafeShowRef :: Show a => IORef a -> String
 unsafeShowRef ref = show $ unsafePerformIO $ readIORef ref
@@ -185,6 +180,8 @@ followTypeVar tv@(TypeVar ref) = readIORef ref >>= \case
 writeTypeVar :: TypeVar -> MutableTypeVar -> IO ()
 writeTypeVar (TypeVar r) = writeIORef r
 -}
+
+-- Render TypeVar
 
 -- TypeVar Renderer state
 data TVRState = TVRState

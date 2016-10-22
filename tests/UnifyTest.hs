@@ -7,6 +7,7 @@ import Crux.IORef
 import Crux.Pos (dummyPos)
 import Crux.Typecheck.Env (newEnv)
 import Crux.Typecheck.Monad
+import Crux.Typecheck.TypeAlloc
 import Crux.Typecheck.Unify
 import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap

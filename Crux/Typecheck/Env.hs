@@ -30,6 +30,7 @@ import Crux.Module.Types
 import Crux.Prelude
 import Crux.Pos (Pos)
 import Crux.Typecheck.Monad
+import Crux.Typecheck.TypeAlloc
 import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
 import Crux.Typecheck.Quantify
@@ -73,6 +74,8 @@ childEnv env@Env{..} = do
         , eExceptionBindings = exceptionBindings
         , eLevel = eLevel + 1
         }
+
+-- TypeIdent Resolution
 
 exportedDecls :: [Declaration a b c] -> [DeclarationType a b c]
 exportedDecls decls = [dt | (Declaration Export _ dt) <- decls]

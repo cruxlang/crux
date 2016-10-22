@@ -29,9 +29,11 @@ library
                    , Crux.Text
                    , Crux.Tokens
                    , Crux.Typecheck
+                   , Crux.Typecheck.Instantiate
                    , Crux.Typecheck.Monad
                    , Crux.Typecheck.Occurs
                    , Crux.Typecheck.Quantify
+                   , Crux.Typecheck.TypeAlloc
                    , Crux.Typecheck.Types
                    , Crux.Typecheck.Unify
                    , Crux.Typecheck.Env

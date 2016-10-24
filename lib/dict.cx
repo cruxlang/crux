@@ -8,9 +8,13 @@ export fun new<V>(): Dict<V> {
   _unsafe_js("Object").create(js.Null)
 }
 
+let unsafeCopyObject = _unsafe_js(
+  "function copyObject(obj) { let rv = Object.create(null); for (var key in obj) { rv[key] = obj[key]; } return rv; }"
+)
+
 export fun from<V, Record: {...: V}>(record: Record): Dict<V> {
-  // TODO: this needs to copy
-  _unsafe_coerce(record)
+  // Dict is mutable and the record isn't so make a copy.
+  unsafeCopyObject(record)
 }
 
 export fun set<V>(dict: Dict<V>, key: String, value: V): () {
@@ -31,6 +35,10 @@ export fun get<V>(dict: Dict<V>, key: String): ?V {
     Some(v)
   }
 }
+
+export let delete<V>: (Dict<V>, String) => () = _unsafe_js(
+  "function delete_(o, k) { delete o[k]; }"
+)
 
 export fun keys<V>(dict: Dict<V>): [String] {
   _unsafe_js("Object").keys(dict)

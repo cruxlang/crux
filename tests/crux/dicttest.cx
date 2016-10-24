@@ -9,6 +9,14 @@ let _ = test("basic dict", () => {
   assert.equal(Some(10), d->get("hi"))
 })
 
+let _ = test("delete", () => {
+  let d = dict.new()
+  d->set("hello", "world")
+  assert.equal(Some("world"), d->get("hello"))
+  d->delete("hello")
+  assert.equal(None, d->get("hello"))
+})
+
 let _ = test("from record", () => {
   let d = dict.from({
     x: "hi",
@@ -17,4 +25,11 @@ let _ = test("from record", () => {
   assert.equal(Some("hi"), d->get("x"))
   assert.equal(Some("bye"), d->get("y"))
   assert.equal(None, d->get("z"))
+})
+
+let _ = test("from record copies", () => {
+  let r = {x: 10}
+  let d = dict.from(r)
+  d->delete("x")
+  assert.equal(10, r.x)
 })

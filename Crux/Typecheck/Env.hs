@@ -128,7 +128,6 @@ resolveTypeIdent env@Env{..} pos typeIdent =
 
 registerTypeVarIdent :: Env -> TypeVarIdent -> TC TypeVar
 registerTypeVarIdent env (TypeVarIdent name pos (ConstraintSetIdent recordConstraint traits)) = do
-
     recordConstraint' <- for recordConstraint $ \(RecordConstraintIdent fields fieldType) -> do
         fields' <- for fields $ \(fname, ident) -> do
             tyVar <- resolveTypeIdent env pos ident
@@ -142,7 +141,6 @@ registerTypeVarIdent env (TypeVarIdent name pos (ConstraintSetIdent recordConstr
             { rcFields = fields'
             , rcFieldType = fieldType'
             }
-    -- recordConstraint
 
     traitIdentities <- for traits $ \traitName -> do
         (_, traitIdentity, _) <- resolveTraitReference env pos traitName

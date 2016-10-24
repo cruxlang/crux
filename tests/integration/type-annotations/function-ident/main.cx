@@ -1,0 +1,16 @@
+exception NoReturn ()
+fun f1(x) { throw NoReturn () }
+fun f2(x, y) { throw NoReturn () }
+
+let a: Number => String = f1
+let b: (Number) => String = f1
+let c: (Number, String) => () = f2
+
+fun tc() {
+  a(10)
+  b(11)
+  c(12, "a")
+}
+
+fun main() {
+}

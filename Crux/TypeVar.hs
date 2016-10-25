@@ -248,7 +248,18 @@ showTypeVarIO' state = \case
         TBound tv -> do
             showTypeVarIO' state tv
     TQuant typeSource constraints i -> do
-        return $ "TQuant " ++ show typeSource ++ " " ++ show constraints ++ " " ++ show i
+        name' <- case typeSource of
+            ExplicitName name _pos -> return $ Text.unpack name
+            Instantiation -> do
+                names <- readIORef $ tvrNames state
+                case Map.lookup i names of
+                    Just name -> return name
+                    Nothing -> do
+                        name <- getNextVarName state
+                        writeIORef (tvrNames state) $ Map.insert i name names
+                        return name
+        constraintsString <- showConstraintSet state constraints
+        return $ name' <> if constraints == emptyConstraintSet then "" else (": " <> constraintsString)
     TFun args ret -> do
         as <- for args $ showTypeVarIO' state
         rs <- showTypeVarIO' state ret

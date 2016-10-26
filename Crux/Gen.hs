@@ -393,9 +393,9 @@ traitDictName traitName' typeVar = do
   where
     getDTI :: MonadIO m => TypeVar -> m TraitImplIdentity
     getDTI tv = followTypeVar tv >>= \case
-        TypeVar {} ->
+        TypeVar {} -> do
             fail "Unexpected traitDictName got unbound typevar"
-        TDataType def ->
+        TDataType def -> do
             return $ dataTypeIdentity def
         TRecord fields -> do
             fail $ "TODO: compute dictname from rows: " <> show (fmap trName fields)
@@ -438,21 +438,26 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
-    AST.DImpl typeVar traitName implType decls -> do
+    AST.DImpl typeVar traitRef implType decls -> do
+        -- TODO: refactor the duplication out of this
         case implType of
             AST.ImplTypeNominal AST.ImplNominal{..} -> do
-                instanceName <- traitDictName traitName typeVar
+                instanceName <- traitDictName traitRef typeVar
                 decls' <- for decls $ \(name, expr) -> do
                     -- TODO: find some better way to guarantee that we never
                     -- define an instance value to be be flow control
                     (Just value, instructions) <- subBlock' env expr
                     return (name, (value, instructions))
-
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
             AST.ImplTypeRecord AST.ImplRecord{..} -> do
-                -- We don't generate an impl here for records -- they are generated
-                -- implicitly during use when typechecking
-                return ()
+                let (AST.FromModule traitModule, traitName) = traitRef
+                let instanceName = instanceDictName (TraitIdentity traitModule traitName) RecordIdentity
+                decls' <- for decls $ \(name, expr) -> do
+                    -- TODO: find some better way to guarantee that we never
+                    -- define an instance value to be be flow control
+                    (Just value, instructions) <- subBlock' env expr
+                    return (name, (value, instructions))
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') ["fieldMap"]
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

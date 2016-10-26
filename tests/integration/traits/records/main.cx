@@ -10,26 +10,13 @@ impl GetType String {
   getType = _ => "string"
 }
 
-/*
 impl GetType {...} {
-  for fieldValue { () }
-  getType(d: {...: ()}) { return "record" }
+  for fieldValue { fieldValue }
+  getType(d) { return "record" }
 }
-*/
-
-/*
-impl json.ToJSON {...} {
-  for fieldValue {
-    return json.toJSON(fieldValue)
-  }
-  toJSON(d: {...: json.Value}) {
-    return json.toJSON(dict.from(d))
-  }
-}
-*/
 
 fun main() {
   print(getType(10))
   print(getType("hello"))
-  //print(getType({x: 10}))
+  print(getType({x: 10}))
 }

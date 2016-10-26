@@ -146,7 +146,6 @@ weaken level e = do
             return $ TDataType typeDef{ tuParameters=tyvars' }
         TRecord fields -> do
             weakenRecord fields
-            return t
         TTypeFun a b -> do
             b' <- weaken' b
             return $ TTypeFun a b'
@@ -644,6 +643,8 @@ resolveInstanceDictPlaceholders env = recurse
             followTypeVar tv >>= \case
                 TypeVar ref -> readIORef ref >>= \case
                     TUnbound _str _level _constraints _typeNumber ->
+                        -- TODO: this needs a better error message - it just means we are trying to resolve
+                        -- a trait impl for a polymorphic type
                         fail "should have been quantified by now"
                     _ ->
                         fail "never happens"
@@ -677,14 +678,20 @@ resolveInstanceDictPlaceholders env = recurse
         unify env dummyPos instanceType tv
 
         let thisDict = EInstanceDict tv traitIdentity traitImplIdentity
-        case traits of
-            [] -> do
-                return thisDict
-            _ -> do
-                argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
-                    --quantify typeVar -- this feels dirty
-                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
-                return $ EApp tv thisDict argDicts
+        case traitImplIdentity of
+            DataIdentity{} -> do
+                case traits of
+                    [] -> do
+                        return thisDict
+                    _ -> do
+                        argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
+                            --quantify typeVar -- this feels dirty
+                            resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                        return $ EApp tv thisDict argDicts
+            RecordIdentity -> do
+                -- TODO: this is all kinds of wrong
+                -- TODO: we need to look up the appropriate field mapper
+                return $ EApp tv thisDict [ELiteral tv LUnit]
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do
@@ -904,7 +911,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         return $ DTrait unitType traitName contents'
 
     DImpl pos' traitReference implType implValues -> do
-        (traitRef, _traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
+        (traitRef, traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
         env' <- childEnv env
 
         (typeVar, implType') <- case implType of
@@ -922,8 +929,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
                 typeVars <- registerExplicitTypeVariables env' inTypeParams
                 traitRefs <- accumulateTraitReferences typeVars
-                dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
-                    return $ renderInstanceArgumentName traitIdentity typeNumber
+                dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity') -> do
+                    return $ renderInstanceArgumentName traitIdentity' typeNumber
 
                 typeVar' <- followTypeVar typeVar >>= \case
                     TDataType _def -> do
@@ -945,14 +952,30 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 return (typeVar', implType')
 
             ImplTypeRecord ImplRecord{..} -> do
-                typeVar <- freshType env'
+                concreteRecordType <- freshTypeConstrained env' $ ConstraintSet
+                    -- This RecordConstraint isn't strictly necessary but might produce better error messages.
+                    (Just RecordConstraint{rcFields=[], rcFieldType=Nothing})
+                    (Set.singleton traitIdentity)
+                quantify concreteRecordType
 
-                irFieldExpression' <- check env' irFieldExpression
+                -- typecheck the field transformer
+                ftEnv <- childEnv env'
+                fieldType <- freshType ftEnv
+                SymbolTable.insert (eValueBindings ftEnv) pos' SymbolTable.DisallowDuplicates irFieldName (ValueReference (Local, irFieldName) Immutable fieldType)
+                typedFieldTransformer <- check ftEnv irFieldExpression
+
+                let recordConstraint = RecordConstraint
+                        { rcFields = []
+                        , rcFieldType = Just (edata typedFieldTransformer)
+                        }
+                recordType <- freshTypeConstrained ftEnv $ ConstraintSet (Just recordConstraint) mempty
+                quantify recordType -- also quantifies fieldType
+
                 let implType' = ImplTypeRecord $ ImplRecord
                         { irFieldName = irFieldName
-                        , irFieldExpression = irFieldExpression'
+                        , irFieldExpression = typedFieldTransformer
                         }
-                return (typeVar, implType')
+                return (concreteRecordType, implType')
 
         -- instantiate all of the methods in the same subst dict
         -- so the typevar is unified across methods

@@ -161,15 +161,25 @@ Generating an instance for a record would look up the fieldTransform,
 _statically_ apply it to all the fields (instantiating each time),
 unify all the result type vars, and then run finalize.
 
-We'd generate a new ToJSON impl for each record, but that could be
-inlined out.
+We'd generate a new ToJSON impl for each record, but that could be inlined out.
 
 ### TODO: js.Coercible
 
 ### TODO: mutability
 
+### TODO: Implementation
 
+When the compiler sees `impl Trait {...}` it can't generate a complete instance right then.  It's more like an impl template waiting to be stamped out for specific concrete records.
 
+That said, all trait methods can be produced assuming the record has been converted into `{...: T}` already.
+
+The trait impl generated takes an argument: the field transformer.  The function takes the concrete record, maps every field by the field transformer, and returns the {...: T}.
+
+The impl for each concrete record must only have access to the definitions given before the impl template, which means the record trait typecheck has to happen as the `impl Trait {...}` is seen.
+
+{-
+Later on, when a concrete record is checked against the trait, each field property should be unified against the argument field of the field transform, and then all the results should be unified together into R.  The TypeVar for the instance then becomes {...: R}, and the rest of the trait is typechecked as such.
+-}
 
 ### Chad does some thinking
 

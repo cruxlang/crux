@@ -27,3 +27,18 @@ let _ = test("sorted doesn't change original array", () => {
   let b = sorted(a)
   assert.equal([2, 1, 0], a)
 })
+
+data D<a>(a)
+
+impl Eq D<a: Eq> {
+  eq(D(x), D(y)) { x == y }
+}
+
+impl Ordered D<a: Ordered> {
+  lt(D(x), D(y)) { y < x }
+}
+
+let _ = test("sorted uses Ordered", () => {
+  let a = [D(1), D(5), D(3), D(0)]
+  assert.equal([D(5), D(3), D(1), D(0)], sorted(a))
+})

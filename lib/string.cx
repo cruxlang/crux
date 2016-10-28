@@ -13,6 +13,10 @@ impl Eq String {
   eq = unsafe.eq
 }
 
+impl Ordered String {
+  lt = unsafe.lt
+}
+
 impl length.HasLength String {
   len(s) {
     _unsafe_coerce(s).length

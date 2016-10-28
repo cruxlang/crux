@@ -33,3 +33,8 @@ let _ = test("from record copies", () => {
   d->delete("x")
   assert.equal(10, r.x)
 })
+
+let _ = test("enumerate keys", () => {
+  let d = dict.from({x: 10, y: 30, aa: 50})
+  assert.equal(["aa", "x", "y"], sorted(d->keys()))
+})

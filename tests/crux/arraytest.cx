@@ -1,19 +1,29 @@
 import test(...)
 import assert
 
-let _ = test("array length", fun() {
+let _ = test("array length", () => {
   assert.equal(0, len([]))
   assert.equal(1, len([5]))
   assert.equal(2, len(["hi", "bye"]))
 })
 
-let _ = test("mutable array length", fun() {
+let _ = test("mutable array length", () => {
   assert.equal(0, len(mutable []))
   assert.equal(1, len(mutable [5]))
   assert.equal(2, len(mutable ["hi", "bye"]))
 })
 
-let _ = test("array equality", fun() {
+let _ = test("array equality", () => {
   assert.equal([1, 2], [1, 2])
   assert.notEqual([1, 2], [3, 4])
+})
+
+let _ = test("sorted", () => {
+  assert.equal([0, 1, 2], sorted([1, 2, 0]))
+})
+
+let _ = test("sorted doesn't change original array", () => {
+  let a = [2, 1, 0]
+  let b = sorted(a)
+  assert.equal([2, 1, 0], a)
 })

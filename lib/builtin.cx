@@ -38,3 +38,8 @@ export let toString<a>: a => String =
 export fun emptyArray<a>(): [a] {
     _unsafe_js("[]")
 }
+
+// TODO: implemented sorted with a trait so it can be used on mutarray too
+export fun sorted<a>(arr: [a]): [a] {
+    return _unsafe_coerce(arr).slice().sort()
+}

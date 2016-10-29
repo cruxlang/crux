@@ -1,5 +1,8 @@
 pragma { NoBuiltin }
 
+import cmp
+import types(True, False)
+
 export data Tuple2<a, b>(a, b)
 export data Tuple3<a, b, c>(a, b, c)
 export data Tuple4<a, b, c, d>(a, b, c, d)
@@ -7,3 +10,21 @@ export data Tuple5<a, b, c, d, e>(a, b, c, d, e)
 export data Tuple6<a, b, c, d, e, f>(a, b, c, d, e, f)
 export data Tuple7<a, b, c, d, e, f, g>(a, b, c, d, e, f, g)
 export data Tuple8<a, b, c, d, e, f, g, h>(a, b, c, d, e, f, g, h)
+
+impl cmp.Eq Tuple2<a: cmp.Eq, b: cmp.Eq> {
+  eq(Tuple2(a1, a2), Tuple2(b1, b2)) {
+    return a1 == b1 && a2 == b2
+  }
+}
+
+impl cmp.Ordered Tuple2<a: cmp.Ordered, b: cmp.Ordered> {
+  lt(Tuple2(a1, a2), Tuple2(b1, b2)) {
+    if a1 < b1 {
+      True
+    } else if (b1 < a1) {
+      False
+    } else {
+      a2 < b2
+    }
+  }
+}

@@ -66,6 +66,10 @@ export fun freeze<a>(arr: mutable [a]): [a] {
     _unsafe_coerce(arr).slice()
 }
 
+export fun unsafeFreeze<a>(arr: mutable [a]): [a] {
+  _unsafe_coerce(arr)
+}
+
 // TODO: add comparator support
 export fun sort(arr: mutable [string.String]) {
   _unsafe_coerce(arr).sort()

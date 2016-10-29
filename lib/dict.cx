@@ -1,5 +1,6 @@
 import js
 import js.unsafe
+import mutarray
 
 // Represented by a JavaScript Object
 export data Dict<V> {}
@@ -42,6 +43,14 @@ export let delete<V>: (Dict<V>, String) => () = _unsafe_js(
 
 export fun keys<V>(dict: Dict<V>): [String] {
   _unsafe_js("Object").keys(dict)
+}
+
+export fun items<V>(dict: Dict<V>): [(String, V)] {
+  let rv = mutable []
+  for key in dict->keys() {
+    rv->append((key, unsafe.getProperty(dict, key)))
+  }
+  return mutarray.unsafeFreeze(rv)
 }
 
 export fun map<U, V>(dict: Dict<U>, fn: U => V): Dict<V> {

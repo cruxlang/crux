@@ -32,6 +32,10 @@ An unordered set of interesting language design resources.
 * [Implementing type classes](http://web.cecs.pdx.edu/~mpj/pubs/pldi93.html)
 * [On Understanding Types, Data Abstraction, and Polymorphism](http://lucacardelli.name/papers/onunderstanding.a4.pdf)
 
+## Traits
+
+* [Subtype type classes don't work](http://typelevel.org/blog/2016/09/30/subtype-typeclasses.html) [(Lobste.rs discussion)](https://lobste.rs/s/fc0d9b/subtype_type_classes_dont_work)
+
 ## Row Types
 
 * [Objects and Aspects - Row Polymorphism](https://www.cs.cmu.edu/~neelk/rows.pdf)

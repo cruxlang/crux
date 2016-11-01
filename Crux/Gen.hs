@@ -113,6 +113,7 @@ data DeclarationType
 data Declaration
     = Declaration AST.ExportFlag DeclarationType
     | TraitInstance Name (HashMap Name (Value, [Instruction])) [Name]
+    | RecordFieldMap Name Name [Instruction]
     deriving (Show, Eq)
 
 type Program = [(ModuleName, Module)] -- topologically sorted
@@ -351,6 +352,8 @@ generate env = \case
         return $ Just $ LocalBinding $ instanceDictName traitIdentity dti
     AST.EInstanceArgument _ name -> do
         return $ Just $ LocalBinding name
+    AST.EInstanceFieldMap _ traitIdentity -> do
+        return $ Just $ LocalBinding $ instanceFieldMapName traitIdentity
 
 subBlock :: MonadIO m => Env -> ASTExpr -> m [Instruction]
 subBlock env expr = do
@@ -384,6 +387,10 @@ instanceDictName (TraitIdentity traitModule traitName) = \case
         "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
     RecordIdentity ->
         "$$record$" <> traitName <> "$" <> renderModuleName traitModule
+
+instanceFieldMapName :: TraitIdentity -> Text
+instanceFieldMapName (TraitIdentity traitModule traitName) =
+    "$$fieldMap$" <> traitName <> "$" <> renderModuleName traitModule
 
 traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
 traitDictName traitName' typeVar = do
@@ -451,7 +458,15 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
             AST.ImplTypeRecord AST.ImplRecord{..} -> do
                 let (AST.FromModule traitModule, traitName) = traitRef
-                let instanceName = instanceDictName (TraitIdentity traitModule traitName) RecordIdentity
+                let traitIdentity = TraitIdentity traitModule traitName
+
+                fmExpr <- subBlockWithReturn env irFieldExpression
+                writeDeclaration $ RecordFieldMap
+                    (instanceFieldMapName traitIdentity)
+                    irFieldName
+                    fmExpr
+
+                let instanceName = instanceDictName traitIdentity RecordIdentity
                 decls' <- for decls $ \(name, expr) -> do
                     -- TODO: find some better way to guarantee that we never
                     -- define an instance value to be be flow control

@@ -550,6 +550,7 @@ check' expectedType env = \case
     EInstanceArgument _ _ -> do
         fail "ICE: instance arguments are not typechecked"
 
+-- TODO: move into IR / backend
 renderInstanceArgumentName :: TraitIdentity -> TypeNumber -> Name
 renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
     "$" <> (Text.intercalate "$" $ ModuleName.toList traitModule) <> "$" <> traitName <> "$" <> (Text.pack $ show typeNumber)
@@ -639,27 +640,43 @@ resolveInstanceDictPlaceholders env = recurse
             catch' <- recurse catch
             return $ ETryCatch tv try' ident pat catch'
 
-        EInstancePlaceholder tv traitIdentity -> do
-            followTypeVar tv >>= \case
-                TypeVar ref -> readIORef ref >>= \case
-                    TUnbound _str _level _constraints _typeNumber ->
-                        -- TODO: this needs a better error message - it just means we are trying to resolve
-                        -- a trait impl for a polymorphic type
-                        fail "should have been quantified by now"
-                    _ ->
-                        fail "never happens"
-                TQuant _ _constraints typeNumber -> do
-                    return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
-                    --append constraints tv typeNumber
-                TFun _paramTypes _returnType -> do
-                    fail "Don't support traits on functions"
-                TDataType def -> do
-                    let dtid = dataTypeIdentity def
-                    generateImplReference tv traitIdentity dtid
-                TRecord _ref -> do
-                    generateImplReference tv traitIdentity RecordIdentity
-                TTypeFun _ _ -> do
-                    fail "ICE: what does this mean"
+        EInstancePlaceholder tv traitIdentity -> followTypeVar tv >>= \case
+            TypeVar ref -> readIORef ref >>= \case
+                TUnbound _str _level _constraints _typeNumber ->
+                    -- TODO: this needs a better error message - it just means we are trying to resolve
+                    -- a trait impl for a polymorphic type
+                    fail "should have been quantified by now"
+                _ ->
+                    fail "never happens"
+            TQuant _ _constraints typeNumber -> do
+                return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
+                --append constraints tv typeNumber
+            TFun _paramTypes _returnType -> do
+                fail "Don't support traits on functions"
+            TDataType def -> do
+                let dtid = dataTypeIdentity def
+                generateImplReference tv traitIdentity dtid
+            TRecord fields -> do
+                -- TODO: if we frequently refer to instances for the same set of (field, typevar), cache them
+                -- generate field map function
+                let dontcare = tv
+                let thisDict = EInstanceDict dontcare traitIdentity RecordIdentity
+                let fieldMap = EInstanceFieldMap dontcare traitIdentity
+                -- TODO: it would be nice to have a dummy TypeVar for these kind of made-up type situations.
+                transformedFieldList <- for fields $ \RecordField{..} -> do
+                    let recarg = EIdentifier tv (Local, "rec")
+                    let rhs = ELookup trTyVar recarg trName
+                    let transformedValue = EApp dontcare fieldMap [rhs]
+                    return (trName, (Immutable, transformedValue))
+                let funDecl = FunctionDecl
+                        { fdParams = [(PBinding "rec", Nothing)]
+                        , fdReturnAnnot = Nothing
+                        , fdBody = ERecordLiteral dontcare $ HashMap.fromList transformedFieldList
+                        }
+                let fieldMapFunction = EFun dontcare funDecl
+                return $ EApp tv thisDict [fieldMapFunction]
+            TTypeFun _ _ -> do
+                fail "ICE: what does this mean"
 
         EInstanceDict _ _ _ -> do
             fail "I don't think we're supposed to do this"
@@ -689,9 +706,7 @@ resolveInstanceDictPlaceholders env = recurse
                             resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
                         return $ EApp tv thisDict argDicts
             RecordIdentity -> do
-                -- TODO: this is all kinds of wrong
-                -- TODO: we need to look up the appropriate field mapper
-                return $ EApp tv thisDict [ELiteral tv LUnit]
+                fail "TODO: remove this variant"
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do
@@ -960,16 +975,23 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
                 -- typecheck the field transformer
                 ftEnv <- childEnv env'
-                fieldType <- freshType ftEnv
-                SymbolTable.insert (eValueBindings ftEnv) pos' SymbolTable.DisallowDuplicates irFieldName (ValueReference (Local, irFieldName) Immutable fieldType)
+                transformedFieldType <- freshType ftEnv
+                SymbolTable.insert (eValueBindings ftEnv) pos' SymbolTable.DisallowDuplicates irFieldName (ValueReference (Local, irFieldName) Immutable transformedFieldType)
                 typedFieldTransformer <- check ftEnv irFieldExpression
-
                 let recordConstraint = RecordConstraint
                         { rcFields = []
                         , rcFieldType = Just (edata typedFieldTransformer)
                         }
-                recordType <- freshTypeConstrained ftEnv $ ConstraintSet (Just recordConstraint) mempty
-                quantify recordType -- also quantifies fieldType
+                transformedRecordType <- freshTypeConstrained ftEnv $ ConstraintSet (Just recordConstraint) mempty
+
+                -- insert a fieldMap function of type concrete-record -> unified-record into environment
+                let fieldMapType = TFun [concreteRecordType] transformedRecordType
+
+                -- also quantifies transformedRecordType and concreteRecordType
+                quantify fieldMapType
+
+                let fieldMapRef = ValueReference (Local, "fieldMap") Immutable fieldMapType
+                SymbolTable.insert (eValueBindings env') pos' SymbolTable.DisallowDuplicates "fieldMap" fieldMapRef
 
                 let implType' = ImplTypeRecord $ ImplRecord
                         { irFieldName = irFieldName
@@ -998,8 +1020,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 -- TODO: use the pos of the method here
                 Nothing -> failTypeError pos' $ UnexpectedImplMethod methodName
 
-            expr' <- checkExpecting methodTypeVar env expr
-            expr'' <- resolveInstanceDictPlaceholders env expr'
+            expr' <- checkExpecting methodTypeVar env' expr
+            expr'' <- resolveInstanceDictPlaceholders env' expr'
             return (methodName, expr'')
         
         return $ DImpl typeVar traitRef implType' values'

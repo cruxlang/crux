@@ -11,7 +11,7 @@ impl GetType String {
 }
 
 impl GetType {...} {
-  for fieldValue { fieldValue }
+  for fieldValue { () }
   getType(d) { return "record" }
 }
 

@@ -44,17 +44,21 @@ import qualified Data.Set as Set
 newEnv :: MonadIO m => ModuleName -> HashMap ModuleName LoadedModule -> Maybe TypeVar -> m Env
 newEnv eThisModule eLoadedModules eReturnType = do
     eNextTypeIndex <- newIORef 0
+
     eValueBindings <- SymbolTable.new
     eTypeBindings <- SymbolTable.new
     ePatternBindings <- SymbolTable.new
     eTraitBindings <- SymbolTable.new
     eExceptionBindings <- SymbolTable.new
+
+    eKnownInstances <- HashTable.new
+
     eExportedValues <- SymbolTable.new
     eExportedTypes <- SymbolTable.new
     eExportedPatterns <- SymbolTable.new
     eExportedTraits <- SymbolTable.new
     eExportedExceptions <- SymbolTable.new
-    eKnownInstances <- HashTable.new
+ 
     return Env
         { eInLoop = False
         , eLevel = 1

@@ -199,8 +199,8 @@ unifyFieldConstraint env pos constraint tr@RecordField{..} = do
             unify env pos ctv trTyVar
             return tr{ trMut=trMut' }
 
-unifyConcreteRecord :: Env -> Pos -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
-unifyConcreteRecord env pos fieldsA fieldsB = do
+unifyConcreteRecord :: Env -> Pos -> TypeVar -> TypeVar -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
+unifyConcreteRecord env pos tvA tvB fieldsA fieldsB = do
     let aFields = sort $ map trName fieldsA
     let bFields = sort $ map trName fieldsB
 
@@ -222,7 +222,7 @@ unifyConcreteRecord env pos fieldsA fieldsB = do
         return ()
     else do
         -- TODO: better error messages here
-        unificationError pos "Closed row types must match exactly" undefined undefined -- fieldsA fieldsB
+        unificationError pos "Closed row types must match exactly" tvA tvB
 
 unifyRecordMutability :: Name -> Pos -> FieldMutability -> FieldMutability -> TC FieldMutability
 unifyRecordMutability propName pos m1 m2 = case (m1, m2) of
@@ -428,7 +428,7 @@ unify env pos av' bv' = do
                 unificationError pos "" av bv
 
         (TRecord fieldsA, TRecord fieldsB) ->
-            unifyConcreteRecord env pos fieldsA fieldsB
+            unifyConcreteRecord env pos av bv fieldsA fieldsB
 
         (TFun aa ar, TFun ba br) -> do
             when (length aa /= length ba) $

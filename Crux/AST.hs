@@ -229,6 +229,7 @@ data Expression idtype tagtype edata
     | EInstancePlaceholder edata TraitIdentity
     | EInstanceDict edata TraitIdentity TraitImplIdentity
     | EInstanceArgument edata Name
+    | EInstanceFieldMap edata TraitIdentity
 
     deriving (Show, Eq, Functor, Foldable, Traversable)
 
@@ -259,6 +260,7 @@ edata expr = case expr of
     EInstancePlaceholder ed _ -> ed
     EInstanceDict ed _ _ -> ed
     EInstanceArgument ed _ -> ed
+    EInstanceFieldMap ed _ -> ed
 
 setEdata :: Expression idtype tagtype edata -> edata -> Expression idtype tagtype edata
 setEdata expr e = case expr of
@@ -287,6 +289,7 @@ setEdata expr e = case expr of
     EInstancePlaceholder _ a -> EInstancePlaceholder e a
     EInstanceDict _ a b -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
+    EInstanceFieldMap _ a -> EInstanceFieldMap e a
 
 data TypeIdent
     -- TODO: split into two?  TypeIdent and TypeApplication

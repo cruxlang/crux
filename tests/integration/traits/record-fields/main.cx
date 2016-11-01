@@ -1,0 +1,24 @@
+import dict
+
+trait T {
+  pi: self => ()
+}
+
+impl T {...} {
+  for fieldValue { toString(fieldValue) }
+  pi(r) {
+    let d = dict.from(fieldMap(r))
+    for item in sorted(d->items()) {
+      let (key, value) = item
+      print(key)
+      print(value)
+    }
+  }
+}
+
+fun main() {
+  //_debug_type(pi)
+  pi({x: 10, y: 20})
+  //_debug_type(pi)
+  //pi({z: "hi"})
+}

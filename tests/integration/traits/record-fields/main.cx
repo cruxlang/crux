@@ -17,8 +17,6 @@ impl T {...} {
 }
 
 fun main() {
-  //_debug_type(pi)
   pi({x: 10, y: 20})
-  //_debug_type(pi)
-  //pi({z: "hi"})
+  pi({z: "hi"})
 }

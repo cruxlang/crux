@@ -10,6 +10,7 @@ quantifyConstraintSet (ConstraintSet recordConstraint _traits) = do
             -- TODO: quantify mutability.  there's almost certainly a bug
             -- but I don't know how to write a test for it yet.
             quantify trTyVar
+        for_ rcFieldType $ quantify
 
 quantify :: MonadIO m => TypeVar -> m ()
 quantify ty = case ty of

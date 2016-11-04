@@ -183,7 +183,7 @@ accumulateTraitReferences' seen out tv = case tv of
 
   where
     append :: MonadIO m => ConstraintSet -> TypeVar -> TypeNumber -> m ()
-    append (ConstraintSet _record traits) typeVar typeNumber = do
+    append (ConstraintSet record traits) typeVar typeNumber = do
         seen' <- readIORef seen
         when (not $ Set.member typeNumber seen') $ do
             modifyIORef seen (Set.insert typeNumber)
@@ -191,6 +191,8 @@ accumulateTraitReferences' seen out tv = case tv of
             -- TODO: we need to sort this list into a canonical order
             for_ (Set.toList traits) $ \traitIdentity -> do
                 modifyIORef out ((typeVar, typeNumber, traitIdentity):)
+            for_ record $ \RecordConstraint{..} -> do
+                for_ rcFieldType $ accumulateTraitReferences' seen out
 
 accumulateTraitReferences :: MonadIO m => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
 accumulateTraitReferences typeVars = do
@@ -642,10 +644,10 @@ resolveInstanceDictPlaceholders env = recurse
 
         EInstancePlaceholder tv traitIdentity -> followTypeVar tv >>= \case
             TypeVar ref -> readIORef ref >>= \case
-                TUnbound _str _level _constraints _typeNumber ->
+                TUnbound _str _level _constraints typeNumber ->
                     -- TODO: this needs a better error message - it just means we are trying to resolve
                     -- a trait impl for a polymorphic type
-                    fail "should have been quantified by now"
+                    fail $ "should have been quantified by now: " ++ show tv ++ " -- " ++ show traitIdentity ++ " -- " ++ show typeNumber
                 _ ->
                     fail "never happens"
             TQuant _ _constraints typeNumber -> do

@@ -21,6 +21,10 @@ export trait Ordered {
   lt(self, self): Boolean
 }
 
+impl Ordered Void {
+  lt(_, _) { False }
+}
+
 // TODO: move this into Eq and implement trait defaults
 export fun gte(lhs, rhs) {
   not(lhs < rhs)

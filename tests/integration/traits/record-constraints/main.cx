@@ -1,0 +1,33 @@
+import dict
+import types
+
+trait T {
+  typeOf: self => String
+}
+
+impl T String {
+  typeOf(x) { "String" }
+}
+
+impl T Number {
+  typeOf(x) { "Number" }
+}
+
+impl T types.Void {
+  typeOf(x) { "()" }
+}
+
+fun printFieldTypes(r) {
+  let a = dict.from(r)
+  for item in sorted(a->items()) {
+    let (key, value) = item
+    print(key)
+    print(typeOf(value))
+  }
+}
+
+fun main() {
+  printFieldTypes({x: "hello"})
+  printFieldTypes({y: 10})
+  printFieldTypes({z: ()})
+}

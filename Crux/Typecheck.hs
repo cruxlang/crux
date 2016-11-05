@@ -968,7 +968,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         }
                 return (typeVar', implType')
 
-            ImplTypeRecord ImplRecord{..} -> do
+            ImplTypeRecord fieldFunction -> do
                 concreteRecordType <- freshTypeConstrained env' $ ConstraintSet
                     -- This RecordConstraint isn't strictly necessary but might produce better error messages.
                     (Just RecordConstraint{rcFields=[], rcFieldType=Nothing})
@@ -976,29 +976,24 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 quantify concreteRecordType
 
                 -- typecheck the field transformer
-                ftEnv <- childEnv env'
-                transformedFieldType <- freshType ftEnv
-                SymbolTable.insert (eValueBindings ftEnv) pos' SymbolTable.DisallowDuplicates irFieldName (ValueReference (Local, irFieldName) Immutable transformedFieldType)
-                typedFieldTransformer <- check ftEnv irFieldExpression
+                typedFieldFunction@(EFun (TFun [_] retType) _) <- check env' fieldFunction
+
                 let recordConstraint = RecordConstraint
                         { rcFields = []
-                        , rcFieldType = Just (edata typedFieldTransformer)
+                        , rcFieldType = Just retType
                         }
-                transformedRecordType <- freshTypeConstrained ftEnv $ ConstraintSet (Just recordConstraint) mempty
+                transformedRecordType <- freshTypeConstrained env' $ ConstraintSet (Just recordConstraint) mempty
 
                 -- insert a fieldMap function of type concrete-record -> unified-record into environment
                 let fieldMapType = TFun [concreteRecordType] transformedRecordType
 
-                -- also quantifies transformedRecordType and concreteRecordType
+                -- also quantifies the fieldFunction type
                 quantify fieldMapType
 
                 let fieldMapRef = ValueReference (Local, "fieldMap") Immutable fieldMapType
                 SymbolTable.insert (eValueBindings env') pos' SymbolTable.DisallowDuplicates "fieldMap" fieldMapRef
 
-                let implType' = ImplTypeRecord $ ImplRecord
-                        { irFieldName = irFieldName
-                        , irFieldExpression = typedFieldTransformer
-                        }
+                let implType' = ImplTypeRecord typedFieldFunction
                 return (concreteRecordType, implType')
 
         -- instantiate all of the methods in the same subst dict

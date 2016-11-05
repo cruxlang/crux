@@ -341,9 +341,9 @@ renderDeclaration (Gen.TraitInstance instanceName defns contextParameters) = do
         _ -> do
             return $ JSTree.EFunction contextParameters [JSTree.SReturn $ Just obj]
     return $ prefix <> [JSTree.SAssign (JSTree.EIdentifier instanceName) expr]
-renderDeclaration (Gen.RecordFieldMap fieldMapName parameterName body) = do
-    body' <- for body renderInstruction
-    return [JSTree.SFunction fieldMapName [parameterName] body']
+renderDeclaration (Gen.RecordFieldMap fieldMapName fieldValue) = do
+    fieldValue' <- renderValue fieldValue
+    return [JSTree.SVar fieldMapName $ Just fieldValue']
 
 data ExportType = QualifiedExport | UnqualifiedExport
 
@@ -363,7 +363,7 @@ getExportedValues = \case
                 error "Gen: Tuples should be rewritten by this point"
         Gen.DException name -> [(QualifiedExport, name <> "$")]
     Gen.TraitInstance instanceName _ _ -> [(UnqualifiedExport, instanceName)]
-    Gen.RecordFieldMap fieldMapName _ _ -> [(UnqualifiedExport, fieldMapName)]
+    Gen.RecordFieldMap fieldMapName _ -> [(UnqualifiedExport, fieldMapName)]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement
 wrapInModule body =

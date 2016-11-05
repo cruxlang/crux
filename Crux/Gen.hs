@@ -113,7 +113,7 @@ data DeclarationType
 data Declaration
     = Declaration AST.ExportFlag DeclarationType
     | TraitInstance Name (HashMap Name (Value, [Instruction])) [Name]
-    | RecordFieldMap Name Name [Instruction]
+    | RecordFieldMap Name Value
     deriving (Show, Eq)
 
 type Program = [(ModuleName, Module)] -- topologically sorted
@@ -456,22 +456,22 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     (Just value, instructions) <- subBlock' env expr
                     return (name, (value, instructions))
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
-            AST.ImplTypeRecord AST.ImplRecord{..} -> do
+            AST.ImplTypeRecord fieldFunction -> do
                 let (AST.FromModule traitModule, traitName) = traitRef
                 let traitIdentity = TraitIdentity traitModule traitName
 
-                fmExpr <- subBlockWithReturn env irFieldExpression
-                writeDeclaration $ RecordFieldMap
-                    (instanceFieldMapName traitIdentity)
-                    irFieldName
-                    fmExpr
+                -- TODO: find some better way to guarantee that we never
+                -- define an instance value to be be flow control
+                (Just value, _instructions) <- subBlock' env fieldFunction
+
+                writeDeclaration $ RecordFieldMap (instanceFieldMapName traitIdentity) value
 
                 let instanceName = instanceDictName traitIdentity RecordIdentity
                 decls' <- for decls $ \(name, expr) -> do
                     -- TODO: find some better way to guarantee that we never
                     -- define an instance value to be be flow control
-                    (Just value, instructions) <- subBlock' env expr
-                    return (name, (value, instructions))
+                    (Just value', instructions) <- subBlock' env expr
+                    return (name, (value', instructions))
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') ["fieldMap"]
 
     AST.DException _ name _ -> do

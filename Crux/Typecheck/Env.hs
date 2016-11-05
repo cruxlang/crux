@@ -483,7 +483,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
                         _ -> fail $ "Type doesn't support traits: " ++ show (eThisModule env) ++ ": " ++ show typeVar
                     return (typeIdentity, instanceTypeVar)
 
-                ImplTypeRecord ImplRecord{..} -> do
+                ImplTypeRecord _fieldFunction -> do
                     -- TODO: we shouldn't need a TypeVar for records - we need custom unification logic
                     typeVar <- freshType env
                     return (RecordIdentity, typeVar)

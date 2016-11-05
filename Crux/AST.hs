@@ -60,16 +60,9 @@ data ImplNominal = ImplNominal
     }
     deriving (Eq, Show)
 
-data ImplRecord idtype tagtype edata = ImplRecord
-    { irFieldName :: Name -- ^ TODO: generalize to a pattern
-    , irFieldExpression :: Expression idtype tagtype edata
-    }
-    deriving (Eq, Show, Functor, Foldable, Traversable)
-
 data ImplType idtype tagtype edata
     = ImplTypeNominal ImplNominal
-    -- TODO: generalize name to pattern
-    | ImplTypeRecord (ImplRecord idtype tagtype edata)
+    | ImplTypeRecord (Expression idtype tagtype edata) {- field function -}
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup

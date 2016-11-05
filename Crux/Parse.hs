@@ -889,7 +889,8 @@ implTypeIdent = do
             return $ ImplRecordIdent
     nominal <|> record
 
-data ImplMethod = ImplFor Name ParseExpression
+-- TODO: generalize name to pattern
+data ImplMethod = ImplFor ParsePos Name ParseExpression
                 | ImplMethod Name ParseExpression
 
 implFor :: Parser (ParsePos, ImplMethod)
@@ -897,7 +898,7 @@ implFor = do
     tfor <- token TFor
     name <- anyIdentifier
     expr <- blockExpression
-    return (tokenData tfor, ImplFor name expr)
+    return (tokenData tfor, ImplFor (tokenData tfor) name expr)
 
 implMethod :: Parser (ParsePos, ImplMethod)
 implMethod = do
@@ -926,21 +927,24 @@ implDeclaration = do
                     , inContextDictArgs = []
                     }
             methods' <- for methods $ \case
-                ImplFor _ _ -> do
+                ImplFor _ _ _ -> do
                     -- TODO: set the right source position? ideally we'd point at the correct line
                     P.unexpected "Data type impls do not support field transformers"
                 ImplMethod methodName methodExpr -> do
                     return (methodName, methodExpr)
             return $ DImpl (tokenData timpl) traitName it methods'
         ImplRecordIdent -> do
-            (fieldName, fieldExpression) <- case [x | x@ImplFor{} <- methods] of
+            (forPos, fieldName, fieldExpression) <- case [x | x@ImplFor{} <- methods] of
                 [] -> P.unexpected "Record type impl must specify field transformer"
-                [ImplFor fieldName fieldExpression] -> return (fieldName, fieldExpression)
+                [ImplFor forPos fieldName fieldExpression] -> return (forPos, fieldName, fieldExpression)
                 _ -> P.unexpected "Record type impl has duplicate field transformers"
-            let it = ImplTypeRecord $ ImplRecord
-                    { irFieldName = fieldName
-                    , irFieldExpression = fieldExpression
+            let fd = FunctionDecl
+                    { fdParams = [(PBinding fieldName, Nothing)]
+                    , fdReturnAnnot = Nothing
+                    , fdBody = fieldExpression
                     }
+            let fieldFunction = EFun forPos fd
+            let it = ImplTypeRecord fieldFunction
             let methods' = [(methodName, methodExpr) | ImplMethod methodName methodExpr <- methods]
             return $ DImpl (tokenData timpl) traitName it methods'
 

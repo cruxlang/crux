@@ -355,8 +355,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     phase 4:
         a. register all trait definitions
-        b. register all impls
-        c. type check all values in order
+        b. type check all values and impls in order
     -}
 
     let decls = [decl | Declaration _ _ decl <- mDecls thisModule]
@@ -464,34 +463,3 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ traitDecls $ \defns -> do
         for_ defns $ \(defName, defPos, defTypeVar) -> do
             SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable defTypeVar
-    
-    -- Phase 4b.
-    for_ decls $ \case
-        DImpl pos traitReference ident _values -> do
-            (_, traitNumber, _) <- resolveTraitReference env pos traitReference
-
-            (typeIdentity, instanceTypeVar) <- case ident of
-                ImplTypeNominal ImplNominal{..} -> do
-                    typeVar <- resolveTypeReference env pos inTypeName
-
-                    env' <- childEnv env
-                    instanceParameterTypes <- registerExplicitTypeVariables env' inTypeParams
-                    instanceTypeVar <- applyTypeFunction env pos inTypeName DisallowTypeFunctions typeVar instanceParameterTypes
-
-                    typeIdentity <- case instanceTypeVar of
-                        TDataType def -> return $ dataTypeIdentity def
-                        _ -> fail $ "Type doesn't support traits: " ++ show (eThisModule env) ++ ": " ++ show typeVar
-                    return (typeIdentity, instanceTypeVar)
-
-                ImplTypeRecord _fieldFunction -> do
-                    -- TODO: we shouldn't need a TypeVar for records - we need custom unification logic
-                    typeVar <- freshType env
-                    return (RecordIdentity, typeVar)
-
-            let instanceDesc = InstanceDesc
-                    { idModuleName = eThisModule env
-                    , idTypeVar = instanceTypeVar
-                    }
-
-            HashTable.insert (traitNumber, typeIdentity) instanceDesc (eKnownInstances env)
-        _ -> return ()

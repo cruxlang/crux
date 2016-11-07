@@ -28,7 +28,6 @@ import Crux.ModuleName
 import qualified Crux.JSTree as JSTree
 import Crux.Pos (Pos(..), ParsePos(..), PosRec(..))
 import Crux.Prelude
-import Crux.Text (isCapitalized)
 import Crux.Tokens as Tokens
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec as P
@@ -669,16 +668,10 @@ typeIdent = asum
     ]
 
 typeName :: Parser Text
-typeName = do
-    name <- anyIdentifier
-    when (not $ isCapitalized name) $ P.parserFail $ "Expected type name, but got " <> (show name)
-    return name
+typeName = anyIdentifier
 
 typeVariableName :: Parser Text
-typeVariableName = do
-    name <- anyIdentifier
-    when (isCapitalized name) $ P.parserFail $ "Expected type variable name but got " <> (show name)
-    return name
+typeVariableName = anyIdentifier
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do

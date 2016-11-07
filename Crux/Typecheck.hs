@@ -931,11 +931,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (traitRef, traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
         env' <- childEnv env
 
-        (typeVar, implType') <- case implType of
+        (typeIdentity, typeVar, implType') <- case implType of
             ImplTypeNominal ImplNominal{..} -> do
                 typeVar <- resolveTypeReference env pos' inTypeName
-
-                -- TODO: assert the list of type variables matches the kind of the data type
 
                 let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
@@ -944,21 +942,16 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 when (not $ Set.null notImplemented) $ do
                     failTypeError pos' $ IncompleteImpl $ Set.toList notImplemented
 
-                typeVars <- registerExplicitTypeVariables env' inTypeParams
-                traitRefs <- accumulateTraitReferences typeVars
+                instanceParameterTypes <- registerExplicitTypeVariables env' inTypeParams
+                instanceTypeVar <- applyTypeFunction env pos inTypeName DisallowTypeFunctions typeVar instanceParameterTypes
+
+                traitRefs <- accumulateTraitReferences [instanceTypeVar]
                 dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity') -> do
                     return $ renderInstanceArgumentName traitIdentity' typeNumber
 
-                typeVar' <- followTypeVar typeVar >>= \case
-                    TDataType _def -> do
-                        -- TODO: assert typeVars == []
-                        return typeVar
-                    TTypeFun _params _rt -> do
-                        -- TODO: assert len(params) == len(typeVars)
-                        (TTypeFun params' rt') <- instantiate env' typeVar
-                        for_ (zip params' typeVars) $ \(a, b) -> do
-                            unify env pos' a b
-                        return rt'
+                typeIdentity <- case instanceTypeVar of
+                    TDataType def -> return $ dataTypeIdentity def
+                    TRecord _ -> return RecordIdentity
                     _ -> fail "hot dog"
 
                 let implType' = ImplTypeNominal $ ImplNominal
@@ -966,7 +959,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         , inTypeParams = inTypeParams
                         , inContextDictArgs = dictArgs
                         }
-                return (typeVar', implType')
+                return (typeIdentity, instanceTypeVar, implType')
 
             ImplTypeRecord fieldFunction -> do
                 concreteRecordType <- freshTypeConstrained env' $ ConstraintSet
@@ -994,7 +987,13 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 SymbolTable.insert (eValueBindings env') pos' SymbolTable.DisallowDuplicates "fieldMap" fieldMapRef
 
                 let implType' = ImplTypeRecord typedFieldFunction
-                return (concreteRecordType, implType')
+                return (RecordIdentity, concreteRecordType, implType')
+
+        let instanceDesc = InstanceDesc
+                { idModuleName = eThisModule env
+                , idTypeVar = typeVar
+                }
+        HashTable.insert (traitIdentity, typeIdentity) instanceDesc (eKnownInstances env)
 
         -- instantiate all of the methods in the same subst dict
         -- so the typevar is unified across methods

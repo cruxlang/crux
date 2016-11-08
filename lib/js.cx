@@ -61,3 +61,22 @@ impl ToValue Boolean {
 impl ToValue Value {
   toValue = value => value
 }
+
+// Transferable
+
+export trait Transferable {}
+
+impl Transferable Void {}
+impl Transferable Boolean {}
+impl Transferable String {}
+impl Transferable Number {}
+impl Transferable Array<a: Transferable> {}
+impl Transferable Value {}
+
+fun requireTransferable<T: Transferable>(_: T) {}
+
+impl Transferable {...} {
+  for fieldValue { requireTransferable(fieldValue) }
+}
+
+// TODO: regexp, typed arrays, Blob, File, FileList, ImageData

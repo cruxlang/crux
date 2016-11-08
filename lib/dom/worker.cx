@@ -6,7 +6,7 @@ export let new: String => Worker = _unsafe_js(
   "function newWorker(str) { return new Worker(str) }"
 )
 
-export fun postMessage(worker: Worker, message: js.Value): () {
+export fun postMessage<V: js.Transferable>(worker: Worker, message: V): () {
   _unsafe_coerce(worker).postMessage(message)
 }
 

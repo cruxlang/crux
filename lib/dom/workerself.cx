@@ -21,7 +21,7 @@ export fun setHandler(handler: js.Value => ()): () {
   }
 }
 
-export fun postMessage<Value: js.ToValue>(value: Value) {
+export fun postMessage<Value: js.Transferable>(value: Value) {
   self.postMessage(value)
 }
 

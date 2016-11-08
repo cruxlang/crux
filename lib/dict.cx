@@ -62,3 +62,5 @@ export fun map<U, V>(dict: Dict<U>, fn: U => V): Dict<V> {
   }
   return result
 }
+
+impl js.Transferable Dict<v: js.Transferable> {}

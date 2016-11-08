@@ -659,17 +659,45 @@ resolveInstanceDictPlaceholders env = recurse
                 let dtid = dataTypeIdentity def
                 generateImplReference tv traitIdentity dtid
             TRecord fields -> do
+                -- grab fieldMap and its typevar
+                instanceDesc <- HashTable.lookup (traitIdentity, RecordIdentity) (eKnownInstances env) >>= \case
+                    Just instanceDesc -> return instanceDesc
+                    Nothing -> fail "Unification has already validated we have an instance" -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
+                let Just fieldFunctionType = idFieldFunctionType instanceDesc
+
+                -- TODO: it would be nice to have a dummy TypeVar for these kind of made-up type situations.
+                let dontcare = tv
+                
+                let fieldFunction = EInstanceFieldMap dontcare traitIdentity
+                traits <- accumulateTraitReferences [fieldFunctionType]
+
                 -- TODO: if we frequently refer to instances for the same set of (field, typevar), cache them
                 -- generate field map function
-                let dontcare = tv
                 let thisDict = EInstanceDict dontcare traitIdentity RecordIdentity
-                let fieldMap = EInstanceFieldMap dontcare traitIdentity
-                -- TODO: it would be nice to have a dummy TypeVar for these kind of made-up type situations.
                 transformedFieldList <- for fields $ \RecordField{..} -> do
                     let recarg = EIdentifier tv (Local, "rec")
                     let rhs = ELookup trTyVar recarg trName
-                    let transformedValue = EApp dontcare fieldMap [rhs]
-                    return (trName, (Immutable, transformedValue))
+
+                    fieldFunction' <- case traits of
+                        [] -> do
+                            return fieldFunction
+                        _ -> do
+                            placeholders <- for traits $ \(_typeVar, _typeNumber, traitNumber) -> do
+                                return $ EInstancePlaceholder trTyVar traitNumber
+                            return $ EApp dontcare fieldFunction placeholders
+
+                    fieldFunctionType' <- instantiate env fieldFunctionType
+                    retType <- freshType env
+                    let actualFieldTransform = TFun [trTyVar] retType
+                    -- TODO: real error message position here
+                    unify env dummyPos actualFieldTransform fieldFunctionType'
+
+                    let transformedValue = EApp dontcare fieldFunction' [rhs]
+                    transformedValue' <- resolveInstanceDictPlaceholders env transformedValue
+                    return (trName, (Immutable, transformedValue'))
+
+                -- TODO: unify all result types together with map type
+                
                 let funDecl = FunctionDecl
                         { fdParams = [(PBinding "rec", Nothing)]
                         , fdReturnAnnot = Nothing
@@ -684,12 +712,16 @@ resolveInstanceDictPlaceholders env = recurse
             fail "I don't think we're supposed to do this"
         EInstanceArgument _ _ -> do
             fail "I don't think we're supposed to do this either"
+        expr@(EInstanceFieldMap _ _) -> do
+            return expr
 
     generateImplReference :: TypeVar -> TraitIdentity -> TraitImplIdentity -> TC TypedExpression
     generateImplReference tv traitIdentity traitImplIdentity = do
         instanceDesc <- HashTable.lookup (traitIdentity, traitImplIdentity) (eKnownInstances env) >>= \case
             Just instanceDesc -> return instanceDesc
-            Nothing -> fail "Unification has already validated we have an instance" -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
+            Nothing -> do
+                fail $ "Unification has already validated we have an instance: " ++ show traitIdentity ++ " -- " ++ show traitImplIdentity
+                -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
 
         instanceType <- instantiate env $ idTypeVar instanceDesc
         traits <- accumulateTraitReferences [instanceType]
@@ -931,7 +963,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         (traitRef, traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
         env' <- childEnv env
 
-        (typeIdentity, typeVar, implType') <- case implType of
+        (typeIdentity, typeVar, fieldFunctionType, implType') <- case implType of
             ImplTypeNominal ImplNominal{..} -> do
                 typeVar <- resolveTypeReference env pos' inTypeName
 
@@ -959,7 +991,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         , inTypeParams = inTypeParams
                         , inContextDictArgs = dictArgs
                         }
-                return (typeIdentity, instanceTypeVar, implType')
+                return (typeIdentity, instanceTypeVar, Nothing, implType')
 
             ImplTypeRecord fieldFunction -> do
                 concreteRecordType <- freshTypeConstrained env' $ ConstraintSet
@@ -980,18 +1012,33 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 -- insert a fieldMap function of type concrete-record -> unified-record into environment
                 let fieldMapType = TFun [concreteRecordType] transformedRecordType
 
-                -- also quantifies the fieldFunction type
+                quantify $ edata typedFieldFunction
                 quantify fieldMapType
+
+                traitRefs <- accumulateTraitReferences [edata typedFieldFunction]
+                dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity') -> do
+                    return $ PBinding $ renderInstanceArgumentName traitIdentity' typeNumber
+
+                typedFieldFunction' <- resolveInstanceDictPlaceholders env' typedFieldFunction
+
+                let typedFieldFunction'' = case dictArgs of
+                        [] -> typedFieldFunction'
+                        _ -> EFun (edata typedFieldFunction') $ FunctionDecl
+                            { fdParams = map (\p -> (p, Nothing)) dictArgs
+                            , fdReturnAnnot = Nothing
+                            , fdBody = typedFieldFunction'
+                            }
 
                 let fieldMapRef = ValueReference (Local, "fieldMap") Immutable fieldMapType
                 SymbolTable.insert (eValueBindings env') pos' SymbolTable.DisallowDuplicates "fieldMap" fieldMapRef
 
-                let implType' = ImplTypeRecord typedFieldFunction
-                return (RecordIdentity, concreteRecordType, implType')
+                let implType' = ImplTypeRecord typedFieldFunction''
+                return (RecordIdentity, concreteRecordType, Just (edata typedFieldFunction), implType')
 
         let instanceDesc = InstanceDesc
                 { idModuleName = eThisModule env
                 , idTypeVar = typeVar
+                , idFieldFunctionType = fieldFunctionType
                 }
         HashTable.insert (traitIdentity, typeIdentity) instanceDesc (eKnownInstances env)
 

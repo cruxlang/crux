@@ -24,7 +24,8 @@ data PatternReference = PatternReference (TDataTypeDef TypeVar) PatternTag
 
 data InstanceDesc = InstanceDesc
     { idModuleName :: ModuleName
-    , idTypeVar :: TypeVar
+    , idTypeVar :: TypeVar -- quantified TypeVar of the type providing the impl
+    , idFieldFunctionType :: Maybe TypeVar -- for records, the type of the field transformer function
     }
     deriving (Eq)
 

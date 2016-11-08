@@ -1,0 +1,37 @@
+import dict
+
+trait TypeOf {
+  typeOf: self => String
+}
+
+impl TypeOf String {
+  typeOf(_) { "String" }
+}
+
+impl TypeOf Number {
+  typeOf(_) { "Number" }
+}
+
+impl TypeOf Array<a> {
+  typeOf(_) { "Array" }
+}
+
+trait PD {
+  pd: self => ()
+}
+
+impl PD {...} {
+  for fieldValue { typeOf(fieldValue) }
+  pd(r) {
+    let d = dict.from(fieldMap(r))
+    for item in sorted(d->items()) {
+      let (key, value) = item
+      print(key)
+      print(value)
+    }
+  }
+}
+
+fun main() {
+  pd({x: 10, y: "hi", z: []})
+}

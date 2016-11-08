@@ -346,8 +346,8 @@ generate env = \case
         writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
         return $ Just $ Temporary output
 
-    AST.EInstancePlaceholder _ _ -> do
-        fail "Placeholders should not make it to code generation"
+    AST.EInstancePlaceholder tv p -> do
+        fail $ "Placeholders should not make it to code generation: " ++ show tv ++ " -- " ++ show p
     AST.EInstanceDict _ traitIdentity dti -> do
         return $ Just $ LocalBinding $ instanceDictName traitIdentity dti
     AST.EInstanceArgument _ name -> do

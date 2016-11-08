@@ -343,7 +343,7 @@ renderDeclaration (Gen.TraitInstance instanceName defns contextParameters) = do
     return $ prefix <> [JSTree.SAssign (JSTree.EIdentifier instanceName) expr]
 renderDeclaration (Gen.RecordFieldMap fieldMapName fieldValue) = do
     fieldValue' <- renderValue fieldValue
-    return [JSTree.SVar fieldMapName $ Just fieldValue']
+    return [JSTree.SAssign (JSTree.EIdentifier fieldMapName) fieldValue']
 
 data ExportType = QualifiedExport | UnqualifiedExport
 

@@ -92,24 +92,28 @@ export trait ToJSON {
     toJSON: self => Value
 }
 
+impl ToJSON Value {
+  toJSON(v) { v }
+}
+
 impl ToJSON Array<a: ToJSON> {
-    toJSON = array => _unsafe_coerce(array->map(toJSON))
+  toJSON = array => _unsafe_coerce(array->map(toJSON))
 }
 
 impl ToJSON String {
-    toJSON = str => _unsafe_coerce(str)
+  toJSON = str => _unsafe_coerce(str)
 }
 
 impl ToJSON Number {
-    toJSON = num => _unsafe_coerce(num)
+  toJSON = num => _unsafe_coerce(num)
 }
 
 impl ToJSON Boolean {
-    toJSON = b => _unsafe_coerce(b)
+  toJSON = b => _unsafe_coerce(b)
 }
 
 impl ToJSON js.Null {
-    toJSON = _ => nullJSValue
+  toJSON = _ => nullJSValue
 }
 
 impl ToJSON dict.Dict<V: ToJSON> {
@@ -122,6 +126,14 @@ impl ToJSON Option<T: ToJSON> {
       None => nullJSValue
       Some(x) => toJSON(x)
     }
+  }
+}
+
+impl ToJSON {...} {
+  for fieldValue { toJSON(fieldValue) }
+
+  toJSON(rec) {
+    toJSON(dict.from(fieldMap(rec)))
   }
 }
 

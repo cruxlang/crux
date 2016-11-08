@@ -917,7 +917,6 @@ implDeclaration = do
             let it = ImplTypeNominal $ ImplNominal
                     { inTypeName = typeName'
                     , inTypeParams = typeVars
-                    , inContextDictArgs = []
                     }
             methods' <- for methods $ \case
                 ImplFor _ _ _ -> do
@@ -925,7 +924,7 @@ implDeclaration = do
                     P.unexpected "Data type impls do not support field transformers"
                 ImplMethod methodName methodExpr -> do
                     return (methodName, methodExpr)
-            return $ DImpl (tokenData timpl) traitName it methods'
+            return $ DImpl (tokenData timpl) traitName it [] methods'
         ImplRecordIdent -> do
             (forPos, fieldName, fieldExpression) <- case [x | x@ImplFor{} <- methods] of
                 [] -> P.unexpected "Record type impl must specify field transformer"
@@ -939,7 +938,7 @@ implDeclaration = do
             let fieldFunction = EFun forPos fd
             let it = ImplTypeRecord fieldFunction
             let methods' = [(methodName, methodExpr) | ImplMethod methodName methodExpr <- methods]
-            return $ DImpl (tokenData timpl) traitName it methods'
+            return $ DImpl (tokenData timpl) traitName it [] methods'
 
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do

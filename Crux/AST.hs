@@ -56,7 +56,6 @@ data TypeVarIdent = TypeVarIdent Name Pos ConstraintSetIdent
 data ImplNominal = ImplNominal
     { inTypeName :: UnresolvedReference
     , inTypeParams :: [TypeVarIdent]
-    , inContextDictArgs :: [Name]
     }
     deriving (Eq, Show)
 
@@ -84,6 +83,7 @@ data DeclarationType idtype tagtype edata
         edata     -- ^ TypeVar of the type parameter
         idtype -- ^ Trait name
         (ImplType idtype tagtype edata) -- ^ nominal vs. record ident
+        [Name] -- ^ context dict args
         [(Name, Expression idtype tagtype edata)] -- ^ methods
     -- Exceptions
     | DException edata Name TypeIdent

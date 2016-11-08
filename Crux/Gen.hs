@@ -445,7 +445,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
         return ()
 
-    AST.DImpl typeVar traitRef implType decls -> do
+    AST.DImpl typeVar traitRef implType contextArgs decls -> do
         -- TODO: refactor the duplication out of this
         case implType of
             AST.ImplTypeNominal AST.ImplNominal{..} -> do
@@ -455,7 +455,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     -- define an instance value to be be flow control
                     (Just value, instructions) <- subBlock' env expr
                     return (name, (value, instructions))
-                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') inContextDictArgs
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextArgs
             AST.ImplTypeRecord fieldFunction -> do
                 let (AST.FromModule traitModule, traitName) = traitRef
                 let traitIdentity = TraitIdentity traitModule traitName
@@ -472,7 +472,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     -- define an instance value to be be flow control
                     (Just value', instructions) <- subBlock' env expr
                     return (name, (value', instructions))
-                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') ["fieldMap"]
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') ("fieldMap" : contextArgs)
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

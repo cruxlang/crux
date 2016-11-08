@@ -664,6 +664,7 @@ resolveInstanceDictPlaceholders env = recurse
                     Just instanceDesc -> return instanceDesc
                     Nothing -> fail "Unification has already validated we have an instance" -- failTypeError pos $ NoTraitOnType tv (tdName traitDesc) (tdModule traitDesc)
                 let Just fieldFunctionType = idFieldFunctionType instanceDesc
+                let TFun _ fieldRetType = fieldFunctionType
 
                 -- TODO: it would be nice to have a dummy TypeVar for these kind of made-up type situations.
                 let dontcare = tv
@@ -705,7 +706,17 @@ resolveInstanceDictPlaceholders env = recurse
                         , fdBody = ERecordLiteral dontcare $ HashMap.fromList transformedFieldList
                         }
                 let fieldMapFunction = EFun dontcare funDecl
-                return $ EApp tv thisDict [fieldMapFunction]
+
+                fieldRetType' <- instantiate env fieldRetType
+                traits' <- accumulateTraitReferences [fieldRetType']
+                -- TODO: find a real position
+                unify env dummyPos fieldRetType' transformResult
+
+                argDicts <- for traits' $ \(typeVar, _typeNumber, traitNumber) -> do
+                    --quantify typeVar -- this feels dirty
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+
+                return $ EApp tv thisDict (fieldMapFunction : argDicts)
             TTypeFun _ _ -> do
                 fail "ICE: what does this mean"
 
@@ -960,11 +971,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
         return $ DTrait unitType traitName contents'
 
-    DImpl pos' traitReference implType implValues -> do
+    DImpl pos' traitReference implType _ implValues -> do
         (traitRef, traitIdentity, traitDesc) <- resolveTraitReference env pos traitReference
         env' <- childEnv env
 
-        (typeIdentity, typeVar, fieldFunctionType, implType') <- case implType of
+        (typeIdentity, typeVar, fieldFunctionType, implType', implContextType) <- case implType of
             ImplTypeNominal ImplNominal{..} -> do
                 typeVar <- resolveTypeReference env pos' inTypeName
 
@@ -978,10 +989,6 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 instanceParameterTypes <- registerExplicitTypeVariables env' inTypeParams
                 instanceTypeVar <- applyTypeFunction env pos inTypeName DisallowTypeFunctions typeVar instanceParameterTypes
 
-                traitRefs <- accumulateTraitReferences [instanceTypeVar]
-                dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity') -> do
-                    return $ renderInstanceArgumentName traitIdentity' typeNumber
-
                 typeIdentity <- case instanceTypeVar of
                     TDataType def -> return $ dataTypeIdentity def
                     TRecord _ -> return RecordIdentity
@@ -990,9 +997,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 let implType' = ImplTypeNominal $ ImplNominal
                         { inTypeName = inTypeName
                         , inTypeParams = inTypeParams
-                        , inContextDictArgs = dictArgs
                         }
-                return (typeIdentity, instanceTypeVar, Nothing, implType')
+                return (typeIdentity, instanceTypeVar, Nothing, implType', instanceTypeVar)
 
             ImplTypeRecord fieldFunction -> do
                 concreteRecordType <- freshTypeConstrained env' $ ConstraintSet
@@ -1034,7 +1040,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 SymbolTable.insert (eValueBindings env') pos' SymbolTable.DisallowDuplicates "fieldMap" fieldMapRef
 
                 let implType' = ImplTypeRecord typedFieldFunction''
-                return (RecordIdentity, concreteRecordType, Just (edata typedFieldFunction), implType')
+                return (RecordIdentity, concreteRecordType, Just (edata typedFieldFunction), implType', retType)
+
+        traitRefs <- accumulateTraitReferences [implContextType]
+        dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity') -> do
+            return $ renderInstanceArgumentName traitIdentity' typeNumber
 
         let instanceDesc = InstanceDesc
                 { idModuleName = eThisModule env
@@ -1068,7 +1078,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             expr'' <- resolveInstanceDictPlaceholders env' expr'
             return (methodName, expr'')
         
-        return $ DImpl typeVar traitRef implType' values'
+        return $ DImpl typeVar traitRef implType' dictArgs values'
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment

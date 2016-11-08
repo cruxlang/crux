@@ -1,0 +1,34 @@
+import dict
+
+trait PD {
+  pd: self => ()
+}
+
+impl PD String {
+  pd = print
+}
+
+impl PD Number {
+  pd = print
+}
+
+fun constrainType<T: Ordered+PD>(x: T): T {
+  x
+}
+
+impl PD {...} {
+  for fieldValue { constrainType(fieldValue) }
+  pd(r) {
+    let d = dict.from(fieldMap(r))
+    for item in sorted(d->items()) {
+      let (key, value) = item
+      print(key)
+      pd(value)
+    }
+  }
+}
+
+fun main() {
+  pd({x: "hello", y: "world"})
+  pd({a: 10, b: 20})
+}

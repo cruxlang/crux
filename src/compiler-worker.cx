@@ -22,8 +22,7 @@ fun main() {
             Err(err) => ({ compileID: compileRequest.compileID, success: False, result: err })
             Ok(result) => ({ compileID: compileRequest.compileID, success: True, result: result })
         }
-        let postedResult: js.Value = _unsafe_coerce(result)
-        workerself.postMessage(postedResult)
+        workerself.postMessage(result)
     })
 }
 

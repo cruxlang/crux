@@ -108,10 +108,10 @@ fun compile(Compiler(this), source, optimize) {
         this.nextCompileID = this.nextCompileID + 1
 
         // compilation request
-        this.worker->postMessage(_unsafe_coerce({
+        this.worker->postMessage({
             compileID: compileID,
             source: source,
-        }))
+        })
         this.state = Compiling({
             compileID: compileID,
             source: source,

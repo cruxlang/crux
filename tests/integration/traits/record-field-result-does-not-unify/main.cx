@@ -1,0 +1,25 @@
+import dict
+
+trait PD {
+  pd: self => ()
+}
+
+fun requireOrdered<T: Ordered>(x: T): T {
+  x
+}
+
+impl PD {...} {
+  for fieldValue { requireOrdered(fieldValue) }
+  pd(r) {
+    let d = dict.from(fieldMap(r))
+    for item in sorted(d->items()) {
+      let (key, value) = item
+      print(key)
+      print(value)
+    }
+  }
+}
+
+fun main() {
+  pd({x: "hello", y: 10})
+}

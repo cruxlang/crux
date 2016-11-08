@@ -672,7 +672,9 @@ resolveInstanceDictPlaceholders env = recurse
                 traits <- accumulateTraitReferences [fieldFunctionType]
 
                 -- TODO: if we frequently refer to instances for the same set of (field, typevar), cache them
+
                 -- generate field map function
+                transformResult <- freshType env
                 let thisDict = EInstanceDict dontcare traitIdentity RecordIdentity
                 transformedFieldList <- for fields $ \RecordField{..} -> do
                     let recarg = EIdentifier tv (Local, "rec")
@@ -687,8 +689,7 @@ resolveInstanceDictPlaceholders env = recurse
                             return $ EApp dontcare fieldFunction placeholders
 
                     fieldFunctionType' <- instantiate env fieldFunctionType
-                    retType <- freshType env
-                    let actualFieldTransform = TFun [trTyVar] retType
+                    let actualFieldTransform = TFun [trTyVar] transformResult
                     -- TODO: real error message position here
                     unify env dummyPos actualFieldTransform fieldFunctionType'
 

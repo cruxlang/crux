@@ -5,57 +5,49 @@ import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
 import Crux.Module (loadProgramFromFile, loadRTSSource)
 import Crux.Prelude
-import Crux.Project (buildProject, buildProjectAndRunTests, runJS)
+import Crux.Project (buildProject, buildProjectAndRunTests)
 import qualified Data.Text as Text
-import qualified Options.Applicative as Opt
+import Options.Applicative
 import System.Exit (ExitCode (..), exitWith)
 import System.IO
 
-data Options = Options
-     { files :: [String]
-     }
+data Command
+    = VersionCommand
+    | RunCommand FilePath
+    | BuildCommand
+    | TestCommand
 
-optionsParser :: Opt.Parser Options
-optionsParser = Options
-    <$> Opt.some (Opt.strArgument (Opt.metavar "SOURCE"))
+runCommand :: Parser Command
+runCommand = RunCommand <$> argument str mempty
 
-parseOptions :: IO Options
-parseOptions = Opt.execParser $
-    Opt.info (Opt.helper <*> optionsParser) (
-        Opt.fullDesc
-        <> Opt.progDesc "Compile Crux into JavaScript"
-        <> Opt.header "Crux - the best AltJS" )
+parseVersion :: Parser Command
+parseVersion = flag' VersionCommand (long "version" <> hidden)
 
-help :: IO ()
-help = putStrLn "Pass a single filename as an argument"
+parseCommand :: Parser Command
+parseCommand = subparser $ mconcat
+    [ command "build" $ pure BuildCommand `withInfo` "build project"
+    , command "run" $ runCommand `withInfo` "run program file"
+    , command "test" $ pure TestCommand `withInfo` "test project"
+    , command "version" $ pure VersionCommand `withInfo` "print compiler version"
+    ]
 
-{-
-failed :: String -> IO a
-failed message = do
-    hPutStr stderr message
-    exitWith $ ExitFailure 1
--}
+parseOptions :: Parser Command
+parseOptions = parseVersion <|> parseCommand
+
+withInfo :: Parser a -> String -> ParserInfo a
+withInfo opts desc = info (helper <*> opts) $ progDesc desc
 
 main :: IO ()
 main = do
-    options <- parseOptions
-    case files options of
-        [] -> help
-        ["build"] -> do
+    cmd <- execParser $ info (helper <*> parseOptions) mempty
+    case cmd of
+        VersionCommand -> do
+            putStrLn "Crux version ???"
+        BuildCommand -> do
             buildProject
-        ["test"] -> do
+        TestCommand -> do
             buildProjectAndRunTests
-        ["run", fn] -> do
-            rtsSource <- loadRTSSource
-            loadProgramFromFile fn >>= \case
-                Left err -> do
-                    Error.printError stderr err
-                    exitWith $ ExitFailure 1
-                Right program -> do
-                    program'' <- Gen.generateProgram program
-                    let js = JS.generateJS rtsSource program''
-                    runJS $ Text.unpack js
-        [fn] -> do
+        RunCommand fn -> do
             rtsSource <- loadRTSSource
             loadProgramFromFile fn >>= \case
                 Left err -> do
@@ -65,4 +57,3 @@ main = do
                     program'' <- Gen.generateProgram program
                     putStr $ Text.unpack $ JS.generateJS rtsSource program''
                     exitWith ExitSuccess
-        _ -> help

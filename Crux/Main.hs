@@ -8,8 +8,10 @@ import Crux.Prelude
 import Crux.Project (buildProject, buildProjectAndRunTests)
 import qualified Data.Text as Text
 import Options.Applicative
+import Options.Applicative.Types (readerAsk)
 import System.Exit (ExitCode (..), exitWith)
 import System.IO
+import Data.List (isSuffixOf)
 
 data Command
     = VersionCommand
@@ -31,8 +33,19 @@ parseCommand = subparser $ mconcat
     , command "version" $ pure VersionCommand `withInfo` "print compiler version"
     ]
 
+checkExtension :: ReadM Command
+checkExtension = do
+    fn <- readerAsk
+    if ".cx" `isSuffixOf` fn then
+        return $ RunCommand fn
+    else
+        readerError "implicit run requires .cx extension"
+
+parseSingleScript :: Parser Command
+parseSingleScript = argument checkExtension mempty
+
 parseOptions :: Parser Command
-parseOptions = parseVersion <|> parseCommand
+parseOptions = parseVersion <|> parseCommand <|> parseSingleScript
 
 withInfo :: Parser a -> String -> ParserInfo a
 withInfo opts desc = info (helper <*> opts) $ progDesc desc

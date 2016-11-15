@@ -9,12 +9,13 @@ import qualified Crux.JSBackend as JS
 import qualified Crux.JSTree as JSTree
 import qualified Crux.Module
 import qualified Crux.Module.Types as MT
+import Crux.TrackIO
 import Data.Text (Text)
 import Test.Framework
 
 genDoc' :: Text -> IO (Either Error.Error Text)
 genDoc' src = do
-    Crux.Module.loadModuleFromSource src >>= \case
+    (runTrackIO' $ Crux.Module.loadModuleFromSource src) >>= \case
         Left err ->
             return $ Left err
         Right mod' -> do

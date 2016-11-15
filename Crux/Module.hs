@@ -35,16 +35,17 @@ import qualified Data.HashSet as HashSet
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as TE
 import Data.Char (isSpace)
-import Data.Yaml
-import System.Directory (doesFileExist, getCurrentDirectory)
+import qualified Data.Yaml as Yaml
+import System.Directory (getCurrentDirectory)
 import System.Environment (getExecutablePath)
 import qualified System.FilePath as FP
 import System.IO.Error (isDoesNotExistError)
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Error as P
+import Crux.TrackIO
 
 -- Given an import source location and a module name, return a parsed module or an error.
-type ModuleLoader = Pos -> ModuleName -> IO (Either Error (FilePath, AST.ParsedModule))
+type ModuleLoader = Pos -> ModuleName -> TrackIO (Either Error (FilePath, AST.ParsedModule))
 
 newChainedModuleLoader :: [ModuleLoader] -> ModuleLoader
 newChainedModuleLoader = newChainedModuleLoader' []
@@ -71,10 +72,8 @@ newFSModuleLoader includePath pos moduleName = do
     let path = includePath FP.</> moduleNameToPath moduleName
     parseModuleFromFile pos moduleName path
 
-newBaseLoader :: IO ModuleLoader
-newBaseLoader = do
-    config <- loadCompilerConfig
-    return $ newFSModuleLoader $ baseLibraryPath config
+newBaseLoader :: CompilerConfig -> ModuleLoader
+newBaseLoader config = newFSModuleLoader $ baseLibraryPath config
 
 newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newProjectModuleLoader config root mainModulePath =
@@ -97,24 +96,31 @@ newMemoryLoader sources pos moduleName = do
         Nothing ->
             return $ Left $ Error pos $ ModuleNotFound moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
 
-findCompilerConfig :: IO (Maybe FilePath)
+findCompilerConfig :: TrackIO (Maybe (FilePath, ByteString))
 findCompilerConfig = do
-    cc <- getExecutablePath >>= loop
-    case cc of
-        Just d -> return (Just d)
-        Nothing ->
-            getCurrentDirectory >>= loop
+    -- First, search for a cxconfig relative to the executable path.
+    -- If that doesn't work, search for a cxconfig relative to the current directory.
+    -- Importantly, this has to work in the playground.
+    exePath <- liftIO getExecutablePath
+    loop exePath >>= \case
+        Just success -> do
+            return $ Just success
+        Nothing -> do
+            cwd <- liftIO getCurrentDirectory
+            loop cwd
 
   where
-    loop c = do
-        let configPath = FP.combine c "cxconfig.yaml"
-        exists <- doesFileExist configPath
-        if | exists ->
-                return $ Just configPath
-           | c == FP.takeDirectory c ->
-                return Nothing
-           | otherwise ->
-                loop $ FP.takeDirectory c
+    loop current = do
+        let configPath = FP.combine current "cxconfig.yaml"
+        readTrackedFile configPath >>= \case
+            Left _err -> do
+                let parent = FP.takeDirectory current
+                if parent == current then
+                    return Nothing
+                else
+                    loop $ FP.takeDirectory parent
+            Right bytes -> do
+                return $ Just (configPath, bytes)
 
 data CompilerConfig = CompilerConfig
     { baseLibraryPath :: FilePath
@@ -128,14 +134,14 @@ instance JSON.FromJSON CompilerConfig where
         return $ CompilerConfig{..}
     parseJSON _ = fail "must be object"
 
-loadCompilerConfig :: IO CompilerConfig
+loadCompilerConfig :: TrackIO CompilerConfig
 loadCompilerConfig = do
-    configPath <- findCompilerConfig >>= \case
+    (configPath, configBytes) <- findCompilerConfig >>= \case
         Nothing -> fail "Failed to find compiler's cxconfig.yaml"
         Just c -> return c
 
-    config <- decodeFileEither configPath >>= \case
-        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ prettyPrintParseException err
+    config <- case Yaml.decodeEither configBytes of
+        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ err
         Right c -> return c
 
     return config
@@ -143,11 +149,13 @@ loadCompilerConfig = do
         , rtsPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ rtsPath config)
         }
 
-loadRTSSource :: IO Text
+loadRTSSource :: TrackIO Text
 loadRTSSource = do
     config <- loadCompilerConfig
-    bytes <- BS.readFile $ FP.combine (rtsPath config) "rts.js"
-    return $ TE.decodeUtf8 bytes
+
+    readTrackedTextFile (FP.combine (rtsPath config) "rts.js") >>= \case
+        Left _err -> fail "Failed to read rts.js file"
+        Right src -> return src
 
 posFromSourcePos :: P.SourcePos -> Pos
 posFromSourcePos sourcePos = Pos $ PosRec
@@ -165,7 +173,7 @@ errorFromParseError ctor parseError = Error pos $ ctor message
         "or" "unknown parse error"
         "expecting" "unexpected" "end of input"
 
-parseModuleFromSource :: FilePath -> Text -> IO (Either Error AST.ParsedModule)
+parseModuleFromSource :: FilePath -> Text -> TrackIO (Either Error AST.ParsedModule)
 parseModuleFromSource filename source = do
     case Lex.lexSource filename source of
         Left err -> do
@@ -177,15 +185,15 @@ parseModuleFromSource filename source = do
                 Right mod' ->
                     return $ Right mod'
 
-parseModuleFromFile :: Pos -> ModuleName -> FilePath -> IO (Either Error (FilePath, AST.ParsedModule))
+parseModuleFromFile :: Pos -> ModuleName -> FilePath -> TrackIO (Either Error (FilePath, AST.ParsedModule))
 parseModuleFromFile pos moduleName filename = runEitherT $ do
     source <- EitherT $ do
-        tryJust (\e -> if isDoesNotExistError e then Just $ Error pos $ ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
+        liftIO $ tryJust (\e -> if isDoesNotExistError e then Just $ Error pos $ ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
     mod' <- EitherT $ do
         parseModuleFromSource filename $ TE.decodeUtf8 source
     return (filename, mod')
 
-loadModuleFromSource :: Text -> IO (ProgramLoadResult AST.LoadedModule)
+loadModuleFromSource :: Text -> TrackIO (ProgramLoadResult AST.LoadedModule)
 loadModuleFromSource source = runEitherT $ do
     program <- EitherT $ loadProgramFromSource source
     return $ pMainModule program
@@ -211,7 +219,7 @@ loadModule ::
     -> IORef (HashSet ModuleName)
     -> Pos
     -> ModuleName
-    -> IO (ProgramLoadResult AST.LoadedModule)
+    -> TrackIO (ProgramLoadResult AST.LoadedModule)
 loadModule loader transformer loadedModules loadingModules importPos moduleName = runEitherT $ do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
@@ -233,7 +241,7 @@ loadModule loader transformer loadedModules loadingModules importPos moduleName 
                 EitherT $ loadModule loader id loadedModules loadingModules pos referencedModule
 
             lm <- readIORef loadedModules
-            loadedModule <- EitherT $ bridgeTC filePath $ Typecheck.run lm parsedModule moduleName
+            loadedModule <- EitherT $ liftIO $ bridgeTC filePath $ Typecheck.run lm parsedModule moduleName
             HashTable.insert moduleName loadedModule loadedModules
             return loadedModule
 
@@ -252,7 +260,7 @@ addMainCall filename AST.Module{..} = AST.Module
 
 data MainModuleMode = AddMainCall | NoTransformation
 
-loadProgram :: MainModuleMode -> ModuleLoader -> FilePath -> ModuleName -> IO (ProgramLoadResult AST.Program)
+loadProgram :: MainModuleMode -> ModuleLoader -> FilePath -> ModuleName -> TrackIO (ProgramLoadResult AST.Program)
 loadProgram mode loader filename main = runEitherT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
@@ -282,7 +290,7 @@ loadProgram mode loader filename main = runEitherT $ do
         , AST.pOtherModules = otherModules
         }
 
-loadProgramFromDirectoryAndModule :: FilePath -> Text -> IO (ProgramLoadResult AST.Program)
+loadProgramFromDirectoryAndModule :: FilePath -> Text -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromDirectoryAndModule sourceDir mainModule = do
     loadProgramFromFile $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
 
@@ -297,20 +305,21 @@ pathToModuleName path =
                 (base', ".cx") -> ModuleName (fmap fromString prefix) (fromString base')
                 _ -> error "Please load .cx file"
 
-loadProgramFromFile :: FilePath -> IO (ProgramLoadResult AST.Program)
+loadProgramFromFile :: FilePath -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromFile path = do
     config <- loadCompilerConfig
     let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
     loadProgram AddMainCall loader path "main"
 
-loadProgramFromSource :: Text -> IO (ProgramLoadResult AST.Program)
+loadProgramFromSource :: Text -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do
     loadProgramFromSources $ HashMap.fromList [ ("main", mainModuleSource) ]
 
-loadProgramFromSources :: HashMap.HashMap ModuleName Text -> IO (ProgramLoadResult AST.Program)
+loadProgramFromSources :: HashMap.HashMap ModuleName Text -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
-    base <- newBaseLoader
+    config <- loadCompilerConfig
+    let base = newBaseLoader config
     let mem = newMemoryLoader sources
     let loader = newChainedModuleLoader [mem, base]
     loadProgram NoTransformation loader "<source>" "main"

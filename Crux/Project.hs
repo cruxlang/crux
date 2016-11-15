@@ -1,5 +1,6 @@
 module Crux.Project
     ( runJS
+    , ProjectOptions(..)
     , buildProject
     , buildProjectAndRunTests
     ) where
@@ -9,6 +10,7 @@ import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JSBackend
 import Crux.Module
 import Crux.Prelude
+import Crux.TrackIO
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
@@ -51,44 +53,58 @@ runJS js = do
         (ExitFailure code, _, stderrBody) -> do
             fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderrBody
 
-loadProjectBuild :: IO ProjectConfig
+loadProjectBuild :: TrackIO ProjectConfig
 loadProjectBuild = do
-    decodeFileEither "crux.yaml" >>= \case
+    -- TODO: actually track this
+    liftIO (decodeFileEither "crux.yaml") >>= \case
         Left err -> fail $ show err
         Right x -> return x
 
-buildTarget :: Text -> Text -> TargetConfig -> IO ()
+buildTarget :: Text -> Text -> TargetConfig -> TrackIO ()
 buildTarget rtsSource targetName TargetConfig{..} = do
     let targetPath = combine "build" $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-        Left err -> do
+        Left err -> liftIO $ do
             Error.printError stderr err
             Exit.exitWith $ Exit.ExitFailure 1
-        Right program -> do
+        Right program -> liftIO $ do
             program' <- Gen.generateProgram program
+            -- TODO: should we track outputs in TrackIO?
             TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
             putStrLn $ "Built " ++ targetPath
 
-buildProject :: IO ()
-buildProject = do
-    rtsSource <- loadRTSSource
-    config <- loadProjectBuild
-    for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
-        buildTarget rtsSource targetName targetConfig
-    for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
-        buildTarget rtsSource targetName targetConfig
+data ProjectOptions = ProjectOptions
+    { poWatch :: Bool
+    }
 
-buildProjectAndRunTests :: IO ()
-buildProjectAndRunTests = do
-    rtsSource <- loadRTSSource
-    config <- loadProjectBuild
-    for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
-        loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-            Left err -> do
-                Error.printError stderr err
-                Exit.exitWith $ Exit.ExitFailure 1
-            Right program -> do
-                program' <- Gen.generateProgram program
-                let source = JSBackend.generateJS rtsSource program'
-                runJS $ Text.unpack source
+buildProject :: ProjectOptions -> IO ()
+buildProject _options = do
+
+    -- TODO: implement a real watcher if poWatch is True
+
+    runTrackIO' $ do
+        rtsSource <- loadRTSSource
+        config <- loadProjectBuild
+        for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
+            buildTarget rtsSource targetName targetConfig
+        for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
+            buildTarget rtsSource targetName targetConfig
+
+buildProjectAndRunTests :: ProjectOptions -> IO ()
+buildProjectAndRunTests _options = do
+
+    -- TODO: implement a real watcher if poWatch is True
+
+    runTrackIO' $ do
+        rtsSource <- loadRTSSource
+        config <- loadProjectBuild
+        for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
+            loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
+                Left err -> liftIO $ do
+                    Error.printError stderr err
+                    Exit.exitWith $ Exit.ExitFailure 1
+                Right program -> liftIO $ do
+                    program' <- Gen.generateProgram program
+                    let source = JSBackend.generateJS rtsSource program'
+                    runJS $ Text.unpack source

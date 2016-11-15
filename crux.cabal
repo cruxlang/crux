@@ -28,6 +28,7 @@ library
                    , Crux.SymbolTable
                    , Crux.Text
                    , Crux.Tokens
+                   , Crux.TrackIO
                    , Crux.Typecheck
                    , Crux.Typecheck.Inst
                    , Crux.Typecheck.Monad

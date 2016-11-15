@@ -12,10 +12,11 @@ import qualified Crux.Module.Types
 import Data.Text (Text)
 import GHC.Exception (ErrorCall (..))
 import Test.Framework
+import Crux.TrackIO
 
 genDoc' :: Text -> IO (Either Error.Error Gen.Module)
 genDoc' src = do
-    Crux.Module.loadModuleFromSource src >>= \case
+    (runTrackIO' $ Crux.Module.loadModuleFromSource src) >>= \case
         Left err ->
             return $ Left err
         Right m -> do

@@ -61,6 +61,7 @@ library
                  , yaml
                  , process
                  , ansi-terminal
+                 , fsnotify
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

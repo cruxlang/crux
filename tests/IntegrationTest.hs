@@ -39,7 +39,7 @@ import Crux.TrackIO
 runProgram' :: AST.Program -> IO String
 runProgram' p = do
     m' <- Gen.generateProgram p
-    rtsSource <- runTrackIO' $ Crux.Module.loadRTSSource
+    rtsSource <- runUntrackedIO $ Crux.Module.loadRTSSource
     let js = JS.generateJS rtsSource m'
     readProcessWithExitCode "node" [] (T.unpack js) >>= \case
         (ExitSuccess, stdoutBody, _) -> do
@@ -59,13 +59,13 @@ makePos l c = Pos $ PosRec
 
 run :: Text -> IO (Either Error.Error String)
 run src = do
-    (runTrackIO' $ Crux.Module.loadProgramFromSource src) >>= \case
+    (runUntrackedIO $ Crux.Module.loadProgramFromSource src) >>= \case
         Left e -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
 runMultiModule :: HashMap.HashMap ModuleName Text -> IO (Either Error.Error String)
 runMultiModule sources = do
-    (runTrackIO' $ Crux.Module.loadProgramFromSources sources) >>= \case
+    (runUntrackedIO $ Crux.Module.loadProgramFromSources sources) >>= \case
         Left e -> return $ Left e
         Right m -> fmap Right $ runProgram' m
 
@@ -138,7 +138,7 @@ runIntegrationTest root = do
     errorExists <- doesFileExist errorPath
 
     --traceMarkerIO "loading program"
-    program' <- runTrackIO' $ Crux.Module.loadProgramFromFile mainPath
+    program' <- runUntrackedIO $ Crux.Module.loadProgramFromFile mainPath
     --traceMarkerIO "loaded program"
 
     (putStrLn intro >>) <$> if stdoutExists then do

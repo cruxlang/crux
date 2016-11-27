@@ -62,6 +62,7 @@ library
                  , process
                  , ansi-terminal
                  , fsnotify
+                 , stm
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

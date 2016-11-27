@@ -7,7 +7,6 @@ module Crux.Project
     , buildProjectAndRunTests
     ) where
 
-import Control.Exception (try, IOException)
 import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JSBackend
@@ -22,10 +21,8 @@ import Data.Yaml
 import System.Exit (ExitCode (..))
 import qualified System.Exit as Exit
 import System.FilePath (combine)
-import qualified System.FilePath as FP
 import System.IO
 import System.Process (readProcessWithExitCode)
-import System.FSNotify
 
 data TargetConfig = TargetConfig
     { tcSourceDir  :: String
@@ -83,31 +80,9 @@ data ProjectOptions = ProjectOptions
     { poWatch :: Bool
     }
 
-makeWatcher :: ProjectOptions -> IO (Tracker)
-makeWatcher ProjectOptions{..} = Tracker <$> case poWatch of
-    True -> do
-        manager <- startManager
-        let processEvent event = do
-                putStrLn $ "processing event: " ++ show event
-        return $ \filePath -> do
-            putStrLn $ "watching: " ++ filePath
-            let loop dirPath = do
-                    result <- try $ do
-                        _ <- watchTree manager dirPath (const True) processEvent
-                        return ()
-                    case result of
-                        Left (err :: IOException) -> do
-                            loop $ FP.takeDirectory dirPath
-                        Right _ -> do
-                            return ()
-            loop $ FP.takeDirectory filePath
-    False -> do
-        return $ \_ -> return ()
-
 buildProject :: ProjectOptions -> IO ()
-buildProject options = do
-    watcher <- makeWatcher options
-    runTrackIO watcher $ do
+buildProject ProjectOptions{..} = do
+    (if poWatch then loopWithTrackedIO else runUntrackedIO) $ do
         rtsSource <- loadRTSSource
         config <- loadProjectBuild
         for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
@@ -116,9 +91,8 @@ buildProject options = do
             buildTarget rtsSource targetName targetConfig
 
 buildProjectAndRunTests :: ProjectOptions -> IO ()
-buildProjectAndRunTests options = do
-    watcher <- makeWatcher options
-    runTrackIO watcher $ do
+buildProjectAndRunTests ProjectOptions{..} = do
+    (if poWatch then loopWithTrackedIO else runUntrackedIO) $ do
         rtsSource <- loadRTSSource
         config <- loadProjectBuild
         for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do

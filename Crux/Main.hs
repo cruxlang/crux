@@ -60,16 +60,15 @@ withInfo :: Parser a -> String -> ParserInfo a
 withInfo opts desc = info (helper <*> opts) $ progDesc desc
 
 compileToJS :: FilePath -> IO Text
-compileToJS fn = do
-    runTrackIO' $ do
-        rtsSource <- loadRTSSource
-        loadProgramFromFile fn >>= \case
-            Left err -> liftIO $ do
-                Error.printError stderr err
-                exitWith $ ExitFailure 1
-            Right program -> liftIO $ do
-                program'' <- Gen.generateProgram program
-                return $ JS.generateJS rtsSource program''
+compileToJS fn = runUntrackedIO $ do
+    rtsSource <- loadRTSSource
+    loadProgramFromFile fn >>= \case
+        Left err -> liftIO $ do
+            Error.printError stderr err
+            exitWith $ ExitFailure 1
+        Right program -> liftIO $ do
+            program'' <- Gen.generateProgram program
+            return $ JS.generateJS rtsSource program''
 
 main :: IO ()
 main = do

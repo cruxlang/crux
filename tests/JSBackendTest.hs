@@ -15,7 +15,7 @@ import Test.Framework
 
 genDoc' :: Text -> IO (Either Error.Error Text)
 genDoc' src = do
-    (runTrackIO' $ Crux.Module.loadModuleFromSource src) >>= \case
+    (runUntrackedIO $ Crux.Module.loadModuleFromSource src) >>= \case
         Left err ->
             return $ Left err
         Right mod' -> do

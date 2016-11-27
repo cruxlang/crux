@@ -14,6 +14,7 @@ import qualified System.FilePath as FP
 import Control.Concurrent.STM
 import qualified Data.Set as Set
 import Data.List (sort)
+import System.Directory (makeAbsolute)
 
 data Tracker = Tracker
     { trackPath :: FilePath -> IO ()
@@ -50,8 +51,9 @@ loopWithTrackedIO action = do
             wp <- readIORef watchedPaths
             when (Set.member path wp) $ do
                 atomically $ writeTChan changeQueue path
-    let tracker filePath = do
-            putStrLn $ "watching: " ++ filePath
+    let tracker filePath' = do
+            filePath <- makeAbsolute filePath'
+            -- putStrLn $ "watching: " ++ filePath
             modifyIORef watchedPaths $ Set.insert filePath
             let loop dirPath = do
                     result <- try $ do

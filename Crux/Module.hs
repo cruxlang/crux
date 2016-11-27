@@ -188,9 +188,14 @@ parseModuleFromSource filename source = do
 parseModuleFromFile :: Pos -> ModuleName -> FilePath -> TrackIO (Either Error (FilePath, AST.ParsedModule))
 parseModuleFromFile pos moduleName filename = runEitherT $ do
     source <- EitherT $ do
-        liftIO $ tryJust (\e -> if isDoesNotExistError e then Just $ Error pos $ ModuleNotFound moduleName [filename] else Nothing) $ BS.readFile filename
+        readTrackedTextFile filename >>= \case
+            Left err -> do
+                -- TODO: limit to isDoesNotExistError like the old code
+                return $ Left $ Error pos $ ModuleNotFound moduleName [filename]
+            Right source -> do
+                return $ Right source
     mod' <- EitherT $ do
-        parseModuleFromSource filename $ TE.decodeUtf8 source
+        parseModuleFromSource filename source
     return (filename, mod')
 
 loadModuleFromSource :: Text -> TrackIO (ProgramLoadResult AST.LoadedModule)

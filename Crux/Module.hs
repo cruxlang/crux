@@ -118,7 +118,7 @@ findCompilerConfig = do
                 if parent == current then
                     return Nothing
                 else
-                    loop $ FP.takeDirectory parent
+                    loop parent
             Right bytes -> do
                 return $ Just (configPath, bytes)
 

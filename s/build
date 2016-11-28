@@ -22,5 +22,5 @@ cp dist/crux.js npm/cruxlang/src/
 sass stage/style.scss > stage/style.css
 
 (cd ../crux && stack build)
-(cd ../crux && stack exec crux ../cruxjs/src/playground.cx) > stage/playground.js
-(cd ../crux && stack exec crux ../cruxjs/src/compiler-worker.cx) > stage/compiler-worker.js
+(cd ../crux && stack exec crux compile ../cruxjs/src/playground.cx) > stage/playground.js
+(cd ../crux && stack exec crux compile ../cruxjs/src/compiler-worker.cx) > stage/compiler-worker.js

@@ -20,6 +20,7 @@ import Crux.ModuleName (ModuleName)
 import qualified Data.HashMap.Strict as HashMap
 import GHCJS.Marshal.Pure (pFromJSVal, pToJSVal)
 import qualified Data.Text.Encoding as TE
+import Crux.TrackIO (runUntrackedIO)
 
 baseModuleFiles :: [(FilePath, ByteString)]
 baseModuleFiles = $(embedDir "../crux/lib")
@@ -38,7 +39,7 @@ compile source = do
             , HashMap.singleton "main" source
             ]
     let loader = newMemoryLoader mapping
-    loadProgram AddMainCall loader "<playground>" "main" >>= \case
+    (runUntrackedIO $ loadProgram AddMainCall loader "<playground>" "main") >>= \case
         Left err -> return $ Left err
         Right program -> do
             program' <- Gen.generateProgram program

@@ -1,6 +1,7 @@
 import cmp
 import crux
 import dom.worker
+import json
 
 data TimerId(Number)
 
@@ -29,10 +30,6 @@ fun clearTimeout(tid: TimerId) {
 
 fun newXmlHttpRequest(): XHR {
     _unsafe_js("new XMLHttpRequest")
-}
-
-fun toJson(o): String {
-    _unsafe_js("JSON.stringify")(o)
 }
 
 fun parseJson(s) {
@@ -152,7 +149,7 @@ fun receiveCompilationResponse(Compiler(this), response) {
     xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
     xhr.setRequestHeader("content-type", "application/json")
     xhr.timeout = 60000 // 60s
-    xhr.send(toJson({source: result}))
+    xhr.send(json.encode({source: result}))
     this.state = Optimizing(xhr)
 
     xhr.onload = fun() {

@@ -1,10 +1,10 @@
 import test(...)
 import assert
 
-let _ = test("numbers add", fun() {
+test("numbers add", fun() {
     assert.equal(3, 1 + 2)
 })
 
-let _ = test("numbers subtract", fun() {
+test("numbers subtract", fun() {
     assert.equal(3, 7 - 4)
 })

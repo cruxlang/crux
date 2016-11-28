@@ -2,14 +2,14 @@ import dict
 import assert
 import test(...)
 
-let _ = test("basic dict", () => {
+test("basic dict", () => {
   let d = dict.new()
   assert.equal(None, d->get("hi"))
   d->set("hi", 10)
   assert.equal(Some(10), d->get("hi"))
 })
 
-let _ = test("delete", () => {
+test("delete", () => {
   let d = dict.new()
   d->set("hello", "world")
   assert.equal(Some("world"), d->get("hello"))
@@ -17,7 +17,7 @@ let _ = test("delete", () => {
   assert.equal(None, d->get("hello"))
 })
 
-let _ = test("from record", () => {
+test("from record", () => {
   let d = dict.from({
     x: "hi",
     y: "bye",
@@ -27,19 +27,19 @@ let _ = test("from record", () => {
   assert.equal(None, d->get("z"))
 })
 
-let _ = test("from record copies", () => {
+test("from record copies", () => {
   let r = {x: 10}
   let d = dict.from(r)
   d->delete("x")
   assert.equal(10, r.x)
 })
 
-let _ = test("enumerate keys", () => {
+test("enumerate keys", () => {
   let d = dict.from({x: 10, y: 30, aa: 50})
   assert.equal(["aa", "x", "y"], sorted(d->keys()))
 })
 
-let _ = test("enumerate values", () => {
+test("enumerate values", () => {
   let d = dict.from({x: 10, y: 30, aa: 50})
   assert.equal([("aa", 50), ("x", 10), ("y", 30)], sorted(d->items()))
 })

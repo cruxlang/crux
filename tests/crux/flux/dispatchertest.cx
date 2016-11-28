@@ -18,11 +18,11 @@ impl Eq ActionType {
   }
 }
 
-let _ = test("actions are dispatched to registered callbacks", fun() {
+test("actions are dispatched to registered callbacks", fun() {
   let actions = mutable []
 
   let d = dispatcher.new()
-  let _ = d->register(action => {
+  d->register(action => {
     actions->append(action)
   })
 
@@ -32,7 +32,7 @@ let _ = test("actions are dispatched to registered callbacks", fun() {
   assert.equal([Test1, Test2], actions->freeze())
 })
 
-let _ = test("callbacks can be unregistered", fun() {
+test("callbacks can be unregistered", fun() {
   let actions = mutable []
 
   let d = dispatcher.new()

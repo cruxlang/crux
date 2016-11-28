@@ -4,23 +4,23 @@ import json
 import assert
 import test(...)
 
-let _ = test("encode string array", () => {
+test("encode string array", () => {
   assert.equal("[\"hi\"]", json.encode(["hi"]))
 })
 
-let _ = test("encode number array", () => {
+test("encode number array", () => {
   assert.equal("[1,2]", json.encode([1, 2]))
 })
 
-let _ = test("encode booleans", () => {
+test("encode booleans", () => {
   assert.equal("[true,false]", json.encode([True, False]))
 })
 
-let _ = test("encode null", () => {
+test("encode null", () => {
   assert.equal("null", json.encode(js.Null))
 })
 
-let _ = test("encode dict", () => {
+test("encode dict", () => {
   let a = dict.new()
   assert.equal("{}", json.encode(a))
 
@@ -28,12 +28,12 @@ let _ = test("encode dict", () => {
   assert.equal("{\"hello\":true}", json.encode(a))
 })
 
-let _ = test("encode record literals", () => {
+test("encode record literals", () => {
   assert.equal("{\"hello\":true}", json.encode({
     hello: True,
   }))
 })
 
-let _ = test("encode options", () => {
+test("encode options", () => {
   assert.equal("[null,10]", json.encode([None, Some(10)]))
 })

@@ -5,7 +5,7 @@ import test(...)
 let stringValue: js.Value = _unsafe_coerce("hello world")
 let arrayValue: js.Value = _unsafe_coerce([])
 
-let _ = test("decode strings", () => {
+test("decode strings", () => {
   assert.equal(Some("hello world"), js.fromValue(stringValue))
 
   let expected: ?String = None

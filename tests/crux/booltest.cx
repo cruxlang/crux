@@ -1,7 +1,7 @@
 import test(...)
 import assert
 
-let _ = test("not", fun() {
+test("not", fun() {
     assert.equal(True, not(False))
     assert.equal(False, not(True))
 })

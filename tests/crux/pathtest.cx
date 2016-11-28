@@ -2,7 +2,7 @@ import test(...)
 import assert
 import path
 
-let _ = test("paths combine", fun() {
+test("paths combine", fun() {
     assert.equal("foo/bar", path.join("foo", "bar"))
     assert.equal("foo/bar", path.join("foo/", "bar"))
     assert.equal("/bar", path.join("foo", "/bar"))

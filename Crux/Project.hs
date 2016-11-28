@@ -2,6 +2,7 @@
 
 module Crux.Project
     ( runJS
+    , runJSWithResult
     , ProjectOptions(..)
     , buildProject
     , buildProjectAndRunTests
@@ -45,15 +46,25 @@ instance FromJSON ProjectConfig where
         return ProjectConfig{..}
     parseJSON _ = fail "Config must be an object"
 
-runJS :: String -> IO ()
-runJS js = do
+-- Prints stdout and stderr, returns Left exitCode on failure, Right () on success.
+runJSWithResult :: String -> IO (Either Int ())
+runJSWithResult js = do
     readProcessWithExitCode "node" [] js >>= \case
         (ExitSuccess, stdoutBody, stderrBody) -> do
             -- TODO: just inherit stdout and stderr
             hPutStr stderr stderrBody
             hPutStr stdout stdoutBody
+            return $ Right ()
         (ExitFailure code, _, stderrBody) -> do
-            fail $ "Process failed with code: " ++ show code ++ "\n" ++ stderrBody
+            hPutStr stderr stderrBody
+            return $ Left code
+
+runJS :: String -> IO ()
+runJS js = runJSWithResult js >>= \case
+    Left code -> do
+        fail $ "Process failed with code: " ++ show code ++ "\n"
+    Right () -> do
+        return ()
 
 loadProjectBuild :: TrackIO ProjectConfig
 loadProjectBuild = do
@@ -80,9 +91,14 @@ data ProjectOptions = ProjectOptions
     { poWatch :: Bool
     }
 
+trackerFromOptions :: ProjectOptions -> TrackIO a -> IO a
+trackerFromOptions ProjectOptions{..} =
+    if poWatch then loopWithTrackedIO else runUntrackedIO
+
 buildProject :: ProjectOptions -> IO ()
-buildProject ProjectOptions{..} = do
-    (if poWatch then loopWithTrackedIO else runUntrackedIO) $ do
+buildProject options = do
+    let tracker = trackerFromOptions options
+    tracker $ do
         rtsSource <- loadRTSSource
         config <- loadProjectBuild
         for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
@@ -91,16 +107,22 @@ buildProject ProjectOptions{..} = do
             buildTarget rtsSource targetName targetConfig
 
 buildProjectAndRunTests :: ProjectOptions -> IO ()
-buildProjectAndRunTests ProjectOptions{..} = do
-    (if poWatch then loopWithTrackedIO else runUntrackedIO) $ do
-        rtsSource <- loadRTSSource
-        config <- loadProjectBuild
+buildProjectAndRunTests options = do
+    let tracker = trackerFromOptions options
+    result <- tracker $ runEitherT $ do
+        rtsSource <- lift $ loadRTSSource
+        config <- lift $ loadProjectBuild
         for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
-            loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
-                Left err -> liftIO $ do
-                    Error.printError stderr err
-                    Exit.exitWith $ Exit.ExitFailure 1
+            (lift $ loadProgramFromDirectoryAndModule tcSourceDir tcMainModule) >>= \case
+                Left err -> do
+                    liftIO $ Error.printError stderr err
+                    left ()
                 Right program -> liftIO $ do
                     program' <- Gen.generateProgram program
                     let source = JSBackend.generateJS rtsSource program'
-                    runJS $ Text.unpack source
+                    (runJSWithResult $ Text.unpack source) >>= \case
+                        Left _code -> return $ Left ()
+                        Right () -> return $ Right ()
+    case result of
+        Left () -> Exit.exitWith $ Exit.ExitFailure 1
+        Right () -> return ()

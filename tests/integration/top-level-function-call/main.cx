@@ -1,0 +1,9 @@
+print("hello")
+
+fun foo() {
+  print("world")
+}
+
+foo()
+
+fun main() {}

@@ -955,6 +955,11 @@ exportImportDeclaration = do
         name <- anyIdentifier
         return $ DExportImport (tokenData importToken) name
 
+topLevelCallDeclaration :: Parser ParseDeclaration
+topLevelCallDeclaration = do
+    expr <- noSemiExpression
+    return $ DLet (edata expr) Immutable PWildcard [] Nothing expr
+
 declaration :: Parser (Declaration UnresolvedReference () ParseData)
 declaration = do
     pos <- tokenData <$> P.lookAhead P.anyToken
@@ -967,7 +972,7 @@ declaration = do
     let extra :: [Parser ParseDeclaration]
         extra = if exportFlag == Export
             then [exportImportDeclaration]
-            else []
+            else [topLevelCallDeclaration]
     declType <- asum $
         [ declareDeclaration
         , dataDeclaration

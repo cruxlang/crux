@@ -1,0 +1,22 @@
+project:
+  name: cruxjs
+  description: ""
+  license: Apache-2.0
+  author: Chad Austin
+
+target-options:
+  output-dir: stage
+
+targets:
+  playground:
+    src-dir: src
+    main-module: playground
+
+  compiler-worker:
+    src-dir: src
+    main-module: compiler-worker
+
+#tests:
+#  "test":
+#    src-dir: tests
+#    main-module: main

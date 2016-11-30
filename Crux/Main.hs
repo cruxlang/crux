@@ -5,7 +5,7 @@ import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
 import Crux.Module (loadProgramFromFile, loadRTSSource)
 import Crux.Prelude
-import Crux.Project (buildProject, buildProjectAndRunTests, ProjectOptions(..), runJS)
+import Crux.Project (buildProject, buildProjectAndRunTests, createProjectTemplate, ProjectOptions(..), runJS)
 import qualified Data.Text as Text
 import Options.Applicative
 import Options.Applicative.Types (readerAsk)
@@ -16,6 +16,7 @@ import Crux.TrackIO
 
 data Command
     = VersionCommand
+    | InitCommand
     | CompileCommand FilePath
     | RunCommand FilePath
     | BuildCommand ProjectOptions
@@ -35,11 +36,12 @@ parseVersion = flag' VersionCommand (long "version" <> hidden)
 
 parseCommand :: Parser Command
 parseCommand = subparser $ mconcat
-    [ command "build" $ (BuildCommand <$> projectOptions) `withInfo` "build project"
+    [ command "init" $ pure InitCommand `withInfo` "initialize new project"
+    , command "version" $ pure VersionCommand `withInfo` "print crux version"
+    , command "build" $ (BuildCommand <$> projectOptions) `withInfo` "build project"
     , command "compile" $ compileCommand `withInfo` "compile single file"
     , command "run" $ runCommand `withInfo` "run program file"
     , command "test" $ (TestCommand <$> projectOptions) `withInfo` "test project"
-    , command "version" $ pure VersionCommand `withInfo` "print compiler version"
     ]
 
 checkExtension :: ReadM Command
@@ -74,6 +76,8 @@ main :: IO ()
 main = do
     cmd <- execParser $ info (helper <*> parseOptions) mempty
     case cmd of
+        InitCommand -> do
+            createProjectTemplate
         VersionCommand -> do
             putStrLn "Crux version ???"
         BuildCommand options -> do

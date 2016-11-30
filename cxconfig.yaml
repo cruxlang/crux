@@ -1,2 +1,3 @@
 baseLibraryPath: lib/
 rtsPath: rts/
+templatePath: template/

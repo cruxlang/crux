@@ -1,0 +1,15 @@
+project:
+  name: {{name}}
+  description: {{description}}
+  license: {{license}}
+  author: {{author}}
+
+targets:
+  {{targetName}}:
+    src-dir: src
+    main-module: main
+
+tests:
+  {{testName}}:
+    src-dir: tests
+    main-module: main

@@ -63,6 +63,7 @@ library
                  , ansi-terminal
                  , fsnotify
                  , stm
+                 , hastache
 
     default-extensions: OverloadedStrings
                       , MultiWayIf

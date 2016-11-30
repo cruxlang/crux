@@ -9,6 +9,9 @@ module Crux.Module
     , loadProgramFromDirectoryAndModule
     , loadRTSSource
 
+    , CompilerConfig(..)
+    , loadCompilerConfig
+
       -- largely for cruxjs
     , MainModuleMode(..)
     , pathToModuleName
@@ -73,11 +76,11 @@ newFSModuleLoader includePath pos moduleName = do
     parseModuleFromFile pos moduleName path
 
 newBaseLoader :: CompilerConfig -> ModuleLoader
-newBaseLoader config = newFSModuleLoader $ baseLibraryPath config
+newBaseLoader config = newFSModuleLoader $ ccBaseLibraryPath config
 
 newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newProjectModuleLoader config root mainModulePath =
-    let baseLoader = newFSModuleLoader $ baseLibraryPath config
+    let baseLoader = newFSModuleLoader $ ccBaseLibraryPath config
         projectLoader = newFSModuleLoader root
         mainLoader pos moduleName =
             if moduleName == "main"
@@ -123,14 +126,16 @@ findCompilerConfig = do
                 return $ Just (configPath, bytes)
 
 data CompilerConfig = CompilerConfig
-    { baseLibraryPath :: FilePath
-    , rtsPath         :: FilePath
+    { ccBaseLibraryPath :: !FilePath
+    , ccRTSPath         :: !FilePath
+    , ccTemplatePath    :: !FilePath
     }
 
 instance JSON.FromJSON CompilerConfig where
     parseJSON (JSON.Object o) = do
-        baseLibraryPath <- o JSON..: "baseLibraryPath"
-        rtsPath <- o JSON..: "rtsPath"
+        ccBaseLibraryPath <- o JSON..: "baseLibraryPath"
+        ccRTSPath <- o JSON..: "rtsPath"
+        ccTemplatePath <- o JSON..: "templatePath"
         return $ CompilerConfig{..}
     parseJSON _ = fail "must be object"
 
@@ -145,15 +150,16 @@ loadCompilerConfig = do
         Right c -> return c
 
     return config
-        { baseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ baseLibraryPath config)
-        , rtsPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ rtsPath config)
+        { ccBaseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccBaseLibraryPath config)
+        , ccRTSPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccRTSPath config)
+        , ccTemplatePath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccTemplatePath config)
         }
 
 loadRTSSource :: TrackIO Text
 loadRTSSource = do
     config <- loadCompilerConfig
 
-    readTrackedTextFile (FP.combine (rtsPath config) "rts.js") >>= \case
+    readTrackedTextFile (FP.combine (ccRTSPath config) "rts.js") >>= \case
         Left _err -> fail "Failed to read rts.js file"
         Right src -> return src
 

@@ -6,6 +6,7 @@ module Crux.Project
     , ProjectOptions(..)
     , buildProject
     , buildProjectAndRunTests
+    , createProjectTemplate
     ) where
 
 import qualified Crux.Error as Error
@@ -15,15 +16,21 @@ import Crux.Module
 import Crux.Prelude
 import Crux.TrackIO
 import Data.Map.Strict (Map)
+import Data.Char (isSpace)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as LazyText
 import qualified Data.Text.IO as TextIO
+import qualified Data.Text.Lazy.IO as LazyTextIO
 import Data.Yaml
-import System.Exit (ExitCode (..))
+import qualified Data.Aeson as Aeson
+import System.Exit (exitWith, ExitCode (..))
 import qualified System.Exit as Exit
-import System.FilePath (combine)
+import qualified System.FilePath as FP
+import System.Directory
 import System.IO
 import System.Process (readProcessWithExitCode)
+import Text.Hastache
 
 data TargetConfig = TargetConfig
     { tcSourceDir  :: String
@@ -75,7 +82,7 @@ loadProjectBuild = do
 
 buildTarget :: Text -> Text -> TargetConfig -> TrackIO ()
 buildTarget rtsSource targetName TargetConfig{..} = do
-    let targetPath = combine "build" $ Text.unpack targetName ++ ".js"
+    let targetPath = FP.combine "build" $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left err -> liftIO $ do
@@ -126,3 +133,108 @@ buildProjectAndRunTests options = do
     case result of
         Left () -> Exit.exitWith $ Exit.ExitFailure 1
         Right () -> return ()
+
+data ProjectTemplate = ProjectTemplate
+    { ptName :: !String
+    , ptDescription :: !String
+    , ptLicense :: !String
+    , ptAuthor :: !String
+    , ptTargetName :: !String
+    , ptTestName :: !String
+    }
+
+ptContext :: ProjectTemplate -> Text -> IO (MuType IO)
+ptContext ProjectTemplate{..} name = do
+    v <- c name
+    return $ MuVariable $ Aeson.encode v
+  where
+    c "name" = return ptName
+    c "description" = return ptDescription
+    c "license" = return ptLicense
+    c "author" = return ptAuthor
+    c "targetName" = return ptTargetName
+    c "testName" = return ptTestName
+    c _ = fail $ "Unknown context variable name: " <> Text.unpack name
+
+readInputString :: String -> String -> IO String
+readInputString prompt def = do
+    putStr $ prompt <> (if def == "" then ": " else " (" <> def <> "): ")
+    hFlush stdout
+    line <- getLine
+    return $ if line == "" then def else line
+
+strip :: String -> String
+strip = lstrip . rstrip
+lstrip :: String -> String
+lstrip = dropWhile isSpace
+rstrip :: String -> String
+rstrip = reverse . lstrip . reverse
+
+softReadCommand :: String -> [String] -> IO String
+softReadCommand command args = do
+    readProcessWithExitCode command args "" >>= \case
+        (ExitSuccess, stdout', _) -> return stdout'
+        (ExitFailure _, _, _) -> return ""
+
+createProjectTemplate :: IO ()
+createProjectTemplate = do
+    -- check for existing project file
+    alreadyExists <- doesFileExist "crux.yaml"
+    if alreadyExists then do
+        hPutStrLn stderr "crux.yaml already exists -- refusing to overwrite"
+        exitWith $ ExitFailure 1
+    else do
+        return ()
+
+    currentDirectory <- getCurrentDirectory
+    let defaultProjectName = FP.takeBaseName currentDirectory
+    defaultAuthor <- strip <$> softReadCommand "git" ["config", "user.name"]
+
+    -- TODO: fold email into the username
+    -- defaultEmail <- readCommand "git config user.email"
+
+    putStrLn "Welcome to Crux!"
+    putStrLn ""
+    putStrLn "This script will guide you through creating a Crux project."
+    putStrLn ""
+    ptName <- readInputString "Project name" defaultProjectName
+    ptDescription <- readInputString "One-line project description" ""
+    ptLicense <- readInputString "License" "ISC"
+    ptAuthor <- readInputString "Author" defaultAuthor
+    ptTargetName <- readInputString "Target name" defaultProjectName
+    ptTestName <- readInputString "Test name" "test"
+
+    let projectTemplate = ProjectTemplate{..}
+
+    -- read crux.yaml.template
+
+    compilerConfig <- runUntrackedIO $ loadCompilerConfig
+    let templatePath = FP.combine (ccTemplatePath compilerConfig) "crux.yaml.template"
+    Right templateContents <- runUntrackedIO $ readTrackedTextFile templatePath
+
+    -- apply template
+
+    let config :: MuConfig IO
+        config = MuConfig
+            { muEscapeFunc = id
+            , muTemplateFileDir = Nothing
+            , muTemplateFileExt = Nothing
+            , muTemplateRead = \_ -> return Nothing
+            }
+        ctx :: MuContext IO
+        ctx = ptContext projectTemplate
+    resultText <- hastacheStr config templateContents ctx
+
+    -- write resultText to crux.yaml
+
+    LazyTextIO.writeFile "crux.yaml" resultText
+
+    putStrLn "\ncrux.yaml has been created!"
+    putStrLn ""
+    putStrLn "Try running `crux build` or `crux test`"
+    putStrLn ""
+    putStrLn "Both commands accept a --watch option for automatically rerunning when files change."
+
+    -- TODO:
+    -- mkdir src
+    -- mkdir tests

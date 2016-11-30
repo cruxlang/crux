@@ -19,7 +19,6 @@ import Data.Map.Strict (Map)
 import Data.Char (isSpace)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
-import qualified Data.Text.Lazy as LazyText
 import qualified Data.Text.IO as TextIO
 import qualified Data.Text.Lazy.IO as LazyTextIO
 import Data.Yaml
@@ -38,7 +37,8 @@ data TargetConfig = TargetConfig
     }
 
 data ProjectConfig = ProjectConfig
-    { pcTargets :: Map Text TargetConfig
+    { pcTargetDir :: FilePath
+    , pcTargets :: Map Text TargetConfig
     , pcTests   :: Map Text TargetConfig
     }
 
@@ -48,6 +48,8 @@ instance FromJSON TargetConfig where
     parseJSON _ = fail "Target must be an object"
 instance FromJSON ProjectConfig where
     parseJSON (Object o) = do
+        targetOptions <- o .:? "target-options" .!= mempty
+        pcTargetDir <- targetOptions .:? "output-dir" .!= "build"
         pcTargets <- o .:? "targets" .!= mempty
         pcTests <- o .:? "tests" .!= mempty
         return ProjectConfig{..}
@@ -80,9 +82,10 @@ loadProjectBuild = do
         Left err -> fail $ show err
         Right x -> return x
 
-buildTarget :: Text -> Text -> TargetConfig -> TrackIO ()
-buildTarget rtsSource targetName TargetConfig{..} = do
-    let targetPath = FP.combine "build" $ Text.unpack targetName ++ ".js"
+buildTarget :: Text -> Text -> ProjectConfig -> TargetConfig -> TrackIO ()
+buildTarget rtsSource targetName ProjectConfig{..} TargetConfig{..} = do
+    -- TODO: create pcTargetDir if it doesn't exist
+    let targetPath = FP.combine pcTargetDir $ Text.unpack targetName ++ ".js"
 
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left err -> liftIO $ do
@@ -109,9 +112,9 @@ buildProject options = do
         rtsSource <- loadRTSSource
         config <- loadProjectBuild
         for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
-            buildTarget rtsSource targetName targetConfig
+            buildTarget rtsSource targetName config targetConfig
         for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
-            buildTarget rtsSource targetName targetConfig
+            buildTarget rtsSource targetName config targetConfig
 
 buildProjectAndRunTests :: ProjectOptions -> IO ()
 buildProjectAndRunTests options = do

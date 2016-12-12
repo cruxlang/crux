@@ -82,7 +82,7 @@ loadProjectBuild = do
         Left err -> fail $ show err
         Right x -> return x
 
-buildTarget :: Text -> Text -> ProjectConfig -> TargetConfig -> TrackIO ()
+buildTarget :: Text -> Text -> ProjectConfig -> TargetConfig -> TrackIO (Either () ())
 buildTarget rtsSource targetName ProjectConfig{..} TargetConfig{..} = do
     -- TODO: create pcTargetDir if it doesn't exist
     let targetPath = FP.combine pcTargetDir $ Text.unpack targetName ++ ".js"
@@ -90,12 +90,13 @@ buildTarget rtsSource targetName ProjectConfig{..} TargetConfig{..} = do
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
-            Exit.exitWith $ Exit.ExitFailure 1
+            return $ Left ()
         Right program -> liftIO $ do
             program' <- Gen.generateProgram program
             -- TODO: should we track outputs in TrackIO?
             TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
             putStrLn $ "Built " ++ targetPath
+            return $ Right ()
 
 data ProjectOptions = ProjectOptions
     { poWatch :: Bool
@@ -108,13 +109,16 @@ trackerFromOptions ProjectOptions{..} =
 buildProject :: ProjectOptions -> IO ()
 buildProject options = do
     let tracker = trackerFromOptions options
-    tracker $ do
-        rtsSource <- loadRTSSource
-        config <- loadProjectBuild
+    result <- tracker $ runEitherT $ do
+        rtsSource <- lift $ loadRTSSource
+        config <- lift $ loadProjectBuild
         for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
-            buildTarget rtsSource targetName config targetConfig
+            EitherT $ buildTarget rtsSource targetName config targetConfig
         for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
-            buildTarget rtsSource targetName config targetConfig
+            EitherT $ buildTarget rtsSource targetName config targetConfig
+    case result of
+        Left () -> Exit.exitWith $ Exit.ExitFailure 1
+        Right () -> return ()
 
 buildProjectAndRunTests :: ProjectOptions -> IO ()
 buildProjectAndRunTests options = do

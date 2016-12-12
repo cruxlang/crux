@@ -15,6 +15,8 @@ import Control.Concurrent.STM
 import qualified Data.Set as Set
 import Data.List (sort)
 import System.Directory (makeAbsolute)
+import System.Console.ANSI
+import System.IO (stderr, hIsTerminalDevice)
 
 data Tracker = Tracker
     { trackPath :: FilePath -> IO ()
@@ -71,7 +73,13 @@ loopWithTrackedIO action = do
             writeIORef watchedPaths mempty
             _ <- runTrackIO' (Tracker tracker) action
 
-            putStrLn "\nWaiting for changes..."
+            -- TODO: move this into a color module
+            isatty' <- hIsTerminalDevice stderr
+            let ws = "\nWaiting for changes..."
+            let waitingString = if isatty'
+                    then setSGRCode [SetColor Foreground Vivid Yellow] ++ ws ++ setSGRCode []
+                    else ws
+            putStrLn waitingString
 
             changedPaths <- readAll changeQueue
             for_ (sort $ (Set.toList . Set.fromList) changedPaths) $ \path -> do

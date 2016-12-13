@@ -1,12 +1,12 @@
 import test(...)
 import assert
 
-import callbackset
+import callbackqueue
 
 test("runs callback", () => {
   let result = mutable []
 
-  let cbs = callbackset.new()
+  let cbs = callbackqueue.new()
   cbs->add(() => {
     result->append("hello")
   })
@@ -21,7 +21,7 @@ test("runs callback", () => {
 test("runs all callbacks", () => {
   let result = mutable []
 
-  let cbs = callbackset.new()
+  let cbs = callbackqueue.new()
   cbs->add(() => {
     result->append("hello")
   })

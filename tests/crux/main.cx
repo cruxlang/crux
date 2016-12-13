@@ -2,6 +2,7 @@ import test
 
 import arraytest as _
 import booltest as _
+import callbacksettest as _
 import cmptest as _
 import numbertest as _
 import stringtest as _

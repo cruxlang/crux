@@ -1,0 +1,29 @@
+data CallbackSet(mutable [()])
+
+export fun new() {
+  return CallbackSet(mutable [])
+}
+
+export fun add1<Env>(CallbackSet(entries), env: Env, cb: Env => ()) {
+  entries->append(_unsafe_coerce(env))
+  entries->append(_unsafe_coerce(cb))
+}
+
+fun run0(env) {
+  env()
+}
+
+export fun add(cbset, cb) {
+  add1(cbset, cb, run0)
+}
+
+export fun runAndClear(CallbackSet(entries)) {
+  let mutable i = 0
+  while i < len(entries) {
+    let env = _unsafe_coerce(entries->get(i))
+    let cb = _unsafe_coerce(entries->get(i + 1))
+    cb(env)
+    i = i + 2
+  }
+  entries->clear()
+}

@@ -1,0 +1,36 @@
+import test(...)
+import assert
+
+import callbackset
+
+test("runs callback", () => {
+  let result = mutable []
+
+  let cbs = callbackset.new()
+  cbs->add(() => {
+    result->append("hello")
+  })
+
+  cbs->runAndClear()
+  assert.equal(mutable ["hello"], result)
+
+  cbs->runAndClear()
+  assert.equal(mutable ["hello"], result)
+})
+
+test("runs all callbacks", () => {
+  let result = mutable []
+
+  let cbs = callbackset.new()
+  cbs->add(() => {
+    result->append("hello")
+  })
+
+  cbs->add(() => {
+    result->append("goodbye")
+  })
+
+  cbs->runAndClear()
+
+  assert.equal(["goodbye", "hello"], sorted(result->freeze()))
+})

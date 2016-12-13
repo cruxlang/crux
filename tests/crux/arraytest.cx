@@ -18,6 +18,11 @@ test("array equality", () => {
   assert.notEqual([1, 2], [3, 4])
 })
 
+test("mutable array equality", () => {
+  assert.equal(mutable [1, 2], mutable [1, 2])
+  assert.notEqual(mutable [1, 2], mutable [3, 4])
+})
+
 test("sorted", () => {
   assert.equal([0, 1, 2], sorted([1, 2, 0]))
 })

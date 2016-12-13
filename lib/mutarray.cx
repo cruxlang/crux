@@ -1,10 +1,11 @@
 pragma { NoBuiltin }
 
 import array
+import cmp
 import string
 import number(Number)
 import length
-import types(Boolean)
+import types(Boolean, True, False)
 
 export data MutableArray<a> {}
 
@@ -18,7 +19,7 @@ export fun append<a>(a: mutable [a], v: a): () {
     _unsafe_coerce(a).push(v)
 }
 
-export fun get<a>(a: mutable [a], idx: Number) {
+export fun get<a>(a: mutable [a], idx: Number): a {
     _unsafe_get(a, idx)
 }
 
@@ -26,6 +27,26 @@ export fun get<a>(a: mutable [a], idx: Number) {
 impl length.HasLength MutableArray<a> {
   len(arr) {
     return _unsafe_coerce(arr).length
+  }
+}
+
+impl cmp.Eq MutableArray<a: cmp.Eq> {
+  eq(lhs, rhs) {
+    let lhs_length = length.len(lhs)
+    let rhs_length = length.len(rhs)
+    if lhs_length != rhs_length {
+      return False
+    }
+
+    let mutable i = 0
+    while i < lhs_length {
+      if lhs->get(i) != rhs->get(i) {
+        return False
+      }
+      i = i + 1
+    }
+
+    return True
   }
 }
 
@@ -77,4 +98,8 @@ export fun sort(arr: mutable [string.String]) {
 
 export fun filter<a>(arr: mutable [a], pred: a => Boolean): mutable [a] {
   _unsafe_coerce(arr).filter(pred)
+}
+
+export fun clear<T>(arr: mutable [T]) {
+  _unsafe_coerce(arr).length = 0
 }

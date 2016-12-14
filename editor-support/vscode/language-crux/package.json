@@ -1,0 +1,26 @@
+{
+    "name": "language-crux",
+    "displayName": "Crux Syntax Highlighting",
+    "description": "Syntax highlighting for the Crux programming language.",
+    "version": "0.0.1",
+    "publisher": "chadaustin",
+    "engines": {
+        "vscode": "^1.5.0"
+    },
+    "categories": [
+        "Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "crux",
+            "aliases": ["Crux", "crux"],
+            "extensions": ["cx"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "crux",
+            "scopeName": "source.crux",
+            "path": "./syntaxes/crux.tmLanguage.json"
+        }]
+    }
+}

@@ -1,0 +1,32 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Crux",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [{
+				"name": "keyword.control.crux",
+				"match": "\\b(as|pragma|import|export|fun|let|data|declare|exception|throw|try|catch|jsffi|type|match|if|then|else|while|for|in|do|return|mutable|trait|impl)\\b"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.crux",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.crux",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.crux"
+}

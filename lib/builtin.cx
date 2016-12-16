@@ -46,7 +46,7 @@ export fun emptyArray<a>(): [a] {
 export fun sorted<a: cmp.Ordered>(arr: [a]): [a] {
   return _unsafe_coerce(arr).slice().sort(fun(lhs: a, rhs: a) {
     if (lhs < rhs) {
-      0 - 1 // TODO: https://github.com/cruxlang/crux/issues/170
+      -1
     } else if (rhs < lhs) {
       1
     } else {

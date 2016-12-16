@@ -47,8 +47,7 @@ export fun endsWith(haystack: String, needle: String) {
     if n.length > h.length {
         return False
     }
-    // TODO: crux does not support negative literals yet
-    return h.indexOf(needle, h.length - n.length) != 0 - 1
+    return h.indexOf(needle, h.length - n.length) != -1
 }
 
 export fun join(sep: String, elements: [String]): String {

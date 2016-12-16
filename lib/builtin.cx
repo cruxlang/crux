@@ -45,9 +45,9 @@ export fun emptyArray<a>(): [a] {
 // TODO: implemented sorted with a trait so it can be used on mutarray too
 export fun sorted<a: cmp.Ordered>(arr: [a]): [a] {
   return _unsafe_coerce(arr).slice().sort(fun(lhs: a, rhs: a) {
-    if (lhs < rhs) {
+    if lhs < rhs {
       -1
-    } else if (rhs < lhs) {
+    } else if rhs < lhs {
       1
     } else {
       0

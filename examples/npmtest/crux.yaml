@@ -1,0 +1,10 @@
+project:
+  name: "npmtest"
+  description: ""
+  license: "ISC"
+  author: "Chad Austin"
+
+targets:
+  "npmtest":
+    src-dir: src
+    main-module: main

@@ -39,3 +39,5 @@ function _rts_new_exception(name, baseException) {
 
     return ctor;
 }
+
+var _rts_exports = typeof exports === 'undefined' ? {} : exports;

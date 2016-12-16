@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TupleSections #-}
 
 module Crux.Lex where
 
@@ -38,8 +38,18 @@ pos = do
 integerLiteral :: Parser LexToken
 integerLiteral = do
     p <- pos
-    digits <- P.many1 P.digit
-    return $ Token p $ TInteger $ read digits
+    let negFirst = do
+            _ <- P.char '-'
+            (True,) <$> P.digit
+    let posFirst = do
+            (False,) <$> P.digit
+
+    (neg, firstDigit) <- P.try negFirst <|> posFirst
+    restDigits <- P.many P.digit
+
+    let digits = firstDigit : restDigits
+    let val = read digits
+    return $ Token p $ TInteger $ if neg then -val else val
 
 stringChar :: Parser String
 stringChar = do

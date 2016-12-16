@@ -142,6 +142,10 @@ data Case idtype tagtype edata = Case (Pattern tagtype) (Expression idtype tagty
 instance Functor (Case idtype tagtype) where
     fmap f (Case patt subExpr) = Case patt (fmap f subExpr)
 
+data UnIntrinsic
+    = UINegate
+    deriving (Show, Eq)
+
 data BinIntrinsic
     = BIPlus
     | BIMinus
@@ -206,6 +210,7 @@ data Expression idtype tagtype edata
 
     -- intrinsics
     | EBinIntrinsic edata BinIntrinsic (Expression idtype tagtype edata) (Expression idtype tagtype edata)
+    | EUnIntrinsic edata UnIntrinsic (Expression idtype tagtype edata)
     | EIntrinsic edata (IntrinsicId idtype tagtype edata)
 
     -- flow control

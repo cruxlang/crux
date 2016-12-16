@@ -283,12 +283,14 @@ loadProgram mode loader filename main = runEitherT $ do
     loadSyntaxDependency "types"
     -- any module that uses tuples depends on 'tuple'
     loadSyntaxDependency "tuple"
-    -- any module that uses == or != depends on 'cmp'
+    -- any module that uses a comparison operator depends on 'cmp'
     loadSyntaxDependency "cmp"
     -- any module that uses a string literal depends on 'string' being loaded
     loadSyntaxDependency "string"
     -- any module that uses a number literal depends on 'number' being loaded
     loadSyntaxDependency "number"
+    -- any module that uses a negation operator depends on 'operator'
+    loadSyntaxDependency "operator"
 
     let transformer = case mode of
             AddMainCall -> addMainCall filename

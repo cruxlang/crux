@@ -122,6 +122,10 @@ test_times = do
     assertExprParses multiplyExpression "8 * 8"
         (EBinIntrinsic () BIMultiply (ELiteral () $ LInteger 8) (ELiteral () $ LInteger 8))
 
+test_negative_number = do
+    assertExprParses noSemiExpression "-1"
+        (ELiteral () $ LInteger (-1))
+
 test_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe<a> { Some(a), None, };"
         (DData () "Maybe" [TypeVarIdent "a" (makePos 1 12) (ConstraintSetIdent Nothing [])] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])

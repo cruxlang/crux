@@ -489,12 +489,20 @@ infixExpression operator term = do
 
     return $ foldIt first rest
 
+unaryExpression :: Parser ParseExpression
+unaryExpression = do
+    let negOp = do
+            op <- token TMinus
+            inner <- applicationExpression
+            return $ EUnIntrinsic (tokenData op) UINegate inner
+    negOp <|> applicationExpression
+
 multiplyExpression :: Parser ParseExpression
 multiplyExpression = do
     let op =
             (token TMultiply >> return BIMultiply)
             <|> (token TDivide >> return BIDivide)
-    infixExpression op applicationExpression
+    infixExpression op unaryExpression
 
 addExpression :: Parser ParseExpression
 addExpression = do

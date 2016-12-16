@@ -472,6 +472,11 @@ check' expectedType env = \case
                    | otherwise ->
                         error "This should be impossible: Check EBinIntrinsic"
 
+    EUnIntrinsic pos ui argument -> do
+        let backingFunction = case ui of
+                UINegate -> "negate"
+        check env $ EApp pos (EIdentifier pos $ KnownReference "operator" backingFunction) [argument]
+
     EIfThenElse pos condition ifTrue ifFalse -> do
         booleanType <- resolveBooleanType env pos
 

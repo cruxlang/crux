@@ -12,7 +12,10 @@ import array
 import mutarray
 import string
 import number
-import tuple // TODO: this is not actually used, but it isn't codegenned in the right place if not imported here
+
+// TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
+import tuple
+import operator
 
 export import types
 export import cmp

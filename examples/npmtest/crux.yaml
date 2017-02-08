@@ -4,7 +4,11 @@ project:
   license: "ISC"
   author: "Chad Austin"
 
-targets:
-  "npmtest":
+library:
+  src-dir: src
+  main-module: lib
+
+programs:
+  npmtest:
     src-dir: src
     main-module: main

@@ -37,11 +37,9 @@ data TargetConfig = TargetConfig
     }
 
 data ProjectConfig = ProjectConfig
-    { pcName :: String
-    , pcTargetDir :: FilePath
-    , pcLibrary :: Maybe TargetConfig
-    , pcPrograms :: Map Text TargetConfig
-    , pcTests :: Map Text TargetConfig
+    { pcTargetDir :: FilePath
+    , pcTargets :: Map Text TargetConfig
+    , pcTests   :: Map Text TargetConfig
     }
 
 instance FromJSON TargetConfig where
@@ -52,8 +50,7 @@ instance FromJSON ProjectConfig where
     parseJSON (Object o) = do
         targetOptions <- o .:? "target-options" .!= mempty
         pcTargetDir <- targetOptions .:? "output-dir" .!= "build"
-        pcLibrary <- o .:? "library"
-        pcTargets <- o .:? "programs" .!= mempty
+        pcTargets <- o .:? "targets" .!= mempty
         pcTests <- o .:? "tests" .!= mempty
         return ProjectConfig{..}
     parseJSON _ = fail "Config must be an object"
@@ -109,18 +106,13 @@ trackerFromOptions :: ProjectOptions -> TrackIO a -> IO a
 trackerFromOptions ProjectOptions{..} =
     if poWatch then loopWithTrackedIO else runUntrackedIO
 
-data BuildMode = BMProgram | BMLibrary
-
-enumerateTargets :: ProjectConfig -> [(BuildMode, TargetConfig)]
-enumerateTargets ProjectConfig{..} =
-
 buildProject :: ProjectOptions -> IO ()
 buildProject options = do
     let tracker = trackerFromOptions options
     result <- tracker $ runEitherT $ do
         rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
-        for_ (Map.assocs $ pcPrograms config) $ \(targetName, targetConfig) -> do
+        for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
             EitherT $ buildTarget rtsSource targetName config targetConfig
         for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
             EitherT $ buildTarget rtsSource targetName config targetConfig

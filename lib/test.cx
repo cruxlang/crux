@@ -1,11 +1,11 @@
-import assert
-
 type Test = {
   name: String,
-  fn: () => ()
+  fn: fun() -> ()
 }
 
-let tests = mutable []
+// TODO: we are not sound under mutability yet, so add an
+// explicit annotation
+let tests: mutable [Test] = mutable []
 
 export fun test(name: String, fn) {
   tests->append({
@@ -14,31 +14,10 @@ export fun test(name: String, fn) {
   })
 }
 
-let VERBOSE = False
-
-fun green(str) {
-  return "\x1b[0;32m" + str + "\x1b[0m"
-}
-
-fun red(str) {
-  return "\x1b[0;31m" + str + "\x1b[0m"
-}
-
 export fun run() {
   for t in tests->freeze() {
-    if VERBOSE {
-      print("test: " + t.name)
-    }
-
-    try {
-      t.fn()
-    }
-    catch assert.AssertionError message {
-      print(t.name + " " + red("FAILED") + ": " + message)
-      // continue?
-      print(red("fail ✗"))
-      return
-    }
+    print("test: " + t.name)
+    t.fn()
   }
-  print(green("pass ✔️"))
+  print("\x1b[0;32mpass ✔️\x1b[0m")
 }

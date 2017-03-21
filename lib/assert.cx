@@ -1,4 +1,4 @@
-exception AssertionError String
+export exception AssertionError String
 
 export fun true(expr) {
   if not(expr) {

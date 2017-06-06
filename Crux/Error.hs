@@ -56,6 +56,7 @@ data TypeError
 data ErrorType
     -- Loading Errors
     = ModuleNotFound ModuleName [FilePath]
+    | MainModuleNotFound FilePath
     | LexError String
     | ParseError String
     | CircularImport ModuleName
@@ -75,6 +76,7 @@ renderErrorType = \case
     ParseError s -> do
         return s
     ModuleNotFound mn triedPaths -> return $ "Module not found: " ++ (Text.unpack $ printModuleName mn) ++ "\nTried paths:\n" ++ mconcat (fmap (<> "\n") triedPaths)
+    MainModuleNotFound mainPath -> return $ "Main module not found: " ++ mainPath
     CircularImport mn -> return $ "Circular import: " ++ (Text.unpack $ printModuleName mn)
     InternalCompilerError ice -> return $ "compiler assertion failure: " ++ case ice of
         DependentModuleNotLoaded mn -> "Dependent module not loaded: " ++ (Text.unpack $ printModuleName mn)
@@ -110,6 +112,7 @@ getErrorName = \case
     LexError _ -> "text"
     ParseError _ -> "parse"
     ModuleNotFound _ _ -> "module-not-found"
+    MainModuleNotFound _ -> "main-module-not-found"
     CircularImport _ -> "circular-import"
     InternalCompilerError _ -> "internal"
     TypeError _ -> "type"

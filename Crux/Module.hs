@@ -83,9 +83,13 @@ newProjectModuleLoader config root mainModulePath =
     let baseLoader = newFSModuleLoader $ ccBaseLibraryPath config
         projectLoader = newFSModuleLoader root
         mainLoader pos moduleName =
-            if moduleName == "main"
-            then parseModuleFromFile pos moduleName mainModulePath
-            else return $ Left $ Error pos $ ModuleNotFound moduleName []
+            if moduleName == "main" then do
+                parseModuleFromFile pos moduleName mainModulePath >>= \case
+                    Left (Error errorPos (ModuleNotFound _ _)) -> return $ Left $ Error errorPos $ MainModuleNotFound mainModulePath
+                    Left err -> return $ Left err
+                    Right rv -> return $ Right rv
+            else do
+                return $ Left $ Error pos $ ModuleNotFound moduleName []
     in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
 
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
@@ -194,8 +198,9 @@ parseModuleFromSource filename source = do
 parseModuleFromFile :: Pos -> ModuleName -> FilePath -> TrackIO (Either Error (FilePath, AST.ParsedModule))
 parseModuleFromFile pos moduleName filename = runEitherT $ do
     source <- EitherT $ do
+        --liftIO $ putStrLn $ "reading " <> show filename
         readTrackedTextFile filename >>= \case
-            Left err -> do
+            Left _err -> do
                 -- TODO: limit to isDoesNotExistError like the old code
                 return $ Left $ Error pos $ ModuleNotFound moduleName [filename]
             Right source -> do

@@ -3,4 +3,5 @@ export fun printHelloWorld() {
 }
 
 fun main() {
+    printHelloWorld()
 }

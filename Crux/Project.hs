@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TupleSections #-}
 
 module Crux.Project
     ( runJS
@@ -37,9 +37,11 @@ data TargetConfig = TargetConfig
     }
 
 data ProjectConfig = ProjectConfig
-    { pcTargetDir :: FilePath
-    , pcTargets :: Map Text TargetConfig
-    , pcTests   :: Map Text TargetConfig
+    { pcName :: Text
+    , pcTargetDir :: FilePath
+    , pcLibrary :: Maybe TargetConfig
+    , pcPrograms :: Map Text TargetConfig
+    , pcTests :: Map Text TargetConfig
     }
 
 instance FromJSON TargetConfig where
@@ -49,8 +51,11 @@ instance FromJSON TargetConfig where
 instance FromJSON ProjectConfig where
     parseJSON (Object o) = do
         targetOptions <- o .:? "target-options" .!= mempty
+        projectInfo <- o .: "project"
+        pcName <- projectInfo .: "name"
         pcTargetDir <- targetOptions .:? "output-dir" .!= "build"
-        pcTargets <- o .:? "targets" .!= mempty
+        pcLibrary <- o .:? "library"
+        pcPrograms <- o .:? "programs" .!= mempty
         pcTests <- o .:? "tests" .!= mempty
         return ProjectConfig{..}
     parseJSON _ = fail "Config must be an object"
@@ -82,11 +87,12 @@ loadProjectBuild = do
         Left err -> fail $ show err
         Right x -> return x
 
-buildTarget :: Text -> Text -> ProjectConfig -> TargetConfig -> TrackIO (Either () ())
-buildTarget rtsSource targetName ProjectConfig{..} TargetConfig{..} = do
+buildTarget :: Text -> Text -> BuildMode -> ProjectConfig -> TargetConfig -> TrackIO (Either () ())
+buildTarget rtsSource targetName buildMode ProjectConfig{..} TargetConfig{..} = do
     -- TODO: create pcTargetDir if it doesn't exist
     let targetPath = FP.combine pcTargetDir $ Text.unpack targetName ++ ".js"
 
+    -- liftIO $ putStrLn $ "buildTarget: " <> show tcSourceDir <> " " <> show tcMainModule
     loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
@@ -106,16 +112,24 @@ trackerFromOptions :: ProjectOptions -> TrackIO a -> IO a
 trackerFromOptions ProjectOptions{..} =
     if poWatch then loopWithTrackedIO else runUntrackedIO
 
+data BuildMode = BMProgram | BMLibrary
+
+enumerateTargets :: ProjectConfig -> [(Text, BuildMode, TargetConfig)]
+enumerateTargets ProjectConfig{..} =
+    libraryTarget <> fmap (\(x, y) -> (x, BMProgram, y)) (Map.assocs pcPrograms <> Map.assocs pcTests)
+  where
+    libraryTarget = case pcLibrary of
+        Nothing -> []
+        Just tc -> [(pcName, BMLibrary, tc)]
+
 buildProject :: ProjectOptions -> IO ()
 buildProject options = do
     let tracker = trackerFromOptions options
     result <- tracker $ runEitherT $ do
         rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
-        for_ (Map.assocs $ pcTargets config) $ \(targetName, targetConfig) -> do
-            EitherT $ buildTarget rtsSource targetName config targetConfig
-        for_ (Map.assocs $ pcTests config) $ \(targetName, targetConfig) -> do
-            EitherT $ buildTarget rtsSource targetName config targetConfig
+        for_ (enumerateTargets config) $ \(targetName, buildMode, targetConfig) -> do
+            EitherT $ buildTarget rtsSource targetName buildMode config targetConfig
     case result of
         Left () -> Exit.exitWith $ Exit.ExitFailure 1
         Right () -> return ()

@@ -308,9 +308,9 @@ loadProgram mode loader filename main = runEitherT $ do
         , AST.pOtherModules = otherModules
         }
 
-loadProgramFromDirectoryAndModule :: FilePath -> Text -> TrackIO (ProgramLoadResult AST.Program)
-loadProgramFromDirectoryAndModule sourceDir mainModule = do
-    loadProgramFromFile $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
+loadProgramFromDirectoryAndModule :: MainModuleMode -> FilePath -> Text -> TrackIO (ProgramLoadResult AST.Program)
+loadProgramFromDirectoryAndModule mode sourceDir mainModule = do
+    loadProgramFromFile mode $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
 
 pathToModuleName :: FilePath -> ModuleName
 pathToModuleName path =
@@ -323,12 +323,12 @@ pathToModuleName path =
                 (base', ".cx") -> ModuleName (fmap fromString prefix) (fromString base')
                 _ -> error "Please load .cx file"
 
-loadProgramFromFile :: FilePath -> TrackIO (ProgramLoadResult AST.Program)
-loadProgramFromFile path = do
+loadProgramFromFile :: MainModuleMode -> FilePath -> TrackIO (ProgramLoadResult AST.Program)
+loadProgramFromFile mode path = do
     config <- loadCompilerConfig
     let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
-    loadProgram AddMainCall loader path "main"
+    loadProgram mode loader path "main"
 
 loadProgramFromSource :: Text -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromSource mainModuleSource = do

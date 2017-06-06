@@ -138,7 +138,7 @@ runIntegrationTest root = do
     errorExists <- doesFileExist errorPath
 
     --traceMarkerIO "loading program"
-    program' <- runUntrackedIO $ Crux.Module.loadProgramFromFile mainPath
+    program' <- runUntrackedIO $ Crux.Module.loadProgramFromFile Crux.Module.AddMainCall mainPath
     --traceMarkerIO "loaded program"
 
     (putStrLn intro >>) <$> if stdoutExists then do

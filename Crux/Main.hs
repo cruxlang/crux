@@ -3,7 +3,7 @@ module Crux.Main (main) where
 import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
-import Crux.Module (loadProgramFromFile, loadRTSSource)
+import Crux.Module (loadProgramFromFile, loadRTSSource, MainModuleMode(..))
 import Crux.Prelude
 import Crux.Project (buildProject, buildProjectAndRunTests, createProjectTemplate, ProjectOptions(..), runJS)
 import qualified Data.Text as Text
@@ -64,7 +64,7 @@ withInfo opts desc = info (helper <*> opts) $ progDesc desc
 compileToJS :: FilePath -> IO Text
 compileToJS fn = runUntrackedIO $ do
     rtsSource <- loadRTSSource
-    loadProgramFromFile fn >>= \case
+    loadProgramFromFile AddMainCall fn >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
             exitWith $ ExitFailure 1

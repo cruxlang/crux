@@ -93,7 +93,10 @@ buildTarget rtsSource targetName buildMode ProjectConfig{..} TargetConfig{..} = 
     let targetPath = FP.combine pcTargetDir $ Text.unpack targetName ++ ".js"
 
     -- liftIO $ putStrLn $ "buildTarget: " <> show tcSourceDir <> " " <> show tcMainModule
-    loadProgramFromDirectoryAndModule tcSourceDir tcMainModule >>= \case
+    let mainModuleMode = case buildMode of
+            BMProgram -> AddMainCall
+            BMLibrary -> NoTransformation
+    loadProgramFromDirectoryAndModule mainModuleMode tcSourceDir tcMainModule >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
             return $ Left ()
@@ -141,7 +144,7 @@ buildProjectAndRunTests options = do
         rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
         for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
-            (lift $ loadProgramFromDirectoryAndModule tcSourceDir tcMainModule) >>= \case
+            (lift $ loadProgramFromDirectoryAndModule AddMainCall tcSourceDir tcMainModule) >>= \case
                 Left err -> do
                     liftIO $ Error.printError stderr err
                     left ()

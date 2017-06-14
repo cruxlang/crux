@@ -87,9 +87,13 @@ loadProjectBuild = do
         Left err -> fail $ show err
         Right x -> return x
 
+ensureDirectoryExists :: FilePath -> TrackIO ()
+ensureDirectoryExists path = do
+    liftIO $ createDirectoryIfMissing True path
+
 buildTarget :: Text -> Text -> BuildMode -> ProjectConfig -> TargetConfig -> TrackIO (Either () ())
 buildTarget rtsSource targetName buildMode ProjectConfig{..} TargetConfig{..} = do
-    -- TODO: create pcTargetDir if it doesn't exist
+    ensureDirectoryExists pcTargetDir
     let targetPath = FP.combine pcTargetDir $ Text.unpack targetName ++ ".js"
 
     -- liftIO $ putStrLn $ "buildTarget: " <> show tcSourceDir <> " " <> show tcMainModule

@@ -42,3 +42,5 @@ export fun run() {
   }
   print(green("pass ✔️"))
 }
+
+export let main = run

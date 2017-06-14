@@ -274,7 +274,9 @@ addMainCall filename AST.Module{..} = AST.Module
     -- TODO: add a Pos variant to represent this special case
     sourcePos = GeneratedMainCall filename
 
-data MainModuleMode = AddMainCall | NoTransformation
+data MainModuleMode
+    = AddMainCall
+    | NoTransformation
 
 loadProgram :: MainModuleMode -> ModuleLoader -> FilePath -> ModuleName -> TrackIO (ProgramLoadResult AST.Program)
 loadProgram mode loader filename main = runEitherT $ do

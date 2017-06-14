@@ -385,13 +385,22 @@ renderExportName _ (UnqualifiedExport, n) = n
 generateJS :: Text -> Gen.Program -> Text
 generateJS rtsSource modules = runST $ do
     counter <- newSTRef 0
+    globalExports <- newSTRef []
     allStatements <- for modules $ \(moduleName, decls) -> do
         let exportedValueNames = mconcat $ fmap getExportedValues decls
+        -- The last generated module is main, so remember its exports.
+        writeSTRef globalExports [(n, renderExportName moduleName n) | n <- exportedValueNames]
         let declareExports = [JSTree.SVar (renderExportName moduleName n) Nothing | n <- exportedValueNames]
         body <- runReaderT (generateModule' decls) (moduleName, counter)
         let setExports = [JSTree.SAssign (JSTree.EIdentifier $ renderExportName moduleName n) (JSTree.EIdentifier $ renderJSName $ snd n) | n <- exportedValueNames]
         return $ declareExports ++ [JSTree.SExpression $ JSTree.iife $ body ++ setExports]
 
     -- TODO: introduce an SRaw
+    let prefix = JSTree.SExpression $ JSTree.ERaw rtsSource
+    globalExports' <- readSTRef globalExports
+    let suffix = [
+            (JSTree.SAssign (JSTree.ELookup (JSTree.EIdentifier "_rts_exports") exportName) (JSTree.EIdentifier renderedExportName))
+            | ((_exportType, exportName), renderedExportName) <- globalExports' ]
+
     return $ JSTree.renderDocument
-        [wrapInModule $ (JSTree.SExpression $ JSTree.ERaw rtsSource) : mconcat allStatements]
+        [wrapInModule $ (prefix : mconcat allStatements) <> suffix]

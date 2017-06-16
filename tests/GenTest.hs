@@ -10,6 +10,7 @@ import qualified Crux.Gen as Gen
 import qualified Crux.Module
 import qualified Crux.Module.Types
 import Data.Text (Text)
+import Data.List (isInfixOf)
 import GHC.Exception (ErrorCall (..))
 import Test.Framework
 import Crux.TrackIO
@@ -31,7 +32,12 @@ genDoc src = do
 
 test_return_at_top_level_is_error = do
     result <- try $! genDoc "let _ = return 1"
-    assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
+    case result of
+        Left (ErrorCall message) ->
+            assertBool ("Cannot return outside of functions" `isInfixOf` message)
+        _ ->
+            assertFailure "Expected compile error"
+    -- assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
 
 test_return_from_function = do
     doc <- genDoc "fun f() { return 1 }"

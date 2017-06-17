@@ -345,10 +345,9 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     phase 2:
         a. register all jsffi types (both data constructors and patterns)
-        b. register all data types (and only the types)
+        b. register all data types (and only the types) and traits (but not their bodies)
         c. register all type aliases
-        d. register traits (but not their bodies)
-        e. register all data type constructors and patterns (using same qvars from before)
+        d. register all data type constructors and patterns (using same qvars from before)
 
     phase 3:
         register all exceptions
@@ -364,28 +363,53 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
     for_ decls $ \decl -> do
         registerJSFFIDecl env decl
 
-    -- Phase 2b.
-    dataDecls <- fmap catMaybes $ for decls $ \case
-        DData pos name typeVarNames variants ->
-            return $ Just (pos, name, typeVarNames, variants)
-        _ ->
-            return Nothing
+    dataDecls' <- newIORef []
+    traitDecls' <- newIORef []
 
-    dataDecls' <- for dataDecls $ \(pos, typeName, typeVarNames, variants) -> do
-        e <- childEnv env
-        tyVars <- registerExplicitTypeVariables e typeVarNames
+    -- Phase 2b
+    for_ decls $ \case
+        DData pos typeName typeVarNames variants -> do
+            e <- childEnv env
+            tyVars <- registerExplicitTypeVariables e typeVarNames
 
-        typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
-        let tyVar = TDataType typeDef
-        let typeRef = case tyVars of
-                [] -> tyVar
-                _ -> TTypeFun tyVars tyVar
-        SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates typeName typeRef
+            typeDef <- createUserTypeDef e typeName (eThisModule env) tyVars variants
+            let tyVar = TDataType typeDef
+            let typeRef = case tyVars of
+                    [] -> tyVar
+                    _ -> TTypeFun tyVars tyVar
+            SymbolTable.insert (eTypeBindings env) pos SymbolTable.DisallowDuplicates typeName typeRef
 
-        let qvars = zip typeVarNames tyVars
-        return (pos, typeDef, tyVar, qvars, variants)
+            let qvars = zip typeVarNames tyVars
+            modifyIORef dataDecls' ((pos, typeDef, tyVar, qvars, variants):)
 
-    -- Phase 2c.
+        DTrait pos name defns -> do
+            env' <- childEnv env
+
+            let tn = TraitIdentity (eThisModule env) name
+
+            typeVar <- newQuantifiedConstrainedTypeVar env' pos name tn
+            let typeVarName = "self" -- a la Rust
+            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
+            methods <- for defns $ \(mname, mpos, typeIdent) -> do
+                tv <- resolveTypeIdent env' mpos typeIdent
+                return (mname, mpos, tv)
+
+            let desc = TraitDesc
+                    { tdName = name
+                    , tdModule = eThisModule env
+                    , tdTypeVar = typeVar
+                    , tdMethods = map (\(a, _, b) -> (a, b)) methods
+                    }
+            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)
+            modifyIORef traitDecls' (methods:)
+
+        _ -> do
+            return ()
+
+    dataDecls <- reverse <$> readIORef dataDecls'
+    traitDecls <- reverse <$> readIORef traitDecls'
+
+    -- Phase 2c.1.
     aliasDecls <- fmap catMaybes $ for decls $ \case
         DTypeAlias pos name params ident -> do
             bodyTypeVar <- freshType env
@@ -412,31 +436,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         unify env pos bodyTypeVar resolvedType
 
     -- Phase 2d.
-    traitDecls <- fmap catMaybes $ for decls $ \case
-        DTrait pos name defns -> do
-            env' <- childEnv env
-
-            let tn = TraitIdentity (eThisModule env) name
-
-            typeVar <- newQuantifiedConstrainedTypeVar env' pos name tn
-            let typeVarName = "self" -- a la Rust
-            SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
-            methods <- for defns $ \(mname, mpos, typeIdent) -> do
-                tv <- resolveTypeIdent env' mpos typeIdent
-                return (mname, mpos, tv)
-
-            let desc = TraitDesc
-                    { tdName = name
-                    , tdModule = eThisModule env
-                    , tdTypeVar = typeVar
-                    , tdMethods = map (\(a, _, b) -> (a, b)) methods
-                    }
-            SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)
-            return $ Just methods
-        _ -> return Nothing
-
-    -- Phase 2e.
-    for_ dataDecls' $ \(pos, typeDef, tyVar, qvars, variants) -> do
+    for_ dataDecls $ \(pos, typeDef, tyVar, qvars, variants) -> do
         e <- childEnv env
         for_ qvars $ \(TypeVarIdent qvName _ _, qvTypeVar) ->
             SymbolTable.insert (eTypeBindings e) pos SymbolTable.DisallowDuplicates qvName qvTypeVar

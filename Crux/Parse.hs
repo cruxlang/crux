@@ -600,15 +600,16 @@ commaDelimited = delimited $ token TComma
 plusDelimited :: Parser a -> Parser [a]
 plusDelimited = delimited $ token TPlus
 
-recordField :: Parser (Text, Maybe Mutability, TypeIdent)
+recordField :: Parser (Text, Maybe Mutability, FieldOptional, TypeIdent)
 recordField = do
     mut <- P.option (Just Immutable) $ do
         _ <- token TMutable
         P.option (Just Mutable) (token TQuestionMark >> pure Nothing)
     name <- anyIdentifier
+    optional <- P.option AST.FORequired (token TQuestionMark >> pure AST.FOOptional)
     _ <- token TColon
     ty <- typeIdent
-    return (name, mut, ty)
+    return (name, mut, optional, ty)
 
 recordTypeIdent :: Parser TypeIdent
 recordTypeIdent = braced $ do

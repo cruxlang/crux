@@ -212,11 +212,7 @@ unifyConcreteRecord env pos tvA tvB fieldsA fieldsB = do
     for_ coincidentRows $ \(lhs, rhs) -> do
         mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
         unify env pos (trTyVar lhs) (trTyVar rhs)
-        return RecordField
-            { trName = trName lhs
-            , trMut = mut
-            , trTyVar = trTyVar lhs
-            }
+        return lhs { trMut = mut }
 
     if null aOnlyRows && null bOnlyRows then do
         return ()
@@ -349,11 +345,7 @@ unifyRecordConstraint env pos rcA rcB = do
     coincidentRows' <- for coincidentRows $ \(lhs, rhs) -> do
         mut <- unifyRecordMutability (trName lhs) pos (trMut lhs) (trMut rhs)
         unify env pos (trTyVar lhs) (trTyVar rhs)
-        return RecordField
-            { trName = trName lhs
-            , trMut = mut
-            , trTyVar = trTyVar lhs
-            }
+        return lhs { trMut = mut }
 
     aOnlyRows' <- for aOnlyRows $ unifyFieldConstraint env pos constraintB
     bOnlyRows' <- for bOnlyRows $ unifyFieldConstraint env pos constraintA

@@ -101,7 +101,7 @@ resolveTypeIdent env@Env{..} pos typeIdent =
         applyTypeFunction env pos typeName AllowTypeFunctions ty typeArguments'
 
     go (RecordIdent fields) = do
-        fields' <- for fields $ \(trName, mut, rowTypeIdent) -> do
+        fields' <- for fields $ \(trName, mut, trOptional, rowTypeIdent) -> do
             let trMut = case mut of
                     Nothing -> RFree
                     Just Mutable -> RMutable
@@ -138,6 +138,7 @@ registerTypeVarIdent env (TypeVarIdent name pos (ConstraintSetIdent recordConstr
             return RecordField
                 { trName = fname
                 , trMut = RImmutable
+                , trOptional = FORequired
                 , trTyVar = tyVar
                 }
         fieldType' <- for fieldType $ resolveTypeIdent env pos

@@ -82,6 +82,8 @@ executable crux
     -- other-extensions:
     build-depends: base, crux
 
+    default-extensions: OverloadedStrings
+
     hs-source-dirs: src/crux
     default-language:    Haskell2010
 

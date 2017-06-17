@@ -33,7 +33,12 @@ instantiateField subst env RecordField{..} = do
     let mut' = case trMut of
             RQuantified -> RFree
             _ -> trMut
-    return RecordField{trName, trMut=mut', trTyVar=trTyVar'}
+    return RecordField
+        { trName
+        , trMut=mut'
+        , trOptional
+        , trTyVar=trTyVar'
+        }
 
 instantiateConstraints :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> ConstraintSet -> m ConstraintSet
 instantiateConstraints subst env (ConstraintSet recordConstraint traits) = do

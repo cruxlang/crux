@@ -3,6 +3,7 @@
 
 module Crux.AST
     ( module Crux.AST
+    , Crux.TypeVar.FieldOptional (..)
     ) where
 
 import qualified Crux.JSTree as JSTree
@@ -293,7 +294,7 @@ setEdata expr e = case expr of
 data TypeIdent
     -- TODO: split into two?  TypeIdent and TypeApplication
     = TypeIdent UnresolvedReference [TypeIdent]
-    | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
+    | RecordIdent [(Name, Maybe Mutability, FieldOptional, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
     | TupleTypeIdent [TypeIdent]

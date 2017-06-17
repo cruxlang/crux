@@ -80,6 +80,7 @@ checkLValue env parsedExpr typedExpr = case (parsedExpr, typedExpr) of
         let field = RecordField
                 { trName = propName
                 , trMut = RMutable
+                , trOptional = FORequired
                 , trTyVar = lookupType
                 }
         let recordConstraint = RecordConstraint
@@ -299,7 +300,9 @@ check' expectedType env = \case
                 let field = RecordField
                         { trName = propName
                         , trMut = RFree
-                        , trTyVar = ty}
+                        , trOptional = FORequired
+                        , trTyVar = ty
+                        }
                 let recordConstraint = RecordConstraint
                         { rcFields = [field]
                         , rcFieldType = Nothing
@@ -391,6 +394,7 @@ check' expectedType env = \case
         let mapField (name, (mut, ex)) = RecordField
                 { trName = name
                 , trMut = xlateMut mut
+                , trOptional = FORequired
                 , trTyVar = edata ex
                 }
         let fieldTypes = fmap mapField fields'

@@ -820,9 +820,10 @@ recordConstraintIdent :: Parser RecordConstraintIdent
 recordConstraintIdent = braced $ do
     fields <- commaDelimited $ do
         name <- anyIdentifier
+        optional <- P.option FORequired (token TQuestionMark >> pure FOOptional)
         _ <- token TColon
         ident <- typeIdent
-        return (name, ident)
+        return (name, optional, ident)
     fieldTypeConstraint <- P.optionMaybe $ do
         _ <- token TEllipsis
         _ <- token TColon

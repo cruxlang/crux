@@ -93,7 +93,6 @@ data FieldOptional
 data RecordField typevar = RecordField
     { trName     :: !Name
     , trMut      :: !FieldMutability
-    , trOptional :: !FieldOptional
     , trTyVar    :: typevar
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 

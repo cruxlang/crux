@@ -45,7 +45,7 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     , fdBody        :: !(Expression idtype tagtype edata)
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data RecordConstraintIdent = RecordConstraintIdent [(Name, TypeIdent)] (Maybe TypeIdent)
+data RecordConstraintIdent = RecordConstraintIdent [(Name, FieldOptional, TypeIdent)] (Maybe TypeIdent)
     deriving (Eq, Show)
 
 data ConstraintSetIdent = ConstraintSetIdent (Maybe RecordConstraintIdent) [UnresolvedReference]

@@ -36,7 +36,6 @@ instantiateField subst env RecordField{..} = do
     return RecordField
         { trName
         , trMut=mut'
-        , trOptional
         , trTyVar=trTyVar'
         }
 

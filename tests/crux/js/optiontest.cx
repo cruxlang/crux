@@ -23,3 +23,9 @@ test("eq", () => {
     assert.notEqual(option.some("1"), option.some("2"))
     assert.equal(option.some(""), option.some(""))
 })
+
+test("asOption", () => {
+    assert.equal(Some("hello"), option.some("hello")->asOption())
+    let n: option.JSOption<String> = option.none()
+    assert.equal(None, n->asOption())
+})

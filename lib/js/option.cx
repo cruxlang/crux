@@ -25,6 +25,14 @@ export fun some<a: NonNull>(a: a): JSOption<a> {
     return _unsafe_coerce(a)
 }
 
+export fun asOption<a: NonNull>(o: JSOption<a>): ?a {
+    if isNone(o) {
+        return None
+    } else {
+        return Some(_unsafe_coerce(o))
+    }
+}
+
 impl Eq JSOption<t: Eq+NonNull> {
     eq(lhs, rhs) {
         // Ideally this would be written more naturally and then optimized by the compiler

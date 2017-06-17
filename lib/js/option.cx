@@ -1,4 +1,5 @@
 import js
+import js.unsafe
 
 // TODO: add the ability to say that a trait may be unsafe to implement
 // This trait indicates that JS `null` does not inhabit its runtime representation.
@@ -12,10 +13,31 @@ impl NonNull Array<T> {}
 export data JSOption<a: NonNull> {
 }
 
+export fun isNone<a: NonNull>(option: JSOption<a>) {
+    return unsafe.eq(js.Null, option)
+}
+
 export fun none<a: NonNull>(): JSOption<a> {
     return _unsafe_coerce(js.Null)
 }
 
 export fun some<a: NonNull>(a: a): JSOption<a> {
     return _unsafe_coerce(a)
+}
+
+impl Eq JSOption<t: Eq+NonNull> {
+    eq(lhs, rhs) {
+        // Ideally this would be written more naturally and then optimized by the compiler
+        if isNone(lhs) {
+            return isNone(rhs)
+        } else {
+            if isNone(rhs) {
+                return False
+            } else {
+                let leftValue: t = _unsafe_coerce(lhs)
+                let rightValue: t = _unsafe_coerce(rhs)
+                return leftValue == rightValue
+            }
+        }
+    }
 }

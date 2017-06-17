@@ -14,3 +14,12 @@ test("values are unwrapped", () => {
     let a = option.some("hello")
     assert.equal("hello", _unsafe_coerce(a))
 })
+
+test("eq", () => {
+    let n: option.JSOption<String> = option.none()
+    assert.equal(n, option.none())
+    assert.notEqual(option.none(), option.some(""))
+    assert.notEqual(option.some(""), option.none())
+    assert.notEqual(option.some("1"), option.some("2"))
+    assert.equal(option.some(""), option.some(""))
+})

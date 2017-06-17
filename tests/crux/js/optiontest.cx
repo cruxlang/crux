@@ -1,0 +1,16 @@
+import assert
+import test(...)
+
+import js
+import js.option
+import js.unsafe
+
+test("null is represented as JS null", () => {
+    let a: option.JSOption<String> = option.none();
+    assert.true(unsafe.eq(a, js.Null))
+})
+
+test("values are unwrapped", () => {
+    let a = option.some("hello")
+    assert.equal("hello", _unsafe_coerce(a))
+})

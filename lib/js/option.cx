@@ -1,0 +1,21 @@
+import js
+
+// TODO: add the ability to say that a trait may be unsafe to implement
+// This trait indicates that JS `null` does not inhabit its runtime representation.
+export trait NonNull {}
+
+impl NonNull Boolean {}
+impl NonNull Number {}
+impl NonNull String {}
+impl NonNull Array<T> {}
+
+export data JSOption<a: NonNull> {
+}
+
+export fun none<a: NonNull>(): JSOption<a> {
+    return _unsafe_coerce(js.Null)
+}
+
+export fun some<a: NonNull>(a: a): JSOption<a> {
+    return _unsafe_coerce(a)
+}

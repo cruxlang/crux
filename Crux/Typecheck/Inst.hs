@@ -28,14 +28,13 @@ instantiateDataTypeDef env def = do
     instantiateDataTypeDef' subst env def
 
 instantiateField :: MonadIO m => IORef (HashMap Int TypeVar) -> Env -> RecordField TypeVar -> m (RecordField TypeVar)
-instantiateField subst env RecordField{..} = do
+instantiateField subst env field@RecordField{..} = do
     trTyVar' <- instantiate' subst env trTyVar
     let mut' = case trMut of
             RQuantified -> RFree
             _ -> trMut
-    return RecordField
-        { trName
-        , trMut=mut'
+    return field
+        { trMut=mut'
         , trTyVar=trTyVar'
         }
 

@@ -252,7 +252,7 @@ validateRecordConstraint env pos (RecordConstraint fields fieldType) typeVar = c
         quantRecordConstraint <- case record of
             Nothing -> fail "Quantified type variable is not a record"
             Just rc -> return rc
-        
+
         validateFields env pos typeVar (rcFields quantRecordConstraint) fields
 
         for_ fieldType $ \fieldType' -> do

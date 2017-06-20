@@ -3,7 +3,6 @@
 
 module Crux.AST
     ( module Crux.AST
-    , Crux.TypeVar.FieldOptional (..)
     ) where
 
 import qualified Crux.JSTree as JSTree
@@ -45,7 +44,7 @@ data FunctionDecl idtype tagtype edata = FunctionDecl
     , fdBody        :: !(Expression idtype tagtype edata)
     } deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data RecordConstraintIdent = RecordConstraintIdent [(Name, FieldOptional, TypeIdent)] (Maybe TypeIdent)
+data RecordConstraintIdent = RecordConstraintIdent [(Name, TypeIdent)] (Maybe TypeIdent)
     deriving (Eq, Show)
 
 data ConstraintSetIdent = ConstraintSetIdent (Maybe RecordConstraintIdent) [UnresolvedReference]
@@ -294,7 +293,7 @@ setEdata expr e = case expr of
 data TypeIdent
     -- TODO: split into two?  TypeIdent and TypeApplication
     = TypeIdent UnresolvedReference [TypeIdent]
-    | RecordIdent [(Name, Maybe Mutability, FieldOptional, TypeIdent)]
+    | RecordIdent [(Name, Maybe Mutability, TypeIdent)]
     | FunctionIdent [TypeIdent] TypeIdent
     | ArrayIdent Mutability TypeIdent
     | TupleTypeIdent [TypeIdent]

@@ -231,15 +231,29 @@ unifyRecordMutability propName pos m1 m2 = case (m1, m2) of
     (RQuantified, _) -> fail "Quant!! D:"
     (_, RQuantified) -> fail "Quant2!! D:"
 
+isOptionalField :: MonadIO m => RecordField TypeVar -> m Bool
+isOptionalField RecordField{trTyVar} = do
+    tv <- followTypeVar trTyVar
+    case tv of
+        TDataType (TDataTypeDef{tuName, tuModuleName}) ->
+            return $ tuName == "JSOption" && tuModuleName == "js.option"
+        _ ->
+            return False
+
 validateFields :: Env -> Pos -> TypeVar -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
 validateFields env pos actualType actual expected = do
     for_ expected $ \field -> do
+        optional <- isOptionalField field
         let found = filter (\f -> trName field == trName f) actual
         case found of
-            [] -> failTypeError pos $ RecordMissingField actualType (trName field)
+            [] | optional ->
+                return ()
+               | otherwise ->
+                failTypeError pos $ RecordMissingField actualType (trName field)
             [cf] -> do
                 -- TODO: if we are going to unify record mutability, we need to actually put the new mutability state somewhere
                 _ <- unifyRecordMutability (trName cf) pos (trMut cf) (trMut field)
+
                 unify env pos (trTyVar cf) (trTyVar field)
             _ -> fail "Internal error: found multiple properties with the same name"
 

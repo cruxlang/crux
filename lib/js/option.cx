@@ -14,7 +14,7 @@ export data JSOption<a: NonNull> {
 }
 
 export fun isNone<a: NonNull>(option: JSOption<a>) {
-    return unsafe.eq(js.Null, option)
+    return unsafe.eqNonstrict(js.Null, option)
 }
 
 export fun none<a: NonNull>(): JSOption<a> {
@@ -30,6 +30,14 @@ export fun asOption<a: NonNull>(o: JSOption<a>): ?a {
         return None
     } else {
         return Some(_unsafe_coerce(o))
+    }
+}
+
+export fun maybe<a: NonNull, b>(o: JSOption<a>, f: (a) => b, def: b) {
+    if isNone(o) {
+        return def
+    } else {
+        return f(_unsafe_coerce(o))
     }
 }
 

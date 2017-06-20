@@ -14,7 +14,6 @@ module Crux.TypeVar
     , TypeVar(..)
     , RecordConstraint(..)
     , ConstraintSet(..)
-    , FieldOptional(..)
     , emptyConstraintSet
     , TypeState(..)
     , TypeLevel(..)
@@ -85,15 +84,9 @@ data FieldMutability
     | RFree
     deriving (Show, Eq)
 
-data FieldOptional
-    = FOOptional
-    | FORequired
-    deriving (Show, Eq)
-
 data RecordField typevar = RecordField
     { trName     :: !Name
     , trMut      :: !FieldMutability
-    , trOptional :: !FieldOptional
     , trTyVar    :: typevar
     } deriving (Show, Eq, Functor, Foldable, Traversable)
 

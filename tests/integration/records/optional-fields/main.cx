@@ -1,0 +1,14 @@
+import js.option
+
+fun printMyRecord<T: {required: Number, optional: option.JSOption<String>}>(r: T) {
+    print(r.required)
+    r.optional->maybe(fun(s) {
+        print(s)
+    }, ())
+    print("-")
+}
+
+fun main() {
+    printMyRecord({required: 1})
+    printMyRecord({required: 2, optional: option.some("present")})
+}

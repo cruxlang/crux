@@ -69,6 +69,12 @@ generateMatchCond matchVar = \case
         foldl' buildTestCascade testIt subtags
     Gen.TagLiteral literal -> do
         JSTree.EBinOp "===" (JSTree.ELiteral literal) matchVar
+    Gen.TagNonNullish -> do
+        -- Neither null nor undefined
+        JSTree.EBinOp "!=" (JSTree.ELiteral JSTree.LNull) matchVar
+    Gen.TagNullish -> do
+        -- Either null or undefined
+        JSTree.EBinOp "==" (JSTree.ELiteral JSTree.LNull) matchVar
 
 generateMatchVars :: JSTree.Expression -> Pattern tagtype -> [JSTree.Statement]
 generateMatchVars matchVar = \case

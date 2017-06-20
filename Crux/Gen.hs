@@ -47,6 +47,8 @@ We'll call these Values.
 data Tag
     = TagVariant Name [(Integer, Tag)] -- zero-based index of payload that needs to be matched
     | TagLiteral JSTree.Literal
+    | TagNonNullish  -- neither null nor undefined
+    | TagNullish     -- null or undefined
     deriving (Show, Eq)
 
 type Name = Text
@@ -237,6 +239,9 @@ generate env = \case
 
     AST.EIdentifier _ name -> do
         return $ Just $ ResolvedBinding name
+
+    AST.EUnIntrinsic _ _ _ -> do
+        fail "Unary intrinsics should be desugared during typechecking"
 
     AST.EBinIntrinsic _ bi lhs rhs -> do
         lhs' <- generate env lhs

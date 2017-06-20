@@ -19,7 +19,6 @@ module Crux.Module
     , loadProgram
     ) where
 
-import Control.Exception (tryJust)
 import qualified Crux.AST as AST
 import Crux.Error (Error(..), ErrorType(..))
 import qualified Crux.Lex as Lex
@@ -32,17 +31,14 @@ import Crux.Pos
 import qualified Crux.Typecheck as Typecheck
 import Crux.Typecheck.Monad
 import qualified Data.Aeson as JSON
-import qualified Data.ByteString as BS
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.HashSet as HashSet
 import qualified Data.Text as Text
-import qualified Data.Text.Encoding as TE
 import Data.Char (isSpace)
 import qualified Data.Yaml as Yaml
 import System.Directory (getCurrentDirectory)
 import System.Environment (getExecutablePath)
 import qualified System.FilePath as FP
-import System.IO.Error (isDoesNotExistError)
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Error as P
 import Crux.TrackIO

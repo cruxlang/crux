@@ -247,6 +247,7 @@ edata expr = case expr of
     ESemi ed _ _ -> ed
     EMethodApp ed _ _ _ -> ed
     EAs ed _ _ -> ed
+    EUnIntrinsic ed _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed
@@ -276,6 +277,8 @@ setEdata expr e = case expr of
     EIdentifier _ a       -> EIdentifier e a
     ESemi _ a b           -> ESemi e a b
     EMethodApp _ a b c    -> EMethodApp e a b c
+    EAs _ a b             -> EAs e a b
+    EUnIntrinsic _ a b    -> EUnIntrinsic e a b
     EBinIntrinsic _ a b c -> EBinIntrinsic e a b c
     EIntrinsic _ a        -> EIntrinsic e a
     EIfThenElse _ a b c   -> EIfThenElse e a b c

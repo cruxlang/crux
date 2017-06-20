@@ -1,0 +1,10 @@
+fun printer<T>(arg: ?T) {
+    match arg {
+        None => print("none")
+        Some(x) => print(x)
+    }
+}
+
+fun main() {
+    printer(None as ?Number)
+}

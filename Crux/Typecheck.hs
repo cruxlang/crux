@@ -442,6 +442,12 @@ check' expectedType env = \case
             (EIdentifier pos $ KnownReference moduleName methodName)
             (lhs : args)
 
+    EAs pos expr typeIdent -> do
+        expr' <- check env expr
+        explicitTV <- resolveTypeIdent env pos typeIdent
+        unify env pos (edata expr') explicitTV
+        return $ EAs (edata expr') expr' typeIdent
+
     -- TEMP: For now, intrinsics are too polymorphic.
     -- Arithmetic operators like + and - have type (a, a) -> a
     -- Relational operators like <= and != have type (a, a) -> Bool
@@ -598,6 +604,9 @@ resolveInstanceDictPlaceholders env = recurse
             expr' <- recurse expr
             args' <- for args recurse
             return $ EMethodApp tv expr' name args'
+        EAs tv expr typeIdent -> do
+            expr' <- recurse expr
+            return $ EAs tv expr' typeIdent
         EFun tv fd@FunctionDecl{fdBody} -> do
             fdBody' <- recurse fdBody
             return $ EFun tv fd{fdBody=fdBody'}

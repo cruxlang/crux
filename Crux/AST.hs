@@ -198,8 +198,8 @@ data Expression idtype tagtype edata
     | EAssign edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
     | EIdentifier edata idtype
     | ESemi edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
-
     | EMethodApp edata (Expression idtype tagtype edata) Name [Expression idtype tagtype edata]
+    | EAs edata (Expression idtype tagtype edata) TypeIdent
 
     -- literals
     | EFun edata (FunctionDecl idtype tagtype edata)
@@ -246,6 +246,7 @@ edata expr = case expr of
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
     EMethodApp ed _ _ _ -> ed
+    EAs ed _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
     EIntrinsic ed _ -> ed
     EIfThenElse ed _ _ _ -> ed

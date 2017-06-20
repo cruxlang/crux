@@ -192,6 +192,9 @@ generate env = \case
     AST.EMethodApp _ _ _ _ -> do
         fail "ICE: this should never happen.  EMethodApp should be desugared into EApp by now."
 
+    AST.EAs _ expr _ -> do
+        generate env expr
+
     AST.EApp _ fn args -> do
         fn' <- generate env fn
         args' <- runMaybeT $ for args $ MaybeT . generate env

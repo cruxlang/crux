@@ -497,12 +497,21 @@ unaryExpression = do
             return $ EUnIntrinsic (tokenData op) UINegate inner
     negOp <|> applicationExpression
 
+asExpression :: Parser ParseExpression
+asExpression = do
+    expr <- unaryExpression
+    let withTypeIdent = do
+            _ <- token TAs
+            ti <- typeIdent
+            return $ EAs (edata expr) expr ti
+    withTypeIdent <|> return expr
+
 multiplyExpression :: Parser ParseExpression
 multiplyExpression = do
     let op =
             (token TMultiply >> return BIMultiply)
             <|> (token TDivide >> return BIDivide)
-    infixExpression op unaryExpression
+    infixExpression op asExpression
 
 addExpression :: Parser ParseExpression
 addExpression = do

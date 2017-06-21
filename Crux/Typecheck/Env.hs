@@ -458,15 +458,35 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
                 SymbolTable.DisallowDuplicates
                 vname
                 (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
-            let tag = case vparameters of
-                    [] -> TagNamedVariant vname
-                    _ -> TagBoxedVariant vname
-            SymbolTable.insert
-                (ePatternBindings env)
-                pos
-                SymbolTable.DisallowDuplicates
-                vname
-                (PatternReference typeDef tag)
+
+        -- TOTAL HACK, NOT GENERALIZED AT ALL YET
+        -- Detect the shape of Option and insert optimized tag checks
+        -- and ensure that None is encoded with `null`
+        case variants of
+            [Variant () _ vname1 [], Variant () _ vname2 [_]] -> do
+                SymbolTable.insert
+                    (ePatternBindings env)
+                    pos
+                    SymbolTable.DisallowDuplicates
+                    vname1
+                    (PatternReference typeDef $ TagNullish)
+                SymbolTable.insert
+                    (ePatternBindings env)
+                    pos
+                    SymbolTable.DisallowDuplicates
+                    vname2
+                    (PatternReference typeDef $ TagNonNullish $ TagBoxedVariant vname2)
+            _ -> do
+                for_ variants $ \(Variant () _typeVar vname vparameters) -> do
+                    let tag = case vparameters of
+                            [] -> TagNamedVariant vname
+                            _ -> TagBoxedVariant vname
+                    SymbolTable.insert
+                        (ePatternBindings env)
+                        pos
+                        SymbolTable.DisallowDuplicates
+                        vname
+                        (PatternReference typeDef tag)
 
     -- Phase 3.
     for_ decls $ \decl -> do

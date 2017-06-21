@@ -18,6 +18,8 @@ data PatternTag
     = TagBoxedVariant Name
     | TagNamedVariant Name
     | TagLiteral JSTree.Literal
+    | TagNullish
+    | TagNonNullish PatternTag
     deriving (Eq, Show)
 
 data PatternReference = PatternReference (TDataTypeDef TypeVar) PatternTag

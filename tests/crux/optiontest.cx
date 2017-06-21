@@ -1,0 +1,20 @@
+import assert
+import test(...)
+
+import js
+
+test("option is encoded as JS null", () => {
+    match _unsafe_coerce(js.Null) as ?() {
+        None => ()
+        Some(_) => assert.fail("expected none to match")
+    }
+})
+
+/*
+test("option matching checks undefined too", () => {
+    match _unsafe_coerce(js.Undefined) as ?() {
+        None => ()
+        Some(_) => assert.fail("expected none to match")
+    }
+})
+*/

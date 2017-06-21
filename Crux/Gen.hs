@@ -44,11 +44,16 @@ Instructions can read from:
 We'll call these Values.
 -}
 
+-- zero-based index of payload that needs to be matched
+type SubtagList = [(Integer, Tag)]
+
 data Tag
-    = TagBoxedVariant Name [(Integer, Tag)] -- zero-based index of payload that needs to be matched
+    = TagBoxedVariant Name SubtagList
     | TagLiteral JSTree.Literal
-    | TagNonNullish  -- neither null nor undefined
-    | TagNullish     -- null or undefined
+    -- null or undefined
+    | TagNullish
+    -- neither null nor undefined
+    | TagNonNullish SubtagList
     deriving (Show, Eq)
 
 type Name = Text
@@ -157,16 +162,21 @@ tagFromPattern :: AST.Pattern AST.PatternTag -> Maybe Tag
 tagFromPattern = \case
     AST.PWildcard -> Nothing
     AST.PBinding _ -> Nothing
-    AST.PConstructor _ref tag subpatterns -> case tag of
-        AST.TagBoxedVariant name -> do
-            let subtags = (flip map) (zip [0..] subpatterns) $ \(i, sp) -> case tagFromPattern sp of
-                    Just st -> Just (i, st)
-                    Nothing -> Nothing
-            Just $ TagBoxedVariant name $ catMaybes subtags
-        AST.TagNamedVariant name -> do
-            Just $ TagLiteral $ JSTree.LString name
-        AST.TagLiteral literal ->
-            Just $ TagLiteral literal
+    AST.PConstructor _ref tag subpatterns ->
+        let subtags = catMaybes $ (flip map) (zip [0..] subpatterns) $ \(i, sp) -> case tagFromPattern sp of
+                Just st -> Just (i, st)
+                Nothing -> Nothing
+        in case tag of
+            AST.TagBoxedVariant name -> do
+                Just $ TagBoxedVariant name subtags
+            AST.TagNamedVariant name -> do
+                Just $ TagLiteral $ JSTree.LString name
+            AST.TagLiteral literal ->
+                Just $ TagLiteral literal
+            AST.TagNullish ->
+                Just $ TagNullish
+            AST.TagNonNullish _ ->
+                Just $ TagNonNullish subtags
     AST.PTuple _ -> fail "Should never get here"
 
 generate :: Env -> ASTExpr -> InstructionWriter (Maybe Value)

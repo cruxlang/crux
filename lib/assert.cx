@@ -1,5 +1,9 @@
 export exception AssertionError String
 
+export fun fail(msg) {
+  throw AssertionError msg
+}
+
 export fun true(expr) {
   if not(expr) {
     throw AssertionError "expected " + toString(expr) + " to be true"

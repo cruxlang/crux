@@ -4,8 +4,8 @@ import types(...)
 import cmp(...)
 
 export data Option<a> {
-  Some(a),
   None,
+  Some(a),
 }
 
 impl Eq Option<a: Eq> {

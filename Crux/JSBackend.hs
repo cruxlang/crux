@@ -56,6 +56,10 @@ renderArgument = \case
     PTuple _ -> do
         error "Tuples should be rewritten by this point"
 
+buildTestCascade matchVar acc (index, subtag) =
+    let cond = generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger (index + 1)))) subtag
+    in JSTree.EBinOp "&&" acc cond
+
 -- | Generate an expression which produces the boolean "true" if the variable "matchVar"
 -- matches the pattern "patt"
 generateMatchCond :: JSTree.Expression -> Gen.Tag -> JSTree.Expression
@@ -64,15 +68,15 @@ generateMatchCond matchVar = \case
         let testIt = JSTree.EBinOp "==="
                 (JSTree.ELiteral $ JSTree.LString name)
                 (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
-        let buildTestCascade acc (index, subtag) =
-                let cond = generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger (index + 1)))) subtag
-                in JSTree.EBinOp "&&" acc cond
-        foldl' buildTestCascade testIt subtags
+        foldl' (buildTestCascade matchVar) testIt subtags
     Gen.TagLiteral literal -> do
         JSTree.EBinOp "===" (JSTree.ELiteral literal) matchVar
-    Gen.TagNonNullish -> do
+    Gen.TagNonNullish subtags -> do
         -- Neither null nor undefined
-        JSTree.EBinOp "!=" (JSTree.ELiteral JSTree.LNull) matchVar
+        let testIt = JSTree.EBinOp "!="
+                (JSTree.ELiteral JSTree.LNull)
+                matchVar
+        foldl' (buildTestCascade matchVar) testIt subtags
     Gen.TagNullish -> do
         -- Either null or undefined
         JSTree.EBinOp "==" (JSTree.ELiteral JSTree.LNull) matchVar
@@ -298,18 +302,21 @@ renderInstruction = \case
             (jsargPrefix ++ guard : catchInstrs')
 
 renderVariant :: Variant AST.PatternTag () -> JSTree.Statement
-renderVariant (Variant tag () vname vparameters) = case tag of
-    AST.TagBoxedVariant name -> case vparameters of
-        [] ->
-            JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString name])
-        _ ->
-            let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
-            in JSTree.SFunction vname argNames $
-                [ JSTree.SReturn $ Just $ JSTree.EArray $
-                [JSTree.ELiteral $ JSTree.LString name] ++ (map JSTree.EIdentifier argNames)
-                ]
-    AST.TagNamedVariant name -> JSTree.SVar vname $ Just $ JSTree.ELiteral $ JSTree.LString name
-    AST.TagLiteral literal -> JSTree.SVar vname $ Just $ JSTree.ELiteral literal
+renderVariant (Variant tag () vname vparameters) = renderTag tag
+    where renderTag = \case
+            AST.TagBoxedVariant name -> case vparameters of
+                [] ->
+                    JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString name])
+                _ ->
+                    let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
+                    in JSTree.SFunction vname argNames $
+                        [ JSTree.SReturn $ Just $ JSTree.EArray $
+                        [JSTree.ELiteral $ JSTree.LString name] ++ (map JSTree.EIdentifier argNames)
+                        ]
+            AST.TagNamedVariant name -> JSTree.SVar vname $ Just $ JSTree.ELiteral $ JSTree.LString name
+            AST.TagLiteral literal -> JSTree.SVar vname $ Just $ JSTree.ELiteral literal
+            AST.TagNullish -> JSTree.SVar vname $ Just $ JSTree.ELiteral $ JSTree.LNull
+            AST.TagNonNullish realDefinition -> renderTag realDefinition
 
 renderJSVariant :: JSVariant -> JSTree.Statement
 renderJSVariant (JSVariant name value) =

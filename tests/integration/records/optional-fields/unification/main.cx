@@ -1,0 +1,11 @@
+fun getField(record) {
+    return record.field
+}
+
+fun main() {
+    print(getField({field: 10}))
+    match getField({}) {
+        None => print("none")
+        Some(_) => print("some")
+    }
+}

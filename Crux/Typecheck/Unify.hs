@@ -249,10 +249,13 @@ validateFields env pos actualType actual expected = do
         optional <- isOptionalField field
         let found = filter (\f -> trName field == trName f) actual
         case found of
-            [] | optional ->
+            [] | optional -> do
                 return ()
-               | otherwise ->
-                failTypeError pos $ RecordMissingField actualType (trName field)
+               | otherwise -> do
+                (optionType, elementType) <- resolveOptionType env pos
+                unify env pos (trTyVar field) optionType
+
+                --failTypeError pos $ RecordMissingField actualType (trName field)
             [cf] -> do
                 -- TODO: if we are going to unify record mutability, we need to actually put the new mutability state somewhere
                 _ <- unifyRecordMutability (trName cf) pos (trMut cf) (trMut field)

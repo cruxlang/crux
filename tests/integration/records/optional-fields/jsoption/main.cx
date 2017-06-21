@@ -2,9 +2,7 @@ import js.option
 
 fun printMyRecord<T: {required: Number, optional: option.JSOption<String>}>(r: T) {
     print(r.required)
-    r.optional->maybe(fun(s) {
-        print(s)
-    }, ())
+    r.optional->maybe(print, ())
     print("-")
 }
 

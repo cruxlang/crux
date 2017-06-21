@@ -1,0 +1,13 @@
+fun printMyRecord<T: {required: Number, optional: ?String}>(r: T) {
+    print(r.required)
+    match r.optional {
+        None => ()
+        Some(x) => print(x)
+    }
+    print("-")
+}
+
+fun main() {
+    printMyRecord({required: 1})
+    printMyRecord({required: 2, optional: Some("present")})
+}

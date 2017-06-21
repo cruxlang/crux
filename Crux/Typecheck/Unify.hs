@@ -236,7 +236,10 @@ isOptionalField RecordField{trTyVar} = do
     tv <- followTypeVar trTyVar
     case tv of
         TDataType (TDataTypeDef{tuName, tuModuleName}) ->
-            return $ tuName == "JSOption" && tuModuleName == "js.option"
+            return $ (tuName, tuModuleName) `elem`
+                [ ("JSOption", "js.option")
+                , ("Option", "option")
+                ]
         _ ->
             return False
 

@@ -3,6 +3,7 @@
 module Crux.JSBackend where
 
 import Crux.AST
+import qualified Crux.Module.Types as AST
 import Crux.ModuleName
 import qualified Crux.Gen as Gen
 import qualified Crux.JSTree as JSTree
@@ -296,16 +297,18 @@ renderInstruction = \case
             jsargName
             (jsargPrefix ++ guard : catchInstrs')
 
-renderVariant :: Variant () -> JSTree.Statement
-renderVariant (Variant () vname vparameters) = case vparameters of
-    [] ->
-        JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString vname])
-    _ ->
-        let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
-        in JSTree.SFunction vname argNames $
-            [ JSTree.SReturn $ Just $ JSTree.EArray $
-              [JSTree.ELiteral $ JSTree.LString vname] ++ (map JSTree.EIdentifier argNames)
-            ]
+renderVariant :: Variant AST.PatternTag () -> JSTree.Statement
+renderVariant (Variant tag () vname vparameters) = case tag of
+    AST.TagVariant name -> case vparameters of
+        [] ->
+            JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString name])
+        _ ->
+            let argNames = [Text.pack ('a':show i) | i <- [0..(length vparameters) - 1]]
+            in JSTree.SFunction vname argNames $
+                [ JSTree.SReturn $ Just $ JSTree.EArray $
+                [JSTree.ELiteral $ JSTree.LString name] ++ (map JSTree.EIdentifier argNames)
+                ]
+    AST.TagLiteral literal -> JSTree.SVar vname $ Just $ JSTree.ELiteral literal
 
 renderJSVariant :: JSVariant -> JSTree.Statement
 renderJSVariant (JSVariant name value) =
@@ -357,7 +360,7 @@ getExportedValues :: Gen.Declaration -> [(ExportType, Name)]
 getExportedValues = \case
     Gen.Declaration NoExport _ -> []
     Gen.Declaration Export decl -> case decl of
-        Gen.DData _name variants -> fmap (\(Variant () n _) -> (QualifiedExport, n)) variants
+        Gen.DData _name variants -> fmap (\(Variant _ () n _) -> (QualifiedExport, n)) variants
         Gen.DJSData _name variants -> fmap (\(JSVariant n _) -> (QualifiedExport, n)) variants
         Gen.DFun name _args _body -> [(QualifiedExport, name)]
         Gen.DLet pat _defn -> case pat of

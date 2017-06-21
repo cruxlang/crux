@@ -105,7 +105,7 @@ data Env = Env
     }
 
 data DeclarationType
-    = DData Name [AST.Variant ()]
+    = DData Name [AST.Variant AST.PatternTag ()]
     | DJSData Name [AST.JSVariant]
     | DFun Name [AST.Pattern AST.PatternTag] [Instruction]
     | DLet (AST.Pattern AST.PatternTag) [Instruction]

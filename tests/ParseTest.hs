@@ -128,7 +128,7 @@ test_negative_number = do
 
 test_polymorphic_data = do
     assertExprParses dataDeclaration "data Maybe<a> { Some(a), None, };"
-        (DData () "Maybe" [TypeVarIdent "a" (makePos 1 12) (ConstraintSetIdent Nothing [])] [Variant () "Some" [TypeIdent "a" []], Variant () "None" []])
+        (DData () "Maybe" [TypeVarIdent "a" (makePos 1 12) (ConstraintSetIdent Nothing [])] [Variant () () "Some" [TypeIdent "a" []], Variant () () "None" []])
 
 test_empty_fun_decl = do
     assertExprParses funDeclaration "fun f() {}"

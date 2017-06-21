@@ -183,10 +183,10 @@ createUserTypeDef :: Env
                   -> Name
                   -> ModuleName
                   -> [TypeVar]
-                  -> [Variant _edata]
+                  -> [Variant _tagtype _edata]
                   -> TC (TDataTypeDef TypeVar)
 createUserTypeDef env name moduleName typeVars variants = do
-    variants' <- for variants $ \(Variant _typeVar vname vparameters) -> do
+    variants' <- for variants $ \(Variant _tag _typeVar vname vparameters) -> do
         -- the variant parameters are unified with the corresponding typeidents later
         tvParameters <- for vparameters $ const $ freshType env
         let tvName = vname
@@ -441,7 +441,7 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         for_ qvars $ \(TypeVarIdent qvName _ _, qvTypeVar) ->
             SymbolTable.insert (eTypeBindings e) pos SymbolTable.DisallowDuplicates qvName qvTypeVar
 
-        for_ (zip variants $ tuVariants typeDef) $ \(Variant vpos _ typeIdents, TVariant _ typeVars) -> do
+        for_ (zip variants $ tuVariants typeDef) $ \(Variant () vpos _ typeIdents, TVariant _ typeVars) -> do
             for_ (zip typeIdents typeVars) $ \(typeIdent, typeVar) -> do
                 tv' <- resolveTypeIdent e vpos typeIdent
                 unify env vpos typeVar tv'
@@ -449,11 +449,21 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
         let computeVariantType [] = tyVar
             computeVariantType argTypeIdents = TFun argTypeIdents tyVar
 
-        for_ variants $ \(Variant _typeVar vname vparameters) -> do
+        for_ variants $ \(Variant () _typeVar vname vparameters) -> do
             parameterTypeVars <- traverse (resolveTypeIdent e pos) vparameters
             let ctorType = computeVariantType parameterTypeVars
-            SymbolTable.insert (eValueBindings env) pos SymbolTable.DisallowDuplicates vname (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
-            SymbolTable.insert (ePatternBindings env) pos SymbolTable.DisallowDuplicates vname (PatternReference typeDef $ TagVariant vname)
+            SymbolTable.insert
+                (eValueBindings env)
+                pos
+                SymbolTable.DisallowDuplicates
+                vname
+                (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
+            SymbolTable.insert
+                (ePatternBindings env)
+                pos
+                SymbolTable.DisallowDuplicates
+                vname
+                (PatternReference typeDef $ TagVariant vname)
 
     -- Phase 3.
     for_ decls $ \decl -> do

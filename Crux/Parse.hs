@@ -705,14 +705,14 @@ declareDeclaration = do
         ti <- typeIdent
         return $ DDeclare (tokenData declareToken) name forall ti
 
-variantDefinition :: Parser (Variant ParsePos)
+variantDefinition :: Parser (Variant () ParsePos)
 variantDefinition = do
     (ctorname, pos) <- anyIdentifierWithPos
 
     let withArgs = parenthesized $ commaDelimited typeIdent
     ctordata <- withArgs <|> return []
 
-    return $ Variant pos ctorname ctordata
+    return $ Variant () pos ctorname ctordata
 
 cruxDataDeclaration :: ParsePos -> Parser ParseDeclaration
 cruxDataDeclaration pos = do
@@ -721,7 +721,7 @@ cruxDataDeclaration pos = do
 
     let shorthand = do
             args <- parenthesized $ commaDelimited typeIdent
-            return $ [Variant pos name args]
+            return $ [Variant () pos name args]
     let expanded = do
             braced $ commaDelimited variantDefinition
 

@@ -929,16 +929,16 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
         exportType export env pos' name typeVar
 
-        typedVariants <- for variants $ \(Variant _pos vname vparameters) -> do
+        typedVariants <- for variants $ \(Variant () _pos vname vparameters) -> do
             (Just (ValueReference rr mut ctorType)) <- SymbolTable.lookup (eValueBindings env) vname
             exportValue export env pos' vname (rr, mut, ctorType)
-            return $ Variant ctorType vname vparameters
+            return $ Variant (TagVariant vname) ctorType vname vparameters
 
         let def = case typeVar of
                 TDataType d -> d
                 TTypeFun _ (TDataType d) -> d
                 _ -> error $ "Internal compiler error: data decl registered incorrectly " ++ show typeVar
-        for_ variants $ \(Variant _vtype vname _typeIdent) -> do
+        for_ variants $ \(Variant _tag _vtype vname _typeIdent) -> do
             exportPattern export env pos' vname $ PatternReference def $ TagVariant vname
 
         return $ DData typeVar name typeParameters typedVariants

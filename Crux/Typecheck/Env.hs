@@ -458,12 +458,15 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
                 SymbolTable.DisallowDuplicates
                 vname
                 (ValueReference (FromModule $ eThisModule env, vname) Immutable ctorType)
+            let tag = case vparameters of
+                    [] -> TagNamedVariant vname
+                    _ -> TagBoxedVariant vname
             SymbolTable.insert
                 (ePatternBindings env)
                 pos
                 SymbolTable.DisallowDuplicates
                 vname
-                (PatternReference typeDef $ TagVariant vname)
+                (PatternReference typeDef tag)
 
     -- Phase 3.
     for_ decls $ \decl -> do

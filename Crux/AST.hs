@@ -27,7 +27,6 @@ data Variant tagtype edata = Variant tagtype edata Name [TypeIdent]
 data JSVariant = JSVariant Name JSTree.Literal
     deriving (Show, Eq)
 
--- TODO: should grow tuples and stuff. perhaps PConstructor is the best way to do that
 data Pattern tag
     = PWildcard
     | PBinding Name

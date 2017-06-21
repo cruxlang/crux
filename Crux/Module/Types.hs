@@ -15,7 +15,8 @@ import Crux.TypeVar (TypeVar, TDataTypeDef, TraitIdentity, TraitDesc, TraitImplI
 type Name = Text
 
 data PatternTag
-    = TagVariant Name
+    = TagBoxedVariant Name
+    | TagNamedVariant Name
     | TagLiteral JSTree.Literal
     deriving (Eq, Show)
 

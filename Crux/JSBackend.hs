@@ -60,7 +60,7 @@ renderArgument = \case
 -- matches the pattern "patt"
 generateMatchCond :: JSTree.Expression -> Gen.Tag -> JSTree.Expression
 generateMatchCond matchVar = \case
-    Gen.TagVariant name subtags -> do
+    Gen.TagBoxedVariant name subtags -> do
         let testIt = JSTree.EBinOp "==="
                 (JSTree.ELiteral $ JSTree.LString name)
                 (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger 0)))
@@ -299,7 +299,7 @@ renderInstruction = \case
 
 renderVariant :: Variant AST.PatternTag () -> JSTree.Statement
 renderVariant (Variant tag () vname vparameters) = case tag of
-    AST.TagVariant name -> case vparameters of
+    AST.TagBoxedVariant name -> case vparameters of
         [] ->
             JSTree.SVar vname (Just $ JSTree.EArray [JSTree.ELiteral $ JSTree.LString name])
         _ ->
@@ -308,6 +308,7 @@ renderVariant (Variant tag () vname vparameters) = case tag of
                 [ JSTree.SReturn $ Just $ JSTree.EArray $
                 [JSTree.ELiteral $ JSTree.LString name] ++ (map JSTree.EIdentifier argNames)
                 ]
+    AST.TagNamedVariant name -> JSTree.SVar vname $ Just $ JSTree.ELiteral $ JSTree.LString name
     AST.TagLiteral literal -> JSTree.SVar vname $ Just $ JSTree.ELiteral literal
 
 renderJSVariant :: JSVariant -> JSTree.Statement

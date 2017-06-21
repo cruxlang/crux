@@ -45,7 +45,7 @@ We'll call these Values.
 -}
 
 data Tag
-    = TagVariant Name [(Integer, Tag)] -- zero-based index of payload that needs to be matched
+    = TagBoxedVariant Name [(Integer, Tag)] -- zero-based index of payload that needs to be matched
     | TagLiteral JSTree.Literal
     | TagNonNullish  -- neither null nor undefined
     | TagNullish     -- null or undefined
@@ -158,12 +158,13 @@ tagFromPattern = \case
     AST.PWildcard -> Nothing
     AST.PBinding _ -> Nothing
     AST.PConstructor _ref tag subpatterns -> case tag of
-        AST.TagVariant name -> do
-            let subtags = fmap tagFromPattern subpatterns
-            let subtags' = (flip map) (zip [0..] subtags) $ \(i, st) -> case st of
-                    Just st' -> Just (i, st')
+        AST.TagBoxedVariant name -> do
+            let subtags = (flip map) (zip [0..] subpatterns) $ \(i, sp) -> case tagFromPattern sp of
+                    Just st -> Just (i, st)
                     Nothing -> Nothing
-            Just $ TagVariant name $ catMaybes subtags'
+            Just $ TagBoxedVariant name $ catMaybes subtags
+        AST.TagNamedVariant name -> do
+            Just $ TagLiteral $ JSTree.LString name
         AST.TagLiteral literal ->
             Just $ TagLiteral literal
     AST.PTuple _ -> fail "Should never get here"

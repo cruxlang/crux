@@ -2,50 +2,79 @@
     "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
     "name": "Crux",
     "patterns": [
-	{
-	    "include": "#keywords"
-	},
-	{
-	    "include": "#strings"
-	},
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#strings"
+        },
         {
             "include": "#line-comment"
         },
         {
             "include": "#block-comment"
+        },
+        {
+            "include": "#operators"
         }
     ],
     "repository": {
-	"keywords": {
-	    "patterns": [{
-		"name": "keyword.control.crux",
-		"match": "\\b(as|pragma|import|export|fun|let|data|declare|exception|throw|try|catch|jsffi|type|match|if|then|else|while|for|in|do|return|mutable|trait|impl)\\b"
-	    }]
-	},
-	"strings": {
-	    "name": "string.quoted.double.crux",
-	    "begin": "\"",
-	    "end": "\"",
-	    "patterns": [
-		{
-		    "name": "constant.character.escape.crux",
-		    "match": "\\\\."
-		}
-	    ]
-	},
+        "keywords": {
+            "patterns": [{
+                "name": "keyword.control.crux",
+                "match": "\\b(as|pragma|import|export|fun|let|data|declare|exception|throw|try|catch|jsffi|type|match|if|then|else|while|for|in|do|return|mutable|trait|impl)\\b"
+            }]
+        },
+        "numbers": {
+            "patterns": [{
+                "name": "constant.numeric.decimal.crux",
+                "match": "-?[0-9]+(\\.[0-9]+)?"
+            },
+            {
+                "name":"constant.numeric.decimal.crux",
+                "match": "-?\\.[0-9]+"
+            }]
+        },
+        "operators": {
+            "patterns": [{
+                "name":"keyword.operator.crux",
+                "match": ""
+            },
+            {
+                "name": "keyword.operator.bracket.crux",
+                "match": "[()\\[\\]{}]"
+            },
+            {
+                "name": "keyword.operator.crux",
+                "match": "[\\+\\-<>?,=:;!&|.]"
+            }]
+        },
+        "strings": {
+            "name": "string.quoted.double.crux",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                {
+                    "name": "constant.character.escape.crux",
+                    "match": "\\\\."
+                }
+            ]
+        },
         "line-comment": {
-            "name": "line.comment.crux",
-            "match": "//.*$\n?"
+            "name": "comment.line.crux",
+            "match": "//.*$\n?",
+            "patterns": [
+            ]
         },
         "block-comment": {
             "applyEndPatternLast": 1,
-            "name": "block.comment.crux",
+            "name": "comment.block.crux",
             "begin": "\\/\\*",
             "end": "\\*\\/",
             "patterns": [
-                {
-                    "include": "$self"
-                }
             ]
         }
     },

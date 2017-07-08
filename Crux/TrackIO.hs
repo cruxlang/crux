@@ -9,7 +9,7 @@ import Control.Monad.Reader (ReaderT, runReaderT, ask)
 import Control.Exception.Base (IOException)
 import Control.Exception (try)
 import qualified Data.ByteString as BS
-import System.FSNotify
+import System.FSNotify (startManager, eventPath, watchDir)
 import qualified System.FilePath as FP
 import Control.Concurrent.STM
 import qualified Data.Set as Set
@@ -59,11 +59,13 @@ loopWithTrackedIO action = do
             modifyIORef watchedPaths $ Set.insert filePath
             let loop dirPath = do
                     result <- try $ do
-                        _ <- watchTree manager dirPath (const True) processEvent
+                        _ <- watchDir manager dirPath (const True) processEvent
                         return ()
                     case result of
                         Left (_err :: IOException) -> do
-                            loop $ FP.takeDirectory dirPath
+                            let parent = FP.takeDirectory dirPath
+                            when (dirPath /= parent) $ do
+                                loop $ parent
                         Right _ -> do
                             return ()
             loop $ FP.takeDirectory filePath

@@ -11,10 +11,10 @@ test("runs callback", () => {
     result->append("hello")
   })
 
-  cbs->runAndClear()
+  cbs->run()
   assert.equal(mutable ["hello"], result)
 
-  cbs->runAndClear()
+  cbs->run()
   assert.equal(mutable ["hello"], result)
 })
 
@@ -30,9 +30,37 @@ test("runs all callbacks", () => {
     result->append("goodbye")
   })
 
-  cbs->runAndClear()
+  cbs->run()
 
   assert.equal(["goodbye", "hello"], sorted(result->freeze()))
+})
+
+exception Boom String
+
+test("exception in callback prevents previous callbacks from running again", () => {
+  let result = mutable []
+  let cbs = callbackqueue.new()
+  cbs->add(() => {
+    result->append("one")
+  })
+  cbs->add(() => {
+    throw Boom "two"
+  })
+  cbs->add(() => {
+    result->append("three")
+  })
+
+  try {
+    cbs->run()
+    assert.fail("failed to throw")
+  }
+  catch Boom value {
+    assert.equal("two", value)
+  }
+  assert.equal(mutable ["one"], result)
+
+  cbs->run()
+  assert.equal(mutable ["one", "three"], result)
 })
 
 // possible exception modes:

@@ -1,12 +1,18 @@
-data CallbackSet(mutable [()])
+data CallbackQueue({
+  mutable next: Number,
+  entries: mutable [()],
+})
 
 export fun new() {
-  return CallbackSet(mutable [])
+  return CallbackQueue({
+    mutable next: 0,
+    entries: mutable [],
+  })
 }
 
-export fun add1<Env>(CallbackSet(entries), env: Env, cb: Env => ()) {
-  entries->append(_unsafe_coerce(env))
-  entries->append(_unsafe_coerce(cb))
+export fun add1<Env>(CallbackQueue(this), env: Env, cb: Env => ()) {
+  this.entries->append(_unsafe_coerce(env))
+  this.entries->append(_unsafe_coerce(cb))
 }
 
 fun run0(env) {
@@ -17,13 +23,16 @@ export fun add(cbset, cb) {
   add1(cbset, cb, run0)
 }
 
-export fun runAndClear(CallbackSet(entries)) {
-  let mutable i = 0
+export fun run(CallbackQueue(this)) {
+  let entries = this.entries
+  let mutable i = this.next
   while i < len(entries) {
     let env = _unsafe_coerce(entries->get(i))
     let cb = _unsafe_coerce(entries->get(i + 1))
-    cb(env)
     i = i + 2
+    this.next = i
+    cb(env)
   }
+  this.next = 0
   entries->clear()
 }

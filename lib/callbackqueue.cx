@@ -36,3 +36,8 @@ export fun run(CallbackQueue(this)) {
   this.next = 0
   entries->clear()
 }
+
+export fun clear(CallbackQueue(this)) {
+  this.next = 0
+  this.entries->clear()
+}

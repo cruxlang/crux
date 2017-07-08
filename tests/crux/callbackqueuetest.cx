@@ -35,6 +35,15 @@ test("runs all callbacks", () => {
   assert.equal(["goodbye", "hello"], sorted(result->freeze()))
 })
 
+test("clear", () => {
+  let cbs = callbackqueue.new()
+  cbs->add(() => {
+    assert.fail("should not get here")
+  })
+  cbs->clear()
+  cbs->run()
+})
+
 exception Boom String
 
 test("exception in callback prevents previous callbacks from running again", () => {

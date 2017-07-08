@@ -188,6 +188,7 @@ symbol = sym3 '.' '.' '.' TEllipsis
      <|> sym2 '>' '=' TGreaterEqual
      <|> sym2 '&' '&' TAndAnd
      <|> sym2 '|' '|' TOrOr
+     <|> sym2 ':' ':' TColonColon
      <|> sym '?' TQuestionMark
      <|> sym ';' TSemicolon
      <|> sym ':' TColon

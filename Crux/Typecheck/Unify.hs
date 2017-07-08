@@ -244,7 +244,7 @@ isOptionalField RecordField{trTyVar} = do
             return False
 
 validateFields :: Env -> Pos -> TypeVar -> [RecordField TypeVar] -> [RecordField TypeVar] -> TC ()
-validateFields env pos actualType actual expected = do
+validateFields env pos _actualType actual expected = do
     for_ expected $ \field -> do
         optional <- isOptionalField field
         let found = filter (\f -> trName field == trName f) actual
@@ -252,7 +252,7 @@ validateFields env pos actualType actual expected = do
             [] | optional -> do
                 return ()
                | otherwise -> do
-                (optionType, elementType) <- resolveOptionType env pos
+                (optionType, _elementType) <- resolveOptionType env pos
                 unify env pos (trTyVar field) optionType
 
                 --failTypeError pos $ RecordMissingField actualType (trName field)

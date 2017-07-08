@@ -317,8 +317,13 @@ identifierExpression = do
             _ <- token TFatRightArrow
             lambdaTail pos [PBinding txt]
 
+    let methodForm = do
+            _ <- token TColonColon
+            methodName <- anyIdentifier
+            return $ ETypeLookup pos (UnqualifiedReference txt) methodName
+
     let ident = EIdentifier pos $ UnqualifiedReference txt
-    lambdaForm <|> return ident
+    lambdaForm <|> methodForm <|> return ident
 
 functionGuts :: ParsePos -> Parser ParseExpression
 functionGuts pos = do

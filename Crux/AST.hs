@@ -198,6 +198,7 @@ data Expression idtype tagtype edata
     | EIdentifier edata idtype
     | ESemi edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
     | EMethodApp edata (Expression idtype tagtype edata) Name [Expression idtype tagtype edata]
+    | ETypeLookup edata idtype Name
     | EAs edata (Expression idtype tagtype edata) TypeIdent
 
     -- literals
@@ -245,6 +246,7 @@ edata expr = case expr of
     EIdentifier ed _ -> ed
     ESemi ed _ _ -> ed
     EMethodApp ed _ _ _ -> ed
+    ETypeLookup ed _ _ -> ed
     EAs ed _ _ -> ed
     EUnIntrinsic ed _ _ -> ed
     EBinIntrinsic ed _ _ _ -> ed
@@ -276,6 +278,7 @@ setEdata expr e = case expr of
     EIdentifier _ a       -> EIdentifier e a
     ESemi _ a b           -> ESemi e a b
     EMethodApp _ a b c    -> EMethodApp e a b c
+    ETypeLookup _ a b     -> ETypeLookup e a b
     EAs _ a b             -> EAs e a b
     EUnIntrinsic _ a b    -> EUnIntrinsic e a b
     EBinIntrinsic _ a b c -> EBinIntrinsic e a b c

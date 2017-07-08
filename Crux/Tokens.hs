@@ -16,6 +16,7 @@ data TokenType
     | TCloseBracket
     | TQuestionMark
     | TSemicolon
+    | TColonColon
     | TColon
     | TComma
     | TEqual
@@ -85,6 +86,7 @@ showTokenType = \case
     TCloseBracket -> "]"
     TQuestionMark -> "?"
     TSemicolon -> ";"
+    TColonColon -> "::"
     TColon -> ":"
     TComma -> ","
     TEqual -> "="

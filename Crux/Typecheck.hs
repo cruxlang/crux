@@ -443,6 +443,17 @@ check' expectedType env = \case
             (EIdentifier pos $ KnownReference moduleName methodName)
             (lhs : args)
 
+    ETypeLookup pos typeName methodName -> do
+        typeVar <- resolveTypeReference env pos typeName
+        moduleName <- followTypeVar typeVar >>= \case
+            TDataType TDataTypeDef{..} -> do
+                return tuModuleName
+            _ -> do
+                ts <- renderTypeVarIO $ typeVar
+                resumableTypeError pos $ TdnrLhsTypeUnknown ts
+
+        check env $ EIdentifier pos $ KnownReference moduleName methodName
+
     EAs pos expr typeIdent -> do
         expr' <- check env expr
         explicitTV <- resolveTypeIdent env pos typeIdent
@@ -605,6 +616,8 @@ resolveInstanceDictPlaceholders env = recurse
             expr' <- recurse expr
             args' <- for args recurse
             return $ EMethodApp tv expr' name args'
+        ETypeLookup tv typeName methodName -> do
+            return $ ETypeLookup tv typeName methodName
         EAs tv expr typeIdent -> do
             expr' <- recurse expr
             return $ EAs tv expr' typeIdent

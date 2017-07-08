@@ -1,4 +1,4 @@
-data CallbackQueue({
+export data CallbackQueue({
   mutable next: Number,
   entries: mutable [()],
 })

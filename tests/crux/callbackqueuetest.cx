@@ -1,12 +1,12 @@
 import test(...)
 import assert
 
-import callbackqueue
+import callbackqueue(CallbackQueue)
 
 test("runs callback", () => {
   let result = mutable []
 
-  let cbs = callbackqueue.new()
+  let cbs = CallbackQueue::new()
   cbs->add(() => {
     result->append("hello")
   })
@@ -21,7 +21,7 @@ test("runs callback", () => {
 test("runs all callbacks", () => {
   let result = mutable []
 
-  let cbs = callbackqueue.new()
+  let cbs = CallbackQueue::new()
   cbs->add(() => {
     result->append("hello")
   })
@@ -36,7 +36,7 @@ test("runs all callbacks", () => {
 })
 
 test("clear", () => {
-  let cbs = callbackqueue.new()
+  let cbs = CallbackQueue::new()
   cbs->add(() => {
     assert.fail("should not get here")
   })
@@ -48,7 +48,7 @@ exception Boom String
 
 test("exception in callback prevents previous callbacks from running again", () => {
   let result = mutable []
-  let cbs = callbackqueue.new()
+  let cbs = CallbackQueue::new()
   cbs->add(() => {
     result->append("one")
   })

@@ -1,0 +1,10 @@
+import test(...)
+import assert
+
+test("show basics", () => {
+    //assert.equal("()", show(()))
+    assert.equal("False", show(False))
+    assert.equal("True", show(True))
+    assert.equal("0", show(0))
+    //assert.equal("12.34", show(12.34))
+})

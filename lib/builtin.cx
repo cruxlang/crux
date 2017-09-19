@@ -12,6 +12,7 @@ import array
 import mutarray
 import string
 import number
+import show
 
 // TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
 import tuple
@@ -28,6 +29,7 @@ export let replicate = array.replicate
 export let each = array.each
 export type String = string.String
 export import number
+export import show
 
 export fun print(a): () {
     _unsafe_js("console").log(a)
@@ -37,10 +39,6 @@ export let toString<a>: a => String =
     _unsafe_js("function toString(v) { return '' + v; }")
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
-
-export fun emptyArray<a>(): [a] {
-    _unsafe_js("[]")
-}
 
 // TODO: implemented sorted with a trait so it can be used on mutarray too
 export fun sorted<a: cmp.Ordered>(arr: [a]): [a] {

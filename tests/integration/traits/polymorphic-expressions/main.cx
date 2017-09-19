@@ -1,20 +1,20 @@
-trait Show {
-  show(self): String
+trait Show2 {
+  show2(self): String
 }
 
-impl Show Number {
-  show = toString
+impl Show2 Number {
+  show2 = toString
 }
 
-impl Show String {
-  show = fun(s) { s }
+impl Show2 String {
+  show2 = fun(s) { s }
 }
 
 let f = fun(x) {
-  show(x)
+  show2(x)
 }
 
-let g = show
+let g = show2
 let h: fun(Number) -> String = g
 
 fun main() {

@@ -11,6 +11,7 @@ import jsontest as _
 import jstest as _
 import dicttest as _
 import optiontest as _
+import showtest as _
 import flux.dispatchertest as _
 import js.optiontest as _
 

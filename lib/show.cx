@@ -1,0 +1,24 @@
+pragma { NoBuiltin }
+
+import types(...)
+import string(String)
+import number(Number)
+
+export trait Show {
+    show: self => String
+}
+
+impl Show Boolean {
+    show(b) {
+        match b {
+            False => "False"
+            True => "True"
+        }
+    }
+}
+
+let _unsafe_to_string = _unsafe_js("function(x) { return '' + x; }")
+
+impl Show Number {
+    show = _unsafe_to_string
+}

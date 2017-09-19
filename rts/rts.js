@@ -41,3 +41,39 @@ function _rts_new_exception(name, baseException) {
 }
 
 var _rts_exports = typeof exports === 'undefined' ? {} : exports;
+
+function _rts_show_string(s) {
+    // TODO: There have to be faster ways to implement this.  For example,
+    // do all browsers optimize string concatenation?  Would it make sense to do
+    // a fast scan for escapable characters before switching to char-by-char
+    // appends?
+    let escapes = {
+        '\0': '0',
+        '\\': '\\',
+        '\"': '"',
+        '\?': '?',
+        '\'': "'",
+        '\a': 'a',
+        '\b': 'b',
+        '\f': 'f',
+        '\r': 'r',
+        '\n': 'n',
+        '\t': 't',
+        '\v': 'v',
+    };
+    let rv = '"';
+    for (const code of s) {
+        let escape = escapes[code];
+        let codePoint = code.codePointAt();
+        if (escape) {
+            rv += '\\' + escape;
+        } else if (codePoint < 0x10) {
+            rv += '\\x0' + codePoint;
+        } else if (codePoint < 0x20) {
+            rv += '\\x1' + (codePoint - 0x10);
+        } else {
+            rv += code;
+        }
+    }
+    return rv + '"';
+}

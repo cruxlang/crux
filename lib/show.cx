@@ -22,3 +22,12 @@ let _unsafe_to_string = _unsafe_js("function(x) { return '' + x; }")
 impl Show Number {
     show = _unsafe_to_string
 }
+
+// TODO: add tuple sugar here
+impl Show Void {
+    show(_) { "()" }
+}
+
+impl Show String {
+    show = _unsafe_js("_rts_show_string")
+}

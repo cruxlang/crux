@@ -285,21 +285,31 @@ renderInstruction = \case
             (JSTree.ELookup (JSTree.EIdentifier $ exceptionName' <> "$") "throw")
             [body', JSTree.ENew (JSTree.EIdentifier "Error") Nothing]
 
-    Gen.TryCatch tryInstrs exceptionName exceptionBinding catchInstrs -> do
-        (jsargName, jsargPrefix) <- renderArgument exceptionBinding
-        let jsident = JSTree.EIdentifier jsargName
-        exceptionName' <- renderResolvedReference' exceptionName
-        let excident = JSTree.EIdentifier $ exceptionName' <> "$"
-        -- TODO: instanceof may not be right if we want customized tag checks later
-        let check = JSTree.EApplication (JSTree.ELookup excident "check") [jsident]
-        let assign = JSTree.SAssign jsident (JSTree.ELookup jsident "message")
-        let guard = JSTree.SIf check assign (Just $ JSTree.SThrow jsident)
-        tryInstrs' <- for tryInstrs renderInstruction
-        catchInstrs' <- for catchInstrs renderInstruction
-        return $ JSTree.STryCatch
-            tryInstrs'
-            jsargName
-            (jsargPrefix ++ guard : catchInstrs')
+    Gen.TryCatch tryInstrs catchBinding catchInstrs -> do
+        case catchBinding of
+            CruxException exceptionName exceptionBinding -> do
+                (jsargName, jsargPrefix) <- renderArgument exceptionBinding
+                let jsident = JSTree.EIdentifier jsargName
+                exceptionName' <- renderResolvedReference' exceptionName
+                let excident = JSTree.EIdentifier $ exceptionName' <> "$"
+                -- TODO: instanceof may not be right if we want customized tag checks later
+                let check = JSTree.EApplication (JSTree.ELookup excident "check") [jsident]
+                let assign = JSTree.SAssign jsident (JSTree.ELookup jsident "message")
+                let guard = JSTree.SIf check assign (Just $ JSTree.SThrow jsident)
+                tryInstrs' <- for tryInstrs renderInstruction
+                catchInstrs' <- for catchInstrs renderInstruction
+                return $ JSTree.STryCatch
+                    tryInstrs'
+                    jsargName
+                    (jsargPrefix ++ guard : catchInstrs')
+            WildcardException -> do
+                uniqueName <- getUniqueName
+                tryInstrs' <- for tryInstrs renderInstruction
+                catchInstrs' <- for catchInstrs renderInstruction
+                return $ JSTree.STryCatch
+                    tryInstrs'
+                    uniqueName
+                    catchInstrs'
 
 renderVariant :: Variant AST.PatternTag () -> JSTree.Statement
 renderVariant (Variant tag () vname vparameters) = renderTag tag

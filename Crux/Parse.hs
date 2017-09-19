@@ -219,12 +219,18 @@ tryCatchExpression = do
     tryToken <- token TTry
     tryBody <- withIndentation (IRDeeper tryToken) $ blockExpression
     catchToken <- withIndentation (IRAtOrDeeper tryToken) $ token TCatch
-    (exceptionName, bindingName, catchBody) <- withIndentation (IRDeeper catchToken) $ do
-        exceptionName <- unresolvedReference
-        bindingName <- pattern IrrefutableContext
+    let wildcardCatch = do
+            _ <- token TWildcard
+            return WildcardException
+    let cruxCatch = do
+            exceptionName <- unresolvedReference
+            bindingName <- pattern IrrefutableContext
+            return $ CruxException exceptionName bindingName
+    (catchBinding, catchBody) <- withIndentation (IRDeeper catchToken) $ do
+        catchBinding <- wildcardCatch <|> cruxCatch
         catchBody <- blockExpression
-        return (exceptionName, bindingName, catchBody)
-    return $ ETryCatch (tokenData tryToken) tryBody exceptionName bindingName catchBody
+        return (catchBinding, catchBody)
+    return $ ETryCatch (tokenData tryToken) tryBody catchBinding catchBody
 
 forExpression :: Parser ParseExpression
 forExpression = do

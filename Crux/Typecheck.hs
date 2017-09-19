@@ -557,16 +557,20 @@ check' expectedType env = \case
         throwExpr' <- checkExpecting tyVar env throwExpr
         return $ EThrow free rr throwExpr'
 
-    ETryCatch pos tryBody exceptionName binding catchBody -> do
+    ETryCatch pos tryBody catchBinding catchBody -> do
         tryBody' <- check env tryBody
         catchEnv <- childEnv env
 
-        (rr, ty) <- resolveExceptionReference env pos exceptionName
-
-        -- TODO: exhaustiveness check on this pattern
-        binding' <- buildPatternEnv catchEnv pos ty Immutable binding
+        catchBinding' <- case catchBinding of
+            CruxException exceptionName binding -> do
+                (rr, ty) <- resolveExceptionReference env pos exceptionName
+                -- TODO: exhaustiveness check on this pattern
+                binding' <- buildPatternEnv catchEnv pos ty Immutable binding
+                return $ CruxException rr binding'
+            WildcardException -> do
+                return WildcardException
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
-        return $ ETryCatch (edata tryBody') tryBody' rr binding' catchBody'
+        return $ ETryCatch (edata tryBody') tryBody' catchBinding' catchBody'
 
     EInstancePlaceholder _ _ -> do
         fail "ICE: placeholders are not typechecked"
@@ -665,10 +669,10 @@ resolveInstanceDictPlaceholders env = recurse
         EThrow tv ident value -> do
             value' <- recurse value
             return $ EThrow tv ident value'
-        ETryCatch tv try ident pat catch -> do
+        ETryCatch tv try catchBinding catch -> do
             try' <- recurse try
             catch' <- recurse catch
-            return $ ETryCatch tv try' ident pat catch'
+            return $ ETryCatch tv try' catchBinding catch'
 
         EInstancePlaceholder tv traitIdentity -> followTypeVar tv >>= \case
             TypeVar ref -> readIORef ref >>= \case

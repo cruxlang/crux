@@ -187,6 +187,11 @@ data Mutability
     | Immutable
     deriving (Show, Eq)
 
+data CatchBinding idtype tagtype
+    = CruxException idtype (Pattern tagtype)
+    | WildcardException
+    deriving (Show, Eq)
+
 data Expression idtype tagtype edata
     -- Mutable Wildcard makes no sense -- disallow that?
     -- TODO: should mutability status be part of the pattern?
@@ -220,7 +225,7 @@ data Expression idtype tagtype edata
     | EReturn edata (Expression idtype tagtype edata)
     | EBreak edata
     | EThrow edata idtype (Expression idtype tagtype edata)
-    | ETryCatch edata (Expression idtype tagtype edata) idtype (Pattern tagtype) (Expression idtype tagtype edata)
+    | ETryCatch edata (Expression idtype tagtype edata) (CatchBinding idtype tagtype) (Expression idtype tagtype edata)
 
     -- trait dictionary conversion
     -- instance dict placeholders to be resolved after quantification
@@ -257,7 +262,7 @@ edata expr = case expr of
     EReturn ed _ -> ed
     EBreak ed -> ed
     EThrow ed _ _ -> ed
-    ETryCatch ed _ _ _ _ -> ed
+    ETryCatch ed _ _ _ -> ed
     EInstancePlaceholder ed _ -> ed
     EInstanceDict ed _ _ -> ed
     EInstanceArgument ed _ -> ed
@@ -289,9 +294,9 @@ setEdata expr e = case expr of
     EReturn _ a           -> EReturn e a
     EBreak _              -> EBreak e
     EThrow _ a b          -> EThrow e a b
-    ETryCatch _ a b c d   -> ETryCatch e a b c d
+    ETryCatch _ a b c     -> ETryCatch e a b c
     EInstancePlaceholder _ a -> EInstancePlaceholder e a
-    EInstanceDict _ a b -> EInstanceDict e a b
+    EInstanceDict _ a b   -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
     EInstanceFieldMap _ a -> EInstanceFieldMap e a
 

@@ -100,7 +100,7 @@ data Instruction
     | Loop [Instruction]
     | Break
     | Throw AST.ResolvedReference Input
-    | TryCatch [Instruction] AST.ResolvedReference (AST.Pattern AST.PatternTag) [Instruction]
+    | TryCatch [Instruction] (AST.CatchBinding AST.ResolvedReference AST.PatternTag) [Instruction]
     deriving (Show, Eq)
 
 -- TODO: make this into a record
@@ -357,12 +357,12 @@ generate env = \case
             writeInstruction $ Throw exceptionName value''
         return Nothing
 
-    AST.ETryCatch _ tryBody exceptionName binding catchBody -> do
+    AST.ETryCatch _ tryBody catchBinding catchBody -> do
         output <- newTempOutput env
         writeInstruction $ EmptyTemporary output
         tryBody' <- subBlockWithOutput env (ExistingTemporary output) tryBody
         catchBody' <- subBlockWithOutput env (ExistingTemporary output) catchBody
-        writeInstruction $ TryCatch tryBody' exceptionName binding catchBody'
+        writeInstruction $ TryCatch tryBody' catchBinding catchBody'
         return $ Just $ Temporary output
 
     AST.EInstancePlaceholder tv p -> do

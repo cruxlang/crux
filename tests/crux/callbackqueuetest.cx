@@ -1,7 +1,7 @@
 import test(...)
 import assert
 
-import callbackqueue(CallbackQueue)
+import callbackqueue(CallbackQueue, IgnoreExceptions)
 
 test("runs callback", () => {
   let result = mutable []
@@ -72,9 +72,25 @@ test("exception in callback prevents previous callbacks from running again", () 
   assert.equal(mutable ["one", "three"], result)
 })
 
+test("ignore exceptions mode", () => {
+  let result = mutable []
+  let cbs = CallbackQueue::new()
+  cbs->add(() => {
+    result->append("one")
+  })
+  cbs->add(() => {
+    throw Boom "two"
+  })
+  cbs->add(() => {
+    result->append("three")
+  })
+
+  cbs->runWithOptions({
+    exceptionPolicy: IgnoreExceptions,
+  })
+  assert.equal(mutable ["one", "three"], result)
+})
+
 // possible exception modes:
-//   exception stops execution, leaves queue empty
-//   exception stops execution, leaves queue full
-//   exception stops execution, next runAndClear() runs remainder
 //   exception is caught, remainder runs, rethrown
 //   exception is caught, remainder runs, not thrown

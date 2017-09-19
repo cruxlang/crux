@@ -23,18 +23,60 @@ export fun add(cbset, cb) {
   add1(cbset, cb, run0)
 }
 
-export fun run(CallbackQueue(this)) {
-  let entries = this.entries
-  let mutable i = this.next
-  while i < len(entries) {
-    let env = _unsafe_coerce(entries->get(i))
-    let cb = _unsafe_coerce(entries->get(i + 1))
-    i = i + 2
-    this.next = i
-    cb(env)
+export data ExceptionPolicy {
+  RethrowAnyException,
+  IgnoreExceptions,
+/*
+  RunAllAndRethrowFirstException,
+*/
+}
+
+let defaultOptions = {
+  exceptionPolicy: RethrowAnyException,
+}
+
+export fun runWithOptions(CallbackQueue(this), options) {
+  match options.exceptionPolicy {
+    RethrowAnyException => {
+      let entries = this.entries
+      let mutable i = this.next
+      while i < len(entries) {
+        let env = _unsafe_coerce(entries->get(i))
+        let cb = _unsafe_coerce(entries->get(i + 1))
+        i = i + 2
+        this.next = i
+        cb(env)
+      }
+      this.next = 0
+      entries->clear()
+    }
+    IgnoreExceptions => {
+      let entries = this.entries
+      let mutable i = this.next
+      while i < len(entries) {
+        let env = _unsafe_coerce(entries->get(i))
+        let cb = _unsafe_coerce(entries->get(i + 1))
+        i = i + 2
+        this.next = i
+        try {
+          cb(env)
+        }
+        catch _ {
+        }
+      }
+      this.next = 0
+      entries->clear()
+    }
+    /*
+    RunAllAndRethrowFirstException => {
+
+    }
+    */
   }
-  this.next = 0
-  entries->clear()
+}
+
+export fun run(queue) {
+  runWithOptions(queue, defaultOptions)
 }
 
 export fun clear(CallbackQueue(this)) {

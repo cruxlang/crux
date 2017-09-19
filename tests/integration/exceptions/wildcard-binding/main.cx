@@ -1,0 +1,10 @@
+exception MyError ()
+
+fun main() {
+  try {
+    throw MyError ()
+  }
+  catch MyError _ {
+    print("caught")
+  }
+}

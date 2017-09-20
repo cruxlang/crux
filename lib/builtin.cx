@@ -12,7 +12,7 @@ import array
 import mutarray
 import string
 import number
-import show
+import repr
 
 // TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
 import tuple
@@ -29,7 +29,7 @@ export let replicate = array.replicate
 export let each = array.each
 export type String = string.String
 export import number
-export import show
+export import repr
 
 export fun print(a): () {
     _unsafe_js("console").log(a)

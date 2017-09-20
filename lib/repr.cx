@@ -4,12 +4,12 @@ import types(...)
 import string(String)
 import number(Number)
 
-export trait Show {
-    show: self => String
+export trait Repr {
+    repr: self => String
 }
 
-impl Show Boolean {
-    show(b) {
+impl Repr Boolean {
+    repr(b) {
         match b {
             False => "False"
             True => "True"
@@ -19,15 +19,15 @@ impl Show Boolean {
 
 let _unsafe_to_string = _unsafe_js("function(x) { return '' + x; }")
 
-impl Show Number {
-    show = _unsafe_to_string
+impl Repr Number {
+    repr = _unsafe_to_string
 }
 
 // TODO: add tuple sugar here
-impl Show Void {
-    show(_) { "()" }
+impl Repr Void {
+    repr(_) { "()" }
 }
 
-impl Show String {
-    show = _unsafe_js("_rts_show_string")
+impl Repr String {
+    repr = _unsafe_js("_rts_show_string")
 }

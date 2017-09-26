@@ -891,7 +891,17 @@ traitDeclaration = do
 data ImplTypeIdent
     -- type name, variables+constraints
     = ImplNominalIdent UnresolvedReference [TypeVarIdent]
+    | ImplFunction [TypeVarIdent] TypeVarIdent
     | ImplRecordIdent
+
+functionTypeVarIdent :: Parser ([TypeVarIdent], TypeVarIdent)
+functionTypeVarIdent = do
+    _ <- token Tokens.TOpenParen
+    args <- commaDelimited typeVarIdent
+    _ <- token Tokens.TCloseParen
+    _ <- token Tokens.TFatRightArrow
+    ret <- typeVarIdent
+    return (args, ret)
 
 implTypeIdent :: Parser ImplTypeIdent
 implTypeIdent = do
@@ -899,10 +909,13 @@ implTypeIdent = do
             typeName' <- unresolvedReference
             forall <- P.option [] explicitTypeVariableList
             return $ ImplNominalIdent typeName' forall
+    let function = do
+            (args, ret) <- functionTypeVarIdent
+            return $ ImplFunction args ret
     let record = braced $ do
             _ <- token TEllipsis
             return $ ImplRecordIdent
-    nominal <|> record
+    function <|> nominal <|> record
 
 -- TODO: generalize name to pattern
 data ImplMethod = ImplFor ParsePos Name ParseExpression
@@ -940,6 +953,15 @@ implDeclaration = do
                     { inTypeName = typeName'
                     , inTypeParams = typeVars
                     }
+            methods' <- for methods $ \case
+                ImplFor _ _ _ -> do
+                    -- TODO: set the right source position? ideally we'd point at the correct line
+                    P.unexpected "Data type impls do not support field transformers"
+                ImplMethod methodName methodExpr -> do
+                    return (methodName, methodExpr)
+            return $ DImpl (tokenData timpl) traitName it [] methods'
+        ImplFunction argTypes retType -> do
+            let it = ImplTypeFunction argTypes retType
             methods' <- for methods $ \case
                 ImplFor _ _ _ -> do
                     -- TODO: set the right source position? ideally we'd point at the correct line

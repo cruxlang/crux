@@ -51,6 +51,7 @@ data TDataTypeDef typevar = TDataTypeDef
 
 data TraitImplIdentity
     = DataIdentity Name ModuleName
+    | FunctionIdentity Int -- arity
     | RecordIdentity
     deriving (Show, Eq, Ord, Generic)
 

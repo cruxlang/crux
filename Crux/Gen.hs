@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards, TupleSections #-}
+    {-# LANGUAGE OverloadedStrings, RecordWildCards, TupleSections #-}
 
 module Crux.Gen
     ( Value(..)
@@ -23,6 +23,7 @@ import qualified Crux.Module.Types as AST
 import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
 import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Text as Text
 
 {-
 Instructions can:
@@ -404,6 +405,8 @@ instanceDictName :: TraitIdentity -> TraitImplIdentity -> Text
 instanceDictName (TraitIdentity traitModule traitName) = \case
     DataIdentity typeName typeModule ->
         "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
+    FunctionIdentity arity ->
+        "$$function$" <> traitName <> "$" <> renderModuleName traitModule <> "$" <> Text.pack (show arity)
     RecordIdentity ->
         "$$record$" <> traitName <> "$" <> renderModuleName traitModule
 
@@ -411,23 +414,23 @@ instanceFieldMapName :: TraitIdentity -> Text
 instanceFieldMapName (TraitIdentity traitModule traitName) =
     "$$fieldMap$" <> traitName <> "$" <> renderModuleName traitModule
 
+getDTI :: MonadIO m => TypeVar -> m TraitImplIdentity
+getDTI tv = followTypeVar tv >>= \case
+    TypeVar {} -> do
+        fail "Unexpected traitDictName got unbound typevar"
+    TDataType def -> do
+        return $ dataTypeIdentity def
+    TRecord fields -> do
+        fail $ "TODO: compute dictname from rows: " <> show (fmap trName fields)
+    tv2 -> do
+        s <- renderTypeVarIO tv2
+        fail $ "Unexpected traitDictName " ++ s
+
 traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
 traitDictName traitName' typeVar = do
     let (AST.FromModule traitModule, traitName) = traitName'
     dti <- getDTI typeVar
     return $ instanceDictName (TraitIdentity traitModule traitName) dti
-  where
-    getDTI :: MonadIO m => TypeVar -> m TraitImplIdentity
-    getDTI tv = followTypeVar tv >>= \case
-        TypeVar {} -> do
-            fail "Unexpected traitDictName got unbound typevar"
-        TDataType def -> do
-            return $ dataTypeIdentity def
-        TRecord fields -> do
-            fail $ "TODO: compute dictname from rows: " <> show (fmap trName fields)
-        tv2 -> do
-            s <- renderTypeVarIO tv2
-            fail $ "Unexpected traitDictName " ++ s
 
 generateDecl :: Env -> AST.Declaration AST.ResolvedReference AST.PatternTag TypeVar -> DeclarationWriter ()
 generateDecl env (AST.Declaration export _pos decl) = case decl of
@@ -467,7 +470,15 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DImpl typeVar traitRef implType contextArgs decls -> do
         -- TODO: refactor the duplication out of this
         case implType of
-            AST.ImplTypeNominal AST.ImplNominal{..} -> do
+            AST.ImplTypeNominal _ -> do
+                instanceName <- traitDictName traitRef typeVar
+                decls' <- for decls $ \(name, expr) -> do
+                    -- TODO: find some better way to guarantee that we never
+                    -- define an instance value to be be flow control
+                    (Just value, instructions) <- subBlock' env expr
+                    return (name, (value, instructions))
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextArgs
+            AST.ImplTypeFunction _ _ -> do
                 instanceName <- traitDictName traitRef typeVar
                 decls' <- for decls $ \(name, expr) -> do
                     -- TODO: find some better way to guarantee that we never

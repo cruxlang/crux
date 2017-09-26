@@ -1030,6 +1030,9 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         }
                 return (typeIdentity, instanceTypeVar, Nothing, implType', instanceTypeVar)
 
+            ImplTypeFunction argTypes retType -> do
+                undefined
+
             ImplTypeRecord fieldFunction -> do
                 concreteRecordType <- freshTypeConstrained env' $ ConstraintSet
                     -- This RecordConstraint isn't strictly necessary but might produce better error messages.

@@ -60,6 +60,7 @@ data ImplNominal = ImplNominal
 
 data ImplType idtype tagtype edata
     = ImplTypeNominal ImplNominal
+    | ImplTypeFunction [TypeVarIdent] TypeVarIdent
     | ImplTypeRecord (Expression idtype tagtype edata) {- field function -}
     deriving (Eq, Show, Functor, Foldable, Traversable)
 

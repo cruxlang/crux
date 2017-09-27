@@ -1,0 +1,16 @@
+trait Trait {
+    foo(self): ()
+}
+
+impl Trait () => Void {
+    foo(f) {
+        f()
+    }
+}
+
+fun hello() {
+}
+
+fun main() {
+    foo(hello)
+}

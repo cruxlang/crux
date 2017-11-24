@@ -6,24 +6,24 @@ export fun fail(msg) {
 
 export fun true(expr) {
   if not(expr) {
-    throw AssertionError "expected " + toString(expr) + " to be true"
+    throw AssertionError "expected " + repr(expr) + " to be true"
   }
 }
 
 export fun false(expr) {
   if expr {
-    throw AssertionError "expected " + toString(expr) + " to be false"
+    throw AssertionError "expected " + repr(expr) + " to be false"
   }
 }
 
 export fun equal(expected, actual) {
   if expected != actual {
-    throw AssertionError "expected " + toString(expected) + " but got " + toString(actual)
+    throw AssertionError "expected " + repr(expected) + " but got " + repr(actual)
   }
 }
 
 export fun notEqual(expected, actual) {
   if expected == actual {
-    throw AssertionError "expected not " + toString(expected) + ", but got " + toString(actual)
+    throw AssertionError "expected not " + repr(expected) + ", but got " + repr(actual)
   }
 }

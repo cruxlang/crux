@@ -43,6 +43,16 @@ impl Ordered D<a: Ordered> {
   lt(D(x), D(y)) { y < x }
 }
 
+impl Repr D<a: Repr> {
+  repr(D(a)) {
+    "D(" + repr(a) + ")"
+  }
+}
+
+impl ToString D<a: Repr> {
+  toString = repr
+}
+
 test("sorted uses Ordered", () => {
   let a = [D(1), D(5), D(3), D(0)]
   assert.equal([D(5), D(3), D(1), D(0)], sorted(a))

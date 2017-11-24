@@ -33,6 +33,16 @@ export fun asOption<a: NonNull>(o: JSOption<a>): ?a {
     }
 }
 
+// TODO: NonNull should be implied by the definition of the data type
+impl Repr JSOption<elt: Repr+NonNull> {
+    repr(opt) {
+        match asOption(opt) {
+            None => "none()"
+            Some(x) => "some(" + repr(x) + ")"
+        }
+    }
+}
+
 export fun maybe<a: NonNull, b>(o: JSOption<a>, f: (a) => b, def: b) {
     if isNone(o) {
         return def

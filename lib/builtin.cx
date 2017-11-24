@@ -12,6 +12,7 @@ import array
 import mutarray
 import string
 import number
+import tostring
 import repr
 
 // TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
@@ -29,14 +30,12 @@ export let replicate = array.replicate
 export let each = array.each
 export type String = string.String
 export import number
+export import tostring
 export import repr
 
 export fun print(a): () {
     _unsafe_js("console").log(a)
 }
-
-export let toString<a>: a => String =
-    _unsafe_js("function toString(v) { return '' + v; }")
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
 

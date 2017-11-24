@@ -9,11 +9,21 @@ data ActionType {
 
 // TODO: need deriving(Eq)
 impl Eq ActionType {
-  eq = (lhs, rhs) => {
+  eq(lhs, rhs) {
     match (lhs, rhs) {
       (Test1, Test1) => True
       (Test2, Test2) => True
       _ => False
+    }
+  }
+}
+
+// TODO: need deriving(Repr)
+impl Repr ActionType {
+  repr(x) {
+    match x {
+      Test1 => "Test1"
+      Test2 => "Test2"
     }
   }
 }

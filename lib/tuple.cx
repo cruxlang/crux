@@ -2,6 +2,8 @@ pragma { NoBuiltin }
 
 import cmp
 import types(True, False)
+import tostring(...)
+import repr(...)
 
 export data Tuple2<a, b>(a, b)
 export data Tuple3<a, b, c>(a, b, c)
@@ -27,4 +29,14 @@ impl cmp.Ordered Tuple2<a: cmp.Ordered, b: cmp.Ordered> {
       a2 < b2
     }
   }
+}
+
+impl Repr Tuple2<a: Repr, b: Repr> {
+  repr((a, b)) {
+    "(" + repr(a) + ", " + repr(b) + ")"
+  }
+}
+
+impl ToString Tuple2<a: Repr, b: Repr> {
+  toString = repr
 }

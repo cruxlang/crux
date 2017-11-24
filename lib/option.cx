@@ -2,6 +2,7 @@ pragma { NoBuiltin }
 
 import types(...)
 import cmp(...)
+import repr(...)
 
 export data Option<a> {
   None,
@@ -16,4 +17,13 @@ impl Eq Option<a: Eq> {
       _ => False
     }
   }
+}
+
+impl Repr Option<elt: Repr> {
+    repr(x) {
+        match x {
+            None => "None"
+            Some(y) => "Some(" + repr(y) + ")"
+        }
+    }
 }

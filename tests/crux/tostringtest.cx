@@ -1,0 +1,20 @@
+import test(...)
+import assert
+
+test("toString strings", () => {
+    assert.equal("hello", toString("hello"))
+})
+
+test("toString booleans", () => {
+    assert.equal("false", toString(False))
+    assert.equal("true", toString(True))
+})
+
+test("toString numbers", () => {
+    assert.equal("10", toString(10))
+})
+
+test("toString array", () => {
+    assert.equal("[True, False]", toString([True, False]))
+    assert.equal("mutable [True, False]", toString(mutable [True, False]))
+})

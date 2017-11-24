@@ -1,0 +1,36 @@
+pragma { NoBuiltin }
+
+import number(Number)
+import string(String, join)
+import types(...)
+import array(Array)
+import mutarray(MutableArray)
+import repr(...)
+import cmp(Ordering)
+
+export trait ToString {
+    toString: self => String
+}
+
+let unsafeToString<a>: a => String =
+    _unsafe_js("function toString(v) { return '' + v; }")
+
+impl ToString String {
+    toString(s) { s }
+}
+
+impl ToString Boolean {
+    toString = unsafeToString
+}
+
+impl ToString Number {
+    toString = unsafeToString
+}
+
+impl ToString Array<elt: Repr> {
+    toString = repr
+}
+
+impl ToString MutableArray<elt: Repr> {
+    toString = repr
+}

@@ -1,8 +1,11 @@
 pragma { NoBuiltin }
 
 import types(...)
-import string(String)
+import string(String, join)
 import number(Number)
+import cmp
+import array(Array)
+import mutarray(MutableArray)
 
 export trait Repr {
     repr: self => String
@@ -30,4 +33,26 @@ impl Repr Void {
 
 impl Repr String {
     repr = _unsafe_js("_rts_show_string")
+}
+
+impl Repr cmp.Ordering {
+    repr(ordering) {
+        match ordering {
+            cmp.LessThan => "LessThan"
+            cmp.EqualTo => "Equal"
+            cmp.GreaterThan => "GreaterThan"
+        }
+    }
+}
+
+impl Repr Array<elt: Repr> {
+    repr(array) {
+        "[" + join(", ", array->map(repr)) + "]"
+    }
+}
+
+impl Repr MutableArray<elt: Repr> {
+    repr(array) {
+        "mutable [" + join(", ", array->freeze()->map(repr)) + "]"
+    }
 }

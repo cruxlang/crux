@@ -1,0 +1,28 @@
+trait A {
+  a: self => String
+}
+
+trait B {
+  b: self => String
+}
+
+impl A String {
+  a(s) { s }
+}
+
+impl A Option<elt: A> {
+  a(s) {
+    match s {
+      None => ""
+      Some(p) => a(p)
+    }
+  }
+}
+
+impl B Option<elt: A> {
+  b = a
+}
+
+fun main() {
+  print(b(Some("hello")))
+}

@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-import types(Boolean)
+import types(Boolean, String)
 
 // TODO: move String into types module
 
@@ -54,4 +54,8 @@ export let setProperty<a, b, c>: (a, b, c) => c = _unsafe_js(
 
 export let getProperty<a, b, c>: (a, b) => c = _unsafe_js(
   "function getProperty(o, k) { return o[k]; }"
+)
+
+export let toString<a, TODOString>: a => TODOString = _unsafe_js(
+  "function unsafeToString(a) { return '' + a; }"
 )

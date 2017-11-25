@@ -6,6 +6,7 @@ import number(Number)
 import cmp
 import array(Array)
 import mutarray(MutableArray)
+import js.unsafe
 
 export trait Repr {
     repr: self => String
@@ -20,10 +21,8 @@ impl Repr Boolean {
     }
 }
 
-let _unsafe_to_string = _unsafe_js("function(x) { return '' + x; }")
-
 impl Repr Number {
-    repr = _unsafe_to_string
+    repr = unsafe.toString
 }
 
 // TODO: add tuple sugar here

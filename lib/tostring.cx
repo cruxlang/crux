@@ -7,24 +7,22 @@ import array(Array)
 import mutarray(MutableArray)
 import repr(...)
 import cmp(Ordering)
+import js.unsafe
 
 export trait ToString {
     toString: self => String
 }
-
-let unsafeToString<a>: a => String =
-    _unsafe_js("function toString(v) { return '' + v; }")
 
 impl ToString String {
     toString(s) { s }
 }
 
 impl ToString Boolean {
-    toString = unsafeToString
+    toString = unsafe.toString
 }
 
 impl ToString Number {
-    toString = unsafeToString
+    toString = unsafe.toString
 }
 
 impl ToString Array<elt: Repr> {

@@ -1,4 +1,5 @@
 import dict
+import js.unsafe
 
 trait PD {
   pd: self => ()
@@ -11,7 +12,7 @@ impl PD {...} {
     for item in sorted(d->items()) {
       let (key, value) = item
       print(key)
-      print(value)
+      print(unsafe.toString(value) as String)
     }
   }
 }

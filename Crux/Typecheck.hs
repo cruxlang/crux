@@ -164,26 +164,26 @@ accumulateTraitReferences' :: MonadIO m
 accumulateTraitReferences' seen out tv = case tv of
     TypeVar ref -> readIORef ref >>= \case
         TUnbound _str _level constraints typeNumber -> do
-            append constraints tv typeNumber
+            appendTypeVar constraints tv typeNumber
         TBound tv2 ->
             accumulateTraitReferences' seen out tv2
     TQuant _ constraints typeNumber -> do
-        append constraints tv typeNumber
+        appendTypeVar constraints tv typeNumber
     TFun paramTypes returnType -> do
         for_ paramTypes $ accumulateTraitReferences' seen out
         accumulateTraitReferences' seen out returnType
     TDataType TDataTypeDef{..} -> do
-        for_ tuParameters $
+        for_ tuParameters $ do
             accumulateTraitReferences' seen out
     TRecord rows -> do
-        for_ rows $ \RecordField{..} ->
+        for_ rows $ \RecordField{..} -> do
             accumulateTraitReferences' seen out trTyVar
     TTypeFun _ _ -> do
         fail "ICE: what does this mean"
 
   where
-    append :: MonadIO m => ConstraintSet -> TypeVar -> TypeNumber -> m ()
-    append (ConstraintSet record traits) typeVar typeNumber = do
+    appendTypeVar :: MonadIO m => ConstraintSet -> TypeVar -> TypeNumber -> m ()
+    appendTypeVar (ConstraintSet record traits) typeVar typeNumber = do
         seen' <- readIORef seen
         when (not $ Set.member typeNumber seen') $ do
             modifyIORef seen (Set.insert typeNumber)
@@ -192,6 +192,8 @@ accumulateTraitReferences' seen out tv = case tv of
             for_ (Set.toList traits) $ \traitIdentity -> do
                 modifyIORef out ((typeVar, typeNumber, traitIdentity):)
             for_ record $ \RecordConstraint{..} -> do
+                for_ rcFields $ \RecordField{..} -> do
+                    accumulateTraitReferences' seen out trTyVar
                 for_ rcFieldType $ accumulateTraitReferences' seen out
 
 accumulateTraitReferences :: MonadIO m => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
@@ -914,6 +916,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         quantify ty
 
         traitRefs <- accumulateTraitReferences [ty]
+
         dictArgs <- for traitRefs $ \(_, typeNumber, traitIdentity) -> do
             return $ PBinding $ renderInstanceArgumentName traitIdentity typeNumber
 

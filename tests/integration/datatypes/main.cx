@@ -1,6 +1,17 @@
+import js.unsafe
+
 data IntList {
-    Element(Number, IntList),
-    Nil,
+  Element(Number, IntList),
+  Nil,
+}
+
+impl ToString IntList {
+  toString(x) {
+    match x {
+      Element(n, rest) => "Element(" + toString(n) + ", " + toString(rest) + ")"
+      Nil => "Nil"
+    }
+  }
 }
 
 fun main() {

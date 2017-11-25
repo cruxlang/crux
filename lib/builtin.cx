@@ -14,6 +14,7 @@ import string
 import number
 import tostring
 import repr
+import print
 
 // TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
 import tuple
@@ -32,10 +33,7 @@ export type String = string.String
 export import number
 export import tostring
 export import repr
-
-export fun print(a): () {
-    _unsafe_js("console").log(a)
-}
+export import print
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
 

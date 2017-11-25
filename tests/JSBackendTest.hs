@@ -30,12 +30,6 @@ genDoc src = do
         Left err -> error =<< Error.renderError err
         Right stmts -> return stmts
 
-test_direct_prints = do
-    doc <- genDoc "let _ = print(10)"
-    assertEqual
-        "var $0 = $builtin_print(10);\n"
-        doc
-
 test_return_from_function = do
     doc <- genDoc "fun f() { return 1 }"
     assertEqual

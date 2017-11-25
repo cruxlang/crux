@@ -1,1 +1,1 @@
-[ 'Element', 1, [ 'Element', 2, 'Nil' ] ]
+Element(1, Element(2, Nil))

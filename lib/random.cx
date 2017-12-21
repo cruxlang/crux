@@ -1,0 +1,14 @@
+/// Returns a number in [0, 1)
+export fun float(): Number {
+    return _unsafe_js("Math").random()
+}
+
+// need a [0, 1) int function
+
+// TODO: need ints
+// TODO: write property tests
+// TODO: this is all kinds of jank
+export fun range(min: Number, max: Number): Number {
+    // assert max >= min
+    math.floor(min + float() * (max - min))
+}

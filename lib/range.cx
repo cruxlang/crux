@@ -1,0 +1,8 @@
+pragma { NoBuiltin }
+
+import number(Number)
+
+// TODO: return an iterator
+export let range: Number => [Number] = _unsafe_js(
+    "function range(n) { return n <= 0 ? [] : [...Array(n).keys()]; }"
+)

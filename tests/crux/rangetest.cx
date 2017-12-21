@@ -1,0 +1,8 @@
+import test(...)
+import assert
+
+test("range", () => {
+    assert.equal([0, 1, 2, 3, 4], range(5))
+    assert.equal([], range(0))
+    assert.equal([], range(-1))
+})

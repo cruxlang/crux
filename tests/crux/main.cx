@@ -12,6 +12,7 @@ import jstest as _
 import dicttest as _
 import optiontest as _
 import tostringtest as _
+import rangetest as _
 import reprtest as _
 import flux.dispatchertest as _
 import js.optiontest as _

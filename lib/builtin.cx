@@ -15,6 +15,7 @@ import number
 import tostring
 import repr
 import print
+import range
 
 // TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
 import tuple
@@ -34,6 +35,7 @@ export import number
 export import tostring
 export import repr
 export import print
+export import range
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
 

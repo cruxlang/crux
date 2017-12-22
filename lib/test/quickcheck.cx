@@ -20,7 +20,7 @@ impl Arbitrary String {
 
 export fun prop(name: String, predicate) {
     test("prop: " + name, () => {
-        for i in range(iterationCount) {
+        for _ in range(iterationCount) {
             let v = arbitrary()
             if not(predicate(v)) {
                 assert.fail("value " + repr(v) + " failed predicate")

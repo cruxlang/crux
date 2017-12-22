@@ -8,7 +8,12 @@ export fun float(): Number {
 // TODO: need ints
 // TODO: write property tests
 // TODO: this is all kinds of jank
-export fun range(min: Number, max: Number): Number {
+export fun randrange(min_: Number, max_: Number): Number {
     // assert max >= min
-    math.floor(min + float() * (max - min))
+    _unsafe_js("Math").floor(min_ + float() * (max_ - min_))
+}
+
+// TODO: This needs a rethink.  Should we have a code point type?
+export fun char(): String {
+    return "\0"
 }

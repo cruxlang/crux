@@ -16,5 +16,6 @@ import rangetest as _
 import reprtest as _
 import flux.dispatchertest as _
 import js.optiontest as _
+import test.quickchecktest as _
 
 let main = test.run

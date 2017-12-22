@@ -522,20 +522,20 @@ check' expectedType env = \case
 
         return $ EWhile unitType condition' body'
 
-    EFor pos name over body -> do
+    EFor pos pat over body -> do
         unitType <- resolveVoidType env pos
 
         (arrayType, iteratorType) <- resolveArrayType env pos Immutable
         over' <- checkExpecting arrayType env over
 
-        bindings' <- SymbolTable.clone (eValueBindings env)
-        SymbolTable.insert bindings' pos SymbolTable.DisallowDuplicates name (ValueReference (Local, name) Immutable iteratorType)
+        -- TODO: exhaustiveness check on this pattern
+        pat' <- buildPatternEnv env pos iteratorType Immutable pat
 
-        let env' = env { eValueBindings = bindings', eInLoop = True }
+        let env' = env { eInLoop = True }
         body' <- check env' body
         unify env pos unitType (edata body')
 
-        return $ EFor unitType name over' body'
+        return $ EFor unitType pat' over' body'
 
     EReturn pos rv -> do
         rv' <- check env rv

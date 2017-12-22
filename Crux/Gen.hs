@@ -318,11 +318,12 @@ generate env = \case
         writeInstruction $ Loop body'
         return $ Just $ Literal AST.LUnit
 
-    AST.EFor _ name over body -> do
+    AST.EFor _ pat over body -> do
         over' <- generate env over
         for over' $ \over'' -> do
             cmpVar <- newTempOutput env
             loopVar <- newTempOutput env
+            patVar <- newTempOutput env
 
             writeInstruction $ Assign (NewTemporary loopVar) $ Literal $ AST.LInteger 0
             lengthVar <- newInstruction env $ \output -> Lookup output over'' "length"
@@ -331,7 +332,8 @@ generate env = \case
             let loopHead =
                     [ BinIntrinsic (NewTemporary cmpVar) AST.BILess (Temporary loopVar) lengthVar
                     , If (Temporary cmpVar) [] [Break]
-                    , Index (NewLocalBinding name) over'' $ Temporary loopVar
+                    , Index (NewTemporary patVar) over'' $ Temporary loopVar
+                    , BindPattern (Temporary patVar) pat
                     ]
             let loopTail =
                     [ BinIntrinsic (ExistingTemporary loopVar) AST.BIPlus (Temporary loopVar) $ Literal $ AST.LInteger 1

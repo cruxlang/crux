@@ -221,7 +221,7 @@ data Expression idtype tagtype edata
     -- flow control
     | EIfThenElse edata (Expression idtype tagtype edata) (Expression idtype tagtype edata) (Expression idtype tagtype edata)
     | EWhile edata (Expression idtype tagtype edata) (Expression idtype tagtype edata)
-    | EFor edata Name (Expression idtype tagtype edata) (Expression idtype tagtype edata)
+    | EFor edata (Pattern tagtype) (Expression idtype tagtype edata) (Expression idtype tagtype edata)
     | EReturn edata (Expression idtype tagtype edata)
     | EBreak edata
     | EThrow edata idtype (Expression idtype tagtype edata)

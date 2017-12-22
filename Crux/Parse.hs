@@ -235,7 +235,7 @@ tryCatchExpression = do
 forExpression :: Parser ParseExpression
 forExpression = do
     pr <- token TFor
-    pat <- anyIdentifier
+    pat <- pattern IrrefutableContext
     _ <- token TIn
     iter <- noSemiExpression
     body <- blockExpression

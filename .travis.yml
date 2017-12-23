@@ -4,11 +4,15 @@ language: "haskell"
 
 ghc: "7.10"
 
-#cache:
-#  directories:
-#  - $HOME/.ghc
-#  - $HOME/.cabal
-#  - $HOME/.stack
+cache:
+  directories:
+  - $HOME/.ghc
+  - $HOME/.cabal
+  - $HOME/.stack
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y happy
 
 # matrix:
 #  include:

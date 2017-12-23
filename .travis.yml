@@ -1,5 +1,7 @@
 # TODO: make builds fast https://www.fpcomplete.com/blog/2016/02/updated-haskell-travis-config
 
+language: "haskell"
+
 ghc:
   - "7.10"
 

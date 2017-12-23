@@ -1,8 +1,7 @@
 # TODO: make builds fast https://www.fpcomplete.com/blog/2016/02/updated-haskell-travis-config
 
-sudo: false
-
-language: c
+ghc:
+  - "7.10"
 
 cache:
   directories:
@@ -10,36 +9,31 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 
-matrix:
-  include:
-  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5
-    compiler: ":#GHC 7.10.3"
-    addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
+# matrix:
+#  include:
+#  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5
+#    compiler: ":#GHC 7.10.3"
+#    addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5], sources: [hvr-ghc]}}
 
-before_install:
-  - unset CC
-  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
-  # - if [ -n "$QC" ]; then cabal install $QC; fi
+#before_install:
+#  - unset CC
+#  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
+#  # - if [ -n "$QC" ]; then cabal install $QC; fi
 
-install:
-  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
-  - |
-    case "$BUILD" in
-      cabal)
-        cabal --version && \
-        travis_retry cabal update && \
-        cabal install -j --only-dependencies --enable-tests && \
-        cabal install -j hlint
-        ;;
-    esac
+#install:
+#  - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
+#  - |
+#    case "$BUILD" in
+#      cabal)
+#        cabal --version && \
+#        travis_retry cabal update && \
+#        cabal install -j --only-dependencies --enable-tests && \
+#        cabal install -j hlint
+#        ;;
+#    esac
 
 script:
-  - |
-    case "$BUILD" in
-      cabal)
-        cabal configure --enable-tests --ghc-options="-j +RTS -A84m -n2m -s -RTS" && \
-        cabal build && \
-        cabal test  && \
-        dist/build/crux/crux test
-        ;;
-    esac
+  - cabal configure --enable-tests --ghc-options="-j +RTS -A84m -n2m -s -RTS"
+  - cabal build
+  - cabal test
+  - dist/build/crux/crux test

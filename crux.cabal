@@ -46,7 +46,7 @@ library
                  , text
                  , bytestring
                  , containers
-                 , either
+                 , either <5
                  , mtl
                  , aeson
                  , directory

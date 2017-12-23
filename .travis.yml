@@ -1,15 +1,15 @@
 # TODO: make builds fast https://www.fpcomplete.com/blog/2016/02/updated-haskell-travis-config
 
-language: "haskell"
+# language: "haskell"
 
 ghc:
-  - "7.10"
+  - "7.8"
 
-cache:
-  directories:
-  - $HOME/.ghc
-  - $HOME/.cabal
-  - $HOME/.stack
+#cache:
+#  directories:
+#  - $HOME/.ghc
+#  - $HOME/.cabal
+#  - $HOME/.stack
 
 # matrix:
 #  include:
@@ -34,8 +34,8 @@ cache:
 #        ;;
 #    esac
 
-script:
-  - cabal configure --enable-tests --ghc-options="-j +RTS -A84m -n2m -s -RTS"
-  - cabal build
-  - cabal test
-  - dist/build/crux/crux test
+#script:
+#  - cabal configure --enable-tests --ghc-options="-j +RTS -A84m -n2m -s -RTS"
+#  - cabal build
+#  - cabal test
+#  - dist/build/crux/crux test

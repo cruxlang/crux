@@ -15,6 +15,17 @@ test("values are unwrapped", () => {
     assert.equal("hello", _unsafe_coerce(a))
 })
 
+test("functions of various arities", () => {
+    let _ = option.some(() => {})
+    let _ = option.some((a) => {})
+    let _ = option.some((a, b) => {})
+    let _ = option.some((a, b, c) => {})
+    let _ = option.some((a, b, c, d) => {})
+    let _ = option.some((a, b, c, d, e) => {})
+    let _ = option.some((a, b, c, d, e, f) => {})
+    let _ = option.some((a, b, c, d, e, f, g) => {})
+})
+
 test("eq", () => {
     let n: option.JSOption<String> = option.none()
     assert.equal(n, option.none())

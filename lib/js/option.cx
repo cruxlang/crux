@@ -10,6 +10,15 @@ impl NonNull Number {}
 impl NonNull String {}
 impl NonNull Array<T> {}
 
+impl NonNull () => r {}
+impl NonNull (a) => r {}
+impl NonNull (a, b) => r {}
+impl NonNull (a, b, c) => r {}
+impl NonNull (a, b, c, d) => r {}
+impl NonNull (a, b, c, d, e) => r {}
+impl NonNull (a, b, c, d, e, f) => r {}
+impl NonNull (a, b, c, d, e, f, g) => r {}
+
 export data JSOption<a: NonNull> {
 }
 

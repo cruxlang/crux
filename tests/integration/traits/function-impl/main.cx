@@ -1,0 +1,15 @@
+trait Dummy {}
+
+impl Dummy Boolean {}
+impl Dummy String {}
+impl Dummy () => r {
+}
+
+fun takesDummy<T: Dummy>(d: T) {
+}
+
+fun main() {
+    takesDummy(True)
+    takesDummy("hello")
+    takesDummy(() => {})
+}

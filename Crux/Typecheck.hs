@@ -687,8 +687,8 @@ resolveInstanceDictPlaceholders env = recurse
             TQuant _ _constraints typeNumber -> do
                 return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
                 --append constraints tv typeNumber
-            TFun _paramTypes _returnType -> do
-                fail "Don't support traits on functions"
+            TFun paramTypes returnType -> do
+                generateImplReference tv traitIdentity (FunctionIdentity $ length paramTypes)
             TDataType def -> do
                 let dtid = dataTypeIdentity def
                 generateImplReference tv traitIdentity dtid
@@ -776,17 +776,18 @@ resolveInstanceDictPlaceholders env = recurse
 
         let thisDict = EInstanceDict tv traitIdentity traitImplIdentity
         case traitImplIdentity of
-            DataIdentity{} -> do
-                case traits of
-                    [] -> do
-                        return thisDict
-                    _ -> do
-                        argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
-                            --quantify typeVar -- this feels dirty
-                            resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
-                        return $ EApp tv thisDict argDicts
             RecordIdentity -> do
                 fail "TODO: remove this variant"
+            _ -> return ()
+
+        case traits of
+            [] -> do
+                return thisDict
+            _ -> do
+                argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
+                    --quantify typeVar -- this feels dirty
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                return $ EApp tv thisDict argDicts
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
 exportValue export env pos name value = do
@@ -1036,6 +1037,22 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         , inTypeParams = inTypeParams
                         }
                 return (typeIdentity, instanceTypeVar, Nothing, implType', instanceTypeVar)
+
+            ImplTypeFunction arity -> do
+                argTypes <- for (replicate arity ()) $ \() -> do
+                    freshType env
+                retType <- freshType env
+                let funType = TFun argTypes retType
+                quantify funType
+
+                let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
+                let implNames = Set.fromList $ fmap fst implValues
+
+                let notImplemented = Set.difference traitNames implNames
+                when (not $ Set.null notImplemented) $ do
+                    failTypeError pos' $ IncompleteImpl $ Set.toList notImplemented
+
+                return (FunctionIdentity arity, funType, Nothing, ImplTypeFunction arity, funType)
 
             ImplTypeRecord fieldFunction -> do
                 concreteRecordType <- freshTypeConstrained env' $ ConstraintSet

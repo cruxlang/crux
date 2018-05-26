@@ -22,6 +22,7 @@ import Crux.TypeVar
 import qualified Crux.Module.Types as AST
 import Crux.Prelude
 import Data.Graph (graphFromEdges, topSort)
+import Data.Text (pack)
 import qualified Data.HashMap.Strict as HashMap
 
 {-
@@ -406,6 +407,8 @@ instanceDictName :: TraitIdentity -> TraitImplIdentity -> Text
 instanceDictName (TraitIdentity traitModule traitName) = \case
     DataIdentity typeName typeModule ->
         "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
+    FunctionIdentity arity ->
+        "$$function$" <> (Data.Text.pack $ show arity)
     RecordIdentity ->
         "$$record$" <> traitName <> "$" <> renderModuleName traitModule
 
@@ -467,20 +470,28 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         return ()
 
     AST.DImpl typeVar traitRef implType contextArgs decls -> do
+        let (AST.FromModule traitModule, traitName) = traitRef
+        let traitIdentity = TraitIdentity traitModule traitName
+
         -- TODO: refactor the duplication out of this
         case implType of
             AST.ImplTypeNominal AST.ImplNominal{..} -> do
                 instanceName <- traitDictName traitRef typeVar
                 decls' <- for decls $ \(name, expr) -> do
                     -- TODO: find some better way to guarantee that we never
-                    -- define an instance value to be be flow control
+                    -- define an instance value to be flow control
+                    (Just value, instructions) <- subBlock' env expr
+                    return (name, (value, instructions))
+                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextArgs
+            AST.ImplTypeFunction arity -> do
+                let instanceName = instanceDictName traitIdentity $ FunctionIdentity arity
+                decls' <- for decls $ \(name, expr) -> do
+                    -- TODO: find some better way to guarantee that we never
+                    -- define an instance value to be flow control
                     (Just value, instructions) <- subBlock' env expr
                     return (name, (value, instructions))
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextArgs
             AST.ImplTypeRecord fieldFunction -> do
-                let (AST.FromModule traitModule, traitName) = traitRef
-                let traitIdentity = TraitIdentity traitModule traitName
-
                 -- TODO: find some better way to guarantee that we never
                 -- define an instance value to be be flow control
                 (Just value, _instructions) <- subBlock' env fieldFunction
@@ -490,7 +501,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                 let instanceName = instanceDictName traitIdentity RecordIdentity
                 decls' <- for decls $ \(name, expr) -> do
                     -- TODO: find some better way to guarantee that we never
-                    -- define an instance value to be be flow control
+                    -- define an instance value to be flow control
                     (Just value', instructions) <- subBlock' env expr
                     return (name, (value', instructions))
                 writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') ("fieldMap" : contextArgs)

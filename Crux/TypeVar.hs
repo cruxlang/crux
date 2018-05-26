@@ -52,6 +52,7 @@ data TDataTypeDef typevar = TDataTypeDef
 data TraitImplIdentity
     = DataIdentity Name ModuleName
     | RecordIdentity
+    | FunctionIdentity Int -- arity
     deriving (Show, Eq, Ord, Generic)
 
 instance Hashable TraitImplIdentity

@@ -897,6 +897,7 @@ traitDeclaration = do
 data ImplTypeIdent
     -- type name, variables+constraints
     = ImplNominalIdent UnresolvedReference [TypeVarIdent]
+    | ImplFunctionIdent Int
     | ImplRecordIdent
 
 implTypeIdent :: Parser ImplTypeIdent
@@ -905,10 +906,16 @@ implTypeIdent = do
             typeName' <- unresolvedReference
             forall <- P.option [] explicitTypeVariableList
             return $ ImplNominalIdent typeName' forall
+    let function = do
+        -- TODO: allow constraints on argument and return types
+            argTypes <- parenthesized $ commaDelimited unresolvedReference
+            _ <- token TFatRightArrow
+            _retType <- unresolvedReference
+            return $ ImplFunctionIdent $ length argTypes
     let record = braced $ do
             _ <- token TEllipsis
             return $ ImplRecordIdent
-    nominal <|> record
+    nominal <|> function <|> record
 
 -- TODO: generalize name to pattern
 data ImplMethod = ImplFor ParsePos Name ParseExpression
@@ -950,6 +957,15 @@ implDeclaration = do
                 ImplFor _ _ _ -> do
                     -- TODO: set the right source position? ideally we'd point at the correct line
                     P.unexpected "Data type impls do not support field transformers"
+                ImplMethod methodName methodExpr -> do
+                    return (methodName, methodExpr)
+            return $ DImpl (tokenData timpl) traitName it [] methods'
+        ImplFunctionIdent arity -> do
+            let it = ImplTypeFunction arity
+            methods' <- for methods $ \case
+                ImplFor _ _ _ -> do
+                    -- TODO: set the right source position? ideally we'd point at the correct line
+                    P.unexpected "Function type impls do not support field transformers"
                 ImplMethod methodName methodExpr -> do
                     return (methodName, methodExpr)
             return $ DImpl (tokenData timpl) traitName it [] methods'

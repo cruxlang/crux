@@ -303,8 +303,14 @@ validateTraitConstraint env pos traitIdentity traitDesc typeVar = case typeVar o
     TQuant _source (ConstraintSet _record traits) _tn -> do
         when (not $ Set.member traitIdentity traits) $ do
             failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
-    TFun _ _ -> do
-        fail "Functions do not implement traits (yet)"
+    TFun argTypes retType -> do
+        let key = (traitIdentity, FunctionIdentity $ length argTypes)
+        HashTable.lookup key (eKnownInstances env) >>= \case
+            Just InstanceDesc{idTypeVar} -> do
+                -- TODO: instantiate the function and unify it with the argument and return type constraints
+                return ()
+            Nothing -> do
+                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
     TDataType def -> do
         let key = (traitIdentity, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case

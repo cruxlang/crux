@@ -235,7 +235,8 @@ lineComment = do
 blockComment :: Parser ()
 blockComment = do
     void $ P.try $ P.char '/' >> P.char '*'
-    void $ P.manyTill (blockComment <|> void P.anyChar) $ P.char '*' >> P.char '/'
+    void $ P.manyTill (blockComment <|> void P.anyChar) $ do
+        P.try $ P.char '*' >> P.char '/'
 
 comments :: Parser ()
 comments = do

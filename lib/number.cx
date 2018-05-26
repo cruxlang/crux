@@ -3,6 +3,9 @@ pragma { NoBuiltin }
 import cmp(...)
 import js.unsafe
 
+/**
+ * Corresponds to JS Number - IEEE 64-bit floating point.
+ */
 export data Number {}
 
 impl Eq Number {
@@ -12,3 +15,6 @@ impl Eq Number {
 impl Ordered Number {
   lt = unsafe.lt
 }
+
+// TODO: Float32
+export type Float64 = Number

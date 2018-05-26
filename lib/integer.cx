@@ -1,0 +1,14 @@
+pragma { NoBuiltin }
+
+export data Int8 {}
+export data UInt8 {}
+export data Int16 {}
+export data UInt16 {}
+export data Int32 {}
+export data UInt32 {}
+export data Int64 {}
+export data UInt64 {}
+
+// TODO: Dependent on platform like Swift?
+export type Int = Int32
+export type UInt = UInt32

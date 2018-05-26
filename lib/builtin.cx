@@ -12,6 +12,7 @@ import array
 import mutarray
 import string
 import number
+import integer
 import tostring
 import repr
 import print
@@ -32,6 +33,7 @@ export let replicate = array.replicate
 export let each = array.each
 export type String = string.String
 export import number
+export import integer
 export import tostring
 export import repr
 export import print

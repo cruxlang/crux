@@ -1,0 +1,10 @@
+/** single line docstring */
+
+/**
+ * multi line docstring
+ */
+
+ /** /** */** */
+
+fun main() {
+}

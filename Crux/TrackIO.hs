@@ -112,8 +112,8 @@ readTrackedFile path = do
             return $ Right bytes
 
 readTrackedTextFile :: FilePath -> TrackIO (Either TrackedReadError Text)
-readTrackedTextFile path = runEitherT $ do
-    bytes <- EitherT $ readTrackedFile path
+readTrackedTextFile path = runExceptT $ do
+    bytes <- ExceptT $ readTrackedFile path
     case TE.decodeUtf8' bytes of
-        Left err -> left $ Utf8DecodeError err
+        Left err -> throwError $ Utf8DecodeError err
         Right text -> return text

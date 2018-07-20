@@ -29,7 +29,7 @@ import qualified System.FilePath as FP
 import System.Directory
 import System.IO
 import System.Process (readProcessWithExitCode)
-import Text.Hastache
+import Text.Mustache
 
 data TargetConfig = TargetConfig
     { tcSourceDir  :: String
@@ -132,11 +132,11 @@ enumerateTargets ProjectConfig{..} =
 buildProject :: ProjectOptions -> IO ()
 buildProject options = do
     let tracker = trackerFromOptions options
-    result <- tracker $ runEitherT $ do
+    result <- tracker $ runExceptT $ do
         rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
         for_ (enumerateTargets config) $ \(targetName, buildMode, targetConfig) -> do
-            EitherT $ buildTarget rtsSource targetName buildMode config targetConfig
+            ExceptT $ buildTarget rtsSource targetName buildMode config targetConfig
     case result of
         Left () -> Exit.exitWith $ Exit.ExitFailure 1
         Right () -> return ()
@@ -144,14 +144,14 @@ buildProject options = do
 buildProjectAndRunTests :: ProjectOptions -> IO ()
 buildProjectAndRunTests options = do
     let tracker = trackerFromOptions options
-    result <- tracker $ runEitherT $ do
+    result <- tracker $ runExceptT $ do
         rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
         for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
             (lift $ loadProgramFromDirectoryAndModule AddMainCall tcSourceDir tcMainModule) >>= \case
                 Left err -> do
                     liftIO $ Error.printError stderr err
-                    left ()
+                    throwError ()
                 Right program -> liftIO $ do
                     program' <- Gen.generateProgram program
                     let source = JSBackend.generateJS rtsSource program'
@@ -171,18 +171,15 @@ data ProjectTemplate = ProjectTemplate
     , ptTestName :: !String
     }
 
-ptContext :: ProjectTemplate -> Text -> IO (MuType IO)
-ptContext ProjectTemplate{..} name = do
-    v <- c name
-    return $ MuVariable $ Aeson.encode v
-  where
-    c "name" = return ptName
-    c "description" = return ptDescription
-    c "license" = return ptLicense
-    c "author" = return ptAuthor
-    c "targetName" = return ptTargetName
-    c "testName" = return ptTestName
-    c _ = fail $ "Unknown context variable name: " <> Text.unpack name
+instance ToMustache ProjectTemplate where
+    toMustache ProjectTemplate{..} = Text.Mustache.object
+        [ "name" ~> ptName
+        , "description" ~> ptDescription
+        , "license" ~> ptLicense
+        , "author" ~> ptAuthor
+        , "targetName" ~> ptTargetName
+        , "testName" ~> ptTestName
+        ]
 
 readInputString :: String -> String -> IO String
 readInputString prompt def = do
@@ -237,25 +234,13 @@ createProjectTemplate = do
     -- read crux.yaml.template
 
     compilerConfig <- runUntrackedIO $ loadCompilerConfig
-    let templatePath = FP.combine (ccTemplatePath compilerConfig) "crux.yaml.template"
-    Right templateContents <- runUntrackedIO $ readTrackedTextFile templatePath
 
-    -- apply template
-
-    let config :: MuConfig IO
-        config = MuConfig
-            { muEscapeFunc = id
-            , muTemplateFileDir = Nothing
-            , muTemplateFileExt = Nothing
-            , muTemplateRead = \_ -> return Nothing
-            }
-        ctx :: MuContext IO
-        ctx = ptContext projectTemplate
-    resultText <- hastacheStr config templateContents ctx
+    Right template <- automaticCompile [ccTemplatePath compilerConfig] "crux.yaml.template"
+    let resultText = substitute template projectTemplate
 
     -- write resultText to crux.yaml
 
-    LazyTextIO.writeFile "crux.yaml" resultText
+    TextIO.writeFile "crux.yaml" resultText
 
     putStrLn "\ncrux.yaml has been created!"
     putStrLn ""

@@ -100,5 +100,5 @@ bridgeTC tcFileName (TC m) = do
             return $ Left firstError
 
 -- temporary -- used to convert existing code
-bridgeEitherTC :: FilePath -> TC a -> EitherT Error IO a
-bridgeEitherTC fileName m = EitherT $ bridgeTC fileName m
+bridgeEitherTC :: FilePath -> TC a -> ExceptT Error IO a
+bridgeEitherTC fileName m = ExceptT $ bridgeTC fileName m

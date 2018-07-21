@@ -4,7 +4,7 @@ module Crux.Prelude
     , module Control.Monad.IO.Class
     , module Control.Monad.Trans.Class
     , module Control.Monad.Trans.Maybe
-    , module Control.Monad.Trans.Either
+    , module Control.Monad.Except
     , module Data.ByteString
     , module Data.Foldable
     , module Data.Hashable
@@ -28,7 +28,7 @@ import Control.Applicative (pure, (*>), (<$>), (<*), (<*>))
 import Control.Monad (foldM, void, when)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Either (EitherT (..), left)
+import Control.Monad.Except (ExceptT (..), runExceptT, throwError)
 import Control.Monad.Trans.Maybe (MaybeT (..), runMaybeT)
 import Data.ByteString (ByteString)
 import Crux.IORef (IORef, modifyIORef, modifyIORef', newIORef, readIORef,

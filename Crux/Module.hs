@@ -91,8 +91,8 @@ newProjectModuleLoader config root mainModulePath =
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
 newMemoryLoader sources pos moduleName = do
     case HashMap.lookup moduleName sources of
-        Just source -> runEitherT $ do
-            mod' <- EitherT $ parseModuleFromSource
+        Just source -> runExceptT $ do
+            mod' <- ExceptT $ parseModuleFromSource
                 ("<" ++ Text.unpack (printModuleName moduleName) ++ ">")
                 source
             return ("<memory:" <> show moduleName <> ">", mod')
@@ -192,8 +192,8 @@ parseModuleFromSource filename source = do
                     return $ Right mod'
 
 parseModuleFromFile :: Pos -> ModuleName -> FilePath -> TrackIO (Either Error (FilePath, AST.ParsedModule))
-parseModuleFromFile pos moduleName filename = runEitherT $ do
-    source <- EitherT $ do
+parseModuleFromFile pos moduleName filename = runExceptT $ do
+    source <- ExceptT $ do
         --liftIO $ putStrLn $ "reading " <> show filename
         readTrackedTextFile filename >>= \case
             Left _err -> do
@@ -201,13 +201,13 @@ parseModuleFromFile pos moduleName filename = runEitherT $ do
                 return $ Left $ Error pos $ ModuleNotFound moduleName [filename]
             Right source -> do
                 return $ Right source
-    mod' <- EitherT $ do
+    mod' <- ExceptT $ do
         parseModuleFromSource filename source
     return (filename, mod')
 
 loadModuleFromSource :: Text -> TrackIO (ProgramLoadResult AST.LoadedModule)
-loadModuleFromSource source = runEitherT $ do
-    program <- EitherT $ loadProgramFromSource source
+loadModuleFromSource source = runExceptT $ do
+    program <- ExceptT $ loadProgramFromSource source
     return $ pMainModule program
 
 getModuleName :: AST.Import -> ModuleName
@@ -232,17 +232,17 @@ loadModule ::
     -> Pos
     -> ModuleName
     -> TrackIO (ProgramLoadResult AST.LoadedModule)
-loadModule loader transformer loadedModules loadingModules importPos moduleName = runEitherT $ do
+loadModule loader transformer loadedModules loadingModules importPos moduleName = runExceptT $ do
     HashTable.lookup moduleName loadedModules >>= \case
         Just m ->
             return m
         Nothing -> do
             loadingModuleSet <- readIORef loadingModules
             when (HashSet.member moduleName loadingModuleSet) $ do
-                left $ Error importPos $ CircularImport moduleName
+                throwError $ Error importPos $ CircularImport moduleName
             writeIORef loadingModules $ HashSet.insert moduleName loadingModuleSet
 
-            (filePath, parsedModuleResult) <- EitherT $ loader importPos moduleName
+            (filePath, parsedModuleResult) <- ExceptT $ loader importPos moduleName
             let parsedModule = transformer $
                     if hasNoBuiltinPragma parsedModuleResult then
                         parsedModuleResult
@@ -250,10 +250,10 @@ loadModule loader transformer loadedModules loadingModules importPos moduleName 
                         addBuiltin parsedModuleResult
 
             for_ (importsOf parsedModule) $ \(pos, referencedModule) -> do
-                EitherT $ loadModule loader id loadedModules loadingModules pos referencedModule
+                ExceptT $ loadModule loader id loadedModules loadingModules pos referencedModule
 
             lm <- readIORef loadedModules
-            loadedModule <- EitherT $ liftIO $ bridgeTC filePath $ Typecheck.run lm parsedModule moduleName
+            loadedModule <- ExceptT $ liftIO $ bridgeTC filePath $ Typecheck.run lm parsedModule moduleName
             HashTable.insert moduleName loadedModule loadedModules
             return loadedModule
 
@@ -275,12 +275,12 @@ data MainModuleMode
     | NoTransformation
 
 loadProgram :: MainModuleMode -> ModuleLoader -> FilePath -> ModuleName -> TrackIO (ProgramLoadResult AST.Program)
-loadProgram mode loader filename main = runEitherT $ do
+loadProgram mode loader filename main = runExceptT $ do
     loadingModules <- newIORef mempty
     loadedModules <- newIORef mempty
 
     let syntaxPos = SyntaxDependency filename
-    let loadSyntaxDependency n = void $ EitherT $ loadModule loader id loadedModules loadingModules syntaxPos n
+    let loadSyntaxDependency n = void $ ExceptT $ loadModule loader id loadedModules loadingModules syntaxPos n
 
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
     loadSyntaxDependency "types"
@@ -298,7 +298,7 @@ loadProgram mode loader filename main = runEitherT $ do
     let transformer = case mode of
             AddMainCall -> addMainCall filename
             NoTransformation -> id
-    mainModule <- EitherT $ loadModule loader transformer loadedModules loadingModules syntaxPos main
+    mainModule <- ExceptT $ loadModule loader transformer loadedModules loadingModules syntaxPos main
 
     otherModules <- readIORef loadedModules
     return AST.Program

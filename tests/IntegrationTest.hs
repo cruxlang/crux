@@ -36,6 +36,13 @@ import Test.Framework
 import Text.RawString.QQ (r)
 import Crux.TrackIO
 
+checkForNode :: IO ()
+checkForNode = do
+    res <- try $ readProcessWithExitCode "node" [] "--help"
+    case res :: Either SomeException (ExitCode, String, String) of
+        Right (ExitSuccess, _, _) -> return ()
+        _ -> assertFailure "Unable to launch node.  Have you installed it?"
+
 runProgram' :: AST.Program -> IO String
 runProgram' p = do
     m' <- Gen.generateProgram p
@@ -165,6 +172,8 @@ runIntegrationTest root = do
             assertFailure "Program needs either a stdout.txt or error.yaml"
 
 test_integration_tests = do
+    checkForNode
+
     let integrationRoot = "tests/integration"
     exists <- doesDirectoryExist integrationRoot
     when (not exists) $ do

@@ -38,7 +38,7 @@ import Crux.TrackIO
 
 checkForNode :: IO ()
 checkForNode = do
-    res <- try $ readProcessWithExitCode "node" [] "--help"
+    res <- try $ readProcessWithExitCode "node" ["--version"] ""
     case res :: Either SomeException (ExitCode, String, String) of
         Right (ExitSuccess, _, _) -> return ()
         _ -> assertFailure "Unable to launch node.  Have you installed it?"

@@ -890,7 +890,11 @@ traitDeclaration = do
                 ret <- typeIdent
                 return $ FunctionIdent params ret
         mident <- sugar <|> trad
-        return (pos, (mname, pos, mident))
+
+        expr <- P.optionMaybe $ do
+            _ <- token Tokens.TEqual
+            noSemiExpression
+        return (pos, (mname, pos, mident, expr))
 
     return $ DTrait (tokenData ttrait) name decls
 

@@ -20,6 +20,7 @@ import Crux.Typecheck.Types
 import Crux.Typecheck.Quantify
 import Crux.Typecheck.Unify
 import Crux.TypeVar
+import Control.Monad (forM)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
@@ -904,6 +905,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         return $ DLet (edata expr'''') mut pat' forall maybeAnnot expr''''
 
     DFun pos' name forall fd -> do
+        -- Rewrites as a function of trait dict to actual function
         ty <- freshType env
         let rr = (FromModule $ eThisModule env, name)
         exportValue export env pos' name (rr, Immutable, ty)
@@ -999,11 +1001,12 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         env' <- childEnv env
         let typeName = "self"
         _ <- newQuantifiedConstrainedTypeVar env' pos typeName traitNumber
-        contents' <- for contents $ \(name, pos'', typeIdent) -> do
+        contents' <- for contents $ \(name, pos'', typeIdent, maybeExpr) -> do
             tv <- resolveTypeIdent env' pos'' typeIdent
             let rr = (FromModule $ eThisModule env, name)
             exportValue export env pos'' name (rr, Immutable, tv)
-            return (name, tv, typeIdent)
+            expr' <- forM maybeExpr $ check env'
+            return (name, tv, typeIdent, expr')
         -- TODO: introduce some dummy type? we don't need a type here
         unitType <- resolveVoidType env pos
         exportTrait export env pos' traitName traitRef traitNumber traitDesc
@@ -1017,7 +1020,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             ImplTypeNominal ImplNominal{..} -> do
                 typeVar <- resolveTypeReference env pos' inTypeName
 
-                let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
+                let traitNames = Set.fromList $
+                        fmap (\(a, b, c) -> a) $
+                        filter (\(a, b, hasDefault) -> not hasDefault) $
+                        tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
 
                 let notImplemented = Set.difference traitNames implNames
@@ -1045,7 +1051,10 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 let funType = TFun argTypes retType
                 quantify funType
 
-                let traitNames = Set.fromList $ fmap fst $ tdMethods traitDesc
+                let traitNames = Set.fromList $
+                        fmap (\(a, b, c) -> a) $
+                        filter (\(a, b, hasDefault) -> not hasDefault) $
+                        tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
 
                 let notImplemented = Set.difference traitNames implNames
@@ -1114,7 +1123,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         traitParameter <- inst $ tdTypeVar traitDesc
         unify env' pos' typeVar traitParameter
 
-        newMethods <- for (tdMethods traitDesc) $ \(name, methodType) -> do
+        newMethods <- for (tdMethods traitDesc) $ \(name, methodType, _hasDefault) -> do
             methodType' <- inst methodType
             return (name, methodType')
 

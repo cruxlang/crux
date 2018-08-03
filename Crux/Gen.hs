@@ -463,7 +463,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         return ()
 
     AST.DTrait _ _traitName decls -> do
-        for_ decls $ \(name, _declType, _typeIdent) -> do
+        for_ decls $ \(name, _declType, _typeIdent, _maybeExpr) -> do
             let body =
                     [ Return (Property (LocalBinding "dict") name) ]
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body

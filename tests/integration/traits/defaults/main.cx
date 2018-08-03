@@ -1,5 +1,5 @@
 trait Trait {
-  display(self): String {
+  display: (self) => String = fun(s) {
     "Default"
   }
 }

@@ -1005,7 +1005,11 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             tv <- resolveTypeIdent env' pos'' typeIdent
             let rr = (FromModule $ eThisModule env, name)
             exportValue export env pos'' name (rr, Immutable, tv)
-            expr' <- forM maybeExpr $ check env'
+            expr' <- forM maybeExpr $ \e -> do
+                e' <- check env' e
+                iTv <- instantiate env' tv
+                unify env' pos' (edata e') iTv
+                return e'
             return (name, tv, typeIdent, expr')
         -- TODO: introduce some dummy type? we don't need a type here
         unitType <- resolveVoidType env pos

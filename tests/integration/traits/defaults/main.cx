@@ -1,4 +1,5 @@
-trait Trait {
+
+export trait Trait {
   display: (self) => String = fun(s) {
     "Default"
   }

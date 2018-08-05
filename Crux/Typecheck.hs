@@ -20,7 +20,6 @@ import Crux.Typecheck.Types
 import Crux.Typecheck.Quantify
 import Crux.Typecheck.Unify
 import Crux.TypeVar
-import Control.Monad (forM)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
@@ -1005,7 +1004,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
             tv <- resolveTypeIdent env' pos'' typeIdent
             let rr = (FromModule $ eThisModule env, name)
             exportValue export env pos'' name (rr, Immutable, tv)
-            expr' <- forM maybeExpr $ \e -> do
+            expr' <- for maybeExpr $ \e -> do
                 e' <- check env' e
                 iTv <- instantiate env' tv
                 unify env' pos' (edata e') iTv

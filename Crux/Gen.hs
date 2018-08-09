@@ -121,7 +121,7 @@ data DeclarationType
 data Declaration
     = Declaration AST.ExportFlag DeclarationType
     | TraitDefinition Name (HashMap Name (Value, [Instruction]))
-    | TraitInstance Name Name (HashMap Name (Value, [Instruction])) [Name] -- defaultDictName, dictName, bindings, contextArgs
+    | TraitInstance Name Name (HashMap Name (Value, [Instruction])) [Name] -- defaultsDictName, dictName, bindings, contextArgs
     | RecordFieldMap Name Value
     deriving (Show, Eq)
 
@@ -404,8 +404,8 @@ subBlockWithOutput env output expr = do
 renderModuleName :: ModuleName -> Name
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
 
-defaultDictName :: AST.ResolvedReference -> Text
-defaultDictName (AST.FromModule traitModule, traitName) =
+defaultsDictName :: AST.ResolvedReference -> Text
+defaultsDictName (AST.FromModule traitModule, traitName) =
     "$$default$" <> traitName <> "$$" <> renderModuleName traitModule
 
 instanceDictName :: TraitIdentity -> TraitImplIdentity -> Text
@@ -468,7 +468,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         return ()
 
     AST.DTrait typeVar traitName decls -> do
-        let ddn = defaultDictName (AST.FromModule (eModuleName env), traitName)
+        let ddn = defaultsDictName (AST.FromModule (eModuleName env), traitName)
 
         let hasDefaults =
                 [ (name, typeVar, typeIdent, expr)
@@ -492,7 +492,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DImpl typeVar traitRef implType contextArgs decls -> do
         let (AST.FromModule traitModule, traitName) = traitRef
         let traitIdentity = TraitIdentity traitModule traitName
-        let ddn = defaultDictName traitRef
+        let ddn = defaultsDictName traitRef
 
         -- TODO: refactor the duplication out of this
         case implType of

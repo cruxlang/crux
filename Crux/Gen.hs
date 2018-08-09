@@ -120,7 +120,8 @@ data DeclarationType
 
 data Declaration
     = Declaration AST.ExportFlag DeclarationType
-    | TraitInstance Name (HashMap Name (Value, [Instruction])) [Name]
+    | TraitDefinition Name (HashMap Name (Value, [Instruction]))
+    | TraitInstance Name Name (HashMap Name (Value, [Instruction])) [Name] -- defaultsDictName, dictName, bindings, contextArgs
     | RecordFieldMap Name Value
     deriving (Show, Eq)
 
@@ -403,10 +404,14 @@ subBlockWithOutput env output expr = do
 renderModuleName :: ModuleName -> Name
 renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSegment) $ prefix ++ [name]
 
+defaultsDictName :: AST.ResolvedReference -> Text
+defaultsDictName (AST.FromModule traitModule, traitName) =
+    "$$default$" <> traitName <> "$$" <> renderModuleName traitModule
+
 instanceDictName :: TraitIdentity -> TraitImplIdentity -> Text
 instanceDictName (TraitIdentity traitModule traitName) = \case
     DataIdentity typeName typeModule ->
-        "$$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
+        "$$data$" <> typeName <> "$" <> traitName <> "$$" <> renderModuleName typeModule <> "$$" <> renderModuleName traitModule
     FunctionIdentity arity ->
         "$$function$" <> (Data.Text.pack $ show arity)
     RecordIdentity ->
@@ -462,8 +467,23 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         -- type aliases are not reflected into the IR
         return ()
 
-    AST.DTrait _ _traitName decls -> do
-        for_ decls $ \(name, _declType, _typeIdent) -> do
+    AST.DTrait typeVar traitName decls -> do
+        let ddn = defaultsDictName (AST.FromModule (eModuleName env), traitName)
+
+        let hasDefaults =
+                [ (name, typeVar, typeIdent, expr)
+                | (name, typeVar, typeIdent, Just expr) <- decls
+                ]
+
+        defaultDecls <- fmap HashMap.fromList $ for hasDefaults $ \(name, typeVar, typeIdent, expr) -> do
+            (maybeValue, instructions) <- subBlock' env expr
+            case maybeValue of
+                Just value -> return (name, (value, instructions))
+                Nothing -> error "ICE: What is this :("
+
+        writeDeclaration $ TraitDefinition ddn defaultDecls
+
+        for_ decls $ \(name, _declType, _typeIdent, _maybeExpr) -> do
             let body =
                     [ Return (Property (LocalBinding "dict") name) ]
             writeDeclaration $ Declaration export $ DFun name [AST.PBinding "dict"] body
@@ -472,6 +492,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
     AST.DImpl typeVar traitRef implType contextArgs decls -> do
         let (AST.FromModule traitModule, traitName) = traitRef
         let traitIdentity = TraitIdentity traitModule traitName
+        let ddn = defaultsDictName traitRef
 
         -- TODO: refactor the duplication out of this
         case implType of
@@ -482,7 +503,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     -- define an instance value to be flow control
                     (Just value, instructions) <- subBlock' env expr
                     return (name, (value, instructions))
-                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextArgs
+                writeDeclaration $ TraitInstance ddn instanceName (HashMap.fromList decls') contextArgs
             AST.ImplTypeFunction arity -> do
                 let instanceName = instanceDictName traitIdentity $ FunctionIdentity arity
                 decls' <- for decls $ \(name, expr) -> do
@@ -490,7 +511,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     -- define an instance value to be flow control
                     (Just value, instructions) <- subBlock' env expr
                     return (name, (value, instructions))
-                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') contextArgs
+                writeDeclaration $ TraitInstance ddn instanceName (HashMap.fromList decls') contextArgs
             AST.ImplTypeRecord fieldFunction -> do
                 -- TODO: find some better way to guarantee that we never
                 -- define an instance value to be be flow control
@@ -504,7 +525,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     -- define an instance value to be flow control
                     (Just value', instructions) <- subBlock' env expr
                     return (name, (value', instructions))
-                writeDeclaration $ TraitInstance instanceName (HashMap.fromList decls') ("fieldMap" : contextArgs)
+                writeDeclaration $ TraitInstance ddn instanceName (HashMap.fromList decls') ("fieldMap" : contextArgs)
 
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name

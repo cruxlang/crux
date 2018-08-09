@@ -29,6 +29,7 @@ import qualified Crux.JSTree as JSTree
 import Crux.Pos (Pos(..), ParsePos(..), PosRec(..))
 import Crux.Prelude
 import Crux.Tokens as Tokens
+import Data.Maybe (fromJust)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Text.Parsec as P
 
@@ -780,9 +781,12 @@ aliasDeclaration = do
         return $ DTypeAlias (tokenData typeToken) name vars ty
 
 funArgument :: Parser (ParsePattern, Maybe (TypeIdent, Maybe Name))
-funArgument = do
+funArgument = funArgument' False
+
+funArgument' :: Bool -> Parser (ParsePattern, Maybe (TypeIdent, Maybe Name))
+funArgument' requireAnn = do
     n <- pattern IrrefutableContext
-    ann <- P.optionMaybe $ do
+    ann <- (if requireAnn then fmap Just else P.optionMaybe) $ do
         _ <- token TColon
         ident <- typeIdent
         alias <- P.optionMaybe $ do
@@ -882,15 +886,43 @@ traitDeclaration = do
         (mname, pos) <- anyIdentifierWithPos
         let trad = do
                 tcolon <- token Tokens.TColon
-                withIndentation (IRDeeper tcolon) typeIdent
+                ident <- withIndentation (IRDeeper tcolon) typeIdent
+
+                expr <- P.optionMaybe $ do
+                    _ <- token Tokens.TEqual
+                    noSemiExpression
+                
+                return (ident, expr)
+
         let sugar = do
                 -- TODO: indentation rules here are probably wrongc
                 params <- parenthesized $ commaDelimited typeIdent
                 _ <- token Tokens.TColon
                 ret <- typeIdent
-                return $ FunctionIdent params ret
-        mident <- sugar <|> trad
-        return (pos, (mname, pos, mident))
+                return (FunctionIdent params ret, Nothing)
+
+        let sugar2 = do
+                -- TODO: indentation rules here are probably wrongc
+
+                -- Note: Annotations for parameters and the return value are not optional here
+                fdParams <- parenthesized $ commaDelimited (funArgument' True)
+                token TColon
+                fdReturnAnnot <- typeIdent
+
+                fdBody <- blockExpression
+                let expr = EFun pos $ FunctionDecl
+                            { fdParams
+                            , fdReturnAnnot=Just fdReturnAnnot
+                            , fdBody
+                            }
+
+                let params = map (fst . fromJust . snd) fdParams
+
+                return (FunctionIdent params fdReturnAnnot, Just expr)
+    
+        (mident, expr) <- (P.try sugar2) <|> sugar <|> trad
+
+        return (pos, (mname, pos, mident, expr))
 
     return $ DTrait (tokenData ttrait) name decls
 

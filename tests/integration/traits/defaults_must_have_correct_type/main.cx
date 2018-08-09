@@ -1,0 +1,17 @@
+
+export trait Trait {
+  display: (self) => String = 44
+}
+
+impl Trait Number {
+  display(z) {
+    toString(z)
+  }
+}
+
+impl Trait String {}
+
+fun main() {
+  print(display(10))
+  print(display("Howdy"))
+}

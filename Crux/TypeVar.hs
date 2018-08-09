@@ -64,7 +64,7 @@ data TraitDesc = TraitDesc
     { tdName :: Name
     , tdModule :: ModuleName
     , tdTypeVar :: TypeVar
-    , tdMethods :: [(Name, TypeVar)]
+    , tdMethods :: [(Name, TypeVar, Bool)] -- name, type, and whether or not there exists a default
     }
     deriving (Eq, Show)
 

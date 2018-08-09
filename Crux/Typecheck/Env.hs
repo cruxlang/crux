@@ -35,6 +35,7 @@ import Crux.Typecheck.Types
 import Crux.Typecheck.Unify
 import Crux.Typecheck.Quantify
 import Crux.TypeVar
+import Data.Maybe (isJust)
 import qualified Data.HashMap.Strict as HashMap
 import Prelude hiding (String)
 import qualified Crux.SymbolTable as SymbolTable
@@ -390,15 +391,15 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
             typeVar <- newQuantifiedConstrainedTypeVar env' pos name tn
             let typeVarName = "self" -- a la Rust
             SymbolTable.insert (eTypeBindings env') pos SymbolTable.DisallowDuplicates typeVarName typeVar
-            methods <- for defns $ \(mname, mpos, typeIdent) -> do
+            methods <- for defns $ \(mname, mpos, typeIdent, maybeExpr) -> do
                 tv <- resolveTypeIdent env' mpos typeIdent
-                return (mname, mpos, tv)
+                return (mname, mpos, tv, isJust maybeExpr)
 
             let desc = TraitDesc
                     { tdName = name
                     , tdModule = eThisModule env
                     , tdTypeVar = typeVar
-                    , tdMethods = map (\(a, _, b) -> (a, b)) methods
+                    , tdMethods = map (\(a, _, b, c) -> (a, b, c)) methods
                     }
             SymbolTable.insert (eTraitBindings env) pos SymbolTable.DisallowDuplicates name ((FromModule (eThisModule env), name), tn, desc)
             modifyIORef traitDecls' (methods:)
@@ -494,5 +495,10 @@ addThisModuleDataDeclsToEnvironment env thisModule = do
 
     -- Phase 4a.
     for_ traitDecls $ \defns -> do
-        for_ defns $ \(defName, defPos, defTypeVar) -> do
-            SymbolTable.insert (eValueBindings env) defPos SymbolTable.DisallowDuplicates defName $ ValueReference (FromModule $ eThisModule env, defName) Immutable defTypeVar
+        for_ defns $ \(defName, defPos, defTypeVar, _maybeExpr) -> do
+            SymbolTable.insert
+                (eValueBindings env)
+                defPos
+                SymbolTable.DisallowDuplicates
+                defName
+                (ValueReference (FromModule $ eThisModule env, defName) Immutable defTypeVar)

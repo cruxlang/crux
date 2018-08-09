@@ -355,12 +355,25 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
             fail "Gen: Tuple should be rewritten by this point"
     Gen.DException name ->
         return $ [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
-renderDeclaration (Gen.TraitInstance instanceName defns contextParameters) = do
+
+renderDeclaration (Gen.TraitDefinition traitName defaultDecls) = do
+    jsDecls <- for (HashMap.toList defaultDecls) $ \(name, (value, instructions)) -> do
+        value' <- renderValue value
+        instructions' <- for instructions renderInstruction
+        return ((name, value'), instructions')
+    let obj = JSTree.EObject $ HashMap.fromList (fmap fst jsDecls)
+    let prefix = mconcat $ fmap snd jsDecls
+
+    return $ prefix <> [JSTree.SAssign (JSTree.EIdentifier traitName) obj]
+
+renderDeclaration (Gen.TraitInstance defaultDictName instanceName defns contextParameters) = do
+    let proto = ("__proto__", JSTree.EIdentifier defaultDictName)
+
     defns' <- for (HashMap.toList defns) $ \(name, (value, instructions)) -> do
         value' <- renderValue value
         instructions' <- for instructions renderInstruction
         return ((name, value'), instructions')
-    let obj = JSTree.EObject $ HashMap.fromList $ fmap fst defns'
+    let obj = JSTree.EObject $ HashMap.fromList $ proto : (fmap fst defns')
     let prefix = mconcat $ fmap snd defns'
     case contextParameters of
         [] -> do
@@ -389,7 +402,8 @@ getExportedValues = \case
             PTuple _ ->
                 error "Gen: Tuples should be rewritten by this point"
         Gen.DException name -> [(QualifiedExport, name <> "$")]
-    Gen.TraitInstance instanceName _ _ -> [(UnqualifiedExport, instanceName)]
+    Gen.TraitDefinition name table -> [(UnqualifiedExport, name)]
+    Gen.TraitInstance _ instanceName _ _ -> [(UnqualifiedExport, instanceName)]
     Gen.RecordFieldMap fieldMapName _ -> [(UnqualifiedExport, fieldMapName)]
 
 wrapInModule :: [JSTree.Statement] -> JSTree.Statement

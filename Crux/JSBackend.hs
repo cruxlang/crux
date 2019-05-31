@@ -56,6 +56,7 @@ renderArgument = \case
     PTuple _ -> do
         error "Tuples should be rewritten by this point"
 
+buildTestCascade :: JSTree.Expression -> JSTree.Expression -> (Integer, Gen.Tag) -> JSTree.Expression
 buildTestCascade matchVar acc (index, subtag) =
     let cond = generateMatchCond (JSTree.EIndex matchVar (JSTree.ELiteral (JSTree.LInteger (index + 1)))) subtag
     in JSTree.EBinOp "&&" acc cond
@@ -402,7 +403,7 @@ getExportedValues = \case
             PTuple _ ->
                 error "Gen: Tuples should be rewritten by this point"
         Gen.DException name -> [(QualifiedExport, name <> "$")]
-    Gen.TraitDefinition name table -> [(UnqualifiedExport, name)]
+    Gen.TraitDefinition name _table -> [(UnqualifiedExport, name)]
     Gen.TraitInstance _ instanceName _ _ -> [(UnqualifiedExport, instanceName)]
     Gen.RecordFieldMap fieldMapName _ -> [(UnqualifiedExport, fieldMapName)]
 

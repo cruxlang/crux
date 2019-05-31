@@ -145,8 +145,8 @@ loadCompilerConfig = do
         Nothing -> fail "Failed to find compiler's cxconfig.yaml"
         Just c -> return c
 
-    config <- case Yaml.decodeEither configBytes of
-        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ err
+    config <- case Yaml.decodeEither' configBytes of
+        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ show err
         Right c -> return c
 
     return config

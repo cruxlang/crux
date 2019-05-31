@@ -574,13 +574,15 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' catchBinding' catchBody'
 
-    EInstancePlaceholder _ _ -> do
+    EInstancePlaceholder {} -> do
         fail "ICE: placeholders are not typechecked"
-    EInstanceDict _ _ _ -> do
+    EInstanceDict {} -> do
         fail "ICE: instance dicts are not typechecked"
-    EInstanceArgument _ _ -> do
+    EInstanceArgument {} -> do
         fail "ICE: instance arguments are not typechecked"
-
+    EInstanceFieldMap {} -> do
+        fail "ICE: instance field maps are not typechecked"
+    
 -- TODO: move into IR / backend
 renderInstanceArgumentName :: TraitIdentity -> TypeNumber -> Name
 renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
@@ -643,6 +645,9 @@ resolveInstanceDictPlaceholders env = recurse
             return $ ETupleLiteral tv elements'
         expr@ELiteral{} -> do
             return expr
+        EUnIntrinsic tv ui e -> do
+            e' <- recurse e
+            return $ EUnIntrinsic tv ui e'
         EBinIntrinsic tv bi lhs rhs -> do
             lhs' <- recurse lhs
             rhs' <- recurse rhs
@@ -687,7 +692,7 @@ resolveInstanceDictPlaceholders env = recurse
             TQuant _ _constraints typeNumber -> do
                 return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
                 --append constraints tv typeNumber
-            TFun paramTypes returnType -> do
+            TFun paramTypes _returnType -> do
                 generateImplReference tv traitIdentity (FunctionIdentity $ length paramTypes)
             TDataType def -> do
                 let dtid = dataTypeIdentity def
@@ -1024,8 +1029,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 typeVar <- resolveTypeReference env pos' inTypeName
 
                 let traitNames = Set.fromList $
-                        fmap (\(a, b, c) -> a) $
-                        filter (\(a, b, hasDefault) -> not hasDefault) $
+                        fmap (\(a, _b, _c) -> a) $
+                        filter (\(_a, _b, hasDefault) -> not hasDefault) $
                         tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
 
@@ -1055,8 +1060,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 quantify funType
 
                 let traitNames = Set.fromList $
-                        fmap (\(a, b, c) -> a) $
-                        filter (\(a, b, hasDefault) -> not hasDefault) $
+                        fmap (\(a, _b, _c) -> a) $
+                        filter (\(_a, _b, hasDefault) -> not hasDefault) $
                         tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
 

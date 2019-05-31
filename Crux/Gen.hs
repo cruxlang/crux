@@ -204,8 +204,11 @@ generate env = \case
         for (both this' args') $ \(this'', args'') -> do
             newInstruction env $ \output -> MethodCall output this'' methodName args''
 
-    AST.EMethodApp _ _ _ _ -> do
+    AST.EMethodApp {} -> do
         fail "ICE: this should never happen.  EMethodApp should be desugared into EApp by now."
+
+    AST.ETypeLookup {} ->
+        fail "ICE: this should never happen.  ETypeLookup should be resolved to EIdentifier by now"
 
     AST.EAs _ expr _ -> do
         generate env expr
@@ -407,6 +410,9 @@ renderModuleName (ModuleName prefix name) = mconcat $ map (("$" <>) . unModuleSe
 defaultsDictName :: AST.ResolvedReference -> Text
 defaultsDictName (AST.FromModule traitModule, traitName) =
     "$$default$" <> traitName <> "$$" <> renderModuleName traitModule
+defaultsDictName _ =
+    -- This is pretty bad.
+    error "ICE: defaultsDictName should only be passed a FromModule reference"
 
 instanceDictName :: TraitIdentity -> TraitImplIdentity -> Text
 instanceDictName (TraitIdentity traitModule traitName) = \case
@@ -467,7 +473,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
         -- type aliases are not reflected into the IR
         return ()
 
-    AST.DTrait typeVar traitName decls -> do
+    AST.DTrait _tv traitName decls -> do
         let ddn = defaultsDictName (AST.FromModule (eModuleName env), traitName)
 
         let hasDefaults =
@@ -475,7 +481,7 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                 | (name, typeVar, typeIdent, Just expr) <- decls
                 ]
 
-        defaultDecls <- fmap HashMap.fromList $ for hasDefaults $ \(name, typeVar, typeIdent, expr) -> do
+        defaultDecls <- fmap HashMap.fromList $ for hasDefaults $ \(name, _tv, _typeIdent, expr) -> do
             (maybeValue, instructions) <- subBlock' env expr
             case maybeValue of
                 Just value -> return (name, (value, instructions))

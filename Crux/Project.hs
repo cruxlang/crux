@@ -20,9 +20,7 @@ import Data.Char (isSpace)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as TextIO
-import qualified Data.Text.Lazy.IO as LazyTextIO
 import Data.Yaml
-import qualified Data.Aeson as Aeson
 import System.Exit (exitWith, ExitCode (..))
 import qualified System.Exit as Exit
 import qualified System.FilePath as FP

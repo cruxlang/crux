@@ -307,6 +307,9 @@ registerJSFFIDecl env = \case
     DTrait {} -> return ()
     DImpl {} -> return ()
 
+    DTypeFamily {} -> return ()
+    DTypeImpl {} -> return ()
+
     DException {} -> return ()
 
 registerExceptionDecl :: Env -> DeclarationType UnresolvedReference () Pos -> TC ()
@@ -323,6 +326,9 @@ registerExceptionDecl env = \case
 
     DTrait {} -> return ()
     DImpl {} -> return ()
+
+    DTypeFamily {} -> return ()
+    DTypeImpl {} -> return ()
 
     DException pos exceptionName typeIdent -> do
         tyVar <- resolveTypeIdent env pos typeIdent

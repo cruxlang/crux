@@ -1016,6 +1016,26 @@ implDeclaration = do
             let methods' = [(methodName, methodExpr) | ImplMethod methodName methodExpr <- methods]
             return $ DImpl (tokenData timpl) traitName it [] methods'
 
+typeFamilyDeclaration :: Parser ParseDeclaration
+typeFamilyDeclaration = do
+    t <- token Tokens.TTypeFamily
+    familyName <- anyIdentifier
+    return $ DTypeFamily (tokenData t) familyName
+
+typeFamilyImpl :: Parser ParseDeclaration -- for now
+typeFamilyImpl = do
+    t <- token Tokens.TTypeImpl
+    tiFamilyName <- unresolvedReference
+    tiParameter <- angleBracketed typeName
+    _eq <- token Tokens.TEqual
+    tiResultType <- typeIdent
+
+    return $ DTypeImpl (tokenData t) TypeImplDecl
+        { tiFamilyName
+        , tiParameter
+        , tiResultType
+        }
+
 exceptionDeclaration :: Parser ParseDeclaration
 exceptionDeclaration = do
     texc <- token Tokens.TException
@@ -1058,6 +1078,8 @@ declaration = do
         , traitDeclaration
         , implDeclaration
         , exceptionDeclaration
+        , typeFamilyDeclaration
+        , typeFamilyImpl
         ] ++ extra
     pos' <- inflatePos pos
     return $ Declaration exportFlag pos' declType

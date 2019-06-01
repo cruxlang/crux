@@ -64,6 +64,8 @@ data TokenType
     | TMutable
     | TTrait
     | TImpl
+    | TTypeFamily
+    | TTypeImpl
     deriving (Eq)
 
 data Token tdata = Token tdata TokenType
@@ -133,6 +135,8 @@ showTokenType = \case
     TMutable -> "mutable"
     TTrait -> "trait"
     TImpl -> "impl"
+    TTypeFamily -> "typefamily"
+    TTypeImpl -> "typeimpl"
 
 instance Show TokenType where
     show = showTokenType

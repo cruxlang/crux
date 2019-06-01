@@ -1151,6 +1151,12 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         
         return $ DImpl typeVar traitRef implType' dictArgs values'
 
+    DTypeFamily {} ->
+        fail "Not yet implemented"
+
+    DTypeImpl {} ->
+        fail "Not yet implemented"
+
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment
         typeVar <- resolveTypeIdent env pos typeIdent

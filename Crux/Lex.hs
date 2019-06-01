@@ -176,6 +176,8 @@ keyword = P.try $ do
         "mutable" -> return TMutable
         "trait" -> return TTrait
         "impl" -> return TImpl
+        "typefamily" -> return TTypeFamily
+        "typeimpl" -> return TTypeImpl
         _ -> fail ""
 
 symbol :: Parser LexToken

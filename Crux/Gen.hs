@@ -533,6 +533,12 @@ generateDecl env (AST.Declaration export _pos decl) = case decl of
                     return (name, (value', instructions))
                 writeDeclaration $ TraitInstance ddn instanceName (HashMap.fromList decls') ("fieldMap" : contextArgs)
 
+    AST.DTypeFamily {} ->
+        return ()
+
+    AST.DTypeImpl {} ->
+        return ()
+
     AST.DException _ name _ -> do
         writeDeclaration $ Declaration export $ DException name
 

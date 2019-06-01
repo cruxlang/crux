@@ -64,6 +64,13 @@ data ImplType idtype tagtype edata
     | ImplTypeRecord (Expression idtype tagtype edata) {- field function -}
     deriving (Eq, Show, Functor, Foldable, Traversable)
 
+data TypeImplDecl idtype = TypeImplDecl
+    { tiFamilyName :: idtype
+    , tiParameter :: Name
+    , tiResultType :: TypeIdent
+    }
+    deriving (Eq, Show)
+
 -- TODO: to support the "let rec" proposal, change DFun into DFunGroup
 -- note that individual functions in a function group can be exported.
 data DeclarationType idtype tagtype edata
@@ -85,6 +92,9 @@ data DeclarationType idtype tagtype edata
         (ImplType idtype tagtype edata) -- ^ nominal vs. record ident
         [Name] -- ^ context dict args
         [(Name, Expression idtype tagtype edata)] -- ^ methods
+    -- Type Families
+    | DTypeFamily edata Name
+    | DTypeImpl edata (TypeImplDecl idtype)
     -- Exceptions
     | DException edata Name TypeIdent
     deriving (Show, Eq, Functor, Foldable, Traversable)

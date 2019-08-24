@@ -50,6 +50,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eTypeBindings <- SymbolTable.new
     ePatternBindings <- SymbolTable.new
     eTraitBindings <- SymbolTable.new
+    eTypeFamilyBindings <- SymbolTable.new
     eExceptionBindings <- SymbolTable.new
 
     eKnownInstances <- HashTable.new
@@ -58,6 +59,7 @@ newEnv eThisModule eLoadedModules eReturnType = do
     eExportedTypes <- SymbolTable.new
     eExportedPatterns <- SymbolTable.new
     eExportedTraits <- SymbolTable.new
+    eExportedTypeFamilies <- SymbolTable.new
     eExportedExceptions <- SymbolTable.new
  
     return Env
@@ -161,7 +163,7 @@ registerTypeVarIdent env (TypeVarIdent name pos (ConstraintSetIdent recordConstr
 registerExplicitTypeVariables :: Env -> [TypeVarIdent] -> TC [TypeVar]
 registerExplicitTypeVariables env forall = do
     for forall $ registerTypeVarIdent env
-    
+
 newQuantifiedTypeVar :: Env -> Pos -> Name -> TC TypeVar
 newQuantifiedTypeVar env pos name = do
     tyVar <- freshType env

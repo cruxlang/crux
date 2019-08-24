@@ -28,6 +28,7 @@ data Env = Env
     , eTypeBindings       :: SymbolTable TypeVar
     , ePatternBindings    :: SymbolTable PatternReference
     , eTraitBindings      :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
+    , eTypeFamilyBindings :: SymbolTable ResolvedReference
     , eExceptionBindings  :: SymbolTable (ResolvedReference, TypeVar)
 
     , eKnownInstances     :: HashTable (TraitIdentity, TraitImplIdentity) InstanceDesc
@@ -40,5 +41,6 @@ data Env = Env
     , eExportedTypes      :: SymbolTable TypeVar
     , eExportedPatterns   :: SymbolTable PatternReference
     , eExportedTraits     :: SymbolTable (ResolvedReference, TraitIdentity, TraitDesc)
+    , eExportedTypeFamilies :: SymbolTable ResolvedReference
     , eExportedExceptions :: SymbolTable (ResolvedReference, TypeVar)
     }

@@ -1151,11 +1151,15 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
         
         return $ DImpl typeVar traitRef implType' dictArgs values'
 
-    DTypeFamily {} ->
-        fail "Not yet implemented"
+    DTypeFamily pos' name -> do
+        unitType <- resolveVoidType env pos'
+        SymbolTable.insert (eTypeFamilyBindings env) pos' SymbolTable.DisallowDuplicates name (FromModule $ eThisModule env, name)
+        return $ DTypeFamily unitType name -- fail "Not yet implemented"
 
-    DTypeImpl {} ->
-        fail "Not yet implemented"
+    DTypeImpl pos' typeImplDecl -> do
+        unitType <- resolveVoidType env pos'
+        familyName <- resolveTypeFamilyReference env pos' (tiFamilyName typeImplDecl)
+        return $ DTypeImpl unitType typeImplDecl{tiFamilyName=familyName} -- fail "Not yet implemented"
 
     DException pos' name typeIdent -> do
         -- TODO: look it up in the current environment
@@ -1197,6 +1201,7 @@ run loadedModules thisModule thisModuleName = do
     lmExportedTypes <- HashMap.toList <$> SymbolTable.readAll (eExportedTypes env)
     lmExportedPatterns <- HashMap.toList <$> SymbolTable.readAll (eExportedPatterns env)
     lmExportedTraits <- HashMap.toList <$> SymbolTable.readAll (eExportedTraits env)
+    lmExportedTypeFamilies <- HashMap.toList <$> SymbolTable.readAll (eExportedTypeFamilies env)
     lmExportedExceptions <- HashMap.toList <$> SymbolTable.readAll (eExportedExceptions env)
     lmKnownInstances <- HashTable.read (eKnownInstances env)
     return $ LoadedModule{..}

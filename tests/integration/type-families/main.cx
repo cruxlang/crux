@@ -1,0 +1,7 @@
+
+typefamily MyFamily
+
+typeimpl MyFamily<Number> = Number
+typeimpl MyFamily<String> = String
+
+fun main() {}

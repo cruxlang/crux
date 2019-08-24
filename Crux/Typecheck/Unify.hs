@@ -90,6 +90,9 @@ resolvePatternReference = resolveReference "pattern" ePatternBindings lmExported
 resolveTraitReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TraitIdentity, TraitDesc)
 resolveTraitReference = resolveReference "trait" eTraitBindings lmExportedTraits
 
+resolveTypeFamilyReference :: Env -> Pos -> UnresolvedReference -> TC ResolvedReference
+resolveTypeFamilyReference = resolveReference "typeFamily" eTypeFamilyBindings lmExportedTypeFamilies
+
 resolveExceptionReference :: Env -> Pos -> UnresolvedReference -> TC (ResolvedReference, TypeVar)
 resolveExceptionReference = resolveReference "exception" eExceptionBindings lmExportedExceptions
 

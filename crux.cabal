@@ -17,6 +17,7 @@ library
                    , Crux.JSBackend
                    , Crux.JSTree
                    , Crux.Lex
+                   , Crux.LuaBackend
                    , Crux.Main
                    , Crux.Module
                    , Crux.Module.Types

@@ -13,6 +13,7 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO
 import Data.List (isSuffixOf)
 import Crux.TrackIO
+import Crux.LuaBackend
 
 data Command
     = VersionCommand

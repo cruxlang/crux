@@ -103,17 +103,16 @@ renderStatement = \case
             SBlock body -> do
                 writeS " then\n"
                 indent $ for_ body renderStatement
-                beginLineS "end\n"
             _ -> do
                 writeS " then\n"
                 indent $ renderStatement thenStmt
-                writeS "end\n"
-        for_ elseStatement $ \case
-            SBlock body -> do
+        case elseStatement of
+            Nothing -> beginLineS "end\n"
+            Just (SBlock body) -> do
                 beginLineS "else\n"
                 indent $ for_ body renderStatement
                 beginLineS "end\n"
-            es -> do
+            Just es -> do
                 beginLineS "else\n"
                 indent $ renderStatement es
                 beginLineS "end\n"

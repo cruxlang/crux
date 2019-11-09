@@ -12,6 +12,10 @@ import qualified Data.HashMap.Strict as HashMap
 import Control.Monad.Trans.State.Strict (State, evalState)
 import Control.Monad.Trans.Writer.Strict (WriterT, execWriterT)
 import Crux.JSTree (Statement (..), Expression (..), Literal(..), JSWriter, writeS, write, beginLineS, indent)
+import Control.Monad.ST (runST)
+import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
+import qualified Crux.JSBackend as JSBackend
+import Control.Monad.Reader (ReaderT, runReaderT, ask)
 
 renderFunction :: Maybe Text -> [Text] -> [Statement] -> JSWriter ()
 renderFunction maybeName args body = do
@@ -25,6 +29,37 @@ renderFunction maybeName args body = do
     write (")\n" :: String)
     indent $ for_ body renderStatement
     beginLineS "end"
+
+luaKeywords :: [Text]
+luaKeywords =
+    [ "break"
+    , "case"
+    , "continue"
+    , "do"
+    , "else"
+    , "end"
+    , "for"
+    , "function"
+    , "if"
+    , "in"
+    , "local"
+    , "repeat"
+    , "return"
+    , "then"
+    , "until"
+    , "while"
+    , "yield"
+    -- literals
+    , "undefined"
+    , "null"
+    , "true"
+    , "false"
+    ]
+
+renderLuaName :: Text -> Text
+renderLuaName n = if elem n luaKeywords
+    then n <> "__"
+    else n
 
 renderStatement :: Statement -> JSWriter ()
 renderStatement = \case
@@ -66,11 +101,11 @@ renderStatement = \case
         renderExpr expr
         case thenStmt of
             SBlock body -> do
-                writeS "then\n"
+                writeS " then\n"
                 indent $ for_ body renderStatement
                 beginLineS "end\n"
             _ -> do
-                writeS "then\n"
+                writeS " then\n"
                 indent $ renderStatement thenStmt
                 writeS "end\n"
         for_ elseStatement $ \case
@@ -141,7 +176,7 @@ renderExpr = \case
         writeS "{"
         commaSeparated $ (flip map) (HashMap.toList fields) $ \(key, value) -> do
             write key
-            writeS ":"
+            writeS "="
             renderExpr value
         writeS "}"
     EPrefixOp op arg -> do
@@ -214,3 +249,26 @@ renderDocument statements = output
 
 -- iife :: [Statement] -> Expression
 -- iife body = EApplication (EFunction [] body) []
+
+generateLua :: Text -> Gen.Program -> Text
+generateLua rtsSource modules = runST $ do
+    counter <- newSTRef 0
+    globalExports <- newSTRef []
+    allStatements <- for modules $ \(moduleName, decls) -> do
+        let exportedValueNames = mconcat $ fmap JSBackend.getExportedValues decls
+        -- The last generated module is main, so remember its exports.
+        writeSTRef globalExports [(n, JSBackend.renderExportName moduleName n) | n <- exportedValueNames]
+        let declareExports = [JS.SVar (JSBackend.renderExportName moduleName n) Nothing | n <- exportedValueNames]
+        body <- runReaderT (JSBackend.generateModule' decls) (moduleName, counter)
+        let setExports = [JS.SAssign (JS.EIdentifier $ JSBackend.renderExportName moduleName n) (JS.EIdentifier $ renderLuaName $ snd n) | n <- exportedValueNames]
+        return $ declareExports ++ [JS.SExpression $ JS.iife $ body ++ setExports]
+
+    -- TODO: introduce an SRaw
+    let prefix = JS.SExpression $ JS.ERaw rtsSource
+    globalExports' <- readSTRef globalExports
+    let suffix = [
+            (JS.SAssign (JS.ELookup (JS.EIdentifier "_rts_exports") exportName) (JS.EIdentifier renderedExportName))
+            | ((_exportType, exportName), renderedExportName) <- globalExports' ]
+
+    return $ renderDocument
+        [JSBackend.wrapInModule $ (prefix : mconcat allStatements) <> suffix]

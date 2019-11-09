@@ -3,6 +3,7 @@ module Crux.Main (main) where
 import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
+import qualified Crux.LuaBackend as Lua
 import Crux.Module (loadProgramFromFile, loadRTSSource, MainModuleMode(..))
 import Crux.Prelude
 import Crux.Project (buildProject, buildProjectAndRunTests, createProjectTemplate, ProjectOptions(..), runJS)
@@ -15,16 +16,22 @@ import Data.List (isSuffixOf)
 import Crux.TrackIO
 import Crux.LuaBackend
 
+data TargetLanguage
+    = TargetJS
+    | TargetLua
+
 data Command
     = VersionCommand
     | InitCommand
-    | CompileCommand FilePath
+    | CompileCommand TargetLanguage FilePath
     | RunCommand FilePath
     | BuildCommand ProjectOptions
     | TestCommand ProjectOptions
 
 compileCommand :: Parser Command
-compileCommand = CompileCommand <$> argument str mempty
+compileCommand =
+    CompileCommand <$> flag TargetJS TargetLua (long "lua" <> help "Compile to Lua")
+        <*> argument str mempty
 
 projectOptions :: Parser ProjectOptions
 projectOptions = ProjectOptions <$> flag False True (long "watch" <> short 'w' <> help "watch filesystem for changes")
@@ -73,6 +80,17 @@ compileToJS fn = runUntrackedIO $ do
             program'' <- Gen.generateProgram program
             return $ JS.generateJS rtsSource program''
 
+compileToLua :: FilePath -> IO Text
+compileToLua fn = runUntrackedIO $ do
+    rtsSource <- loadRTSSource
+    loadProgramFromFile AddMainCall fn >>= \case
+        Left err -> liftIO $ do
+            Error.printError stderr err
+            exitWith $ ExitFailure 1
+        Right program -> liftIO $ do
+            program'' <- Gen.generateProgram program
+            return $ Lua.generateLua rtsSource program''
+
 main :: IO ()
 main = do
     cmd <- execParser $ info (helper <*> parseOptions) mempty
@@ -85,9 +103,12 @@ main = do
             buildProject options
         TestCommand options -> do
             buildProjectAndRunTests options
-        CompileCommand fn -> do
+        CompileCommand TargetJS fn -> do
             js <- compileToJS fn
             putStr $ Text.unpack js
+        CompileCommand TargetLua fn -> do
+            lua <- compileToLua fn
+            putStr $ Text.unpack lua
         RunCommand fn -> do
             js <- compileToJS fn
             runJS $ Text.unpack js

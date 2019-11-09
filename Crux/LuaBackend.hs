@@ -11,7 +11,7 @@ import Data.Text.Lazy.Builder (Builder)
 import qualified Data.HashMap.Strict as HashMap
 import Control.Monad.Trans.State.Strict (State, evalState)
 import Control.Monad.Trans.Writer.Strict (WriterT, execWriterT)
-import Crux.JSTree (Statement (..), Expression (..), Literal(..), JSWriter, writeS, write, beginLineS, indent)
+import Crux.JSTree (Statement (..), Expression (..), Literal(..), JSWriter, writeS, write, beginLineS, indent, iife)
 import Control.Monad.ST (runST)
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import qualified Crux.JSBackend as JSBackend
@@ -22,10 +22,10 @@ renderFunction maybeName args body = do
     writeS "function"
     for_ maybeName $ \name -> do
         writeS " "
-        write name
+        write $ mangle name
     
     writeS "("
-    write $ intercalate "," args
+    write $ intercalate "," (map mangle args)
     write (")\n" :: String)
     indent $ for_ body renderStatement
     beginLineS "end"
@@ -69,7 +69,7 @@ renderStatement = \case
 
     SVar name maybeExpr -> do
         beginLineS "local "
-        write name
+        write $ mangle name
         for_ maybeExpr $ \expr -> do
             writeS " = "
             renderExpr expr
@@ -154,6 +154,9 @@ commaSeparated (x:xs) = do
     writeS ", "
     commaSeparated xs
 
+mangle :: Text -> Text
+mangle name = Text.replace "$" "_" $ Text.replace "_" "__" name
+
 renderExpr :: Expression -> JSWriter ()
 renderExpr = \case
     EApplication lhs args -> do
@@ -174,7 +177,7 @@ renderExpr = \case
     EObject fields -> do
         writeS "{"
         commaSeparated $ (flip map) (HashMap.toList fields) $ \(key, value) -> do
-            write key
+            write $ mangle key
             writeS "="
             renderExpr value
         writeS "}"
@@ -206,7 +209,7 @@ renderExpr = \case
         LFalse -> writeS "false"
         LNull -> writeS "nil"
         LUndefined -> writeS "nil"
-    EIdentifier n -> write n
+    EIdentifier n -> write $ mangle n
     EArray els -> do
         writeS "["
         commaSeparated $ map renderExpr els
@@ -266,8 +269,8 @@ generateLua rtsSource modules = runST $ do
     let prefix = JS.SExpression $ JS.ERaw rtsSource
     globalExports' <- readSTRef globalExports
     let suffix = [
-            (JS.SAssign (JS.ELookup (JS.EIdentifier "_rts_exports") exportName) (JS.EIdentifier renderedExportName))
+            (JS.SAssign (JS.ELookup (JS.EIdentifier "_rts_exports") (mangle exportName)) (JS.EIdentifier renderedExportName))
             | ((_exportType, exportName), renderedExportName) <- globalExports' ]
 
     return $ renderDocument
-        [JSBackend.wrapInModule $ (prefix : mconcat allStatements) <> suffix]
+        [SBlock $ (prefix : mconcat allStatements) <> suffix]

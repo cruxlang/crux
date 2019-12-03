@@ -12,7 +12,7 @@ module Crux.Error
 
 import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, renderTypeVarIO)
+import Crux.TypeVar (TraitIdentity(..), TypeVar, renderTypeVarIO)
 import qualified Data.Text as Text
 import System.Console.ANSI
 import Text.Printf
@@ -48,6 +48,7 @@ data TypeError
     -- trait errors
     | NoTraitOnType TypeVar Name ModuleName
     | NoTraitOnRecord TypeVar Name ModuleName
+    | AmbiguousPolymorphism TraitIdentity
     | IncompleteImpl [Name]
     | UnexpectedImplMethod Name
     | DuplicateSymbol Text
@@ -133,6 +134,7 @@ getTypeErrorName = \case
     TypeApplicationMismatch{} -> "type-application-mismatch"
     NoTraitOnType{} -> "no-trait-on-type"
     NoTraitOnRecord{} -> "no-trait-on-record"
+    AmbiguousPolymorphism{} -> "ambiguous-polymorphism"
     IncompleteImpl{} -> "incomplete-impl"
     UnexpectedImplMethod{} -> "unexpected-impl-method"
     DuplicateSymbol{} -> "duplicate-symbol"
@@ -178,6 +180,8 @@ typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
 typeErrorToString (NoTraitOnRecord _typeVar traitName traitModule) = do
     --_ts <- renderTypeVarIO typeVar
     return $ printf "Record type does not implement trait %s (defined in %s)" traitName (Text.unpack $ printModuleName traitModule)
+typeErrorToString (AmbiguousPolymorphism (TraitIdentity traitModule traitName)) = do
+    return $ printf "Ambiguous polymorphism for trait %s (defined in %s)" traitName (Text.unpack $ printModuleName traitModule)
 typeErrorToString (IncompleteImpl missingMethods) = do
     return $ "impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
 typeErrorToString (UnexpectedImplMethod name) = do

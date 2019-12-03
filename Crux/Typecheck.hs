@@ -418,7 +418,7 @@ check' expectedType env = \case
                         return $ EIdentifier tv' ref
                     _ -> do
                         placeholders <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
-                            return $ EInstancePlaceholder typeVar traitNumber
+                            return $ EInstancePlaceholder typeVar pos traitNumber
                         return $ EApp
                             tv'
                             (EIdentifier tv' ref)
@@ -681,22 +681,23 @@ resolveInstanceDictPlaceholders env = recurse
             catch' <- recurse catch
             return $ ETryCatch tv try' catchBinding catch'
 
-        EInstancePlaceholder tv traitIdentity -> followTypeVar tv >>= \case
+        EInstancePlaceholder tv pos traitIdentity -> followTypeVar tv >>= \case
             TypeVar ref -> readIORef ref >>= \case
-                TUnbound _str _level _constraints typeNumber ->
+                TUnbound _str _level _constraints _typeNumber -> do
+                    failTypeError pos $ AmbiguousPolymorphism traitIdentity
                     -- TODO: this needs a better error message - it just means we are trying to resolve
                     -- a trait impl for a polymorphic type
-                    fail $ "should have been quantified by now: " ++ show tv ++ " -- " ++ show traitIdentity ++ " -- " ++ show typeNumber
+                    -- fail $ "should have been quantified by now: " ++ show tv ++ " -- " ++ show traitIdentity ++ " -- " ++ show typeNumber
                 _ ->
                     fail "never happens"
             TQuant _ _constraints typeNumber -> do
                 return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
                 --append constraints tv typeNumber
             TFun paramTypes _returnType -> do
-                generateImplReference tv traitIdentity (FunctionIdentity $ length paramTypes)
+                generateImplReference tv pos traitIdentity (FunctionIdentity $ length paramTypes)
             TDataType def -> do
                 let dtid = dataTypeIdentity def
-                generateImplReference tv traitIdentity dtid
+                generateImplReference tv pos traitIdentity dtid
             TRecord fields -> do
                 -- grab fieldMap and its typevar
                 instanceDesc <- HashTable.lookup (traitIdentity, RecordIdentity) (eKnownInstances env) >>= \case
@@ -725,7 +726,7 @@ resolveInstanceDictPlaceholders env = recurse
                             return fieldFunction
                         _ -> do
                             placeholders <- for traits $ \(_typeVar, _typeNumber, traitNumber) -> do
-                                return $ EInstancePlaceholder trTyVar traitNumber
+                                return $ EInstancePlaceholder trTyVar pos traitNumber
                             return $ EApp dontcare fieldFunction placeholders
 
                     fieldFunctionType' <- instantiate env fieldFunctionType
@@ -753,7 +754,7 @@ resolveInstanceDictPlaceholders env = recurse
 
                 argDicts <- for traits' $ \(typeVar, _typeNumber, traitNumber) -> do
                     --quantify typeVar -- this feels dirty
-                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar pos traitNumber
 
                 return $ EApp tv thisDict (fieldMapFunction : argDicts)
             TTypeFun _ _ -> do
@@ -766,8 +767,8 @@ resolveInstanceDictPlaceholders env = recurse
         expr@(EInstanceFieldMap _ _) -> do
             return expr
 
-    generateImplReference :: TypeVar -> TraitIdentity -> TraitImplIdentity -> TC TypedExpression
-    generateImplReference tv traitIdentity traitImplIdentity = do
+    generateImplReference :: TypeVar -> Pos -> TraitIdentity -> TraitImplIdentity -> TC TypedExpression
+    generateImplReference tv pos traitIdentity traitImplIdentity = do
         instanceDesc <- HashTable.lookup (traitIdentity, traitImplIdentity) (eKnownInstances env) >>= \case
             Just instanceDesc -> return instanceDesc
             Nothing -> do
@@ -791,7 +792,7 @@ resolveInstanceDictPlaceholders env = recurse
             _ -> do
                 argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
                     --quantify typeVar -- this feels dirty
-                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar pos traitNumber
                 return $ EApp tv thisDict argDicts
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()

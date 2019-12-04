@@ -1,6 +1,6 @@
 fun main() {
   let x = match () {
-    () => 1
+    () => 1 as Number
   }
   let () = ()
   print(x)

@@ -28,6 +28,6 @@ fun printFieldTypes(r) {
 
 fun main() {
   printFieldTypes({x: "hello"})
-  printFieldTypes({y: 10})
+  printFieldTypes({y: 10 as Number})
   printFieldTypes({z: ()})
 }

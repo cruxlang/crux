@@ -52,6 +52,6 @@ test("callbacks can be unregistered", fun() {
 
   d->unregister(token)
 
-  d->dispatch(10)
+  d->dispatch(10 as Number)
   assert.equal([], actions->freeze())
 })

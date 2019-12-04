@@ -1,5 +1,5 @@
 fun main() {
-    let mutable x = 2
+    let mutable x = 2 as Number
     x = x + 1
     print(x)
 }

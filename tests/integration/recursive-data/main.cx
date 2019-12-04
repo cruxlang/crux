@@ -3,9 +3,9 @@ data List<a> {
     Nil,
 }
 
-let s = Cons(5, Cons(6, Cons(7, Nil)))
+let s = Cons(5 as Number, Cons(6, Cons(7, Nil)))
 
-fun length(list) {
+fun length(list): Number {
     match list {
         Nil => 0
         Cons(x, tail) => 1 + length(tail)

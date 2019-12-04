@@ -16,7 +16,7 @@ impl GetType {...} {
 }
 
 fun main() {
-  print(getType(10))
+  print(getType(10 as Number))
   print(getType("hello"))
-  print(getType({x: 10}))
+  print(getType({x: 10 as Number}))
 }

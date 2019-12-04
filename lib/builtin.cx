@@ -8,11 +8,12 @@ import length
 import boolean
 import option
 import result
+import number
+import integer
+import literal
 import array
 import mutarray
 import string
-import number
-import integer
 import tostring
 import repr
 import print
@@ -28,12 +29,13 @@ export import length
 export import boolean
 export import option
 export import result
+export import number
+export import integer
+export import literal
 export type Array = array.Array
 export let replicate = array.replicate
 export let each = array.each
 export type String = string.String
-export import number
-export import integer
 export import tostring
 export import repr
 export import print
@@ -43,7 +45,7 @@ export import range
 
 // TODO: implemented sorted with a trait so it can be used on mutarray too
 export fun sorted<a: cmp.Ordered>(arr: [a]): [a] {
-  return _unsafe_coerce(arr).slice().sort(fun(lhs: a, rhs: a) {
+  return _unsafe_coerce(arr).slice().sort(fun(lhs: a, rhs: a): number.Number {
     if lhs < rhs {
       -1
     } else if rhs < lhs {

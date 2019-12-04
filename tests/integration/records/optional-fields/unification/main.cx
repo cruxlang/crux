@@ -3,7 +3,7 @@ fun getField(record) {
 }
 
 fun main() {
-    print(getField({field: 10}))
+    print(getField({field: 10 as Number}))
     match getField({}) {
         None => print("none")
         Some(_) => print("some")

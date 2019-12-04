@@ -30,7 +30,7 @@ impl E Number {
 fun main() {
   let n: ?Number = None
   print(e(n, n))
-  print(e(Some(10), None))
-  print(e(Some(10), Some(11)))
-  print(e(Some(12), Some(12)))
+  print(e(Some(10 as Number), None))
+  print(e(Some(10 as Number), Some(11 as Number)))
+  print(e(Some(12 as Number), Some(12 as Number)))
 }

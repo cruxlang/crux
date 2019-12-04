@@ -1,5 +1,5 @@
 fun main() {
-  match Some(10) {
+  match Some(10 as Number) {
     Some(x) => {
       print(x)
     }

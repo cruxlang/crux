@@ -1,4 +1,4 @@
-let a = _ => 10
+let a = _ => 10 as Number
 let b = a("hello")
 fun main() {
   print(b)

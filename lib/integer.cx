@@ -6,8 +6,10 @@ export data Int16 {}
 export data UInt16 {}
 export data Int32 {}
 export data UInt32 {}
-export data Int64 {}
-export data UInt64 {}
+
+// TODO
+//export data Int64 {}
+//export data UInt64 {}
 
 // TODO: Dependent on platform like Swift?
 export type Int = Int32

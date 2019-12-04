@@ -11,5 +11,5 @@ impl Monoid Number {
 }
 
 fun main() {
-  print(concat(empty, concat(1, 2)))
+  print(concat(empty, concat(1 as Number, 2)))
 }

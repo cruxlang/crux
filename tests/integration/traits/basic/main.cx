@@ -9,5 +9,5 @@ impl Trait Number {
 }
 
 fun main() {
-  print(display(method(10, 5)))
+  print(display(method(10 as Number, 5)))
 }

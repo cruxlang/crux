@@ -3,5 +3,5 @@ fun f(_, _) {
 }
 
 fun main() {
-  print(f(1, "foo"))
+  print(f(1 as Number, "foo"))
 }

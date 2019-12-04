@@ -4,7 +4,7 @@ fun f(x) {
 }
 
 fun main() {
-  f({x: 10})
+  f({x: 10 as Number})
   let y = f({mutable x: "hi"})
   y.x = "bye"
   f(y)

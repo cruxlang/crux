@@ -30,5 +30,5 @@ impl PD {...} {
 
 fun main() {
   pd({x: "hello", y: "world"})
-  pd({a: 10, b: 20})
+  pd({a: 10 as Number, b: 20 as Number})
 }

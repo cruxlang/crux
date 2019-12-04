@@ -159,6 +159,10 @@ resolveNumberType :: Env -> Pos -> TC TypeVar
 resolveNumberType env pos = do
     resolveTypeReference env pos (KnownReference "number" "Number")
 
+resolveIntType :: Env -> Pos -> TC TypeVar
+resolveIntType env pos = do
+    resolveTypeReference env pos (KnownReference "integer" "Int")
+
 resolveStringType :: Env -> Pos -> TC TypeVar
 resolveStringType env pos = do
     resolveTypeReference env pos (KnownReference "string" "String")

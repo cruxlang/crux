@@ -17,6 +17,6 @@ impl T {...} {
 }
 
 fun main() {
-  pi({x: 10, y: 20})
+  pi({x: 10 as Number, y: 20 as Number})
   pi({z: "hi"})
 }

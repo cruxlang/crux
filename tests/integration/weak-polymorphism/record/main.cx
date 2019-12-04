@@ -5,6 +5,6 @@ data Maybe<a> { None, Some(a) }
 let a = { mutable x: None }
 
 fun main() {
-    a.x = Some(4)
+    a.x = Some(())
     a.x = Some("Hoot")
 }

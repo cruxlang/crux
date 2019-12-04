@@ -9,5 +9,5 @@ impl Trait Number {
 }
 
 fun main() {
-  f(10)
+  f(10 as Number)
 }

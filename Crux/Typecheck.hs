@@ -362,9 +362,21 @@ check' expectedType env = \case
         unitType <- resolveVoidType env pos
         return $ EAssign unitType lhs' rhs'
 
-    ELiteral pos lit -> do
+    ELiteral pos lit -> case lit of
+        LInteger _ -> do
+            let intValue = EExactLiteral pos lit
+            let ctor = EIdentifier pos $ KnownReference "literal" "fromInt"
+            check env $ EApp pos ctor [intValue]
+        LString _ -> do
+            stringType <- resolveStringType env pos
+            return $ ELiteral stringType lit
+        LUnit -> do
+            voidType <- resolveVoidType env pos
+            return $ ELiteral voidType lit
+
+    EExactLiteral pos lit -> do
         litType <- case lit of
-            LInteger _ -> resolveNumberType env pos
+            LInteger _ -> resolveIntType env pos
             LString _ -> resolveStringType env pos
             LUnit -> resolveVoidType env pos
         return $ ELiteral litType lit
@@ -644,6 +656,8 @@ resolveInstanceDictPlaceholders env = recurse
             elements' <- for elements recurse
             return $ ETupleLiteral tv elements'
         expr@ELiteral{} -> do
+            return expr
+        expr@EExactLiteral{} -> do
             return expr
         EUnIntrinsic tv ui e -> do
             e' <- recurse e

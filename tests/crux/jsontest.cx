@@ -9,7 +9,7 @@ test("encode string array", () => {
 })
 
 test("encode number array", () => {
-  assert.equal("[1,2]", json.encode([1, 2]))
+  assert.equal("[1,2]", json.encode([1 as Number, 2]))
 })
 
 test("encode booleans", () => {
@@ -35,5 +35,5 @@ test("encode record literals", () => {
 })
 
 test("encode options", () => {
-  assert.equal("[null,10]", json.encode([None, Some(10)]))
+  assert.equal("[null,10]", json.encode([None, Some(10 as Number)]))
 })

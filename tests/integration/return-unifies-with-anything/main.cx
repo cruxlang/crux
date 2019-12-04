@@ -2,6 +2,6 @@ fun main() {
     let p =
         if True
             then return "hody"
-            else 22
+            else 22 as Number
     toString(p)
 }

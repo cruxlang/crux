@@ -1,3 +1,3 @@
 fun main() {
-  each([0, 1], print)
+  each([0 as Number, 1], print)
 }

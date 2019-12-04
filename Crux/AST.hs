@@ -213,6 +213,7 @@ data Expression idtype tagtype edata
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ETupleLiteral edata [Expression idtype tagtype edata]
     | ELiteral edata Literal
+    | EExactLiteral edata Literal
 
     -- intrinsics
     | EBinIntrinsic edata BinIntrinsic (Expression idtype tagtype edata) (Expression idtype tagtype edata)
@@ -246,6 +247,7 @@ edata expr = case expr of
     EMatch ed _ _ -> ed
     EAssign ed _ _ -> ed
     ELiteral ed _ -> ed
+    EExactLiteral ed _ -> ed
     EArrayLiteral ed _ _ -> ed
     ETupleLiteral ed _ -> ed
     ERecordLiteral ed _ -> ed
@@ -278,6 +280,7 @@ setEdata expr e = case expr of
     EMatch _ a b          -> EMatch e a b
     EAssign _ a b         -> EAssign e a b
     ELiteral _ a          -> ELiteral e a
+    EExactLiteral _ a     -> EExactLiteral e a
     EArrayLiteral _ a b   -> EArrayLiteral e a b
     ETupleLiteral _ a     -> ETupleLiteral e a
     ERecordLiteral _ a    -> ERecordLiteral e a

@@ -13,5 +13,5 @@ fun go(x, y) {
 }
 
 fun main() {
-  go(10, 5)
+  go(10 as Number, 5)
 }

@@ -2,5 +2,5 @@ fun f<Rec: {...: String}>(x: Rec) {
 }
 
 fun main() {
-  f({prop: 10})
+  f({prop: 10 as Number})
 }

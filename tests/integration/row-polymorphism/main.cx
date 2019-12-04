@@ -1,7 +1,7 @@
 fun manhattan(p) { p.x + p.y }
 
-let zero = { x: 0, y: 0 }
-let myhouse = {x: 33, y: 44, z:8}
+let zero = { x: 0 as Number, y: 0 as Number }
+let myhouse = {x: 33 as Number, y: 44 as Number, z: 8 as Number}
 
 fun main() {
     print(manhattan(zero))

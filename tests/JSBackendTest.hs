@@ -31,27 +31,27 @@ genDoc src = do
         Right stmts -> return stmts
 
 test_return_from_function = do
-    doc <- genDoc "fun f() { return 1 }"
+    doc <- genDoc "fun f() { return \"1\" }"
     assertEqual
-        "function f() {\n  return 1;\n}\n"
+        "function f() {\n  return \"1\";\n}\n"
         doc
 
 test_export_function = do
-    doc <- genDoc "export fun f() { 1 }"
+    doc <- genDoc "export fun f() { \"1\" }"
     assertEqual
-        "function f() {\n  return 1;\n}\n"
+        "function f() {\n  return \"1\";\n}\n"
         doc
 
 test_return_from_branch = do
-    result <- genDoc "fun f() { if True then return 1 else return 2 }"
+    result <- genDoc "fun f() { if True then return \"1\" else return \"2\" }"
     assertEqual
-        "function f() {\n  var $0;\n  if ($types_True) {\n    return 1;\n  }\n  else {\n    return 2;\n  }\n  return $0;\n}\n"
+        "function f() {\n  var $0;\n  if ($types_True) {\n    return \"1\";\n  }\n  else {\n    return \"2\";\n  }\n  return $0;\n}\n"
         result
 
 test_branch_with_value = do
-    result <- genDoc "let x = if True then 1 else 2"
+    result <- genDoc "let x = if True then \"1\" else \"2\""
     assertEqual
-        "var $0;\nif ($types_True) {\n  $0 = 1;\n}\nelse {\n  $0 = 2;\n}\nvar x = $0;\n"
+        "var $0;\nif ($types_True) {\n  $0 = \"1\";\n}\nelse {\n  $0 = \"2\";\n}\nvar x = $0;\n"
         result
 
 test_jsffi_data = do

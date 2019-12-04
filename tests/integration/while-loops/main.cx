@@ -1,7 +1,7 @@
-fun fib(n) {
+fun fib(n: Number): Number {
     let mutable count = n
-    let mutable a = 0
-    let mutable b = 1
+    let mutable a = 0 as Number
+    let mutable b = 1 as Number
 
     while count > 0 {
         let t = a

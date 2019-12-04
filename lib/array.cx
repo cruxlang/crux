@@ -2,6 +2,8 @@ pragma { NoBuiltin }
 
 import types(...)
 import number(Number)
+import integer(Int)
+import literal()
 import length
 import cmp
 import js.unsafe
@@ -67,7 +69,7 @@ export fun sliceFrom<a>(arr: [a], start: Number): [a] {
 }
 
 export fun sliceTo<a>(arr: [a], end: Number): [a] {
-    _unsafe_coerce(arr).slice(0, end)
+    _unsafe_coerce(arr).slice(0 as Number, end)
 }
 
 export fun slice<a>(arr: [a], start: Number, end: Number): [a] {

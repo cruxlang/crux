@@ -14,6 +14,6 @@ impl Trait Number {
 impl Trait String {}
 
 fun main() {
-  print(display(10))
+  print(display(10 as Number))
   print(display("Howdy"))
 }

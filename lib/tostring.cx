@@ -1,6 +1,7 @@
 pragma { NoBuiltin }
 
 import number(Number)
+import integer(Int)
 import string(String, join)
 import types(...)
 import array(Array)
@@ -22,6 +23,10 @@ impl ToString Boolean {
 }
 
 impl ToString Number {
+    toString = unsafe.toString
+}
+
+impl ToString Int {
     toString = unsafe.toString
 }
 

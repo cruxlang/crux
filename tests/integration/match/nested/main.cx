@@ -1,5 +1,5 @@
 fun main() {
-  match Some(Some(1)) {
+  match Some(Some(1 as Number)) {
     Some(None) => print("some(none)")
     Some(Some(x)) => print(x)
     None => print("none")

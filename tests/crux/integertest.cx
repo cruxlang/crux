@@ -1,0 +1,12 @@
+import test(...)
+import assert
+
+test("u8 wraps around", () => {
+    let mutable a: UInt8 = 255
+    assert.equal(255, a)
+    // TODO
+    //a = a + 1
+    //assert.equal(0, a)
+})
+
+// TODO: Assert that out-of-bound literals are errors

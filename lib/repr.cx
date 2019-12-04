@@ -3,6 +3,7 @@ pragma { NoBuiltin }
 import types(...)
 import string(String, join)
 import number(Number)
+import integer(...)
 import cmp
 import array(Array)
 import mutarray(MutableArray)
@@ -22,6 +23,30 @@ impl Repr Boolean {
 }
 
 impl Repr Number {
+    repr = unsafe.toString
+}
+
+impl Repr Int8 {
+    repr = unsafe.toString
+}
+
+impl Repr UInt8 {
+    repr = unsafe.toString
+}
+
+impl Repr Int16 {
+    repr = unsafe.toString
+}
+
+impl Repr UInt16 {
+    repr = unsafe.toString
+}
+
+impl Repr Int32 {
+    repr = unsafe.toString
+}
+
+impl Repr UInt32 {
     repr = unsafe.toString
 }
 

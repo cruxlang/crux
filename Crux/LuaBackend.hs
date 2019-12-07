@@ -266,7 +266,7 @@ generateLua rtsSource modules = runST $ do
         return $ declareExports ++ [JS.SExpression $ JS.iife $ body ++ setExports]
 
     -- TODO: introduce an SRaw
-    let prefix = JS.SExpression $ JS.ERaw rtsSource
+    let prefix = JS.SExpression $ JS.ERaw ""
     globalExports' <- readSTRef globalExports
     let suffix = [
             (JS.SAssign (JS.ELookup (JS.EIdentifier "_rts_exports") (mangle exportName)) (JS.EIdentifier renderedExportName))

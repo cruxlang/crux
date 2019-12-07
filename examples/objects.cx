@@ -4,5 +4,5 @@ fun f(x) {
 let _ = _debug_type(f)
 
 fun main() {
-  f({prop: 10})
+  f({prop: 10 as Number})
 }

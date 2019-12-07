@@ -23,14 +23,20 @@ import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
+import qualified Prelude
 import Text.Printf (printf)
 import qualified Data.Set as Set
+import qualified System.IO
 
 type ParsedExpression = Expression UnresolvedReference () Pos
 type TypedExpression = Expression ResolvedReference PatternTag TypeVar
 
 type ParsedDeclaration = Declaration UnresolvedReference () Pos
 type TypedDeclaration = Declaration ResolvedReference PatternTag TypeVar
+
+putErrStrLn :: Prelude.String -> IO ()
+putErrStrLn s =
+    System.IO.hPutStr System.IO.stderr $ s ++ "\n"
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -254,7 +260,7 @@ check' expectedType env = \case
     EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
         arg' <- check env arg
         argType <- renderTypeVarIO $ edata arg'
-        liftIO $ putStrLn $ "Debug Type: " ++ argType
+        liftIO $ putErrStrLn $ "Debug Type: " ++ argType
         return arg'
     EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
         t <- freshType env

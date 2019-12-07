@@ -12,7 +12,7 @@ module Crux.Error
 
 import Crux.ModuleName (ModuleName, printModuleName)
 import Crux.Prelude
-import Crux.TypeVar (TypeVar, renderTypeVarIO)
+import Crux.TypeVar (TraitIdentity(..), TypeVar, renderTypeVarIO)
 import qualified Data.Text as Text
 import System.Console.ANSI
 import Text.Printf
@@ -46,8 +46,9 @@ data TypeError
     | IllegalTypeApplication Name
     | TypeApplicationMismatch Name Int Int
     -- trait errors
-    | NoTraitOnType TypeVar Name ModuleName
-    | NoTraitOnRecord TypeVar Name ModuleName
+    | NoTraitOnType TypeVar TraitIdentity
+    | NoTraitOnRecord TypeVar TraitIdentity
+    | AmbiguousPolymorphism TraitIdentity
     | IncompleteImpl [Name]
     | UnexpectedImplMethod Name
     | DuplicateSymbol Text
@@ -133,9 +134,13 @@ getTypeErrorName = \case
     TypeApplicationMismatch{} -> "type-application-mismatch"
     NoTraitOnType{} -> "no-trait-on-type"
     NoTraitOnRecord{} -> "no-trait-on-record"
+    AmbiguousPolymorphism{} -> "ambiguous-polymorphism"
     IncompleteImpl{} -> "incomplete-impl"
     UnexpectedImplMethod{} -> "unexpected-impl-method"
     DuplicateSymbol{} -> "duplicate-symbol"
+
+renderTraitIdentity :: TraitIdentity -> String
+renderTraitIdentity (TraitIdentity traitModule traitName) = Text.unpack (printModuleName traitModule <> "." <> traitName)
 
 typeErrorToString :: TypeError -> IO String
 typeErrorToString (UnificationError message at bt) = do
@@ -172,12 +177,14 @@ typeErrorToString (IllegalTypeApplication pt) = do
     return $ printf "Type %s does not take parameters" (show pt)
 typeErrorToString (TypeApplicationMismatch name total applied) = do
     return $ printf "Type %s takes %i type parameters.  %i given" (show name) total applied
-typeErrorToString (NoTraitOnType typeVar traitName traitModule) = do
+typeErrorToString (NoTraitOnType typeVar traitIdentity) = do
     ts <- renderTypeVarIO typeVar
-    return $ printf "Type %s does not implement trait %s (defined in %s)" ts (Text.unpack traitName) (show traitModule)
-typeErrorToString (NoTraitOnRecord _typeVar traitName traitModule) = do
+    return $ printf "Type %s does not implement trait %s" ts (renderTraitIdentity traitIdentity)
+typeErrorToString (NoTraitOnRecord _typeVar traitIdentity) = do
     --_ts <- renderTypeVarIO typeVar
-    return $ printf "Record type does not implement trait %s (defined in %s)" traitName (Text.unpack $ printModuleName traitModule)
+    return $ printf "Record type does not implement trait %s" (renderTraitIdentity traitIdentity)
+typeErrorToString (AmbiguousPolymorphism traitIdentity) = do
+    return $ printf "No concrete type in use of trait %s" (renderTraitIdentity traitIdentity)
 typeErrorToString (IncompleteImpl missingMethods) = do
     return $ "impl is missing methods: " <> intercalate ", " (fmap Text.unpack missingMethods)
 typeErrorToString (UnexpectedImplMethod name) = do

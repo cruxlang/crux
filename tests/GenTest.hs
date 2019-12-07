@@ -31,32 +31,32 @@ genDoc src = do
         Right stmts -> return stmts
 
 test_return_at_top_level_is_error = do
-    result <- try $! genDoc "let _ = return 1"
+    result <- try $! genDoc "let _ = return ()"
     case result of
         Left (ErrorCall message) ->
-            assertBool ("Cannot return outside of functions" `isInfixOf` message)
+            assertEqual ("Cannot return outside of functions") message
         _ ->
             assertFailure "Expected compile error"
     -- assertEqual (Left $ ErrorCall "Cannot return outside of functions") $ result
 
 test_return_from_function = do
-    doc <- genDoc "fun f() { return 1 }"
+    doc <- genDoc "fun f() { return () }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" [] $
-            [ Gen.Return $ Gen.Literal $ AST.LInteger 1
+            [ Gen.Return $ Gen.Literal $ AST.LUnit
             ]
         ]
         doc
 
 test_return_from_branch = do
-    result <- genDoc "fun f() { if True then return 1 else return 2 }"
+    result <- genDoc "fun f() { if True then return \"a\" else return \"b\" }"
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DFun "f" []
             [ Gen.EmptyTemporary 0
             , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "types", "True"))
-                [ Gen.Return $ Gen.Literal $ AST.LInteger 1
+                [ Gen.Return $ Gen.Literal $ AST.LString "a"
                 ]
-                [ Gen.Return $ Gen.Literal $ AST.LInteger 2
+                [ Gen.Return $ Gen.Literal $ AST.LString "b"
                 ]
             , Gen.Return $ Gen.Temporary 0
             ]
@@ -64,14 +64,14 @@ test_return_from_branch = do
         result
 
 test_branch_with_value = do
-    result <- genDoc "let x = if True then 1 else 2"
+    result <- genDoc "let x = if True then \"1\" else \"2\""
     assertEqual
         [ Gen.Declaration AST.NoExport $ Gen.DLet (AST.PBinding "x")
             [ Gen.EmptyTemporary 0
             , Gen.If (Gen.ResolvedBinding $ (AST.FromModule "types", "True"))
-                [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 1
+                [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LString "1"
                 ]
-                [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LInteger 2
+                [ Gen.Assign (Gen.ExistingTemporary 0) $ Gen.Literal $ AST.LString "2"
                 ]
             , Gen.Assign (Gen.NewLocalBinding "x") (Gen.Temporary 0)
             ]

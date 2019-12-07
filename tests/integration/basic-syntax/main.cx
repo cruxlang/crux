@@ -1,11 +1,11 @@
-fun spam(s) {
+fun spam(s): Number {
     print(s)
     print(s)
     print(s)
     9
 }
 
-fun spam2(s) {
+fun spam2(s): Number {
     print(s)
     print(s)
     print(s)
@@ -18,8 +18,8 @@ fun foo(i) {
 
 fun main() {
     print("hooper")
-    let r = (2; 8)
-    let t = 9
+    let r = (2 as Number; 8 as Number)
+    let t = 9 as Number
     let u = "hody"
     let v = u
     let w = t

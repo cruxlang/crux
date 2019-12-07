@@ -2,9 +2,9 @@ import test(...)
 import assert
 
 test("numbers add", fun() {
-    assert.equal(3, 1 + 2)
+    assert.equal(3 as Number, 1 + 2)
 })
 
 test("numbers subtract", fun() {
-    assert.equal(3, 7 - 4)
+    assert.equal(3 as Number, 7 - 4)
 })

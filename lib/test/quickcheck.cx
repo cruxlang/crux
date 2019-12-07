@@ -2,7 +2,7 @@ import assert
 import random
 import test(...)
 
-let mutable iterationCount = 50
+let mutable iterationCount = 50 as Number
 
 export trait Arbitrary {
     arbitrary: () => self

@@ -22,5 +22,5 @@ impl PD {...} {
 }
 
 fun main() {
-  pd({x: "hello", y: 10})
+  pd({x: "hello", y: 10 as Number})
 }

@@ -1,11 +1,11 @@
 fun main() {
   if False {
-    let x = 1
+    let x = 1 as Number
     print(x)
   } else if True {
-    let x = 2
+    let x = 2 as Number
     print(x)
   } else {
-    print(3)
+    print(3 as Number)
   }
 }

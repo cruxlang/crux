@@ -145,8 +145,8 @@ loadCompilerConfig = do
         Nothing -> fail "Failed to find compiler's cxconfig.yaml"
         Just c -> return c
 
-    config <- case Yaml.decodeEither configBytes of
-        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ err
+    config <- case Yaml.decodeEither' configBytes of
+        Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ show err
         Right c -> return c
 
     return config
@@ -282,6 +282,9 @@ loadProgram mode loader filename main = runExceptT $ do
     let syntaxPos = SyntaxDependency filename
     let loadSyntaxDependency n = void $ ExceptT $ loadModule loader id loadedModules loadingModules syntaxPos n
 
+    -- TODO: it would be better to form implicit dependencies from modules that
+    -- use the language features below
+
     -- any module that uses a unit literal or unit type ident depends on 'void' being loaded
     loadSyntaxDependency "types"
     -- any module that uses tuples depends on 'tuple'
@@ -290,6 +293,10 @@ loadProgram mode loader filename main = runExceptT $ do
     loadSyntaxDependency "cmp"
     -- any module that uses a string literal depends on 'string' being loaded
     loadSyntaxDependency "string"
+    -- any module that uses an integer literal depends on 'integer' being loaded
+    loadSyntaxDependency "integer"
+    -- any module that uses an integer literal depends on 'literal' being loaded
+    loadSyntaxDependency "literal"
     -- any module that uses a number literal depends on 'number' being loaded
     loadSyntaxDependency "number"
     -- any module that uses a negation operator depends on 'operator'

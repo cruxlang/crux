@@ -1,6 +1,6 @@
 
 export trait Trait {
-  display: (self) => String = 44
+  display: (self) => String = 44 as Number
 }
 
 impl Trait Number {
@@ -12,6 +12,6 @@ impl Trait Number {
 impl Trait String {}
 
 fun main() {
-  print(display(10))
+  print(display(10 as Number))
   print(display("Howdy"))
 }

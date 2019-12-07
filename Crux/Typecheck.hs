@@ -23,14 +23,20 @@ import Crux.TypeVar
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as Text
 import Prelude hiding (String)
+import qualified Prelude
 import Text.Printf (printf)
 import qualified Data.Set as Set
+import qualified System.IO
 
 type ParsedExpression = Expression UnresolvedReference () Pos
 type TypedExpression = Expression ResolvedReference PatternTag TypeVar
 
 type ParsedDeclaration = Declaration UnresolvedReference () Pos
 type TypedDeclaration = Declaration ResolvedReference PatternTag TypeVar
+
+putErrStrLn :: Prelude.String -> IO ()
+putErrStrLn s =
+    System.IO.hPutStr System.IO.stderr $ s ++ "\n"
 
 -- | Build up an environment for a case of a match block.
 -- exprType is the type of the expression.  We unify this with the constructor of the pattern
@@ -254,7 +260,7 @@ check' expectedType env = \case
     EApp _ (EIdentifier _ (UnqualifiedReference "_debug_type")) [arg] -> do
         arg' <- check env arg
         argType <- renderTypeVarIO $ edata arg'
-        liftIO $ putStrLn $ "Debug Type: " ++ argType
+        liftIO $ putErrStrLn $ "Debug Type: " ++ argType
         return arg'
     EApp _ (EIdentifier _ (UnqualifiedReference "_unsafe_js")) [ELiteral _ (LString txt)] -> do
         t <- freshType env
@@ -362,9 +368,21 @@ check' expectedType env = \case
         unitType <- resolveVoidType env pos
         return $ EAssign unitType lhs' rhs'
 
-    ELiteral pos lit -> do
+    ELiteral pos lit -> case lit of
+        LInteger _ -> do
+            let intValue = EExactLiteral pos lit
+            let ctor = EIdentifier pos $ KnownReference "literal" "fromInt"
+            check env $ EApp pos ctor [intValue]
+        LString _ -> do
+            stringType <- resolveStringType env pos
+            return $ ELiteral stringType lit
+        LUnit -> do
+            voidType <- resolveVoidType env pos
+            return $ ELiteral voidType lit
+
+    EExactLiteral pos lit -> do
         litType <- case lit of
-            LInteger _ -> resolveNumberType env pos
+            LInteger _ -> resolveIntType env pos
             LString _ -> resolveStringType env pos
             LUnit -> resolveVoidType env pos
         return $ ELiteral litType lit
@@ -418,7 +436,7 @@ check' expectedType env = \case
                         return $ EIdentifier tv' ref
                     _ -> do
                         placeholders <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
-                            return $ EInstancePlaceholder typeVar traitNumber
+                            return $ EInstancePlaceholder typeVar pos traitNumber
                         return $ EApp
                             tv'
                             (EIdentifier tv' ref)
@@ -574,13 +592,15 @@ check' expectedType env = \case
         catchBody' <- checkExpecting (edata tryBody') catchEnv catchBody
         return $ ETryCatch (edata tryBody') tryBody' catchBinding' catchBody'
 
-    EInstancePlaceholder _ _ -> do
+    EInstancePlaceholder {} -> do
         fail "ICE: placeholders are not typechecked"
-    EInstanceDict _ _ _ -> do
+    EInstanceDict {} -> do
         fail "ICE: instance dicts are not typechecked"
-    EInstanceArgument _ _ -> do
+    EInstanceArgument {} -> do
         fail "ICE: instance arguments are not typechecked"
-
+    EInstanceFieldMap {} -> do
+        fail "ICE: instance field maps are not typechecked"
+    
 -- TODO: move into IR / backend
 renderInstanceArgumentName :: TraitIdentity -> TypeNumber -> Name
 renderInstanceArgumentName (TraitIdentity traitModule traitName) typeNumber =
@@ -643,6 +663,11 @@ resolveInstanceDictPlaceholders env = recurse
             return $ ETupleLiteral tv elements'
         expr@ELiteral{} -> do
             return expr
+        expr@EExactLiteral{} -> do
+            return expr
+        EUnIntrinsic tv ui e -> do
+            e' <- recurse e
+            return $ EUnIntrinsic tv ui e'
         EBinIntrinsic tv bi lhs rhs -> do
             lhs' <- recurse lhs
             rhs' <- recurse rhs
@@ -676,22 +701,23 @@ resolveInstanceDictPlaceholders env = recurse
             catch' <- recurse catch
             return $ ETryCatch tv try' catchBinding catch'
 
-        EInstancePlaceholder tv traitIdentity -> followTypeVar tv >>= \case
+        EInstancePlaceholder tv pos traitIdentity -> followTypeVar tv >>= \case
             TypeVar ref -> readIORef ref >>= \case
-                TUnbound _str _level _constraints typeNumber ->
+                TUnbound _str _level _constraints _typeNumber -> do
+                    failTypeError pos $ AmbiguousPolymorphism traitIdentity
                     -- TODO: this needs a better error message - it just means we are trying to resolve
                     -- a trait impl for a polymorphic type
-                    fail $ "should have been quantified by now: " ++ show tv ++ " -- " ++ show traitIdentity ++ " -- " ++ show typeNumber
+                    -- fail $ "should have been quantified by now: " ++ show tv ++ " -- " ++ show traitIdentity ++ " -- " ++ show typeNumber
                 _ ->
                     fail "never happens"
             TQuant _ _constraints typeNumber -> do
                 return $ EInstanceArgument tv $ renderInstanceArgumentName traitIdentity typeNumber
                 --append constraints tv typeNumber
-            TFun paramTypes returnType -> do
-                generateImplReference tv traitIdentity (FunctionIdentity $ length paramTypes)
+            TFun paramTypes _returnType -> do
+                generateImplReference tv pos traitIdentity (FunctionIdentity $ length paramTypes)
             TDataType def -> do
                 let dtid = dataTypeIdentity def
-                generateImplReference tv traitIdentity dtid
+                generateImplReference tv pos traitIdentity dtid
             TRecord fields -> do
                 -- grab fieldMap and its typevar
                 instanceDesc <- HashTable.lookup (traitIdentity, RecordIdentity) (eKnownInstances env) >>= \case
@@ -720,7 +746,7 @@ resolveInstanceDictPlaceholders env = recurse
                             return fieldFunction
                         _ -> do
                             placeholders <- for traits $ \(_typeVar, _typeNumber, traitNumber) -> do
-                                return $ EInstancePlaceholder trTyVar traitNumber
+                                return $ EInstancePlaceholder trTyVar pos traitNumber
                             return $ EApp dontcare fieldFunction placeholders
 
                     fieldFunctionType' <- instantiate env fieldFunctionType
@@ -748,7 +774,7 @@ resolveInstanceDictPlaceholders env = recurse
 
                 argDicts <- for traits' $ \(typeVar, _typeNumber, traitNumber) -> do
                     --quantify typeVar -- this feels dirty
-                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar pos traitNumber
 
                 return $ EApp tv thisDict (fieldMapFunction : argDicts)
             TTypeFun _ _ -> do
@@ -761,8 +787,8 @@ resolveInstanceDictPlaceholders env = recurse
         expr@(EInstanceFieldMap _ _) -> do
             return expr
 
-    generateImplReference :: TypeVar -> TraitIdentity -> TraitImplIdentity -> TC TypedExpression
-    generateImplReference tv traitIdentity traitImplIdentity = do
+    generateImplReference :: TypeVar -> Pos -> TraitIdentity -> TraitImplIdentity -> TC TypedExpression
+    generateImplReference tv pos traitIdentity traitImplIdentity = do
         instanceDesc <- HashTable.lookup (traitIdentity, traitImplIdentity) (eKnownInstances env) >>= \case
             Just instanceDesc -> return instanceDesc
             Nothing -> do
@@ -786,7 +812,7 @@ resolveInstanceDictPlaceholders env = recurse
             _ -> do
                 argDicts <- for traits $ \(typeVar, _typeNumber, traitNumber) -> do
                     --quantify typeVar -- this feels dirty
-                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar traitNumber
+                    resolveInstanceDictPlaceholders env $ EInstancePlaceholder typeVar pos traitNumber
                 return $ EApp tv thisDict argDicts
 
 exportValue :: ExportFlag -> Env -> Pos -> Name -> (ResolvedReference, Mutability, TypeVar) -> TC ()
@@ -1024,8 +1050,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 typeVar <- resolveTypeReference env pos' inTypeName
 
                 let traitNames = Set.fromList $
-                        fmap (\(a, b, c) -> a) $
-                        filter (\(a, b, hasDefault) -> not hasDefault) $
+                        fmap (\(a, _b, _c) -> a) $
+                        filter (\(_a, _b, hasDefault) -> not hasDefault) $
                         tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
 
@@ -1055,8 +1081,8 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                 quantify funType
 
                 let traitNames = Set.fromList $
-                        fmap (\(a, b, c) -> a) $
-                        filter (\(a, b, hasDefault) -> not hasDefault) $
+                        fmap (\(a, _b, _c) -> a) $
+                        filter (\(_a, _b, hasDefault) -> not hasDefault) $
                         tdMethods traitDesc
                 let implNames = Set.fromList $ fmap fst implValues
 

@@ -1,0 +1,11 @@
+trait P {
+    p(): self
+}
+
+trait C {
+    c(self): ()
+}
+
+fun main() {
+    c(p())
+}

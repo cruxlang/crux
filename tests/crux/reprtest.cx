@@ -5,7 +5,7 @@ test("repr basics", () => {
     assert.equal("()", repr(()))
     assert.equal("False", repr(False))
     assert.equal("True", repr(True))
-    assert.equal("0", repr(0))
+    assert.equal("0", repr(0 as Number))
     assert.equal("\"hello\"", repr("hello"))
     //assert.equal("12.34", repr(12.34))
 })

@@ -906,7 +906,7 @@ traitDeclaration = do
 
                 -- Note: Annotations for parameters and the return value are not optional here
                 fdParams <- parenthesized $ commaDelimited (funArgument' True)
-                token TColon
+                _ <- token TColon
                 fdReturnAnnot <- typeIdent
 
                 fdBody <- blockExpression

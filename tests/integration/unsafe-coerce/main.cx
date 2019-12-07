@@ -2,5 +2,5 @@ let message = "ohai"
 let coerced = _unsafe_coerce(message)
 
 fun main() {
-  print(5 + coerced)
+  print(5 as Number + coerced)
 }

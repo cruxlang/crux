@@ -213,6 +213,7 @@ data Expression idtype tagtype edata
     | EArrayLiteral edata Mutability [Expression idtype tagtype edata]
     | ETupleLiteral edata [Expression idtype tagtype edata]
     | ELiteral edata Literal
+    | EExactLiteral edata Literal
 
     -- intrinsics
     | EBinIntrinsic edata BinIntrinsic (Expression idtype tagtype edata) (Expression idtype tagtype edata)
@@ -230,7 +231,7 @@ data Expression idtype tagtype edata
 
     -- trait dictionary conversion
     -- instance dict placeholders to be resolved after quantification
-    | EInstancePlaceholder edata TraitIdentity
+    | EInstancePlaceholder edata Pos TraitIdentity
     | EInstanceDict edata TraitIdentity TraitImplIdentity
     | EInstanceArgument edata Name
     | EInstanceFieldMap edata TraitIdentity
@@ -246,6 +247,7 @@ edata expr = case expr of
     EMatch ed _ _ -> ed
     EAssign ed _ _ -> ed
     ELiteral ed _ -> ed
+    EExactLiteral ed _ -> ed
     EArrayLiteral ed _ _ -> ed
     ETupleLiteral ed _ -> ed
     ERecordLiteral ed _ -> ed
@@ -264,7 +266,7 @@ edata expr = case expr of
     EBreak ed -> ed
     EThrow ed _ _ -> ed
     ETryCatch ed _ _ _ -> ed
-    EInstancePlaceholder ed _ -> ed
+    EInstancePlaceholder ed _ _ -> ed
     EInstanceDict ed _ _ -> ed
     EInstanceArgument ed _ -> ed
     EInstanceFieldMap ed _ -> ed
@@ -278,6 +280,7 @@ setEdata expr e = case expr of
     EMatch _ a b          -> EMatch e a b
     EAssign _ a b         -> EAssign e a b
     ELiteral _ a          -> ELiteral e a
+    EExactLiteral _ a     -> EExactLiteral e a
     EArrayLiteral _ a b   -> EArrayLiteral e a b
     ETupleLiteral _ a     -> ETupleLiteral e a
     ERecordLiteral _ a    -> ERecordLiteral e a
@@ -296,7 +299,7 @@ setEdata expr e = case expr of
     EBreak _              -> EBreak e
     EThrow _ a b          -> EThrow e a b
     ETryCatch _ a b c     -> ETryCatch e a b c
-    EInstancePlaceholder _ a -> EInstancePlaceholder e a
+    EInstancePlaceholder _ a b -> EInstancePlaceholder e a b
     EInstanceDict _ a b   -> EInstanceDict e a b
     EInstanceArgument _ a -> EInstanceArgument e a
     EInstanceFieldMap _ a -> EInstanceFieldMap e a

@@ -6,7 +6,7 @@ trait PD {
 }
 
 impl PD {...} {
-  for fieldValue { fieldValue + 1 }
+  for fieldValue { fieldValue + (1 as Number) }
   pd(r) {
     let d = dict.from(fieldMap(r))
     for item in sorted(d->items()) {

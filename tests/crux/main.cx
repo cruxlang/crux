@@ -4,6 +4,7 @@ import arraytest as _
 import booltest as _
 import callbackqueuetest as _
 import cmptest as _
+import integertest as _
 import numbertest as _
 import stringtest as _
 import pathtest as _

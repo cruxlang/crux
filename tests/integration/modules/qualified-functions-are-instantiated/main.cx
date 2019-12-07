@@ -1,5 +1,5 @@
 import mymod
 
 fun main() {
-  print(mymod.func(1, 2))
+  print(mymod.func(1 as Number, 2))
 }

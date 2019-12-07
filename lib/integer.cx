@@ -1,14 +1,68 @@
 pragma { NoBuiltin }
 
+import cmp(...)
+import js.unsafe
+
 export data Int8 {}
 export data UInt8 {}
 export data Int16 {}
 export data UInt16 {}
 export data Int32 {}
 export data UInt32 {}
-export data Int64 {}
-export data UInt64 {}
+
+// TODO
+//export data Int64 {}
+//export data UInt64 {}
 
 // TODO: Dependent on platform like Swift?
 export type Int = Int32
 export type UInt = UInt32
+
+impl Eq Int8 {
+  eq = unsafe.eq
+}
+
+impl Ordered Int8 {
+  lt = unsafe.lt
+}
+
+impl Eq UInt8 {
+  eq = unsafe.eq
+}
+
+impl Ordered UInt8 {
+  lt = unsafe.lt
+}
+
+impl Eq Int16 {
+  eq = unsafe.eq
+}
+
+impl Ordered Int16 {
+  lt = unsafe.lt
+}
+
+impl Eq UInt16 {
+  eq = unsafe.eq
+}
+
+impl Ordered UInt16 {
+  lt = unsafe.lt
+}
+
+impl Eq Int32 {
+  eq = unsafe.eq
+}
+
+impl Ordered Int32 {
+  lt = unsafe.lt
+}
+
+impl Eq UInt32 {
+  eq = unsafe.eq
+}
+
+impl Ordered UInt32 {
+  lt = unsafe.lt
+}
+

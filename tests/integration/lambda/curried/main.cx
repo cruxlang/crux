@@ -10,13 +10,13 @@ let _: () = v(())(())
 
 let f = x => y => x + y
 let g<a: cmp.Eq>: a => a => a = f
-let _ = print(g(1)(2))
+let _ = print(g(1 as Number)(2))
 
 let h = (x) => (y) => x + y
-let _ = print(h(1)(2))
+let _ = print(h(1 as Number)(2))
 
 let sel = x => (y, z) => if x then y else z
 let s<a>: Boolean => (a, a) => a = sel
-let _ = print(s(False)(8, 9))
+let _ = print(s(False)(8 as Number, 9))
 
 fun main() {}

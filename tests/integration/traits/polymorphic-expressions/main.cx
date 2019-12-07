@@ -19,8 +19,8 @@ let h: fun(Number) -> String = g
 
 fun main() {
   print(f("1"))
-  print(f(2))
+  print(f(2 as Number))
   print(g("3"))
-  print(g(4))
-  print(h(5))
+  print(g(4 as Number))
+  print(h(5 as Number))
 }

@@ -1,0 +1,14 @@
+import literal
+
+data C(Int)
+
+fun printC(C(i)) {
+    print(i)
+}
+
+fun main() {
+    printC(C(255))
+    printC(C(-255))
+    // TODO: hex literals
+    //printC(0xFFFFFFFF)
+}

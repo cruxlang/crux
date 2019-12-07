@@ -1,0 +1,56 @@
+pragma { NoBuiltin }
+
+import number(Number)
+import integer(...)
+import js.unsafe
+
+// TODO: make zero its own trait for dimensioned types like units.
+export trait IntLiteral {
+    fromInt: Int => self
+}
+
+impl IntLiteral Number {
+    fromInt(i) { _unsafe_coerce(i) }
+}
+
+impl IntLiteral UInt8 {
+    fromInt(i) {
+        // TODO: Clamp
+        _unsafe_coerce(i)
+    }
+}
+
+impl IntLiteral Int8 {
+    fromInt(i) {
+        // TODO: Clamp
+        _unsafe_coerce(i)
+    }
+}
+
+impl IntLiteral UInt16 {
+    fromInt(i) {
+        // TODO: Clamp
+        _unsafe_coerce(i)
+    }
+}
+
+impl IntLiteral Int16 {
+    fromInt(i) {
+        // TODO: Clamp
+        _unsafe_coerce(i)
+    }
+}
+
+impl IntLiteral UInt32 {
+    fromInt(i) {
+        // TODO: Clamp
+        _unsafe_coerce(i)
+    }
+}
+
+impl IntLiteral Int32 {
+    fromInt(i) {
+        // TODO: Clamp
+        _unsafe_coerce(i)
+    }
+}

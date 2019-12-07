@@ -228,7 +228,7 @@ test_annotation_is_checked = do
 
 test_arrays_of_different_types_cannot_unify = do
     result <- run $ T.unlines
-        [ "let _ = [[0], [\"\"]]"
+        [ "let _ = [[0 as Number], [\"\"]]"
         ]
     assertUnificationError (makePos 1 9) "Number" "String" result
 

@@ -1,4 +1,4 @@
 let hypot_squared = fun (x, y) { x * x + y * y }
 fun main() {
-  print(hypot_squared(4, 3))
+  print(hypot_squared(4 as Number, 3))
 }

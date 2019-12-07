@@ -159,6 +159,10 @@ resolveNumberType :: Env -> Pos -> TC TypeVar
 resolveNumberType env pos = do
     resolveTypeReference env pos (KnownReference "number" "Number")
 
+resolveIntType :: Env -> Pos -> TC TypeVar
+resolveIntType env pos = do
+    resolveTypeReference env pos (KnownReference "integer" "Int")
+
 resolveStringType :: Env -> Pos -> TC TypeVar
 resolveStringType env pos = do
     resolveTypeReference env pos (KnownReference "string" "String")
@@ -296,21 +300,21 @@ validateRecordConstraint env pos (RecordConstraint fields fieldType) typeVar = c
     TTypeFun _ _ -> do
         fail "Type functions are not records"
 
-validateTraitConstraint :: Env -> Pos -> TraitIdentity -> TraitDesc -> TypeVar -> TC ()
-validateTraitConstraint env pos traitIdentity traitDesc typeVar = case typeVar of
+validateTraitConstraint :: Env -> Pos -> TraitIdentity -> TypeVar -> TC ()
+validateTraitConstraint env pos traitIdentity typeVar = case typeVar of
     TypeVar _ -> do
         fail "We already handled this case"
     TQuant _source (ConstraintSet _record traits) _tn -> do
         when (not $ Set.member traitIdentity traits) $ do
-            failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
-    TFun argTypes retType -> do
+            failTypeError pos $ NoTraitOnType typeVar traitIdentity
+    TFun argTypes _retType -> do
         let key = (traitIdentity, FunctionIdentity $ length argTypes)
         HashTable.lookup key (eKnownInstances env) >>= \case
-            Just InstanceDesc{idTypeVar} -> do
+            Just InstanceDesc{} -> do
                 -- TODO: instantiate the function and unify it with the argument and return type constraints
                 return ()
             Nothing -> do
-                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
+                failTypeError pos $ NoTraitOnType typeVar traitIdentity
     TDataType def -> do
         let key = (traitIdentity, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case
@@ -319,7 +323,7 @@ validateTraitConstraint env pos traitIdentity traitDesc typeVar = case typeVar o
                 unify env pos idTypeVar' typeVar
                 return ()
             Nothing -> do
-                failTypeError pos $ NoTraitOnType typeVar (tdName traitDesc) (tdModule traitDesc)
+                failTypeError pos $ NoTraitOnType typeVar traitIdentity
     TRecord _fields -> do
         let key = (traitIdentity, RecordIdentity)
         HashTable.lookup key (eKnownInstances env) >>= \case
@@ -328,7 +332,7 @@ validateTraitConstraint env pos traitIdentity traitDesc typeVar = case typeVar o
                 -- start unifying types with the field transformer?
                 return ()
             Nothing -> do
-                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
+                failTypeError pos $ NoTraitOnRecord typeVar traitIdentity
     TTypeFun _ (TDataType def) -> do
         let key = (traitIdentity, dataTypeIdentity def)
         HashTable.lookup key (eKnownInstances env) >>= \case
@@ -338,7 +342,7 @@ validateTraitConstraint env pos traitIdentity traitDesc typeVar = case typeVar o
                 unify env pos idTypeVar' typeVar
                 return ()
             Nothing -> do
-                failTypeError pos $ NoTraitOnRecord typeVar (tdName traitDesc) (tdModule traitDesc)
+                failTypeError pos $ NoTraitOnRecord typeVar traitIdentity
     TTypeFun _ _ -> do
         fail "Wat? Type functions definitely don't implement constraints"
 
@@ -405,9 +409,8 @@ validateConstraintSet :: Env -> Pos -> ConstraintSet -> TypeVar -> TC ()
 validateConstraintSet env pos (ConstraintSet record traits) typeVar = do
     for_ record $ \recordConstraint -> do
         validateRecordConstraint env pos recordConstraint typeVar
-    for_ (Set.toList traits) $ \traitIdentity@(TraitIdentity moduleName name) -> do
-        (_, _, traitDesc) <- resolveTraitReference env pos $ KnownReference moduleName name
-        validateTraitConstraint env pos traitIdentity traitDesc typeVar
+    for_ (Set.toList traits) $ \traitIdentity -> do
+        validateTraitConstraint env pos traitIdentity typeVar
 
 unify :: Env -> Pos -> TypeVar -> TypeVar -> TC ()
 unify env pos av' bv' = do

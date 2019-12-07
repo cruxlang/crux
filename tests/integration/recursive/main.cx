@@ -2,7 +2,7 @@ data IntList { Cons(Number, IntList), Nil }
 
 fun length(l) {
     match l {
-        Nil => 0
+        Nil => 0 as Number
         Cons(num, tail) => 1 + length(tail)
     }
 }

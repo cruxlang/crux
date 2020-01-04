@@ -9,10 +9,11 @@ Crux.js is built with GHCJS.
 
 ## How to compile
 
-1. Get a version of `stack` that's new enough to install GHCJS.  Version 1.0.0 is new enough.
-2. Install [sass](http://sass-lang.com/install)
-3. Run `s/build`.  stack should download and compile everything you need.
-4. The resulting JS is copied into the `stage/` directory alongside some scaffolding HTML and CSS.
+1. `sudo apt install nodejs npm libz-dev ncurses-dev`
+2. Get a version of `stack` that's new enough to install GHCJS.  Version 1.0.0 is new enough.
+3. Install [sass](http://sass-lang.com/install)
+4. Run `s/build`.  stack should download and compile everything you need.
+5. The resulting JS is copied into the `stage/` directory alongside some scaffolding HTML and CSS.
 
 ## Deploying to website
 

@@ -21,7 +21,7 @@ mkdir -p npm/cruxlang/src/
 cp dist/crux.js npm/cruxlang/src/
 sass stage/style.scss > stage/style.css
 
-(cd ../crux && "$STACK" build)
-CRUX=$(cd ../crux && "$STACK" exec which crux)
+(cd .. && "$STACK" build)
+CRUX=$(cd .. && "$STACK" exec which crux)
 echo "CRUX: $CRUX"
 "$CRUX" build

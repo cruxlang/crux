@@ -23,10 +23,10 @@ import qualified Data.Text.Encoding as TE
 import Crux.TrackIO (runUntrackedIO)
 
 baseModuleFiles :: [(FilePath, ByteString)]
-baseModuleFiles = $(embedDir "../crux/lib")
+baseModuleFiles = $(embedDir "../lib")
 
 rtsFile :: ByteString
-rtsFile = $(embedFile "../crux/rts/rts.js")
+rtsFile = $(embedFile "../rts/rts.js")
 
 compile :: Text -> IO (Either Error.Error Text)
 compile source = do

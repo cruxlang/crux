@@ -1,0 +1,242 @@
+import cmp
+import crux
+import dom.worker
+import json
+
+data TimerId(Number)
+
+// TODO: derive unwrap
+fun unTimerId(TimerId(t)) {
+    t
+}
+
+let COMPILE_DELAY = 1000 // milliseconds
+
+fun querySelector(sel) {
+    _unsafe_js("document").querySelector(sel)
+}
+
+fun getElementById(id) {
+    _unsafe_js("document").getElementById(id)
+}
+
+fun setTimeout(f, delay): TimerId {
+    TimerId(_unsafe_js("window").setTimeout(f, delay))
+}
+
+fun clearTimeout(tid: TimerId) {
+    _unsafe_js("window").clearTimeout(unTimerId(tid))
+}
+
+fun newXmlHttpRequest(): XHR {
+    _unsafe_js("new XMLHttpRequest")
+}
+
+fun parseJson(s) {
+    _unsafe_js("JSON.parse")(s)
+}
+
+type XHR = {
+    open: fun(String, String) -> (),
+    setRequestHeader: fun(String, String) -> (),
+    abort: fun() -> (),
+    send: fun(String) -> (),
+    mutable onload: fun() -> (),
+    mutable onerror: fun(String) -> (),
+    mutable ontimeout: fun() -> (),
+    response: String,
+    mutable timeout: Number,
+}
+
+data CompilerState {
+    Idle,
+    Waiting(TimerId),
+    Compiling({
+        compileID: CompileID,
+        source: String,
+        optimize: Boolean,
+    }),
+    Optimizing(XHR),
+}
+
+data LastCompile(String, Boolean)
+
+impl cmp.Eq LastCompile {
+  eq = fun(LastCompile(a, b), LastCompile(c, d)) {
+    a == c && b == d
+  }
+}
+
+type CompileID = Number // TODO: ints
+
+data Compiler({
+    worker: worker.Worker,
+    mutable nextCompileID: CompileID,
+    onresult: Result<String, String> => (),
+    mutable state: CompilerState,
+    mutable lastCompile: ?LastCompile,
+})
+
+fun compile(Compiler(this), source, optimize) {
+    match this.state {
+        Idle => {
+        }
+        Waiting(tid) => {
+            clearTimeout(tid)
+        }
+        Compiling(_) => {
+            // TODO: tell worker to cancel this request
+        }
+        Optimizing(xhr) => {
+            xhr.abort()
+        }
+    }
+
+    this.state = Idle
+
+    if this.lastCompile == Some(LastCompile(source, optimize)) {
+        return ()
+    }
+
+    this.state = Waiting(setTimeout(() => {
+        // TODO: set timer to null
+
+        let compileID = this.nextCompileID
+        this.nextCompileID = this.nextCompileID + 1
+
+        // compilation request
+        this.worker->postMessage({
+            compileID: compileID,
+            source: source,
+        })
+        this.state = Compiling({
+            compileID: compileID,
+            source: source,
+            optimize: optimize,
+        })
+    }, COMPILE_DELAY))
+}
+
+fun receiveCompilationResponse(Compiler(this), response) {
+    // TODO: this is a lot of code for something simple
+    let (source, optimize) = match this.state {
+        Compiling(settings) => {
+            if settings.compileID != response.compileID {
+                return
+            }
+            (settings.source, settings.optimize)
+        }
+        _ => return
+    }
+
+    let result = if response.success {
+        if not(optimize) {
+            this.state = Idle;
+            this.lastCompile = Some(LastCompile(source, optimize))
+            this.onresult(Ok(response.result))
+            return ()
+        } else {
+            response.result
+        }
+    } else {
+        this.state = Idle;
+        this.lastCompile = Some(LastCompile(source, optimize))
+        this.onresult(Err("Compile error:\n" + response.result))
+        return ()
+    }
+
+    let xhr = newXmlHttpRequest()
+    xhr.open("POST", "https://crux-closure-service.herokuapp.com/compile")
+    xhr.setRequestHeader("content-type", "application/json")
+    xhr.timeout = 60000 // 60s
+    xhr.send(json.encode({source: result}))
+    this.state = Optimizing(xhr)
+
+    xhr.onload = fun() {
+        // TODO: allow this kind of shadowing
+        let result2 = parseJson(xhr.response)
+        this.state = Idle
+        this.lastCompile = Some(LastCompile(source, optimize))
+        this.onresult(Ok(result2.source))
+    }
+
+    xhr.onerror = fun(e) {
+        this.lastCompile = None
+        this.onresult(Err("Network error:\n" + e))
+    }
+
+    xhr.ontimeout = fun() {
+        this.lastCompile = None
+        this.onresult(Err("Network timeout"))
+    }
+}
+
+fun newCompiler(onresult) {
+    let compilerThread = worker.new("compiler-worker.js")
+    let compiler = Compiler({
+        worker: compilerThread,
+        mutable nextCompileID: 0,
+        onresult: onresult,
+        mutable state: Idle,
+        mutable lastCompile: None,
+    })
+
+    compilerThread->setHandler(response => {
+        // TODO: allow TDNR of functions defined below their use?!
+        // TODO: and move newCompiler up
+        compiler->receiveCompilationResponse(_unsafe_coerce(response))
+    })
+
+    return compiler
+}
+
+fun main() {
+    let sourceTextArea = querySelector(".crux-playground .source")
+    let outputTextArea = querySelector(".crux-playground .output")
+    let optimizeCheckbox = querySelector(".crux-playground .optimize")
+    let runButton = querySelector(".crux-playground .run")
+
+    let loadExampleSource = fun() {
+        let mutable source: String = getElementById("initial_example").text
+        source = source->trim()
+        sourceTextArea.value = source
+    }
+
+    let compiler = newCompiler(result => {
+        match result {
+            Ok(res) => {
+                outputTextArea.classList.remove("has-errors")
+                outputTextArea.value = res
+            }
+            Err(err) => {
+                outputTextArea.classList.add("has-errors")
+                outputTextArea.value = err
+            }
+        }
+    })
+
+    let recompile = fun() {
+        let content = sourceTextArea.value
+        let optimize = optimizeCheckbox.checked
+        compiler->compile(content, optimize)
+    }
+
+    let registerCompileListener = fun() {
+        sourceTextArea.addEventListener("input", recompile)
+        optimizeCheckbox.addEventListener("change", recompile)
+    }
+
+    loadExampleSource()
+    registerCompileListener()
+    recompile()
+
+    sourceTextArea.disabled = False
+    sourceTextArea.setSelectionRange(0, 0)
+    sourceTextArea.focus()
+
+    runButton.addEventListener("click", fun() {
+        print("run button temporarily disabled")
+    })
+}
+
+let _ = main()

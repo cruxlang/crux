@@ -2,6 +2,7 @@
 /cabal.sandbox.config
 /build/
 /dist/
+/dist-newstyle/
 /.HTF/
 *~
 /.stack-work/

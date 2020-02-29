@@ -1,4 +1,5 @@
 baseLibraryPath:
-  - lib/
+  - lib/common/
+  - lib/js/
 rtsPath: rts/
 templatePath: template/

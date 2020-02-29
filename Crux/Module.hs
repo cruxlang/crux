@@ -74,8 +74,8 @@ newFSModuleLoader includePath pos moduleName = do
     let path = includePath FP.</> moduleNameToPath moduleName
     parseModuleFromFile pos moduleName path
 
-newBaseLoader :: CompilerConfig -> ModuleLoader
-newBaseLoader config = newChainedModuleLoader $ map newFSModuleLoader $ ccBaseLibraryPath config
+newBaseLoader :: CompilerConfig -> [ModuleLoader]
+newBaseLoader config = map newFSModuleLoader $ ccBaseLibraryPath config
 
 newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newProjectModuleLoader config root mainModulePath =
@@ -89,7 +89,7 @@ newProjectModuleLoader config root mainModulePath =
                     Right rv -> return $ Right rv
             else do
                 return $ Left $ Error pos $ ModuleNotFound moduleName []
-    in newChainedModuleLoader [mainLoader, baseLoader, projectLoader]
+    in newChainedModuleLoader $ [mainLoader] <> baseLoader <> [projectLoader]
 
 newMemoryLoader :: HashMap.HashMap ModuleName Text -> ModuleLoader
 newMemoryLoader sources pos moduleName = do
@@ -355,5 +355,5 @@ loadProgramFromSources sources = do
     config <- loadCompilerConfig "cxconfig.yaml"
     let base = newBaseLoader config
     let mem = newMemoryLoader sources
-    let loader = newChainedModuleLoader [mem, base]
+    let loader = newChainedModuleLoader (mem:base)
     loadProgram NoTransformation loader "<source>" "main"

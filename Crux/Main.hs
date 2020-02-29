@@ -4,9 +4,9 @@ import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
 import qualified Crux.LuaBackend as Lua
-import Crux.Module (loadProgramFromFile, loadRTSSource, MainModuleMode(..))
+import Crux.Module (loadProgramFromFile, loadJsRtsSource, loadLuaRtsSource, MainModuleMode(..))
 import Crux.Prelude
-import Crux.Project (buildProject, buildProjectAndRunTests, createProjectTemplate, ProjectOptions(..), runJS)
+import Crux.Project (buildProject, buildProjectAndRunTests, createProjectTemplate, TargetLanguage(..), ProjectOptions(..), runJS)
 import qualified Data.Text as Text
 import Options.Applicative
 import Options.Applicative.Types (readerAsk)
@@ -14,11 +14,6 @@ import System.Exit (ExitCode (..), exitWith)
 import System.IO
 import Data.List (isSuffixOf)
 import Crux.TrackIO
-import Crux.LuaBackend
-
-data TargetLanguage
-    = TargetJS
-    | TargetLua
 
 data Command
     = VersionCommand
@@ -71,7 +66,7 @@ withInfo opts desc = info (helper <*> opts) $ progDesc desc
 
 compileToJS :: FilePath -> IO Text
 compileToJS fn = runUntrackedIO $ do
-    rtsSource <- loadRTSSource
+    rtsSource <- loadJsRtsSource
     loadProgramFromFile AddMainCall fn >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
@@ -82,7 +77,7 @@ compileToJS fn = runUntrackedIO $ do
 
 compileToLua :: FilePath -> IO Text
 compileToLua fn = runUntrackedIO $ do
-    rtsSource <- loadRTSSource
+    rtsSource <- loadLuaRtsSource
     loadProgramFromFile AddMainCall fn >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err

@@ -46,7 +46,7 @@ checkForNode = do
 runProgram' :: AST.Program -> IO String
 runProgram' p = do
     m' <- Gen.generateProgram p
-    rtsSource <- runUntrackedIO $ Crux.Module.loadRTSSource
+    rtsSource <- runUntrackedIO $ Crux.Module.loadJsRtsSource
     let js = JS.generateJS rtsSource m'
     readProcessWithExitCode "node" [] (T.unpack js) >>= \case
         (ExitSuccess, stdoutBody, _) -> do

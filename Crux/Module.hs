@@ -7,7 +7,9 @@ module Crux.Module
     , loadProgramFromSources
     , loadProgramFromFile
     , loadProgramFromDirectoryAndModule
-    , loadRTSSource
+    , loadRtsSource
+    , loadJsRtsSource
+    , loadLuaRtsSource
 
     , CompilerConfig(..)
     , loadCompilerConfig
@@ -99,8 +101,8 @@ newMemoryLoader sources pos moduleName = do
         Nothing ->
             return $ Left $ Error pos $ ModuleNotFound moduleName [Text.unpack $ "<memory: " <> printModuleName moduleName <> ">"]
 
-findCompilerConfig :: TrackIO (Maybe (FilePath, ByteString))
-findCompilerConfig = do
+findCompilerConfig :: FilePath -> TrackIO (Maybe (FilePath, ByteString))
+findCompilerConfig filename = do
     -- First, search for a cxconfig relative to the executable path.
     -- If that doesn't work, search for a cxconfig relative to the current directory.
     -- Importantly, this has to work in the playground.
@@ -114,7 +116,7 @@ findCompilerConfig = do
 
   where
     loop current = do
-        let configPath = FP.combine current "cxconfig.yaml"
+        let configPath = FP.combine current filename
         readTrackedFile configPath >>= \case
             Left _err -> do
                 let parent = FP.takeDirectory current
@@ -139,9 +141,9 @@ instance JSON.FromJSON CompilerConfig where
         return $ CompilerConfig{..}
     parseJSON _ = fail "must be object"
 
-loadCompilerConfig :: TrackIO CompilerConfig
-loadCompilerConfig = do
-    (configPath, configBytes) <- findCompilerConfig >>= \case
+loadCompilerConfig :: FilePath -> TrackIO CompilerConfig
+loadCompilerConfig filename = do
+    (configPath, configBytes) <- findCompilerConfig filename >>= \case
         Nothing -> fail "Failed to find compiler's cxconfig.yaml"
         Just c -> return c
 
@@ -155,13 +157,19 @@ loadCompilerConfig = do
         , ccTemplatePath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccTemplatePath config)
         }
 
-loadRTSSource :: TrackIO Text
-loadRTSSource = do
-    config <- loadCompilerConfig
+loadRtsSource :: FilePath -> TrackIO Text
+loadRtsSource configName = do
+    config <- loadCompilerConfig configName
 
     readTrackedTextFile (FP.combine (ccRTSPath config) "rts.js") >>= \case
         Left _err -> fail "Failed to read rts.js file"
         Right src -> return src
+
+loadJsRtsSource :: TrackIO Text
+loadJsRtsSource = loadRtsSource "cxconfig.yaml"
+
+loadLuaRtsSource :: TrackIO Text
+loadLuaRtsSource = loadRtsSource "cxconfig.lua.yaml"
 
 posFromSourcePos :: P.SourcePos -> Pos
 posFromSourcePos sourcePos = Pos $ PosRec
@@ -330,7 +338,7 @@ pathToModuleName path =
 
 loadProgramFromFile :: MainModuleMode -> FilePath -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromFile mode path = do
-    config <- loadCompilerConfig
+    config <- loadCompilerConfig "cxconfig.yaml"
     let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
     loadProgram mode loader path "main"
@@ -341,7 +349,7 @@ loadProgramFromSource mainModuleSource = do
 
 loadProgramFromSources :: HashMap.HashMap ModuleName Text -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromSources sources = do
-    config <- loadCompilerConfig
+    config <- loadCompilerConfig "cxconfig.yaml"
     let base = newBaseLoader config
     let mem = newMemoryLoader sources
     let loader = newChainedModuleLoader [mem, base]

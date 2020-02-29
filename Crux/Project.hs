@@ -4,6 +4,7 @@ module Crux.Project
     ( runJS
     , runJSWithResult
     , ProjectOptions(..)
+    , TargetLanguage(..)
     , buildProject
     , buildProjectAndRunTests
     , createProjectTemplate
@@ -12,6 +13,7 @@ module Crux.Project
 import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JSBackend
+import qualified Crux.LuaBackend as LuaBackend
 import Crux.Module
 import Crux.Prelude
 import Crux.TrackIO
@@ -29,6 +31,16 @@ import System.IO
 import System.Process (readProcessWithExitCode)
 import Text.Mustache
 
+data TargetLanguage
+    = TargetJS
+    | TargetLua
+
+instance FromJSON TargetLanguage where
+    parseJSON (String s)
+        | s == "js"  = pure TargetJS
+        | s == "lua" = pure TargetLua
+    parseJSON _ = fail "Allowed target languages are js and lua"
+
 data TargetConfig = TargetConfig
     { tcSourceDir  :: String
     , tcMainModule :: Text
@@ -40,6 +52,7 @@ data ProjectConfig = ProjectConfig
     , pcLibrary :: Maybe TargetConfig
     , pcPrograms :: Map Text TargetConfig
     , pcTests :: Map Text TargetConfig
+    , pcTargetLanguage :: TargetLanguage
     }
 
 instance FromJSON TargetConfig where
@@ -55,6 +68,7 @@ instance FromJSON ProjectConfig where
         pcLibrary <- o .:? "library"
         pcPrograms <- o .:? "programs" .!= mempty
         pcTests <- o .:? "tests" .!= mempty
+        pcTargetLanguage <- o .:? "target-language" .!= TargetJS
         return ProjectConfig{..}
     parseJSON _ = fail "Config must be an object"
 
@@ -105,7 +119,9 @@ buildTarget rtsSource targetName buildMode ProjectConfig{..} TargetConfig{..} = 
         Right program -> liftIO $ do
             program' <- Gen.generateProgram program
             -- TODO: should we track outputs in TrackIO?
-            TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
+            case pcTargetLanguage of
+                TargetJS -> TextIO.writeFile targetPath $ JSBackend.generateJS rtsSource program'
+                TargetLua -> TextIO.writeFile targetPath $ LuaBackend.generateLua rtsSource program'
             putStrLn $ "Built " ++ targetPath
             return $ Right ()
 
@@ -127,12 +143,17 @@ enumerateTargets ProjectConfig{..} =
         Nothing -> []
         Just tc -> [(pcName, BMLibrary, tc)]
 
+loadProjectRtsSource :: ProjectConfig -> TrackIO Text
+loadProjectRtsSource ProjectConfig{ pcTargetLanguage } = case pcTargetLanguage of
+    TargetLua -> loadLuaRtsSource
+    TargetJS -> loadJsRtsSource
+
 buildProject :: ProjectOptions -> IO ()
 buildProject options = do
     let tracker = trackerFromOptions options
     result <- tracker $ runExceptT $ do
-        rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
+        rtsSource <- lift $ loadProjectRtsSource config
         for_ (enumerateTargets config) $ \(targetName, buildMode, targetConfig) -> do
             ExceptT $ buildTarget rtsSource targetName buildMode config targetConfig
     case result of
@@ -143,8 +164,8 @@ buildProjectAndRunTests :: ProjectOptions -> IO ()
 buildProjectAndRunTests options = do
     let tracker = trackerFromOptions options
     result <- tracker $ runExceptT $ do
-        rtsSource <- lift $ loadRTSSource
         config <- lift $ loadProjectBuild
+        rtsSource <- lift $ loadProjectRtsSource config
         for_ (Map.assocs $ pcTests config) $ \(_targetName, TargetConfig{..}) -> do
             (lift $ loadProgramFromDirectoryAndModule AddMainCall tcSourceDir tcMainModule) >>= \case
                 Left err -> do
@@ -231,7 +252,7 @@ createProjectTemplate = do
 
     -- read crux.yaml.template
 
-    compilerConfig <- runUntrackedIO $ loadCompilerConfig
+    compilerConfig <- runUntrackedIO $ loadCompilerConfig "cxconfig.yaml"
 
     Right template <- automaticCompile [ccTemplatePath compilerConfig] "crux.yaml.template"
     let resultText = substitute template projectTemplate

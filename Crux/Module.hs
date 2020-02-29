@@ -33,6 +33,7 @@ import Crux.Pos
 import qualified Crux.Typecheck as Typecheck
 import Crux.Typecheck.Monad
 import qualified Data.Aeson as JSON
+import Data.Aeson ((.:))
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.HashSet as HashSet
 import qualified Data.Text as Text
@@ -74,11 +75,11 @@ newFSModuleLoader includePath pos moduleName = do
     parseModuleFromFile pos moduleName path
 
 newBaseLoader :: CompilerConfig -> ModuleLoader
-newBaseLoader config = newFSModuleLoader $ ccBaseLibraryPath config
+newBaseLoader config = newChainedModuleLoader $ map newFSModuleLoader $ ccBaseLibraryPath config
 
 newProjectModuleLoader :: CompilerConfig -> FilePath -> FilePath -> ModuleLoader
 newProjectModuleLoader config root mainModulePath =
-    let baseLoader = newFSModuleLoader $ ccBaseLibraryPath config
+    let baseLoader = newBaseLoader config
         projectLoader = newFSModuleLoader root
         mainLoader pos moduleName =
             if moduleName == "main" then do
@@ -128,16 +129,16 @@ findCompilerConfig filename = do
                 return $ Just (configPath, bytes)
 
 data CompilerConfig = CompilerConfig
-    { ccBaseLibraryPath :: !FilePath
+    { ccBaseLibraryPath :: [FilePath]
     , ccRTSPath         :: !FilePath
     , ccTemplatePath    :: !FilePath
     }
 
 instance JSON.FromJSON CompilerConfig where
     parseJSON (JSON.Object o) = do
-        ccBaseLibraryPath <- o JSON..: "baseLibraryPath"
-        ccRTSPath <- o JSON..: "rtsPath"
-        ccTemplatePath <- o JSON..: "templatePath"
+        ccBaseLibraryPath <- o .: "baseLibraryPath"
+        ccRTSPath <- o .: "rtsPath"
+        ccTemplatePath <- o .: "templatePath"
         return $ CompilerConfig{..}
     parseJSON _ = fail "must be object"
 
@@ -151,10 +152,12 @@ loadCompilerConfig filename = do
         Left err -> fail $ "Failed to parse cxconfig.yaml:\n" ++ show err
         Right c -> return c
 
+    let joinBase p = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory p)
+
     return config
-        { ccBaseLibraryPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccBaseLibraryPath config)
-        , ccRTSPath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccRTSPath config)
-        , ccTemplatePath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccTemplatePath config)
+        { ccBaseLibraryPath = map joinBase (ccBaseLibraryPath config)
+        , ccRTSPath = joinBase (ccRTSPath config)
+        , ccTemplatePath = joinBase (ccTemplatePath config)
         }
 
 loadRtsSource :: FilePath -> FilePath -> TrackIO Text

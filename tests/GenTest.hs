@@ -10,7 +10,6 @@ import qualified Crux.Gen as Gen
 import qualified Crux.Module
 import qualified Crux.Module.Types
 import Data.Text (Text)
-import Data.List (isInfixOf)
 import GHC.Exception (ErrorCall (..))
 import Test.Framework
 import Crux.TrackIO

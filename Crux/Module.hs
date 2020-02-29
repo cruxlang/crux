@@ -144,7 +144,7 @@ instance JSON.FromJSON CompilerConfig where
 loadCompilerConfig :: FilePath -> TrackIO CompilerConfig
 loadCompilerConfig filename = do
     (configPath, configBytes) <- findCompilerConfig filename >>= \case
-        Nothing -> fail "Failed to find compiler's cxconfig.yaml"
+        Nothing -> fail $ "Failed to find compiler's " <> filename
         Just c -> return c
 
     config <- case Yaml.decodeEither' configBytes of
@@ -157,19 +157,19 @@ loadCompilerConfig filename = do
         , ccTemplatePath = FP.combine (FP.takeDirectory configPath) (FP.takeDirectory $ ccTemplatePath config)
         }
 
-loadRtsSource :: FilePath -> TrackIO Text
-loadRtsSource configName = do
+loadRtsSource :: FilePath -> FilePath -> TrackIO Text
+loadRtsSource configName sourceName = do
     config <- loadCompilerConfig configName
 
-    readTrackedTextFile (FP.combine (ccRTSPath config) "rts.js") >>= \case
-        Left _err -> fail "Failed to read rts.js file"
+    readTrackedTextFile (FP.combine (ccRTSPath config) sourceName) >>= \case
+        Left _err -> fail $ "Failed to read " <> sourceName <> " file"
         Right src -> return src
 
 loadJsRtsSource :: TrackIO Text
-loadJsRtsSource = loadRtsSource "cxconfig.yaml"
+loadJsRtsSource = loadRtsSource "cxconfig.yaml" "rts.js"
 
 loadLuaRtsSource :: TrackIO Text
-loadLuaRtsSource = loadRtsSource "cxconfig.lua.yaml"
+loadLuaRtsSource = loadRtsSource "cxconfig.lua.yaml" "rts.lua"
 
 posFromSourcePos :: P.SourcePos -> Pos
 posFromSourcePos sourcePos = Pos $ PosRec

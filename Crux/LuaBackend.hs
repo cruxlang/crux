@@ -16,7 +16,6 @@ import Control.Monad.ST (runST)
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import qualified Crux.JSBackend as JSBackend
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
-import Debug.Trace (trace)
 
 renderFunction :: Maybe Text -> [Text] -> [Statement] -> JSWriter ()
 renderFunction maybeName args body = do
@@ -67,7 +66,6 @@ renderStatement = \case
 
     SVar name maybeExpr -> do
         beginLineS "local "
-        trace (show ("howdy"::String, name, mangle name)) $ return ()
         write $ mangle name
         for_ maybeExpr $ \expr -> do
             writeS " = "
@@ -82,7 +80,7 @@ renderStatement = \case
         writeS ";\n"
 
     SFunction name maybeArg body -> do
-        beginLineS ""
+        beginLineS "local "
         renderFunction (Just name) maybeArg body
         writeS "\n"
     SExpression expr -> do

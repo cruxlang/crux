@@ -3,5 +3,5 @@ pragma { NoBuiltin }
 import tostring(...)
 
 export fun print(x): () {
-    _unsafe_js("console").log(toString(x))
+    _unsafe_js("_G['print']")(toString(x))
 }

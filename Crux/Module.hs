@@ -326,7 +326,8 @@ loadProgram mode loader filename main = runExceptT $ do
 
 loadProgramFromDirectoryAndModule :: MainModuleMode -> FilePath -> Text -> TrackIO (ProgramLoadResult AST.Program)
 loadProgramFromDirectoryAndModule mode sourceDir mainModule = do
-    loadProgramFromFile mode $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
+    config <- loadCompilerConfig "cxconfig.yaml" -- FIXME
+    loadProgramFromFile config mode $ FP.combine sourceDir (Text.unpack mainModule ++ ".cx")
 
 pathToModuleName :: FilePath -> ModuleName
 pathToModuleName path =
@@ -339,9 +340,8 @@ pathToModuleName path =
                 (base', ".cx") -> ModuleName (fmap fromString prefix) (fromString base')
                 _ -> error "Please load .cx file"
 
-loadProgramFromFile :: MainModuleMode -> FilePath -> TrackIO (ProgramLoadResult AST.Program)
-loadProgramFromFile mode path = do
-    config <- loadCompilerConfig "cxconfig.yaml"
+loadProgramFromFile :: CompilerConfig -> MainModuleMode -> FilePath -> TrackIO (ProgramLoadResult AST.Program)
+loadProgramFromFile config mode path = do
     let (dirname, _basename) = FP.splitFileName path
     let loader = newProjectModuleLoader config dirname path
     loadProgram mode loader path "main"

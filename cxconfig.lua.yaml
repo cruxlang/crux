@@ -1,4 +1,5 @@
 baseLibraryPath:
-  - lib/common
+  - lib/common/
+  - lib/lua/
 rtsPath: rts/
 templatePath: template/

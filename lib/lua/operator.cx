@@ -1,0 +1,4 @@
+pragma { NoBuiltin }
+import number(Number)
+
+export let negate: Number => Number = _unsafe_js("function(x) return -x end")

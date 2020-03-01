@@ -1,0 +1,6 @@
+pragma { NoBuiltin }
+
+import number(Number)
+
+let newArray<a>: Number => [a] =
+    _unsafe_js("function (len) local a = {} for i = 0, len do a[i] = 0 end return a end")

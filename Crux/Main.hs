@@ -4,7 +4,7 @@ import qualified Crux.Error as Error
 import qualified Crux.Gen as Gen
 import qualified Crux.JSBackend as JS
 import qualified Crux.LuaBackend as Lua
-import Crux.Module (loadProgramFromFile, loadJsRtsSource, loadLuaRtsSource, MainModuleMode(..))
+import Crux.Module (loadCompilerConfig, loadProgramFromFile, loadJsRtsSource, loadLuaRtsSource, MainModuleMode(..))
 import Crux.Prelude
 import Crux.Project (buildProject, buildProjectAndRunTests, createProjectTemplate, TargetLanguage(..), ProjectOptions(..), runJS)
 import qualified Data.Text as Text
@@ -67,7 +67,8 @@ withInfo opts desc = info (helper <*> opts) $ progDesc desc
 compileToJS :: FilePath -> IO Text
 compileToJS fn = runUntrackedIO $ do
     rtsSource <- loadJsRtsSource
-    loadProgramFromFile AddMainCall fn >>= \case
+    config <- loadCompilerConfig "cxconfig.yaml"
+    loadProgramFromFile config AddMainCall fn >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
             exitWith $ ExitFailure 1
@@ -78,7 +79,8 @@ compileToJS fn = runUntrackedIO $ do
 compileToLua :: FilePath -> IO Text
 compileToLua fn = runUntrackedIO $ do
     rtsSource <- loadLuaRtsSource
-    loadProgramFromFile AddMainCall fn >>= \case
+    config <- loadCompilerConfig "cxconfig.lua.yaml"
+    loadProgramFromFile config AddMainCall fn >>= \case
         Left err -> liftIO $ do
             Error.printError stderr err
             exitWith $ ExitFailure 1

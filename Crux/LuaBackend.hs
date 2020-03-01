@@ -16,6 +16,7 @@ import Control.Monad.ST (runST)
 import Data.STRef (STRef, newSTRef, readSTRef, writeSTRef)
 import qualified Crux.JSBackend as JSBackend
 import Control.Monad.Reader (ReaderT, runReaderT, ask)
+import Debug.Trace (trace)
 
 renderFunction :: Maybe Text -> [Text] -> [Statement] -> JSWriter ()
 renderFunction maybeName args body = do
@@ -52,35 +53,33 @@ luaKeywords =
     -- literals
     , "undefined"
     , "null"
+    , "not"
     , "true"
     , "false"
     ]
 
-renderLuaName :: Text -> Text
-renderLuaName n = if elem n luaKeywords
-    then n <> "__"
-    else n
-
 renderStatement :: Statement -> JSWriter ()
 renderStatement = \case
     SBlock s -> do
+        beginLineS "do\n"
         indent $ for_ s renderStatement
         beginLineS "end\n"
 
     SVar name maybeExpr -> do
         beginLineS "local "
+        trace (show ("howdy"::String, name, mangle name)) $ return ()
         write $ mangle name
         for_ maybeExpr $ \expr -> do
             writeS " = "
             renderExpr expr
-        writeS "\n"
+        writeS ";\n"
 
     SAssign lhs rhs -> do
         beginLineS ""
         renderExpr lhs
         writeS " = "
         renderExpr rhs
-        writeS "\n"
+        writeS ";\n"
 
     SFunction name maybeArg body -> do
         beginLineS ""
@@ -93,9 +92,9 @@ renderStatement = \case
     SReturn expr -> do
         beginLineS "return "
         for_ expr renderExpr
-        writeS "\n"
+        writeS ";\n"
     SBreak ->
-        beginLineS "break\n"
+        beginLineS "break;\n"
     SIf expr thenStmt elseStatement -> do
         beginLineS "if "
         renderExpr expr
@@ -117,9 +116,9 @@ renderStatement = \case
                 indent $ renderStatement es
                 beginLineS "end\n"
     SWhile expr body -> do
-        beginLineS "while"
+        beginLineS "while "
         renderExpr expr
-        writeS "do\n"
+        writeS " do\n"
         renderStatement body
         beginLineS "end\n"
     -- SThrow expr -> do
@@ -154,8 +153,24 @@ commaSeparated (x:xs) = do
     writeS ", "
     commaSeparated xs
 
+renderLuaName :: Text -> Text
+renderLuaName n = if elem n luaKeywords
+    then n <> "__"
+    else n
+
+renderLuaOperator :: Text -> Text
+renderLuaOperator op
+    | op == "===" = "=="
+    | op == "!==" = "~="
+    | op == "==" = "=="
+    | op == "!=" = "~="
+    | op == "||" = "or"
+    | op == "&&" = "and"
+    | op == "!" = "not"
+    | otherwise = op
+
 mangle :: Text -> Text
-mangle name = Text.replace "$" "_" $ Text.replace "_" "__" name
+mangle name = renderLuaName $ Text.replace "$" "_" $ Text.replace "_" "__" name
 
 renderExpr :: Expression -> JSWriter ()
 renderExpr = \case
@@ -183,13 +198,13 @@ renderExpr = \case
         writeS "}"
     EPrefixOp op arg -> do
         writeS "("
-        write op
+        write $ renderLuaOperator op
         renderExpr arg
         writeS ")"
     EBinOp op lhs rhs -> do
         writeS "("
         renderExpr lhs
-        write op
+        write $ renderLuaOperator op
         renderExpr rhs
         writeS ")"
     ELookup lhs propName -> do
@@ -211,9 +226,9 @@ renderExpr = \case
         LUndefined -> writeS "nil"
     EIdentifier n -> write $ mangle n
     EArray els -> do
-        writeS "["
+        writeS "{"
         commaSeparated $ map renderExpr els
-        writeS "]"
+        writeS "}"
     ESemi lhs rhs -> do
         renderExpr lhs
         writeS "\n"
@@ -249,8 +264,8 @@ renderDocument statements = output
     builder :: B.Builder
     builder = evalState (execWriterT $ for_ statements renderStatement) 0
 
--- iife :: [Statement] -> Expression
--- iife body = EApplication (EFunction [] body) []
+iife :: [Statement] -> Expression
+iife body = EApplication (EFunction [] body) []
 
 generateLua :: Text -> Gen.Program -> Text
 generateLua rtsSource modules = runST $ do
@@ -263,7 +278,7 @@ generateLua rtsSource modules = runST $ do
         let declareExports = [JS.SVar (JSBackend.renderExportName moduleName n) Nothing | n <- exportedValueNames]
         body <- runReaderT (JSBackend.generateModule' decls) (moduleName, counter)
         let setExports = [JS.SAssign (JS.EIdentifier $ JSBackend.renderExportName moduleName n) (JS.EIdentifier $ renderLuaName $ snd n) | n <- exportedValueNames]
-        return $ declareExports ++ [JS.SExpression $ JS.iife $ body ++ setExports]
+        return $ declareExports ++ [JS.SBlock (body ++ setExports)]
 
     -- TODO: introduce an SRaw
     let prefix = JS.SExpression $ JS.ERaw ""

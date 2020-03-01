@@ -1,0 +1,81 @@
+pragma { NoBuiltin }
+
+import types(...)
+import number(Number)
+import integer(Int)
+import literal()
+import length
+import cmp
+import js.unsafe
+
+export data Array<a> {}
+
+let _unsafe_new<a>: Number => [a] =
+    _unsafe_js("function (len) local a = {} for i = 0, len do a[i] = 0 end return a end")
+
+export fun get<t>(a: [t], idx: Number): t {
+  unsafe.getProperty(a, idx)
+}
+
+impl length.HasLength Array<a> {
+  len(a) {
+    _unsafe_coerce(a).length
+  }
+}
+
+impl cmp.Eq Array<a: cmp.Eq> {
+  eq(lhs, rhs) {
+    let lhs_length = length.len(lhs)
+    let rhs_length = length.len(rhs)
+    if lhs_length != rhs_length {
+      return False
+    }
+
+    let mutable i = 0
+    while i < lhs_length {
+      if get(lhs, i) != get(rhs, i) {
+        return False
+      }
+      i = i + 1
+    }
+
+    True
+  }
+}
+
+export fun replicate<a>(element: a, n: Number): [a] {
+    let arr = _unsafe_new(n);
+
+    let mutable i = 0;
+    while i < n {
+        unsafe.setProperty(arr, i, element)
+        i = i + 1
+    };
+
+    arr
+}
+
+export fun each<a, b>(arr: [a], f: fun(a) -> b): () {
+    let mutable i = 0
+    let n = length.len(arr)
+    while i < n {
+        f(unsafe.getProperty(arr, i))
+        i = i + 1
+    }
+}
+
+export fun sliceFrom<a>(arr: [a], start: Number): [a] {
+    _unsafe_coerce(arr).slice(start)
+}
+
+export fun sliceTo<a>(arr: [a], end: Number): [a] {
+    _unsafe_coerce(arr).slice(0 as Number, end)
+}
+
+export fun slice<a>(arr: [a], start: Number, end: Number): [a] {
+    _unsafe_coerce(arr).slice(start, end)
+}
+
+export fun map<a, b>(array: [a], fn: a => b): [b] {
+    _unsafe_coerce(array).map(fn)
+}

@@ -1,0 +1,61 @@
+pragma { NoBuiltin }
+
+import types(Boolean, String)
+
+// TODO: move String into types module
+
+export let typeof<a, TODOString>: a => TODOString = _unsafe_js(
+  "_G['typeof']"
+)
+
+export let not<a>: a => Boolean = _unsafe_js(
+  "function(b) return not b end"
+)
+
+export let truthy<a>: a => Boolean = _unsafe_js(
+  "function(b) return not not b end"
+)
+
+export let eqNonstrict<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs == rhs end"
+)
+
+export let neqNonstrict<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs ~= rhs end"
+)
+
+export let eq<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs == rhs end"
+)
+
+export let neq<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs ~= rhs end"
+)
+
+export let lt<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs < rhs end"
+)
+
+export let lte<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs <= rhs end"
+)
+
+export let gt<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs > rhs end"
+)
+
+export let gte<a, b>: (a, b) => Boolean = _unsafe_js(
+  "function(lhs, rhs) return lhs >= rhs end"
+)
+
+export let setProperty<a, b, c>: (a, b, c) => c = _unsafe_js(
+  "function(o, k, v) o[k] = v return v end"
+)
+
+export let getProperty<a, b, c>: (a, b) => c = _unsafe_js(
+  "function(o, k) return o[k] end"
+)
+
+export let toString<a, TODOString>: a => TODOString = _unsafe_js(
+  "_G['tostring']"
+)

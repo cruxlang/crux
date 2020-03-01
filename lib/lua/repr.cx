@@ -1,0 +1,82 @@
+pragma { NoBuiltin }
+
+import types(...)
+import string(String, join)
+import number(Number)
+import integer(...)
+import cmp
+import array(Array)
+import mutarray(MutableArray)
+import js.unsafe
+
+export trait Repr {
+    repr: self => String
+}
+
+impl Repr Boolean {
+    repr(b) {
+        match b {
+            False => "False"
+            True => "True"
+        }
+    }
+}
+
+impl Repr Number {
+    repr = unsafe.toString
+}
+
+impl Repr Int8 {
+    repr = unsafe.toString
+}
+
+impl Repr UInt8 {
+    repr = unsafe.toString
+}
+
+impl Repr Int16 {
+    repr = unsafe.toString
+}
+
+impl Repr UInt16 {
+    repr = unsafe.toString
+}
+
+impl Repr Int32 {
+    repr = unsafe.toString
+}
+
+impl Repr UInt32 {
+    repr = unsafe.toString
+}
+
+// TODO: add tuple sugar here
+impl Repr Void {
+    repr(_) { "()" }
+}
+
+impl Repr String {
+    repr = _unsafe_js("_rts_show_string")
+}
+
+impl Repr cmp.Ordering {
+    repr(ordering) {
+        match ordering {
+            cmp.LessThan => "LessThan"
+            cmp.EqualTo => "Equal"
+            cmp.GreaterThan => "GreaterThan"
+        }
+    }
+}
+
+impl Repr Array<elt: Repr> {
+    repr(array) {
+        "[" + join(", ", array->map(repr)) + "]"
+    }
+}
+
+impl Repr MutableArray<elt: Repr> {
+    repr(array) {
+        "mutable [" + join(", ", array->freeze()->map(repr)) + "]"
+    }
+}

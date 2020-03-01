@@ -1,0 +1,66 @@
+import js
+import js.unsafe
+import mutarray
+
+// Represented by a JavaScript Object
+export data Dict<V> {}
+
+export fun new<V>(): Dict<V> {
+  _unsafe_js("Object").create(js.Null)
+}
+
+let unsafeCopyObject = _unsafe_js(
+  "function copyObject(obj) { var rv = Object.create(null); for (var key in obj) { rv[key] = obj[key]; } return rv; }"
+)
+
+export fun from<V, Record: {...: V}>(record: Record): Dict<V> {
+  // Dict is mutable and the record isn't so make a copy.
+  unsafeCopyObject(record)
+}
+
+export fun set<V>(dict: Dict<V>, key: String, value: V): () {
+  unsafe.setProperty(dict, key, value)
+  // TODO: the following does not compile if it's just ()
+  // I suspect a parse error: foo<newline>() probably parses as foo()
+  return ()
+}
+
+export fun get<V>(dict: Dict<V>, key: String): ?V {
+  let v = unsafe.getProperty(dict, key)
+  // non-strict equality with null catches undefined too
+  // NOTE: this means that Dict<Null> or Dict<Undefined> don't behave
+  // as you'd expect.
+  if unsafe.eqNonstrict(v, js.Null) {
+    None
+  } else {
+    Some(v)
+  }
+}
+
+export let delete<V>: (Dict<V>, String) => () = _unsafe_js(
+  "function delete_(o, k) { delete o[k]; }"
+)
+
+export fun keys<V>(dict: Dict<V>): [String] {
+  _unsafe_js("Object").keys(dict)
+}
+
+export fun items<V>(dict: Dict<V>): [(String, V)] {
+  let rv = mutable []
+  for key in dict->keys() {
+    rv->append((key, unsafe.getProperty(dict, key)))
+  }
+  return mutarray.unsafeFreeze(rv)
+}
+
+export fun map<U, V>(dict: Dict<U>, fn: U => V): Dict<V> {
+  let result = new()
+  for key in dict->keys() {
+    let prop = unsafe.getProperty(dict, key)
+    let newProp = fn(prop)
+    set(result, key, newProp)
+  }
+  return result
+}
+
+impl js.Transferable Dict<v: js.Transferable> {}

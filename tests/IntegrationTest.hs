@@ -144,8 +144,14 @@ runIntegrationTest root = do
     stdoutExists <- doesFileExist stdoutPath
     errorExists <- doesFileExist errorPath
 
+    let config = Crux.Module.CompilerConfig
+            { ccBaseLibraryPath = ["lib"]
+            , ccRTSPath = "rts"
+            , ccTemplatePath = "templates"
+            }
+
     --traceMarkerIO "loading program"
-    program' <- runUntrackedIO $ Crux.Module.loadProgramFromFile Crux.Module.AddMainCall mainPath
+    program' <- runUntrackedIO $ Crux.Module.loadProgramFromFile config Crux.Module.AddMainCall mainPath
     --traceMarkerIO "loaded program"
 
     (putStrLn intro >>) <$> if stdoutExists then do

@@ -65,7 +65,7 @@ public class Main {
             // This entire project exists because of the following line of code.  :|
             // See https://github.com/google/closure-compiler/issues/1668
             options.setRenamingPolicy(VariableRenamingPolicy.OFF, PropertyRenamingPolicy.OFF);
-            options.prettyPrint = true;
+            options.setPrettyPrint(true);
 
             //List<SourceFile> builtinExterns = getBuiltinExterns(options.getEnvironment());
             ArrayList<SourceFile> externs = new ArrayList<>();

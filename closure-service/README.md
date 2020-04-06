@@ -36,3 +36,16 @@ $ heroku login
 ```sh
 $ git push heroku master
 ```
+
+## Heroku Configuration
+
+```
+$ heroku config
+=== crux-closure-service Config Vars
+BUILDPACK: closure-service=https://github.com/heroku/heroku-buildpack-java
+PROCFILE:  closure-service/Procfile
+$ heroku buildpacks
+=== crux-closure-service Buildpack URLs
+1. heroku/jvm
+2. https://github.com/Pagedraw/heroku-buildpack-select-subdir
+```

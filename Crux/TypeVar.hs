@@ -14,7 +14,6 @@ module Crux.TypeVar
     , TypeVar(..)
     , RecordConstraint(..)
     , ConstraintSet(..)
-    , emptyConstraintSet
     , TypeState(..)
     , TypeLevel(..)
     , newTypeVar
@@ -23,6 +22,7 @@ module Crux.TypeVar
     , dataTypeIdentity
     ) where
 
+import Data.Default (Default(..))
 import Crux.ModuleName (ModuleName)
 import Crux.Prelude
 import qualified Data.Text as Text
@@ -102,8 +102,8 @@ data RecordConstraint = RecordConstraint
 data ConstraintSet = ConstraintSet (Maybe RecordConstraint) (Set TraitIdentity)
     deriving (Eq, Show)
 
-emptyConstraintSet :: ConstraintSet
-emptyConstraintSet = ConstraintSet Nothing mempty
+instance Default ConstraintSet where
+    def = ConstraintSet def def
 
 -- Type Variables
 
@@ -151,7 +151,7 @@ instance Show TypeVar where
     show (TypeVar r) = "(TypeVar " ++ unsafeShowRef r ++ ")"
     show (TQuant source constraints tn) = "(TQuant " ++ show source ++ " " ++ show constraints ++ " " ++ show tn ++ ")"
     show (TFun args rv) = "(TFun " ++ show args ++ " " ++ show rv ++ ")"
-    show (TDataType def) = "(TDataType " ++ show def ++ ")"
+    show (TDataType definition) = "(TDataType " ++ show definition ++ ")"
     show (TRecord rows) = "(TRecord " ++ show rows ++ ")"
     show (TTypeFun args rv) = "(TTypeFun " ++ show args ++ " " ++ show rv ++ ")"
 
@@ -245,7 +245,7 @@ showTypeVarIO' state = \case
                     writeIORef (tvrNames state) $ Map.insert i name names
                     return name
             constraintsString <- showConstraintSet state constraints
-            return $ name' <> if constraints == emptyConstraintSet then "" else (": " <> constraintsString)
+            return $ name' <> if constraints == def then "" else (": " <> constraintsString)
         TBound tv -> do
             showTypeVarIO' state tv
     TQuant typeSource constraints i -> do
@@ -260,14 +260,14 @@ showTypeVarIO' state = \case
                         writeIORef (tvrNames state) $ Map.insert i name names
                         return name
         constraintsString <- showConstraintSet state constraints
-        return $ name' <> if constraints == emptyConstraintSet then "" else (": " <> constraintsString)
+        return $ name' <> if constraints == def then "" else (": " <> constraintsString)
     TFun args ret -> do
         as <- for args $ showTypeVarIO' state
         rs <- showTypeVarIO' state ret
         return $ "(" ++ intercalate "," as ++ ") => " ++ rs
-    TDataType def -> do
-        tvs <- for (tuParameters def) $ showTypeVarIO' state
-        return $ case (tuModuleName def, tuName def) of
+    TDataType definition -> do
+        tvs <- for (tuParameters definition) $ showTypeVarIO' state
+        return $ case (tuModuleName definition, tuName definition) of
             ("tuple", "Tuple2") -> "(" <> intercalate ", " tvs <> ")"
             ("tuple", "Tuple3") -> "(" <> intercalate ", " tvs <> ")"
             ("tuple", "Tuple4") -> "(" <> intercalate ", " tvs <> ")"
@@ -275,7 +275,7 @@ showTypeVarIO' state = \case
             ("tuple", "Tuple6") -> "(" <> intercalate ", " tvs <> ")"
             ("tuple", "Tuple7") -> "(" <> intercalate ", " tvs <> ")"
             ("tuple", "Tuple8") -> "(" <> intercalate ", " tvs <> ")"
-            _ -> (Text.unpack $ tuName def) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
+            _ -> (Text.unpack $ tuName definition) ++ if tvs /= [] then "<" ++ (intercalate ", " tvs) ++ ">" else ""
     TRecord fields -> do
         showRecordFieldsIO' state fields
     TTypeFun args ret -> do

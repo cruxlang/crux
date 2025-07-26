@@ -162,7 +162,7 @@ weaken level e = do
             return field { trTyVar = ty' }
         return $ TRecord fields'
 
-accumulateTraitReferences' :: MonadIO m
+accumulateTraitReferences' :: (MonadIO m, MonadFail m)
     => IORef (Set TypeNumber)
     -> IORef [(TypeVar, TypeNumber, TraitIdentity)]
     -> TypeVar
@@ -188,7 +188,7 @@ accumulateTraitReferences' seen out tv = case tv of
         fail "ICE: what does this mean"
 
   where
-    appendTypeVar :: MonadIO m => ConstraintSet -> TypeVar -> TypeNumber -> m ()
+    appendTypeVar :: (MonadIO m, MonadFail m) => ConstraintSet -> TypeVar -> TypeNumber -> m ()
     appendTypeVar (ConstraintSet record traits) typeVar typeNumber = do
         seen' <- readIORef seen
         when (not $ Set.member typeNumber seen') $ do
@@ -202,7 +202,7 @@ accumulateTraitReferences' seen out tv = case tv of
                     accumulateTraitReferences' seen out trTyVar
                 for_ rcFieldType $ accumulateTraitReferences' seen out
 
-accumulateTraitReferences :: MonadIO m => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
+accumulateTraitReferences :: (MonadIO m, MonadFail m) => [TypeVar] -> m [(TypeVar, TypeNumber, TraitIdentity)]
 accumulateTraitReferences typeVars = do
     seen <- newIORef mempty
     out <- newIORef mempty
@@ -339,10 +339,10 @@ check' expectedType env = \case
 
         return $ EMatch resultType matchExpr' cases'
 
-    ELet pos mut pat forall maybeAnnot expr' -> do
+    ELet pos mut pat forall' maybeAnnot expr' -> do
         ty <- freshType env
         env' <- childEnv env
-        _ <- registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall'
         expr'' <- check env' expr'
         expr''' <- case mut of
             Mutable -> weaken (eLevel env') expr''
@@ -355,7 +355,7 @@ check' expectedType env = \case
             unify env pos ty annotTy
 
         unitType <- resolveVoidType env pos
-        return $ ELet unitType mut pat' forall maybeAnnot expr'''
+        return $ ELet unitType mut pat' forall' maybeAnnot expr'''
 
     EAssign pos lhs rhs -> do
         lhs' <- check env lhs
@@ -612,9 +612,9 @@ resolveInstanceDictPlaceholders :: Env -> TypedExpression -> TC TypedExpression
 resolveInstanceDictPlaceholders env = recurse
   where
     recurse = \case
-        ELet tv mut pat forall typeIdent body -> do
+        ELet tv mut pat forall' typeIdent body -> do
             body' <- recurse body
-            return $ ELet tv mut pat forall typeIdent body'
+            return $ ELet tv mut pat forall' typeIdent body'
         ELookup tv body name -> do
             body' <- recurse body
             return $ ELookup tv body' name
@@ -870,19 +870,19 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
 
     {- VALUE DEFINITIONS -}
 
-    DDeclare pos' name forall typeIdent -> do
+    DDeclare pos' name forall' typeIdent -> do
         env' <- childEnv env
-        _ <- registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall'
         ty <- resolveTypeIdent env' pos typeIdent
         let resolvedRef = (Ambient, name)
         let mut = Immutable
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference resolvedRef mut ty)
         exportValue export env pos' name (resolvedRef, mut, ty)
-        return $ DDeclare ty name forall typeIdent
-    DLet pos' mut pat forall maybeAnnot expr -> do
+        return $ DDeclare ty name forall' typeIdent
+    DLet pos' mut pat forall' maybeAnnot expr -> do
         env' <- childEnv env
         ty <- freshType env'
-        _ <- registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall'
         for_ maybeAnnot $ \annotation -> do
             annotTy <- resolveTypeIdent env' pos annotation
             unify env pos' ty annotTy
@@ -927,16 +927,16 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                     , fdBody = expr'''
                     }
 
-        return $ DLet (edata expr'''') mut pat' forall maybeAnnot expr''''
+        return $ DLet (edata expr'''') mut pat' forall' maybeAnnot expr''''
 
-    DFun pos' name forall fd -> do
+    DFun pos' name forall' fd -> do
         -- Rewrites as a function of trait dict to actual function
         ty <- freshType env
         let rr = (FromModule $ eThisModule env, name)
         exportValue export env pos' name (rr, Immutable, ty)
         SymbolTable.insert (eValueBindings env) pos' SymbolTable.DisallowDuplicates name (ValueReference rr Immutable ty)
         env' <- childEnv env
-        _ <- registerExplicitTypeVariables env' forall
+        _ <- registerExplicitTypeVariables env' forall'
         expr'@(EFun _ fd') <- check env' $ EFun pos' fd
         let FunctionDecl{fdBody=body', fdParams=args'} = fd'
         unify env pos' (edata expr') ty
@@ -964,7 +964,7 @@ checkDecl env (Declaration export pos decl) = fmap (Declaration export pos) $ g 
                         , fdBody = EFun (edata expr') innerFD
                         }
 
-        return $ DFun (edata expr') name forall outerFD
+        return $ DFun (edata expr') name forall' outerFD
 
     {- TYPE DEFINITIONS -}
 

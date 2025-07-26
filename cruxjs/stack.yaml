@@ -2,7 +2,7 @@ flags: {}
 packages:
 - '.'
 - '..'
-resolver: lts-8.11
+resolver: lts-23.27
 compiler: ghcjs-0.2.1.9008011_ghc-8.0.2
 compiler-check: match-exact
 setup-info:

@@ -8,6 +8,7 @@ module Crux.Typecheck.TypeAlloc
 import Crux.Prelude
 import Crux.Typecheck.Types
 import Crux.TypeVar
+import Data.Default (def)
 
 freshTypeIndex :: MonadIO m => Env -> m Int
 freshTypeIndex Env{eNextTypeIndex} = do
@@ -15,7 +16,7 @@ freshTypeIndex Env{eNextTypeIndex} = do
     readIORef eNextTypeIndex
 
 freshType :: MonadIO m => Env -> m TypeVar
-freshType env = freshTypeConstrained env emptyConstraintSet
+freshType env = freshTypeConstrained env def
 
 freshTypeConstrained :: MonadIO m => Env -> ConstraintSet -> m TypeVar
 freshTypeConstrained env constraints = do
@@ -25,4 +26,4 @@ freshTypeConstrained env constraints = do
 freshWeakQVar :: MonadIO m => Env -> m TypeVar
 freshWeakQVar env = do
     index <- freshTypeIndex env
-    newTypeVar $ TUnbound Weak (eLevel env) emptyConstraintSet index
+    newTypeVar $ TUnbound Weak (eLevel env) def index

@@ -159,8 +159,8 @@ registerTypeVarIdent env (TypeVarIdent name pos (ConstraintSetIdent recordConstr
     return tyVar
 
 registerExplicitTypeVariables :: Env -> [TypeVarIdent] -> TC [TypeVar]
-registerExplicitTypeVariables env forall = do
-    for forall $ registerTypeVarIdent env
+registerExplicitTypeVariables env forall' = do
+    for forall' $ registerTypeVarIdent env
     
 newQuantifiedTypeVar :: Env -> Pos -> Name -> TC TypeVar
 newQuantifiedTypeVar env pos name = do

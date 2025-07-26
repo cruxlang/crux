@@ -349,11 +349,11 @@ renderDeclaration (Gen.Declaration _export decl) = case decl of
         PWildcard -> do
             for defn renderInstruction
         PConstructor {} -> do
-            fail "Gen: Top-level pattern bindings are not supported"
+            error "Gen: Top-level pattern bindings are not supported"
         PBinding _name -> do
             for defn renderInstruction
         PTuple _ -> do
-            fail "Gen: Tuple should be rewritten by this point"
+            error "Gen: Tuple should be rewritten by this point"
     Gen.DException name ->
         return $ [JSTree.SVar (name <> "$") $ Just $ JSTree.EApplication (JSTree.EIdentifier "_rts_new_exception") [JSTree.ELiteral $ JSTree.LString name]]
 

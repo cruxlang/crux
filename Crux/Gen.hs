@@ -427,13 +427,13 @@ instanceFieldMapName :: TraitIdentity -> Text
 instanceFieldMapName (TraitIdentity traitModule traitName) =
     "$$fieldMap$" <> traitName <> "$" <> renderModuleName traitModule
 
-traitDictName :: MonadIO m => AST.ResolvedReference -> TypeVar -> m Name
+traitDictName :: (MonadIO m, MonadFail m) => AST.ResolvedReference -> TypeVar -> m Name
 traitDictName traitName' typeVar = do
     let (AST.FromModule traitModule, traitName) = traitName'
     dti <- getDTI typeVar
     return $ instanceDictName (TraitIdentity traitModule traitName) dti
   where
-    getDTI :: MonadIO m => TypeVar -> m TraitImplIdentity
+    getDTI :: (MonadIO m, MonadFail m) => TypeVar -> m TraitImplIdentity
     getDTI tv = followTypeVar tv >>= \case
         TypeVar {} -> do
             fail "Unexpected traitDictName got unbound typevar"

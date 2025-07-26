@@ -33,6 +33,8 @@ newtype TC a = TC { unTC :: ReaderT TCState IO a }
 instance Monad TC where
     (TC m) >>= cb = TC $ m >>= unTC . cb
     return = TC . return
+
+instance MonadFail TC where
     fail str = do
         TCState{tcFileName} <- TC ask
         failICE (InternalErrorPos tcFileName) $ InternalError str

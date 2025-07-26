@@ -561,13 +561,13 @@ letExpression = do
     withIndentation (IRDeeper tlet) $ do
         mut <- P.option Immutable (token TMutable >> return Mutable)
         pat <- pattern IrrefutableContext
-        forall <- P.option [] $ explicitTypeVariableList
+        forall' <- P.option [] $ explicitTypeVariableList
         typeAnn <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent
         _ <- token TEqual
         expr <- noSemiExpression
-        return $ ELet (tokenData tlet) mut pat forall typeAnn expr
+        return $ ELet (tokenData tlet) mut pat forall' typeAnn expr
 
 semiExpression :: Parser ParseExpression
 semiExpression = do
@@ -704,18 +704,18 @@ typeVariableName = anyIdentifier
 
 letDeclaration :: Parser ParseDeclaration
 letDeclaration = do
-    ELet ed mut name forall typeAnn expr <- letExpression
-    return $ DLet ed mut name forall typeAnn expr
+    ELet ed mut name forall' typeAnn expr <- letExpression
+    return $ DLet ed mut name forall' typeAnn expr
 
 declareDeclaration :: Parser ParseDeclaration
 declareDeclaration = do
     declareToken <- token TDeclare
     withIndentation (IRDeeper declareToken) $ do
         name <- anyIdentifier
-        forall <- P.option [] explicitTypeVariableList
+        forall' <- P.option [] explicitTypeVariableList
         _ <- token TColon
         ti <- typeIdent
-        return $ DDeclare (tokenData declareToken) name forall ti
+        return $ DDeclare (tokenData declareToken) name forall' ti
 
 variantDefinition :: Parser (Variant () ParsePos)
 variantDefinition = do
@@ -869,14 +869,14 @@ funDeclaration = do
 
     withIndentation (IRDeeper tfun) $ do
         name <- anyIdentifier
-        forall <- P.option [] explicitTypeVariableList
+        forall' <- P.option [] explicitTypeVariableList
         fdParams <- parenthesized $ commaDelimited funArgument
         fdReturnAnnot <- P.optionMaybe $ do
             _ <- token TColon
             typeIdent
 
         fdBody <- blockExpression
-        return $ DFun pos name forall FunctionDecl{..}
+        return $ DFun pos name forall' FunctionDecl{..}
 
 traitDeclaration :: Parser ParseDeclaration
 traitDeclaration = do
@@ -936,8 +936,8 @@ implTypeIdent :: Parser ImplTypeIdent
 implTypeIdent = do
     let nominal = do
             typeName' <- unresolvedReference
-            forall <- P.option [] explicitTypeVariableList
-            return $ ImplNominalIdent typeName' forall
+            forall' <- P.option [] explicitTypeVariableList
+            return $ ImplNominalIdent typeName' forall'
     let function = do
         -- TODO: allow constraints on argument and return types
             argTypes <- parenthesized $ commaDelimited unresolvedReference

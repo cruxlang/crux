@@ -49,43 +49,53 @@ Working:
 * [Mutability](https://github.com/andyfriesen/Crux/blob/master/doc/design/mutability.md)
 * "everything is an expression"
 * Tail Calls
+* Modules
+* Exceptions
+* Type classes / traits
 
 Partially done:
 * JS FFI
-* Modules
-* Exceptions
 
 Not done:
 * Asynchrony
 * Class definitions
 * Native code generation
 * Interpreter
-* Type classes / traits
 
 # Compiling
 
-The Crux compiler is a Haskell program, but you don't need to be a Haskell programmer to build or use it.
+The compiler is implemented in Rust as the `crux` library crate. It includes
+the lexer, source AST, bounded Chumsky parser, type checker, module loader, and
+JavaScript backend:
 
-If you're familiar with building Haskell software, we expect the compiler to build either with cabal or stack.
+```sh
+cargo test
+```
 
-If not, read on:
+To run only the fixture-driven suite under `tests/integration`:
 
-1. Get stack. https://docs.haskellstack.org/en/stable/README/
-2. `git clone https://github.com/cruxlang/crux`
-3. `cd crux`
-4. `stack install`
+```sh
+cargo test --test integration -- --nocapture
+```
 
-This will build crux and install it to `~/.local/bin/crux`.
+The existing integration corpus is compiled and executed by the Rust test
+suite. The old Haskell implementation remains temporarily as a behavioral
+reference and can be checked with `stack test`.
 
 # A Tour of the Code
 
-1. Lex.hs converts bytes into Tokens (see Token.hs)
-2. Parse.hs converts Tokens into the AST (see AST.hs)
-3. Typecheck.hs type-checks the AST, producing a typed AST (see TypeVar.hs and Unify.hs)
-4. Gen.hs converts the AST into an IR
-5. JSBackend.hs converts the IR into JS
-6. JSTree.hs converts the JS AST into output bytes
+1. `rust/src/lexer.rs` converts source text into positioned tokens.
+2. `rust/src/chumsky_parser.rs` converts tokens into the source AST in `rust/src/ast.rs`.
+3. `rust/src/typecheck.rs` performs Hindley-Milner inference, row unification,
+   and trait checking.
+4. `rust/src/codegen.rs` emits JavaScript and runtime trait dispatch.
+5. `rust/src/compiler.rs` resolves imports, rejects cycles, links modules, and
+   produces executable JavaScript.
 
-Main.hs is the general command-line interface.
+The public entry points are `crux::parse(file_name, source)`,
+`crux::compiler::compile(file_name, source)`, and
+`crux::compiler::compile_path(path)`.
 
-Look at Module.hs and Project.hs for the code to load modules and projects.
+The Chumsky parser enforces explicit token and nesting limits before entering
+recursive combinators. The former hand-written parser remains temporarily as
+`crux::parse_compat` for AST migration comparisons.

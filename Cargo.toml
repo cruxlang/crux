@@ -1,0 +1,45 @@
+[package]
+name = "crux"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "A type-safe language that compiles to JavaScript"
+
+[lib]
+path = "rust/src/lib.rs"
+
+[dependencies]
+chumsky = { version = "0.13.0", default-features = false, features = ["std", "pratt"] }
+stacker = "0.1.25"
+
+[[test]]
+name = "parser"
+path = "rust/tests/parser.rs"
+
+[[test]]
+name = "chumsky_parser"
+path = "rust/tests/chumsky_parser.rs"
+
+[[test]]
+name = "typecheck"
+path = "rust/tests/typecheck.rs"
+
+[[test]]
+name = "codegen"
+path = "rust/tests/codegen.rs"
+
+[[test]]
+name = "compiler"
+path = "rust/tests/compiler.rs"
+
+[[test]]
+name = "chumsky_corpus"
+path = "rust/tests/chumsky_corpus.rs"
+
+[[test]]
+name = "typecheck_corpus"
+path = "rust/tests/typecheck_corpus.rs"
+
+[[test]]
+name = "integration"
+path = "rust/tests/integration.rs"

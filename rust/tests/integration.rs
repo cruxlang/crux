@@ -1,4 +1,5 @@
 use crux::compiler::{compile_path, compile_path_executable, CompileError};
+use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -29,14 +30,16 @@ fn runs_every_integration_fixture() {
     fixtures.sort();
     assert!(!fixtures.is_empty(), "no integration fixtures found");
 
-    let mut failures = Vec::new();
-    for fixture in &fixtures {
-        let name = fixture.strip_prefix(&root).unwrap_or(fixture);
-        println!("testing program {}", name.join("main.cx").display());
-        if let Err(message) = run_fixture(fixture) {
-            failures.push(format!("{}: {message}", name.display()));
-        }
-    }
+    let failures = fixtures
+        .par_iter()
+        .filter_map(|fixture| {
+            let name = fixture.strip_prefix(&root).unwrap_or(fixture);
+            println!("testing program {}", name.join("main.cx").display());
+            run_fixture(fixture)
+                .err()
+                .map(|message| format!("{}: {message}", name.display()))
+        })
+        .collect::<Vec<_>>();
 
     assert!(
         failures.is_empty(),

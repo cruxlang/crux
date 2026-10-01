@@ -12,6 +12,9 @@ path = "rust/src/lib.rs"
 chumsky = { version = "0.13.0", default-features = false, features = ["std", "pratt"] }
 stacker = "0.1.25"
 
+[dev-dependencies]
+rayon = "1.11.0"
+
 [[test]]
 name = "parser"
 path = "rust/tests/parser.rs"

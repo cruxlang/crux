@@ -78,6 +78,10 @@ To run only the fixture-driven suite under `tests/integration`:
 cargo test --test integration -- --nocapture
 ```
 
+Fixtures run in parallel using Rayon's CPU-sized worker pool. Set
+`RAYON_NUM_THREADS` to override the concurrency, for example
+`RAYON_NUM_THREADS=4 cargo test --test integration -- --nocapture`.
+
 The existing integration corpus is compiled and executed by the Rust test
 suite. The old Haskell implementation remains temporarily as a behavioral
 reference and can be checked with `stack test`.

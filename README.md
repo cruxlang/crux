@@ -86,6 +86,9 @@ The existing integration corpus is compiled and executed by the Rust test
 suite. The old Haskell implementation remains temporarily as a behavioral
 reference and can be checked with `stack test`.
 
+The browser and npm compiler is implemented as a Rust/WebAssembly package in
+`cruxjs`; see `cruxjs/README.md` for its build and JavaScript APIs.
+
 # A Tour of the Code
 
 1. `rust/src/lexer.rs` converts source text into positioned tokens.
@@ -95,10 +98,13 @@ reference and can be checked with `stack test`.
 4. `rust/src/codegen.rs` emits JavaScript and runtime trait dispatch.
 5. `rust/src/compiler.rs` resolves imports, rejects cycles, links modules, and
    produces executable JavaScript.
+6. `cruxjs/src/lib.rs` exposes the compiler to JavaScript through Wasm and
+   embeds every module in `lib` at build time.
 
 The public entry points are `crux::parse(file_name, source)`,
 `crux::compiler::compile(file_name, source)`, and
-`crux::compiler::compile_path(path)`.
+`crux::compiler::compile_path(path)`. Wasm hosts use the filesystem-free
+`crux::compiler::compile_in_memory` entry point.
 
 The Chumsky parser enforces explicit token and nesting limits before entering
 recursive combinators. The former hand-written parser remains temporarily as

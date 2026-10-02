@@ -19,3 +19,20 @@ fn project_loader_rejects_circular_imports() {
         crux::compiler::CompileError::CircularImport(_)
     ));
 }
+
+#[test]
+fn compiles_an_in_memory_project_without_filesystem_access() {
+    let sources = std::collections::BTreeMap::from([
+        (
+            "main.cx".into(),
+            "import greet(...)\nfun main() { hello() }".into(),
+        ),
+        (
+            "greet.cx".into(),
+            "export fun hello() { print(\"hello\") }".into(),
+        ),
+    ]);
+    let javascript = crux::compiler::compile_in_memory_executable("main.cx", &sources).unwrap();
+    assert!(javascript.contains("$module_main.main();"));
+    assert!(javascript.contains("function hello()"));
+}

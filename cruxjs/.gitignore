@@ -6,3 +6,4 @@
 /stage/compiler-worker.js
 /stage/*.css.map
 /dist/
+/target/

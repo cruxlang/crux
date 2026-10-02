@@ -1,24 +1,56 @@
-# What is Crux.js?
+# Crux.js
 
-This project is the tooling that compiles the Crux compiler (written in Haskell) into a JavaScript binary that
-can run in web browsers or via npm.  The native Crux compiler is much, much faster, but sometimes it's useful to run the
-compiler from JavaScript.
+Crux.js is the Rust Crux compiler packaged as WebAssembly. It embeds the Crux
+standard library and runtime, so compilation is synchronous and performs no
+filesystem or network access.
 
-Crux.js is built with GHCJS.
+The generated package exports two APIs:
 
+- `compile(source)` returns generated JavaScript or throws a compiler error.
+- `compileCrux(source)` preserves the historical API and returns an object
+  containing either a `result` or `error` string.
 
-## How to compile
+## Build for browsers
 
-1. `sudo apt install nodejs npm libz-dev ncurses-dev`
-2. Get a version of `stack` that's new enough to install GHCJS.  Version 1.0.0 is new enough.
-3. Install [sass](http://sass-lang.com/install)
-4. Run `s/build`.  stack should download and compile everything you need.
-5. The resulting JS is copied into the `stage/` directory alongside some scaffolding HTML and CSS.
+Install the Wasm target and the binding generator version selected by
+`Cargo.lock`, then run the build script from the repository root:
 
-## Deploying to website
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.129 --locked
+cruxjs/s/build
+```
 
-Check out https://github.com/cruxlang/cruxlang.github.io
+Browser artifacts are written to `cruxjs/dist`; CommonJS/npm artifacts are
+written to `cruxjs/npm/cruxlang/src`.
 
-After building, copy the contents of stage/ into crux-web/try/
+Load and initialize the generated ES module before compiling:
 
-Commit and push.
+```js
+import init, { compile } from "./dist/cruxjs.js";
+
+await init();
+const javascript = compile(source);
+```
+
+## Build the npm CLI
+
+```sh
+cruxjs/s/build
+node cruxjs/npm/cruxlang/cli.js program.cx
+```
+
+## Test
+
+Native boundary and embedded-library tests:
+
+```sh
+cargo test --manifest-path cruxjs/Cargo.toml
+```
+
+For the complete native and Wasm/Node smoke test, install the build
+prerequisites above and run:
+
+```sh
+cruxjs/s/test
+```

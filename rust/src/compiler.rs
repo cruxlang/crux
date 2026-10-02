@@ -154,7 +154,7 @@ fn emit_module(
     })?;
     let mut dependencies = Vec::new();
     for import in &module.imports {
-        let dependency = resolve_import(import, project_root, base_root);
+        let dependency = resolve_import(import, project_root, base_root, modules);
         emit_module(
             &dependency,
             project_root,
@@ -338,7 +338,7 @@ fn exported_trait_keys(
                 .find(|import| import.module.last() == Some(name))
             {
                 result.extend(exported_trait_keys(
-                    &resolve_import(import, project_root, base_root),
+                    &resolve_import(import, project_root, base_root, modules),
                     project_root,
                     base_root,
                     modules,
@@ -351,14 +351,19 @@ fn exported_trait_keys(
     result
 }
 
-fn resolve_import(import: &crate::ast::Import, project_root: &Path, base_root: &Path) -> PathBuf {
+fn resolve_import(
+    import: &crate::ast::Import,
+    project_root: &Path,
+    base_root: &Path,
+    modules: &BTreeMap<PathBuf, Module>,
+) -> PathBuf {
     let relative = import
         .module
         .iter()
         .collect::<PathBuf>()
         .with_extension("cx");
     let project_path = project_root.join(&relative);
-    if project_path.is_file() {
+    if modules.contains_key(&project_path) || project_path.is_file() {
         project_path
     } else {
         base_root.join(relative)
@@ -428,7 +433,7 @@ fn exported_names(
                 .find(|import| import.module.last() == Some(name))
             {
                 result.extend(exported_names(
-                    &resolve_import(import, project_root, base_root),
+                    &resolve_import(import, project_root, base_root, modules),
                     project_root,
                     base_root,
                     modules,
@@ -526,6 +531,99 @@ fn load_module_graph(
     complete.insert(path.clone());
     modules.insert(path, module);
     Ok(())
+}
+
+fn load_module_graph_from_sources(
+    path: &Path,
+    project_root: &Path,
+    sources: &BTreeMap<PathBuf, String>,
+    visiting: &mut Vec<PathBuf>,
+    complete: &mut BTreeSet<PathBuf>,
+    modules: &mut BTreeMap<PathBuf, Module>,
+) -> Result<(), CompileError> {
+    let path = path.to_owned();
+    if complete.contains(&path) {
+        return Ok(());
+    }
+    if let Some(index) = visiting.iter().position(|candidate| candidate == &path) {
+        let mut cycle = visiting[index..].to_vec();
+        cycle.push(path);
+        return Err(CompileError::CircularImport(cycle));
+    }
+    let source = sources.get(&path).ok_or_else(|| CompileError::Io {
+        path: path.clone(),
+        message: "module is not present in the in-memory source map".into(),
+    })?;
+    let parsed = chumsky_parser::parse_module(&path.display().to_string(), source);
+    if !parsed.diagnostics.is_empty() {
+        return Err(CompileError::Parse(parsed.diagnostics));
+    }
+    let module = parsed.output.ok_or_else(|| CompileError::Parse(vec![]))?;
+    visiting.push(path.clone());
+    for import in &module.imports {
+        let relative = import
+            .module
+            .iter()
+            .collect::<PathBuf>()
+            .with_extension("cx");
+        let project_path = project_root.join(&relative);
+        let dependency = if sources.contains_key(&project_path) {
+            project_path
+        } else {
+            relative
+        };
+        load_module_graph_from_sources(
+            &dependency,
+            project_root,
+            sources,
+            visiting,
+            complete,
+            modules,
+        )?;
+    }
+    visiting.pop();
+    complete.insert(path.clone());
+    modules.insert(path, module);
+    Ok(())
+}
+
+/// Compile a project from a virtual filesystem. Source-map keys use the same
+/// slash-separated module paths as imports, with the main module named by
+/// `main`. This entry point performs no filesystem access and is suitable for
+/// WebAssembly hosts.
+pub fn compile_in_memory(
+    main: &str,
+    sources: &BTreeMap<String, String>,
+) -> Result<String, CompileError> {
+    let main = PathBuf::from(main);
+    let project_root = main.parent().unwrap_or_else(|| Path::new(""));
+    let sources = sources
+        .iter()
+        .map(|(path, source)| (PathBuf::from(path), source.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut modules = BTreeMap::new();
+    load_module_graph_from_sources(
+        &main,
+        project_root,
+        &sources,
+        &mut Vec::new(),
+        &mut BTreeSet::new(),
+        &mut modules,
+    )?;
+    bundle_modules(&main, project_root, Path::new(""), &modules)
+}
+
+/// Compile a virtual project and include the runtime and main-module call.
+pub fn compile_in_memory_executable(
+    main: &str,
+    sources: &BTreeMap<String, String>,
+) -> Result<String, CompileError> {
+    let body = compile_in_memory(main, sources)?;
+    Ok(format!(
+        "{}\n{}\n{body}\n$module_main.main();\n",
+        include_str!("../../rts/rts.js"),
+        runtime_prelude()
+    ))
 }
 
 impl std::error::Error for CompileError {}

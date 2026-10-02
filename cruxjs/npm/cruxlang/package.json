@@ -1,16 +1,20 @@
 {
   "name": "cruxlang",
   "version": "0.1.0",
-  "description": "Crux Language Compiler",  
+  "description": "Crux language compiler, implemented in Rust and WebAssembly",
   "bin": {
     "cruxjs": "./cli.js"
   },
+  "files": [
+    "cli.js",
+    "src/"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cruxlang/crux.git"
   },
   "author": "Chad Austin <chad@chadaustin.me> (http://chadaustin.me)",
-  "license": "BSD-3-Clause",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/cruxlang/crux/issues"
   },

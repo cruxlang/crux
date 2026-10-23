@@ -7,7 +7,7 @@ fun f(a: Result<String, String>): Result<String, String> {
 fun main() {
   let v: P = Ok("hi");
   match f(v) {
-    Ok(p) => print("Good: " + p);
+    Ok(p) => print("Good: " + p),
     Err(q) => print("Bad: " + q)
   }
 }

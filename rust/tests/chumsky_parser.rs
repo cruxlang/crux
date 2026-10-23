@@ -24,8 +24,8 @@ fn precedence_and_application_are_not_ambiguous() {
 }
 
 #[test]
-fn parses_adjacent_layout_separated_match_arms() {
-    let expression = ok("match value {\n  None => 0\n  Some(x) => x\n}");
+fn parses_comma_separated_match_arms() {
+    let expression = ok("match value { None => 0, Some(x) => x }");
     let ExpressionKind::Match(_, cases) = expression.kind else {
         panic!("expected match expression");
     };
@@ -41,19 +41,28 @@ fn parses_adjacent_layout_separated_match_arms() {
 }
 
 #[test]
-fn reports_misaligned_match_arms_with_a_partial_match() {
-    let parsed = parse_expression(
-        "layout.cx",
-        "match value {\n  None => 0\n   Some(x) => x\n  Other => 2\n}",
-    );
-    assert!(matches!(
-        parsed.output.as_ref().map(|expression| &expression.kind),
-        Some(ExpressionKind::Match(_, cases)) if cases.len() == 3
-    ));
+fn braced_match_arms_need_no_comma_or_alignment() {
+    let expression = ok("match value {\n  None => { 0 }\n   Some(x) => { x } Other => 2\n}");
+    assert!(matches!(expression.kind, ExpressionKind::Match(_, cases) if cases.len() == 3));
+}
+
+#[test]
+fn single_expression_match_arms_require_commas() {
+    for source in [
+        "match value { None => 0 Some(x) => x }",
+        "match value {\n  None => 0\n  Some(x) => x\n}",
+        "match value { None => 0; Some(x) => x }",
+    ] {
+        let parsed = parse_expression("match.cx", source);
+        assert!(!parsed.diagnostics.is_empty(), "accepted {source:?}");
+    }
+
+    let parsed = parse_expression("match.cx", "match value { A => 1 B => 2 }");
+    assert!(parsed.output.is_some());
     assert!(parsed
         .diagnostics
         .iter()
-        .any(|error| error.message.contains("match case must begin")));
+        .any(|error| error.message.contains("must end with a comma")));
 }
 
 #[test]

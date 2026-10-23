@@ -5,7 +5,7 @@ fun getField(record) {
 fun main() {
     print(getField({field: 10 as Number}));
     match getField({}) {
-        None => print("none");
+        None => print("none"),
         Some(_) => print("some")
     }
 }

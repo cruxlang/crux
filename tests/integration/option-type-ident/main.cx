@@ -6,7 +6,7 @@ fun f(): ?String {
 
 fun main() {
   match f() {
-    Some(p) => print(p);
+    Some(p) => print(p),
     None => print("none")
   }
 }

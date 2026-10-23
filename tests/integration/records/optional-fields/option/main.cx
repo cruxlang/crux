@@ -1,7 +1,7 @@
 fun printMyRecord<T: {required: Number, optional: ?String}>(r: T) {
     print(r.required);
     match r.optional {
-        None => ();
+        None => (),
         Some(x) => print(x)
     };
     print("-")

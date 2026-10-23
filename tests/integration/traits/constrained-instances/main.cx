@@ -8,8 +8,8 @@ trait E {
 impl E Option<a: E> {
   e(lhs, rhs) {
     match Pair(lhs, rhs) {
-      Pair(None, None) => True;
-      Pair(Some(x), Some(y)) => e(x, y)
+      Pair(None, None) => True,
+      Pair(Some(x), Some(y)) => e(x, y),
       _ => False
     }
   }

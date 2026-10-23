@@ -51,7 +51,7 @@ fn parses_data_and_type_variable_position() {
 
 #[test]
 fn parses_multiline_match() {
-    let decl = parse_one("let x = match hoot {\n  Nil => 0\n  Cons(a, b) => a\n}");
+    let decl = parse_one("let x = match hoot {\n  Nil => 0,\n  Cons(a, b) => a\n}");
     let DeclarationKind::Let { value, .. } = decl else {
         panic!("not let")
     };
@@ -60,6 +60,17 @@ fn parses_multiline_match() {
     };
     assert_eq!(cases.len(), 2);
     assert_eq!(cases[0].pattern, Pattern::Constructor("Nil".into(), vec![]));
+}
+
+#[test]
+fn compatibility_parser_uses_match_arm_commas() {
+    for source in [
+        "let x = match value { A => 1, B => 2 }",
+        "let x = match value { A => { 1 } B => 2 }",
+    ] {
+        crux::parse_compat("<test>", source).unwrap();
+    }
+    assert!(crux::parse_compat("<test>", "let x = match value { A => 1\n B => 2 }").is_err());
 }
 
 #[test]

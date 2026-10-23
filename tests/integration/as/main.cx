@@ -1,6 +1,6 @@
 fun printer<T: ToString>(arg: ?T) {
     match arg {
-        None => print("none");
+        None => print("none"),
         Some(x) => print(x)
     }
 };

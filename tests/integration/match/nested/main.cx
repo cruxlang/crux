@@ -1,15 +1,15 @@
 fun main() {
   match Some(Some(1 as Number)) {
-    Some(None) => print("some(none)");
-    Some(Some(x)) => print(x)
+    Some(None) => print("some(none)"),
+    Some(Some(x)) => print(x),
     None => print("none")
   }
   
 /*
   match Some(True) {
-    Some(False) => print("some(false)");
-    Some(True) => print("some(true)");
-    None => print("none");
+    Some(False) => print("some(false)"),
+    Some(True) => print("some(true)"),
+    None => print("none"),
   }
 */
 }

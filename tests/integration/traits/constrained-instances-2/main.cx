@@ -13,7 +13,7 @@ impl A String {
 impl A Option<elt: A> {
   a(s) {
     match s {
-      None => "";
+      None => "",
       Some(p) => a(p)
     }
   }

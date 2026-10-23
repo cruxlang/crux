@@ -16,7 +16,7 @@ export trait Repr {
 impl Repr Boolean {
     repr(b) {
         match b {
-            False => "False";
+            False => "False",
             True => "True"
         }
     }
@@ -62,8 +62,8 @@ impl Repr String {
 impl Repr cmp.Ordering {
     repr(ordering) {
         match ordering {
-            cmp.LessThan => "LessThan";
-            cmp.EqualTo => "Equal"
+            cmp.LessThan => "LessThan",
+            cmp.EqualTo => "Equal",
             cmp.GreaterThan => "GreaterThan"
         }
     }

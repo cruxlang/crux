@@ -1592,42 +1592,39 @@ where
     Pat:
         Parser<'tokens, I, Pattern, extra::Err<Rich<'tokens, LayoutToken, Span>>> + Clone + 'tokens,
 {
-    let open = just(LayoutToken::Lex(TokenKind::OpenBrace)).map_with(move |_, extra| {
-        let span: Span = extra.span();
-        metadata[span.start].line_start
-    });
+    let open = just(LayoutToken::Lex(TokenKind::OpenBrace));
     let close = just(LayoutToken::Lex(TokenKind::CloseBrace));
-    let newline = select! { LayoutToken::Newline(indent) => indent };
-    let line_start = newline.map_with(|indent, extra| (indent, extra.span()));
-    let case = line_start
-        .then(pattern)
+    let newlines = select! { LayoutToken::Newline(_) => () }
+        .repeated()
+        .ignored();
+    let comma = just(LayoutToken::Lex(TokenKind::Comma));
+    let block = block_parser(expression.clone(), metadata);
+    let case = newlines
+        .ignore_then(pattern)
         .then_ignore(just(LayoutToken::Lex(TokenKind::FatArrow)))
-        .then(expression)
-        .map(|(((indent, span), pattern), body)| ((indent, span), MatchCase { pattern, body }));
+        .then(choice((
+            block.map(|body| (body, true)),
+            expression.map(|body| (body, false)),
+        )))
+        .then(comma.or_not())
+        .map(|((pattern, (body, braced)), comma)| {
+            (MatchCase { pattern, body }, braced, comma.is_some())
+        });
 
-    open.then(
-        case.then_ignore(just(LayoutToken::Lex(TokenKind::Semicolon)).or_not())
-            .repeated()
-            .collect::<Vec<_>>(),
-    )
-    .then_ignore(newline.repeated())
-    .then_ignore(close)
-    .validate(|(opener_indent, cases), _, emitter| {
-        if let Some(((expected, _), _)) = cases.first() {
-            if expected <= &opener_indent {
-                emitter.emit(Rich::custom(cases[0].0 .1, "match cases must be indented"));
-            }
-            for ((indent, span), _) in &cases {
-                if indent != expected {
+    open.then(case.repeated().collect::<Vec<_>>())
+        .then_ignore(newlines)
+        .then_ignore(close)
+        .validate(|(_, cases), span, emitter| {
+            for (_, braced, comma) in cases.iter().take(cases.len().saturating_sub(1)) {
+                if !braced && !comma {
                     emitter.emit(Rich::custom(
-                        *span,
-                        format!("match case must begin in column {expected}, found {indent}"),
+                        span.span(),
+                        "match arm with a single expression must end with a comma",
                     ));
                 }
             }
-        }
-        cases.into_iter().map(|(_, case)| case).collect()
-    })
+            cases.into_iter().map(|(case, _, _)| case).collect()
+        })
 }
 
 fn sequence(pos: Pos, expressions: Vec<Expression>) -> Expression {

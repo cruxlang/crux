@@ -8,7 +8,7 @@ data IntList {
 impl ToString IntList {
   toString(x) {
     match x {
-      Element(n, rest) => "Element(" + toString(n) + ", " + toString(rest) + ")";
+      Element(n, rest) => "Element(" + toString(n) + ", " + toString(rest) + ")",
       Nil => "Nil"
     }
   }

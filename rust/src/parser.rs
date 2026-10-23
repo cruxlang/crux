@@ -928,16 +928,18 @@ impl Parser {
         let mut cases = vec![];
         while !self.is(&TokenKind::CloseBrace) {
             let pattern = self.pattern(PatternContext::Refutable)?;
-            let arrow = self.expect(&TokenKind::FatArrow)?;
-            let body = if self.is(&TokenKind::OpenBrace) {
+            self.expect(&TokenKind::FatArrow)?;
+            let braced = self.is(&TokenKind::OpenBrace);
+            let body = if braced {
                 self.block_expression()?
             } else {
-                self.with_continuation_floor(arrow.pos.line, arrow.line_start, |p| {
-                    p.no_semi_expression()
-                })?
+                self.no_semi_expression()?
             };
             cases.push(MatchCase { pattern, body });
-            self.take(&TokenKind::Semicolon);
+            let comma = self.take(&TokenKind::Comma).is_some();
+            if !braced && !comma && !self.is(&TokenKind::CloseBrace) {
+                return Err(self.error("match arm with a single expression must end with a comma"));
+            }
         }
         self.expect(&TokenKind::CloseBrace)?;
         Ok(Expression {

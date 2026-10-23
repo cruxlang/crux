@@ -1,7 +1,7 @@
 /// Returns a number in [0, 1)
 export fun float(): Number {
-    return _unsafe_js("Math").random()
-}
+    return _unsafe_js("Math").random();
+};
 
 // need a [0, 1) int function
 
@@ -10,10 +10,10 @@ export fun float(): Number {
 // TODO: this is all kinds of jank
 export fun randrange(min_: Number, max_: Number): Number {
     // assert max >= min
-    _unsafe_js("Math").floor(min_ + float() * (max_ - min_))
+    _unsafe_js("Math").floor(min_ + float() * (max_ - min_));
 }
 
 // TODO: This needs a rethink.  Should we have a code point type?
 export fun char(): String {
-    return "\0"
+    return "\0";
 }

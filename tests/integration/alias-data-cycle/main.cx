@@ -1,9 +1,9 @@
-type A = C
+type A = C;
 data B { B(A), Z }
-type C = B
+type C = B;
 
-let x: A = B(Z)
-let y: B = B(Z)
-let z: C = B(Z)
+let x: A = B(Z);
+let y: B = B(Z);
+let z: C = B(Z);
 
 fun main() {}

@@ -1,4 +1,4 @@
-import A(...)
-let a = A(B(NA))
+import A(...);
+let a = A(B(NA));
 
 fun main() {}

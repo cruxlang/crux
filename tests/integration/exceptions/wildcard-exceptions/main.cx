@@ -3,13 +3,13 @@ exception MyError ()
 fun main() {
   try {
     try {
-      _unsafe_js("function() { throw 45; }()")
+      _unsafe_js("function() { throw 45; }()");
     }
     catch MyError _ {
-      print("not here")
+      print("not here");
     }
   }
   catch _ {
-    print("caught")
+    print("caught");
   }
 }

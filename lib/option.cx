@@ -1,8 +1,8 @@
 pragma { NoBuiltin }
 
-import types(...)
-import cmp(...)
-import repr(...)
+import types(...);
+import cmp(...);
+import repr(...);
 
 export data Option<a> {
   None,

@@ -1,5 +1,5 @@
 import js
-import js.unsafe
+import js.unsafe;
 
 // TODO: add the ability to say that a trait may be unsafe to implement
 // This trait indicates that JS `null` does not inhabit its runtime representation.

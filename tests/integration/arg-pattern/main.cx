@@ -9,6 +9,6 @@ fun g(W(W(s))) {
 }
 
 fun main() {
-  print(f(W("Hello")))
-  print(g(W(W("further"))))
+  print(f(W("Hello")));
+  print(g(W(W("further"))));
 }

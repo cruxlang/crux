@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-import types(Boolean)
-import js.unsafe
+import types(Boolean);
+import js.unsafe;
 
-export let not: Boolean => Boolean = unsafe.not
+export let not: Boolean => Boolean = unsafe.not;

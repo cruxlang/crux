@@ -374,10 +374,7 @@ where
     let tok = |kind| just(LayoutToken::Lex(kind));
     let newline = select! { LayoutToken::Newline(indent) => indent };
     let newlines = newline.repeated().ignored();
-    let separator = choice((
-        newline.repeated().at_least(1).ignored(),
-        tok(TokenKind::Semicolon).then_ignore(newlines).ignored(),
-    ));
+    let separator = tok(TokenKind::Semicolon).then_ignore(newlines).ignored();
     let name = select! {
         LayoutToken::Lex(TokenKind::LowerIdent(name)) => name,
         LayoutToken::Lex(TokenKind::UpperIdent(name)) => name,
@@ -768,11 +765,7 @@ where
         .ignore_then(
             trait_method
                 .then_ignore(
-                    choice((
-                        newline.repeated().at_least(1).ignored(),
-                        tok(TokenKind::Semicolon).then_ignore(newlines).ignored(),
-                    ))
-                    .or_not(),
+                    tok(TokenKind::Semicolon).then_ignore(newlines).ignored().or_not(),
                 )
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -808,11 +801,7 @@ where
         .ignore_then(
             choice((impl_field, impl_method))
                 .then_ignore(
-                    choice((
-                        newline.repeated().at_least(1).ignored(),
-                        tok(TokenKind::Semicolon).then_ignore(newlines).ignored(),
-                    ))
-                    .or_not(),
+                    tok(TokenKind::Semicolon).then_ignore(newlines).ignored().or_not(),
                 )
                 .repeated()
                 .collect::<Vec<_>>(),

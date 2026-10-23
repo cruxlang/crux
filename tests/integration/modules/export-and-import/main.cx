@@ -1,6 +1,3 @@
-import MyModule(...)
-
-fun main() {
-  print("outside")
-  fn()
-}
+export fun a() {};
+import B;
+fun main() {}

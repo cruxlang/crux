@@ -1,15 +1,15 @@
 trait Monoid {
-  empty: self
-  concat(self, self): self
+  empty: self;
+  concat(self, self): self;
 }
 
 impl Monoid Number {
-  empty = 0
+  empty = 0;
   concat(x, y) {
-    x + y
+    x + y;
   }
 }
 
 fun main() {
-  print(concat(empty, concat(1 as Number, 2)))
+  print(concat(empty, concat(1 as Number, 2)));
 }

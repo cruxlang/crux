@@ -1,8 +1,8 @@
 let f = x => {
-  print(x)
-  print(x)
+  print(x);
+  print(x);
 }
 
 fun main() {
-  f("hello")
+  f("hello");
 }

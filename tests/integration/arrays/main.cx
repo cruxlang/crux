@@ -1,6 +1,6 @@
 fun main() {
-    let arr = replicate("toot", 4)
+    let arr = replicate("toot", 4);
     each(arr, fun(e) {
-        print(e)
-    })
+        print(e);
+    });
 }

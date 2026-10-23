@@ -1,11 +1,11 @@
-import js.unsafe
+import js.unsafe;
 
 data jsffi Method {
-  Get = "GET",
-  Post = "POST",
+  Get = "GET";
+  Post = "POST";
 }
 
 fun main() {
-  let result: Method = Get
-  print(unsafe.toString(result) as String)
+  let result: Method = Get;
+  print(unsafe.toString(result) as String);
 }

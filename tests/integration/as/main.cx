@@ -6,5 +6,5 @@ fun printer<T: ToString>(arg: ?T) {
 }
 
 fun main() {
-    printer(None as ?Number)
+    printer(None as ?Number);
 }

@@ -1,5 +1,5 @@
 trait C {
-  c: self
+  c: self;
 }
 
 impl C Number {

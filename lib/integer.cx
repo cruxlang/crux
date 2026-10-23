@@ -1,7 +1,7 @@
 pragma { NoBuiltin }
 
 import cmp(...)
-import js.unsafe
+import js.unsafe;
 
 export data Int8 {}
 export data UInt8 {}
@@ -15,54 +15,54 @@ export data UInt32 {}
 //export data UInt64 {}
 
 // TODO: Dependent on platform like Swift?
-export type Int = Int32
-export type UInt = UInt32
+export type Int = Int32;
+export type UInt = UInt32;
 
 impl Eq Int8 {
-  eq = unsafe.eq
+  eq = unsafe.eq;
 }
 
 impl Ordered Int8 {
-  lt = unsafe.lt
+  lt = unsafe.lt;
 }
 
 impl Eq UInt8 {
-  eq = unsafe.eq
+  eq = unsafe.eq;
 }
 
 impl Ordered UInt8 {
-  lt = unsafe.lt
+  lt = unsafe.lt;
 }
 
 impl Eq Int16 {
-  eq = unsafe.eq
+  eq = unsafe.eq;
 }
 
 impl Ordered Int16 {
-  lt = unsafe.lt
+  lt = unsafe.lt;
 }
 
 impl Eq UInt16 {
-  eq = unsafe.eq
+  eq = unsafe.eq;
 }
 
 impl Ordered UInt16 {
-  lt = unsafe.lt
+  lt = unsafe.lt;
 }
 
 impl Eq Int32 {
-  eq = unsafe.eq
+  eq = unsafe.eq;
 }
 
 impl Ordered Int32 {
-  lt = unsafe.lt
+  lt = unsafe.lt;
 }
 
 impl Eq UInt32 {
-  eq = unsafe.eq
+  eq = unsafe.eq;
 }
 
 impl Ordered UInt32 {
-  lt = unsafe.lt
+  lt = unsafe.lt;
 }
 

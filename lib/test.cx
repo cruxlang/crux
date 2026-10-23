@@ -3,7 +3,7 @@ import assert
 type Test = {
   name: String,
   fn: () => ()
-}
+};
 
 let tests = mutable []
 
@@ -14,7 +14,7 @@ export fun test(name: String, fn) {
   })
 }
 
-let VERBOSE = False
+let VERBOSE = False;
 
 fun green(str) {
   return "\x1b[0;32m" + str + "\x1b[0m"
@@ -43,4 +43,4 @@ export fun run() {
   print(green("pass ✔️"))
 }
 
-export let main = run
+export let main = run;

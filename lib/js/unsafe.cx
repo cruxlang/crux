@@ -6,56 +6,56 @@ import types(Boolean, String)
 
 export let typeof<a, TODOString>: a => TODOString = _unsafe_js(
   "function typeof_(x) { return typeof x; }"
-)
+);
 
 export let not<a>: a => Boolean = _unsafe_js(
   "function not(b) { return !b; }"
-)
+);
 
 export let truthy<a>: a => Boolean = _unsafe_js(
   "function truthy(b) { return !!b; }"
-)
+);
 
 export let eqNonstrict<a, b>: (a, b) => Boolean = _unsafe_js(
   "function eqNonstrict(lhs, rhs) { return lhs == rhs; }"
-)
+);
 
 export let neqNonstrict<a, b>: (a, b) => Boolean = _unsafe_js(
   "function neqNonstrict(lhs, rhs) { return lhs != rhs; }"
-)
+);
 
 export let eq<a, b>: (a, b) => Boolean = _unsafe_js(
   "function eq(lhs, rhs) { return lhs === rhs; }"
-)
+);
 
 export let neq<a, b>: (a, b) => Boolean = _unsafe_js(
   "function neq(lhs, rhs) { return lhs !== rhs; }"
-)
+);
 
 export let lt<a, b>: (a, b) => Boolean = _unsafe_js(
   "function lt(lhs, rhs) { return lhs < rhs; }"
-)
+);
 
 export let lte<a, b>: (a, b) => Boolean = _unsafe_js(
   "function lte(lhs, rhs) { return lhs <= rhs; }"
-)
+);
 
 export let gt<a, b>: (a, b) => Boolean = _unsafe_js(
   "function gt(lhs, rhs) { return lhs > rhs; }"
-)
+);
 
 export let gte<a, b>: (a, b) => Boolean = _unsafe_js(
   "function gte(lhs, rhs) { return lhs >= rhs; }"
-)
+);
 
 export let setProperty<a, b, c>: (a, b, c) => c = _unsafe_js(
   "function setProperty(o, k, v) { return o[k] = v; }"
-)
+);
 
 export let getProperty<a, b, c>: (a, b) => c = _unsafe_js(
   "function getProperty(o, k) { return o[k]; }"
-)
+);
 
 export let toString<a, TODOString>: a => TODOString = _unsafe_js(
   "function unsafeToString(a) { return '' + a; }"
-)
+);

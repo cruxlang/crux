@@ -1,6 +1,6 @@
-import mymod
+import mymod;
 
 fun main() {
-    let a = mymod.theValue
+    let a = mymod.theValue;
     mymod.foo(a)
 }

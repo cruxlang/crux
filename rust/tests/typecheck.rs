@@ -10,8 +10,8 @@ fn check_source(
 #[test]
 fn checks_functions_applications_and_control_flow() {
     check_source(
-        "data Boolean { True, False }\n\
-         fun choose(x: Boolean, a: Int, b: Int): Int { if x then a else b }\n\
+        "data Boolean { True, False };\n\
+         fun choose(x: Boolean, a: Int, b: Int): Int { if x then a else b };\n\
          let answer: Int = choose(True, 40, 2)",
     )
     .unwrap();
@@ -19,7 +19,7 @@ fn checks_functions_applications_and_control_flow() {
 
 #[test]
 fn rejects_incompatible_branches() {
-    let error = check_source("data Boolean { True, False }\nlet bad = if True then 1 else \"no\"")
+    let error = check_source("data Boolean { True, False };\nlet bad = if True then 1 else \"no\"")
         .unwrap_err();
     assert!(matches!(error.kind, TypeErrorKind::CannotUnify(_, _)));
 }
@@ -32,29 +32,29 @@ fn rejects_infinite_function_types() {
 
 #[test]
 fn record_lookup_uses_an_open_row() {
-    check_source("fun getX(r) { r.x }\nlet x = getX({x: 1, y: \"kept\"})").unwrap();
+    check_source("fun getX(r) { r.x };\nlet x = getX({x: 1, y: \"kept\"})").unwrap();
 }
 
 #[test]
 fn immutable_bindings_cannot_be_assigned() {
-    let error = check_source("let x = 1\nlet _ = x = 2").unwrap_err();
+    let error = check_source("let x = 1;\nlet _ = x = 2").unwrap_err();
     assert_eq!(error.kind, TypeErrorKind::ImmutableAssignment);
 }
 
 #[test]
 fn immutable_functions_are_generalized() {
-    check_source("fun identity(x) { x }\nlet number = identity(1)\nlet text = identity(\"ok\")")
+    check_source("fun identity(x) { x };\nlet number = identity(1);\nlet text = identity(\"ok\")")
         .unwrap();
 }
 
 #[test]
 fn expands_parameterized_and_forwarding_aliases() {
     check_source(
-        "type Scalar = Number\n\
-         type Vector = Array\n\
-         type Boxed<a> = Array<a>\n\
-         let scalar: Scalar = 1\n\
-         let first: Vector<String> = [\"a\"]\n\
+        "type Scalar = Number;\n\
+         type Vector = Array;\n\
+         type Boxed<a> = Array<a>;\n\
+         let scalar: Scalar = 1;\n\
+         let first: Vector<String> = [\"a\"];\n\
          let second: Boxed<Number> = [2]",
     )
     .unwrap();

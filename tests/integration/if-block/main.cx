@@ -1,4 +1,4 @@
 fun main() {
-  if True { print("yay") }
+  if True { print("yay") };
   if False { print("nay") }
 }

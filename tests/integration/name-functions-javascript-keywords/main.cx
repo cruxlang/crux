@@ -1,8 +1,8 @@
 export fun delete() {
   let enum = ()
-}
-let _ = delete()
-export let class = delete
-let _ = class()
+};
+let _ = delete();
+export let class = delete;
+let _ = class();
 
 fun main() {}

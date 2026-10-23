@@ -1,4 +1,22 @@
+// TODO: why do i need to import cmp here?
+import cmp;
+
+let u = () => () => ();
+let _: () = u()();
+
+let v = (()) => (()) => ();
+let w: (()) => (()) => () = v;
+let _: () = v(())(());
+
 let f = x => y => x + y;
-fun main() {
-  print(f(1)(2));
-}
+let g<a: cmp.Eq>: a => a => a = f;
+let _ = print(g(1 as Number)(2));
+
+let h = (x) => (y) => x + y;
+let _ = print(h(1 as Number)(2));
+
+let sel = x => (y, z) => if x then y else z;
+let s<a>: Boolean => (a, a) => a = sel;
+let _ = print(s(False)(8 as Number, 9));
+
+fun main() {}

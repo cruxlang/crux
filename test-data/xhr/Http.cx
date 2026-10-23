@@ -5,18 +5,18 @@ export data jsffi ReadyState {
     HeadersReceived = 2,
     Loading = 3,
     Done = 4,
-}
+};
 
 export data jsffi Method {
     Get = "GET",
     Post = "POST",
     Put = "PUT",
     Delete = "DELETE",
-}
+};
 
-export type Url = String
-export type EventName = String
-export type EventHandler = () -> ()
+export type Url = String;
+export type EventName = String;
+export type EventHandler = () -> ();
 
 export type XMLHttpRequest = {
     send: () -> (),
@@ -26,24 +26,24 @@ export type XMLHttpRequest = {
     setRequestHeader: (String, String) -> (),
     responseText: String,
     //getRequestHeader: (String) -> Unityped,
-}
+};
 
-export data XHR { XHR(XMLHttpRequest) }
+export data XHR { XHR(XMLHttpRequest) };
 
 export fun newXhr() {
-    let result: XMLHttpRequest = _unsafe_js("new XMLHttpRequest")
+    let result: XMLHttpRequest = _unsafe_js("new XMLHttpRequest");
     XHR(result)
-}
+};
 
 fun i(x: XMLHttpRequest, url: String, onLoaded): () {
     let loadProc = fun() {
         onLoaded(x)
-    }
+    };
 
-    x.addEventListener("load", loadProc)
-    x.open(Get, url)
+    x.addEventListener("load", loadProc);
+    x.open(Get, url);
     x.send()
-}
+};
 
 export fun http_get(xhr: XHR, url: String, onLoaded): () {
     match xhr {

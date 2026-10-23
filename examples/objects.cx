@@ -1,7 +1,7 @@
 fun f(x) {
   return (x, x.prop)
-}
-let _ = _debug_type(f)
+};
+let _ = _debug_type(f);
 
 fun main() {
   f({prop: 10 as Number})

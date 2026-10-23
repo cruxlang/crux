@@ -1,20 +1,20 @@
-import js.unsafe
+import js.unsafe;
 
-export data Value {}
+export data Value {};
 
 // TODO: should these have type Value?
 export data jsffi Null {
   Null = null
-}
+};
 export data jsffi Undefined {
   Undefined = undefined
-}
+};
 
 // FromValue
 
 export trait FromValue {
   fromValue: Value => ?self
-}
+};
 
 let checkAndCast = typeString => value => {
   if unsafe.typeof(value) == typeString {
@@ -22,58 +22,58 @@ let checkAndCast = typeString => value => {
   } else {
     return None
   }
-}
+};
 
 impl FromValue String {
   fromValue = checkAndCast("string")
-}
+};
 
 impl FromValue Number {
   fromValue = checkAndCast("number")
-}
+};
 
 impl FromValue Boolean {
   fromValue = checkAndCast("boolean")
-}
+};
 
 impl FromValue Value {
   fromValue = Some
-}
+};
 
 // ToValue
 
 export trait ToValue {
   toValue: self => Value
-}
+};
 
 impl ToValue String {
   toValue = value => _unsafe_coerce(value)
-}
+};
 
 impl ToValue Number {
   toValue = value => _unsafe_coerce(value)
-}
+};
 
 impl ToValue Boolean {
   toValue = value => _unsafe_coerce(value)
-}
+};
 
 impl ToValue Value {
   toValue = value => value
-}
+};
 
 // Transferable
 
-export trait Transferable {}
+export trait Transferable {};
 
-impl Transferable Void {}
-impl Transferable Boolean {}
-impl Transferable String {}
-impl Transferable Number {}
-impl Transferable Array<a: Transferable> {}
-impl Transferable Value {}
+impl Transferable Void {};
+impl Transferable Boolean {};
+impl Transferable String {};
+impl Transferable Number {};
+impl Transferable Array<a: Transferable> {};
+impl Transferable Value {};
 
-fun requireTransferable<T: Transferable>(_: T) {}
+fun requireTransferable<T: Transferable>(_: T) {};
 
 impl Transferable {...} {
   for fieldValue { requireTransferable(fieldValue) }

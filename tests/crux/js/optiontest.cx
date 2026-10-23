@@ -1,42 +1,42 @@
-import assert
-import test(...)
+import assert;
+import test(...);
 
-import js
-import js.option
-import js.unsafe
+import js;
+import js.option;
+import js.unsafe;
 
 test("null is represented as JS null", () => {
     let a: option.JSOption<String> = option.none();
     assert.true(unsafe.eq(a, js.Null))
-})
+});
 
 test("values are unwrapped", () => {
-    let a = option.some("hello")
+    let a = option.some("hello");
     assert.equal("hello", _unsafe_coerce(a))
-})
+});
 
 test("functions of various arities", () => {
-    let _ = option.some(() => {})
-    let _ = option.some((a) => {})
-    let _ = option.some((a, b) => {})
-    let _ = option.some((a, b, c) => {})
-    let _ = option.some((a, b, c, d) => {})
-    let _ = option.some((a, b, c, d, e) => {})
-    let _ = option.some((a, b, c, d, e, f) => {})
+    let _ = option.some(() => {});
+    let _ = option.some((a) => {});
+    let _ = option.some((a, b) => {});
+    let _ = option.some((a, b, c) => {});
+    let _ = option.some((a, b, c, d) => {});
+    let _ = option.some((a, b, c, d, e) => {});
+    let _ = option.some((a, b, c, d, e, f) => {});
     let _ = option.some((a, b, c, d, e, f, g) => {})
-})
+});
 
 test("eq", () => {
-    let n: option.JSOption<String> = option.none()
-    assert.equal(n, option.none())
-    assert.notEqual(option.none(), option.some(""))
-    assert.notEqual(option.some(""), option.none())
-    assert.notEqual(option.some("1"), option.some("2"))
+    let n: option.JSOption<String> = option.none();
+    assert.equal(n, option.none());
+    assert.notEqual(option.none(), option.some(""));
+    assert.notEqual(option.some(""), option.none());
+    assert.notEqual(option.some("1"), option.some("2"));
     assert.equal(option.some(""), option.some(""))
-})
+});
 
 test("asOption", () => {
-    assert.equal(Some("hello"), option.some("hello")->asOption())
-    let n: option.JSOption<String> = option.none()
+    assert.equal(Some("hello"), option.some("hello")->asOption());
+    let n: option.JSOption<String> = option.none();
     assert.equal(None, n->asOption())
 })

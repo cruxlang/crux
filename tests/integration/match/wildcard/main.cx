@@ -1,6 +1,6 @@
 fun main() {
   print(match None {
-    Some(x) => "some"
+    Some(x) => "some";
     _ => "none"
   })
 }

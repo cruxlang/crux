@@ -1,26 +1,26 @@
-import test(...)
-import assert
+import test(...);
+import assert;
 
 test("startsWith", fun() {
-    assert.true("foo"->startsWith("f"))
-    assert.true("foo"->startsWith("foo"))
-    assert.false("foo"->startsWith("foob"))
-    assert.false("foo"->startsWith("o"))
+    assert.true("foo"->startsWith("f"));
+    assert.true("foo"->startsWith("foo"));
+    assert.false("foo"->startsWith("foob"));
+    assert.false("foo"->startsWith("o"));
     assert.true("foo"->startsWith(""))
-})
+});
 
 test("endsWith", fun() {
-    assert.true("foo"->endsWith("o"))
-    assert.true("foo"->endsWith("foo"))
-    assert.false("foo"->endsWith("boo"))
+    assert.true("foo"->endsWith("o"));
+    assert.true("foo"->endsWith("foo"));
+    assert.false("foo"->endsWith("boo"));
     assert.true("foo"->endsWith(""))
-})
+});
 
 test("trim", fun() {
     assert.equal("foo", " \nfoo\n\r\t "->trim())
-})
+});
 
 test("len", fun() {
-    assert.equal(3, len("foo"))
+    assert.equal(3, len("foo"));
     assert.equal(11, len("hello world"))
 })

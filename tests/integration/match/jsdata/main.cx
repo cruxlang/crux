@@ -1,6 +1,6 @@
 fun main() {
   match True {
-    False => print("false")
+    False => print("false");
     True => print("true")
   }
 }

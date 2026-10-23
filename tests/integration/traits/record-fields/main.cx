@@ -1,22 +1,22 @@
-import dict
+import dict;
 
 trait T {
   pi: self => ()
-}
+};
 
 impl T {...} {
-  for fieldValue { toString(fieldValue) }
+  for fieldValue { toString(fieldValue) };
   pi(r) {
-    let d = dict.from(fieldMap(r))
+    let d = dict.from(fieldMap(r));
     for item in sorted(d->items()) {
-      let (key, value) = item
-      print(key)
+      let (key, value) = item;
+      print(key);
       print(value)
     }
   }
-}
+};
 
 fun main() {
-  pi({x: 10 as Number, y: 20 as Number})
+  pi({x: 10 as Number, y: 20 as Number});
   pi({z: "hi"})
 }

@@ -2,9 +2,9 @@
 data Option a {
     None,
     Some(a)
-}
+};
 
-let isNull = _unsafe_js("function(o) { return null === o; }")
+let isNull = _unsafe_js("function(o) { return null === o; }");
 
 fun toMaybeString(o) {
     if isNull(o)

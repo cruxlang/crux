@@ -1,8 +1,8 @@
 trait C {
   c: self
-}
+};
 
 impl C Number {
-  c = 1
+  c = 1;
   c = 2
 }

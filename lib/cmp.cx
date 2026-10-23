@@ -1,62 +1,62 @@
 pragma { NoBuiltin }
 
-import types(...)
-import boolean(not)
-import js.unsafe
+import types(...);
+import boolean(not);
+import js.unsafe;
 
 export trait Eq {
   eq(self, self): Boolean
-}
+};
 
 // TODO: move this into Eq and implement trait defaults
 export fun neq(lhs, rhs) {
   not(lhs == rhs)
-}
+};
 
 impl Eq Boolean {
   eq = unsafe.eq
-}
+};
 
 export trait Ordered {
   lt(self, self): Boolean
-}
+};
 
 impl Ordered Void {
   lt(_, _) { False }
-}
+};
 
 // TODO: move this into Eq and implement trait defaults
 export fun gte(lhs, rhs) {
   not(lhs < rhs)
-}
+};
 
 export fun lte(lhs, rhs) {
   lhs < rhs || lhs == rhs
-}
+};
 
 export fun gt(lhs, rhs) {
   rhs < lhs && lhs != rhs
-}
+};
 
 // TODO: Ord impl for Boolean
 
 export fun min(lhs, rhs) {
   if lhs < rhs then lhs else rhs
-}
+};
 
 export fun max(lhs, rhs) {
   if rhs < lhs then lhs else rhs
-}
+};
 
 export data jsffi Ordering {
   LessThan = "negative-one-todo", // TODO: support negative numeric literals
   EqualTo = 0,
   GreaterThan = 1,
-}
+};
 
 impl Eq Ordering {
   eq = unsafe.eq
-}
+};
 
 // TODO: move compare into the Eq constraint and implement trait defaults
 

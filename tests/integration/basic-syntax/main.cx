@@ -1,29 +1,29 @@
 fun spam(s): Number {
-    print(s)
-    print(s)
-    print(s)
+    print(s);
+    print(s);
+    print(s);
     9
-}
+};
 
 fun spam2(s): Number {
-    print(s)
-    print(s)
-    print(s)
+    print(s);
+    print(s);
+    print(s);
     9
-}
+};
 
 fun foo(i) {
     fun(j) { 2 }
-}
+};
 
 fun main() {
-    print("hooper")
-    let r = (2 as Number; 8 as Number)
-    let t = 9 as Number
-    let u = "hody"
-    let v = u
-    let w = t
+    print("hooper");
+    let r = (2 as Number; 8 as Number);
+    let t = 9 as Number;
+    let u = "hody";
+    let v = u;
+    let w = t;
 
-    spam(u)
+    spam(u);
     spam("spam")
 }

@@ -7,58 +7,58 @@ import number(Number);
 import length;
 import js.unsafe;
 
-export data String {}
+export data String {};
 
 impl Eq String {
-  eq = unsafe.eq;
-}
+  eq = unsafe.eq
+};
 
 impl Ordered String {
-  lt = unsafe.lt;
-}
+  lt = unsafe.lt
+};
 
 impl length.HasLength String {
   len(s) {
-    _unsafe_coerce(s).length;
+    _unsafe_coerce(s).length
   }
-}
+};
 
 // Internal JS representation of strings
 type StrObj = {
   length: Number,
   indexOf: fun(String, Number) -> Number,
-}
+};
 
 export fun startsWith(haystack: String, needle: String) {
-    let h: StrObj = _unsafe_coerce(haystack)
-    let n: StrObj = _unsafe_coerce(needle)
+    let h: StrObj = _unsafe_coerce(haystack);
+    let n: StrObj = _unsafe_coerce(needle);
     if n.length > h.length {
         return False
-    }
-    return h.indexOf(needle, 0) == 0;
-}
+    };
+    return h.indexOf(needle, 0) == 0
+};
 
 export fun endsWith(haystack: String, needle: String) {
     // Oops, how do I use a record with a keyword property name :D
     // return _unsafe_coerce(haystack).match(needle + "$") == needle;
 
-    let h: StrObj = _unsafe_coerce(haystack)
-    let n: StrObj = _unsafe_coerce(needle)
+    let h: StrObj = _unsafe_coerce(haystack);
+    let n: StrObj = _unsafe_coerce(needle);
     if n.length > h.length {
         return False
-    }
-    return h.indexOf(needle, h.length - n.length) != -1;
-}
+    };
+    return h.indexOf(needle, h.length - n.length) != -1
+};
 
 export fun join(sep: String, elements: [String]): String {
-    _unsafe_coerce(elements).join(sep);
-}
+    _unsafe_coerce(elements).join(sep)
+};
 
 export fun sliceFrom(s: String, start: Number) {
-    return _unsafe_coerce(s).slice(start);
-}
+    return _unsafe_coerce(s).slice(start)
+};
 
 export fun trim(s: String) {
     // TODO: tests for full unicode whitespace support
-    _unsafe_coerce(s).trim();
+    _unsafe_coerce(s).trim()
 }

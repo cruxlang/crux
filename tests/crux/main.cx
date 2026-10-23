@@ -1,22 +1,22 @@
-import test
+import test;
 
-import arraytest as _
-import booltest as _
-import callbackqueuetest as _
-import cmptest as _
-import integertest as _
-import numbertest as _
-import stringtest as _
-import pathtest as _
-import jsontest as _
-import jstest as _
-import dicttest as _
-import optiontest as _
-import tostringtest as _
-import rangetest as _
-import reprtest as _
-import flux.dispatchertest as _
-import js.optiontest as _
-import test.quickchecktest as _
+import arraytest as _;
+import booltest as _;
+import callbackqueuetest as _;
+import cmptest as _;
+import integertest as _;
+import numbertest as _;
+import stringtest as _;
+import pathtest as _;
+import jsontest as _;
+import jstest as _;
+import dicttest as _;
+import optiontest as _;
+import tostringtest as _;
+import rangetest as _;
+import reprtest as _;
+import flux.dispatchertest as _;
+import js.optiontest as _;
+import test.quickchecktest as _;
 
 let main = test.run

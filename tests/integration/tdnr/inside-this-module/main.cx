@@ -1,11 +1,11 @@
 data Thing {
   Thing(String),
-}
+};
 
 fun run(thing) {
-  let Thing(this) = thing
+  let Thing(this) = thing;
   print(this)
-}
+};
 
 fun main() {
   let _ = Thing("hello oop world")->run()

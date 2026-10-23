@@ -1,7 +1,7 @@
-import mymod(value, Type, Constructor)
+import mymod(value, Type, Constructor);
 
 fun main() {
-  let p: Type = Constructor(value)
+  let p: Type = Constructor(value);
   print(match p {
     Constructor(v) => v
   })

@@ -3,17 +3,17 @@ export trait Trait {
   display(s: self): String {
     "Default"
   }
-}
+};
 
 impl Trait Number {
   display(z) {
     toString(z)
   }
-}
+};
 
-impl Trait String {}
+impl Trait String {};
 
 fun main() {
-  print(display(10 as Number))
+  print(display(10 as Number));
   print(display("Howdy"))
 }

@@ -1,9 +1,9 @@
-import mymod
+import mymod;
 
 fun main() {
-  let x = mymod.Red
+  let x = mymod.Red;
   match x {
-    mymod.Red => print("red")
+    mymod.Red => print("red");
     mymod.Green => print("green")
     mymod.Blue => print("blue")
   }

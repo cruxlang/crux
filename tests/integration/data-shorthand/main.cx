@@ -1,7 +1,7 @@
-data Foo(Number)
+data Foo(Number);
 
 fun main() {
-  let p = Foo(10)
+  let p = Foo(10);
   match p {
     Foo(q) => print(q)
   }

@@ -1,38 +1,38 @@
-import js
+import js;
 import js.unsafe;
 
 // TODO: add the ability to say that a trait may be unsafe to implement
 // This trait indicates that JS `null` does not inhabit its runtime representation.
-export trait NonNull {}
+export trait NonNull {};
 
-impl NonNull Boolean {}
-impl NonNull Number {}
-impl NonNull String {}
-impl NonNull Array<T> {}
+impl NonNull Boolean {};
+impl NonNull Number {};
+impl NonNull String {};
+impl NonNull Array<T> {};
 
-impl NonNull () => r {}
-impl NonNull (a) => r {}
-impl NonNull (a, b) => r {}
-impl NonNull (a, b, c) => r {}
-impl NonNull (a, b, c, d) => r {}
-impl NonNull (a, b, c, d, e) => r {}
-impl NonNull (a, b, c, d, e, f) => r {}
-impl NonNull (a, b, c, d, e, f, g) => r {}
+impl NonNull () => r {};
+impl NonNull (a) => r {};
+impl NonNull (a, b) => r {};
+impl NonNull (a, b, c) => r {};
+impl NonNull (a, b, c, d) => r {};
+impl NonNull (a, b, c, d, e) => r {};
+impl NonNull (a, b, c, d, e, f) => r {};
+impl NonNull (a, b, c, d, e, f, g) => r {};
 
 export data JSOption<a: NonNull> {
-}
+};
 
 export fun isNone<a: NonNull>(option: JSOption<a>) {
     return unsafe.eqNonstrict(js.Null, option)
-}
+};
 
 export fun none<a: NonNull>(): JSOption<a> {
     return _unsafe_coerce(js.Null)
-}
+};
 
 export fun some<a: NonNull>(a: a): JSOption<a> {
     return _unsafe_coerce(a)
-}
+};
 
 export fun asOption<a: NonNull>(o: JSOption<a>): ?a {
     if isNone(o) {
@@ -40,17 +40,17 @@ export fun asOption<a: NonNull>(o: JSOption<a>): ?a {
     } else {
         return Some(_unsafe_coerce(o))
     }
-}
+};
 
 // TODO: NonNull should be implied by the definition of the data type
 impl Repr JSOption<elt: Repr+NonNull> {
     repr(opt) {
         match asOption(opt) {
-            None => "none()"
+            None => "none()";
             Some(x) => "some(" + repr(x) + ")"
         }
     }
-}
+};
 
 export fun maybe<a: NonNull, b>(o: JSOption<a>, f: (a) => b, def: b) {
     if isNone(o) {
@@ -58,7 +58,7 @@ export fun maybe<a: NonNull, b>(o: JSOption<a>, f: (a) => b, def: b) {
     } else {
         return f(_unsafe_coerce(o))
     }
-}
+};
 
 impl Eq JSOption<t: Eq+NonNull> {
     eq(lhs, rhs) {
@@ -69,8 +69,8 @@ impl Eq JSOption<t: Eq+NonNull> {
             if isNone(rhs) {
                 return False
             } else {
-                let leftValue: t = _unsafe_coerce(lhs)
-                let rightValue: t = _unsafe_coerce(rhs)
+                let leftValue: t = _unsafe_coerce(lhs);
+                let rightValue: t = _unsafe_coerce(rhs);
                 return leftValue == rightValue
             }
         }

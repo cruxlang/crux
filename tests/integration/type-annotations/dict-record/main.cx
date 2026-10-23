@@ -1,8 +1,8 @@
 fun f<Rec: {...: String}>(x: Rec) {
-}
+};
 
 fun main() {
-  f({foo: "hello", bar: "world"})
-  f({})
+  f({foo: "hello", bar: "world"});
+  f({});
   f({baz: "hello"})
 }

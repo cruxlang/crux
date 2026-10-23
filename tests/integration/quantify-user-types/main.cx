@@ -1,15 +1,15 @@
 data Option2<a> {
     None2,
     Some2(a)
-}
+};
 
-let isNull = _unsafe_js("function(o) { return null === o; }")
+let isNull = _unsafe_js("function(o) { return null === o; }");
 
 fun toMaybeString(o) {
     if isNull(o)
         then None2
         else Some2(_unsafe_coerce(o))
-}
+};
 
 fun main() {
 }

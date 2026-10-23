@@ -3,5 +3,5 @@ import two;
 
 fun main() {
   one.go(10 as Number);
-  two.go(10 as Number);
+  two.go(10 as Number)
 }

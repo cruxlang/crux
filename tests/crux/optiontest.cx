@@ -1,13 +1,13 @@
-import assert
-import test(...)
+import assert;
+import test(...);
 
-import js
+import js;
 
 test("option is encoded as JS null", () => {
     match _unsafe_coerce(js.Null) as ?() {
         None => ()
-        Some(_) => assert.fail("expected none to match")
-    }
+        Some(_) => assert.fail("expected none to match");
+    };
 })
 
 /*

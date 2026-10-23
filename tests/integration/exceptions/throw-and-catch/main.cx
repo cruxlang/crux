@@ -1,4 +1,4 @@
-exception MyError Number
+exception MyError Number;
 
 fun main() {
   try {

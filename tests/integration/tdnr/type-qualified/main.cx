@@ -1,8 +1,8 @@
-data C()
+data C();
 
 fun method() {
     print("hello")
-}
+};
 
 fun main() {
     (C::method)()

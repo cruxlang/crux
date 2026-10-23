@@ -1,6 +1,6 @@
-import mymod
+import mymod;
 
-exception MyException String
+exception MyException String;
 
 fun catchAnException(f) {
   try {
@@ -14,12 +14,12 @@ fun catchAnException(f) {
   catch mymod.MyException s {
     print("mymod " + s)
   }
-}
+};
 
 fun main() {
   catchAnException(fun() {
     throw MyException "this module"
-  })
+  });
 
   catchAnException(fun() {
     throw mymod.MyException "other module"

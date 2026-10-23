@@ -1,21 +1,21 @@
 fun fib(n: Number): Number {
-    let mutable count = n
-    let mutable a = 0 as Number
-    let mutable b = 1 as Number
+    let mutable count = n;
+    let mutable a = 0 as Number;
+    let mutable b = 1 as Number;
 
     while count > 0 {
-        let t = a
-        a = b
-        b = b + t
+        let t = a;
+        a = b;
+        b = b + t;
         count = count - 1
-    }
+    };
     a
-}
+};
 
 fun main() {
-    let mutable i = 1
+    let mutable i = 1;
     while i < 10 {
-        print(fib(i))
+        print(fib(i));
         i = i + 1
     }
 }

@@ -1,4 +1,4 @@
 fun main() {
-  print("foo"->endsWith("oo"))
+  print("foo"->endsWith("oo"));
   print("bar"->endsWith("oo"))
 }

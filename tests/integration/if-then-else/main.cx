@@ -1,4 +1,4 @@
 fun main() {
-  if False then print("This should not run");
-           else print("Falso!");
+  if False then print("This should not run")
+           else print("Falso!")
 }

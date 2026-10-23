@@ -1,25 +1,25 @@
-import dict
-import js.unsafe
+import dict;
+import js.unsafe;
 
 trait PD {
   pd: self => ()
-}
+};
 
 fun requireOrdered<T: Ordered>(x: T): T {
   x
-}
+};
 
 impl PD {...} {
-  for fieldValue { requireOrdered(fieldValue) }
+  for fieldValue { requireOrdered(fieldValue) };
   pd(r) {
-    let d = dict.from(fieldMap(r))
+    let d = dict.from(fieldMap(r));
     for item in sorted(d->items()) {
-      let (key, value) = item
-      print(key)
+      let (key, value) = item;
+      print(key);
       print(unsafe.toString(value) as String)
     }
   }
-}
+};
 
 fun main() {
   pd({x: "hello", y: 10 as Number})

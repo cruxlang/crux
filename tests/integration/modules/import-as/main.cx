@@ -1,4 +1,4 @@
-import mymod as m
+import mymod as m;
 
 fun main() {
   m.main()

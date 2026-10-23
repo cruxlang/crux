@@ -1,26 +1,26 @@
 trait Show2 {
   show2(self): String
-}
+};
 
 impl Show2 Number {
   show2 = toString
-}
+};
 
 impl Show2 String {
   show2 = fun(s) { s }
-}
+};
 
 let f = fun(x) {
   show2(x)
-}
+};
 
-let g = show2
-let h: fun(Number) -> String = g
+let g = show2;
+let h: fun(Number) -> String = g;
 
 fun main() {
-  print(f("1"))
-  print(f(2 as Number))
-  print(g("3"))
-  print(g(4 as Number))
+  print(f("1"));
+  print(f(2 as Number));
+  print(g("3"));
+  print(g(4 as Number));
   print(h(5 as Number))
 }

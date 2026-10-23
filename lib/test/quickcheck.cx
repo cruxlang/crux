@@ -1,29 +1,29 @@
-import assert
-import random
-import test(...)
+import assert;
+import random;
+import test(...);
 
-let mutable iterationCount = 50 as Number
+let mutable iterationCount = 50 as Number;
 
 export trait Arbitrary {
     arbitrary: () => self
-}
+};
 
 impl Arbitrary String {
     arbitrary() {
-        let mutable text = ""
+        let mutable text = "";
         for i in range(random.randrange(0, 10)) {
             text = text + random.char()
-        }
+        };
         return text
     }
-}
+};
 
 export fun prop(name: String, predicate) {
     test("prop: " + name, () => {
         for _ in range(iterationCount) {
-            let v = arbitrary()
+            let v = arbitrary();
             if not(predicate(v)) {
-                assert.fail("value " + repr(v) + " failed predicate")
+                assert.fail("value " + repr(v) + " failed predicate");
             }
         }
     })

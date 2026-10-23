@@ -1,9 +1,9 @@
-fun manhattan(p) { p.x + p.y }
+fun manhattan(p) { p.x + p.y };
 
-let zero = { x: 0 as Number, y: 0 as Number }
-let myhouse = {x: 33 as Number, y: 44 as Number, z: 8 as Number}
+let zero = { x: 0 as Number, y: 0 as Number };
+let myhouse = {x: 33 as Number, y: 44 as Number, z: 8 as Number};
 
 fun main() {
-    print(manhattan(zero))
+    print(manhattan(zero));
     print(manhattan(myhouse))
 }

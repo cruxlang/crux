@@ -765,7 +765,10 @@ where
         .ignore_then(
             trait_method
                 .then_ignore(
-                    tok(TokenKind::Semicolon).then_ignore(newlines).ignored().or_not(),
+                    tok(TokenKind::Semicolon)
+                        .then_ignore(newlines)
+                        .ignored()
+                        .or_not(),
                 )
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -801,7 +804,10 @@ where
         .ignore_then(
             choice((impl_field, impl_method))
                 .then_ignore(
-                    tok(TokenKind::Semicolon).then_ignore(newlines).ignored().or_not(),
+                    tok(TokenKind::Semicolon)
+                        .then_ignore(newlines)
+                        .ignored()
+                        .or_not(),
                 )
                 .repeated()
                 .collect::<Vec<_>>(),
@@ -1005,9 +1011,22 @@ where
         let comma = newlines
             .ignore_then(tok(TokenKind::Comma))
             .then_ignore(newlines);
+        let parenthesized_expression = expr
+            .clone()
+            .then(
+                tok(TokenKind::Semicolon)
+                    .ignore_then(newlines)
+                    .ignore_then(expr.clone())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
+            .map(|(first, rest)| {
+                let pos = first.pos.clone();
+                sequence(pos, std::iter::once(first).chain(rest).collect())
+            });
         let expression_list = newlines
             .ignore_then(
-                expr.clone()
+                parenthesized_expression
                     .separated_by(comma.clone())
                     .allow_trailing()
                     .collect::<Vec<_>>(),
@@ -1448,19 +1467,7 @@ where
                 },
                 None => target,
             });
-        assignment
-            .foldl(
-                tok(TokenKind::Semicolon)
-                    .ignore_then(expr.clone())
-                    .repeated(),
-                |left, right| Expression {
-                    pos: left.pos.clone(),
-                    kind: ExpressionKind::Sequence(Box::new(left), Box::new(right)),
-                },
-            )
-            .then_ignore(tok(TokenKind::Semicolon).or_not())
-            .labelled("expression")
-            .boxed()
+        assignment.labelled("expression").boxed()
     })
 }
 
@@ -1503,10 +1510,11 @@ where
     let newline = select! { LayoutToken::Newline(indent) => indent };
     let line_start = newline.map_with(|indent, extra| (indent, extra.span()));
 
+    let semicolon = just(LayoutToken::Lex(TokenKind::Semicolon));
     let stop = newline.ignored().or(close.clone().ignored());
     let recovered = expression
         .clone()
-        .then_ignore(just(LayoutToken::Lex(TokenKind::Semicolon)).or_not())
+        .then(semicolon.clone().or_not())
         .recover_with(via_parser(
             any()
                 .and_is(stop.not())
@@ -1515,7 +1523,7 @@ where
                 .ignored()
                 .map_with(move |_, extra| {
                     let span: Span = extra.span();
-                    error_expression(metadata[span.start].pos.clone())
+                    (error_expression(metadata[span.start].pos.clone()), None)
                 }),
         ));
 
@@ -1536,15 +1544,23 @@ where
                     }
                 }
             }
+            for ((_, span), (_, terminator)) in lines.iter().take(lines.len() - 1) {
+                if terminator.is_none() {
+                    emitter.emit(Rich::custom(
+                        *span,
+                        "statements on separate lines must be terminated by a semicolon",
+                    ));
+                }
+            }
             lines
                 .into_iter()
-                .map(|(_, expression)| expression)
+                .map(|(_, (expression, _))| expression)
                 .collect::<Vec<_>>()
         });
 
     let inline = expression
         .clone()
-        .separated_by(just(LayoutToken::Lex(TokenKind::Semicolon)))
+        .separated_by(semicolon)
         .allow_trailing()
         .at_least(1)
         .collect::<Vec<_>>();
@@ -1589,25 +1605,29 @@ where
         .then(expression)
         .map(|(((indent, span), pattern), body)| ((indent, span), MatchCase { pattern, body }));
 
-    open.then(case.repeated().collect::<Vec<_>>())
-        .then_ignore(newline.repeated())
-        .then_ignore(close)
-        .validate(|(opener_indent, cases), _, emitter| {
-            if let Some(((expected, _), _)) = cases.first() {
-                if expected <= &opener_indent {
-                    emitter.emit(Rich::custom(cases[0].0 .1, "match cases must be indented"));
-                }
-                for ((indent, span), _) in &cases {
-                    if indent != expected {
-                        emitter.emit(Rich::custom(
-                            *span,
-                            format!("match case must begin in column {expected}, found {indent}"),
-                        ));
-                    }
+    open.then(
+        case.then_ignore(just(LayoutToken::Lex(TokenKind::Semicolon)).or_not())
+            .repeated()
+            .collect::<Vec<_>>(),
+    )
+    .then_ignore(newline.repeated())
+    .then_ignore(close)
+    .validate(|(opener_indent, cases), _, emitter| {
+        if let Some(((expected, _), _)) = cases.first() {
+            if expected <= &opener_indent {
+                emitter.emit(Rich::custom(cases[0].0 .1, "match cases must be indented"));
+            }
+            for ((indent, span), _) in &cases {
+                if indent != expected {
+                    emitter.emit(Rich::custom(
+                        *span,
+                        format!("match case must begin in column {expected}, found {indent}"),
+                    ));
                 }
             }
-            cases.into_iter().map(|(_, case)| case).collect()
-        })
+        }
+        cases.into_iter().map(|(_, case)| case).collect()
+    })
 }
 
 fn sequence(pos: Pos, expressions: Vec<Expression>) -> Expression {

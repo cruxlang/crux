@@ -1,9 +1,9 @@
-trait T {}
+trait T {};
 
 fun f<t: T>(a: t) {
-}
+};
 
-data D<t: T>()
+data D<t: T>();
 
 fun main() {
 }

@@ -1,7 +1,7 @@
-let r = {}
+let r = {};
 fun main2(o) {
     if False then o else r
-}
+};
 fun main() {
   main2(r)
 }

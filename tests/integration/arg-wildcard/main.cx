@@ -1,7 +1,7 @@
 fun f(_, _) {
   "two wildcards"
-}
+};
 
 fun main() {
-  print(f(1 as Number, "foo"));
+  print(f(1 as Number, "foo"))
 }

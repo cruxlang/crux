@@ -1,17 +1,17 @@
-import js
+import js;
 
-export data Worker {}
+export data Worker {};
 
 export let new: String => Worker = _unsafe_js(
   "function newWorker(str) { return new Worker(str) }"
-)
+);
 
 export fun postMessage<V: js.Transferable>(worker: Worker, message: V): () {
   _unsafe_coerce(worker).postMessage(message)
-}
+};
 
 // TODO: allow keywords as record field names
-let getData = _unsafe_js("function(e) { return e.data; }")
+let getData = _unsafe_js("function(e) { return e.data; }");
 
 export fun setHandler(worker: Worker, handler: js.Value => ()): () {
   _unsafe_coerce(worker).onmessage = event => {

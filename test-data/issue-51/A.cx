@@ -1,2 +1,2 @@
-data A{}
+data A{};
 export data B {B(A) }

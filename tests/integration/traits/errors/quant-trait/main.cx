@@ -1,6 +1,6 @@
 trait E {
   foo(self): self
-}
+};
 
 fun f<a>(a: a) {
   foo(a)

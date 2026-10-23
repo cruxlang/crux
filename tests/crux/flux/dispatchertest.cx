@@ -1,57 +1,57 @@
-import test(...)
-import assert
-import flux.dispatcher
+import test(...);
+import assert;
+import flux.dispatcher;
 
 data ActionType {
   Test1,
   Test2,
-}
+};
 
 // TODO: need deriving(Eq)
 impl Eq ActionType {
   eq(lhs, rhs) {
     match (lhs, rhs) {
-      (Test1, Test1) => True
-      (Test2, Test2) => True
+      (Test1, Test1) => True;
+      (Test2, Test2) => True;
       _ => False
     }
   }
-}
+};
 
 // TODO: need deriving(Repr)
 impl Repr ActionType {
   repr(x) {
     match x {
-      Test1 => "Test1"
+      Test1 => "Test1";
       Test2 => "Test2"
     }
   }
-}
+};
 
 test("actions are dispatched to registered callbacks", fun() {
-  let actions = mutable []
+  let actions = mutable [];
 
-  let d = dispatcher.new()
+  let d = dispatcher.new();
   d->register(action => {
     actions->append(action)
-  })
+  });
 
-  d->dispatch(Test1)
-  d->dispatch(Test2)
+  d->dispatch(Test1);
+  d->dispatch(Test2);
 
   assert.equal([Test1, Test2], actions->freeze())
-})
+});
 
 test("callbacks can be unregistered", fun() {
-  let actions = mutable []
+  let actions = mutable [];
 
-  let d = dispatcher.new()
+  let d = dispatcher.new();
   let token = d->register(action => {
     actions->append(action)
-  })
+  });
 
-  d->unregister(token)
+  d->unregister(token);
 
-  d->dispatch(10 as Number)
+  d->dispatch(10 as Number);
   assert.equal([], actions->freeze())
 })

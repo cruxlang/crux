@@ -1,14 +1,14 @@
 trait C {
   c(self): String
-}
+};
 
 impl C Boolean {
   c(n) {
     if n == True then "true" else "false"
   }
-}
+};
 
 fun main() {
-  print(c(True))
+  print(c(True));
   print(c(False))
 }

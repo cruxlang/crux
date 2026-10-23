@@ -1,20 +1,20 @@
-import js.unsafe
+import js.unsafe;
 
 data IntList {
   Element(Number, IntList),
   Nil,
-}
+};
 
 impl ToString IntList {
   toString(x) {
     match x {
-      Element(n, rest) => "Element(" + toString(n) + ", " + toString(rest) + ")"
+      Element(n, rest) => "Element(" + toString(n) + ", " + toString(rest) + ")";
       Nil => "Nil"
     }
   }
-}
+};
 
 fun main() {
-  let mylist = Element(1, Element(2, Nil))
+  let mylist = Element(1, Element(2, Nil));
   let _ = print(mylist)
 }

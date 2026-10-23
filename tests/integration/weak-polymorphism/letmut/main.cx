@@ -1,10 +1,10 @@
 pragma { NoBuiltin }
 
-data Maybe<a> { None, Some(a) }
+data Maybe<a> { None, Some(a) };
 
-let mutable a = None
+let mutable a = None;
 
 fun main() {
-    a = Some(())
+    a = Some(());
     a = Some("Bar")
 }

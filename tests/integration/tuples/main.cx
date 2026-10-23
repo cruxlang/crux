@@ -1,7 +1,7 @@
 fun main() {
-  let z = (1, 2)
-  let w: (Number, Number) = z
-  let (x, y) = w
-  print(x)
+  let z = (1, 2);
+  let w: (Number, Number) = z;
+  let (x, y) = w;
+  print(x);
   print(y)
 }

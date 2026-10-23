@@ -1,6 +1,6 @@
-import m
+import m;
 
 fun main() {
-  m.f(m.D)
+  m.f(m.D);
   m.f(m.E("hello"))
 }

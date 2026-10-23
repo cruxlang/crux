@@ -1,6 +1,16 @@
+type AlsoArray = Array;
+type TheRecord = {a: String};
+
+type TheList = [TheRecord];
+
+fun gimme(): TheList {
+  [{a: "here you go"}]
+};
+
+let blink: AlsoArray<TheRecord> = _unsafe_coerce(gimme());
+
 fun main() {
-    let arr = replicate("toot", 4);
-    each(arr, fun(e) {
-        print(e);
-    });
+  for g in blink {
+    print(g.a)
+  }
 }

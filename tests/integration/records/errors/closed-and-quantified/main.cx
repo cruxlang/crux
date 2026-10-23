@@ -1,6 +1,6 @@
 fun f<R: {}>(r: R) {
-  if True then r else {};
-}
+  if True then r else {}
+};
 
 fun main() {
 }

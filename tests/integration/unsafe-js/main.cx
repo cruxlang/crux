@@ -1,4 +1,4 @@
 fun main() {
-  let c = _unsafe_js("console")
+  let c = _unsafe_js("console");
   c.log("hoop")
 }

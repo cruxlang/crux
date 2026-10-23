@@ -2,7 +2,7 @@
 fn compiles_through_the_chumsky_parser_typechecker_and_backend() {
     let javascript = crux::compiler::compile(
         "<test>",
-        "data Boolean { True, False }\nfun select(flag: Boolean): Int { if flag then 1 else 2 }\nlet answer = select(True)",
+        "data Boolean { True, False };\nfun select(flag: Boolean): Int { if flag then 1 else 2 };\nlet answer = select(True)",
     )
     .unwrap();
     assert!(javascript.contains("function select(flag)"));
@@ -25,7 +25,7 @@ fn compiles_an_in_memory_project_without_filesystem_access() {
     let sources = std::collections::BTreeMap::from([
         (
             "main.cx".into(),
-            "import greet(...)\nfun main() { hello() }".into(),
+            "import greet(...);\nfun main() { hello() }".into(),
         ),
         (
             "greet.cx".into(),

@@ -1,4 +1,4 @@
 trait C {
-  x: self
+  x: self;
   x: self
 }

@@ -1,4 +1,5 @@
-let f = x => print(x);
+let a = _ => 10 as Number;
+let b = a("hello");
 fun main() {
-  f("hello");
+  print(b)
 }

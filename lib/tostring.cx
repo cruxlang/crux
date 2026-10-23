@@ -1,38 +1,38 @@
 pragma { NoBuiltin }
 
-import number(Number)
-import integer(Int)
-import string(String, join)
-import types(...)
-import array(Array)
-import mutarray(MutableArray)
-import repr(...)
-import cmp(Ordering)
-import js.unsafe
+import number(Number);
+import integer(Int);
+import string(String, join);
+import types(...);
+import array(Array);
+import mutarray(MutableArray);
+import repr(...);
+import cmp(Ordering);
+import js.unsafe;
 
 export trait ToString {
     toString: self => String
-}
+};
 
 impl ToString String {
     toString(s) { s }
-}
+};
 
 impl ToString Boolean {
     toString = unsafe.toString
-}
+};
 
 impl ToString Number {
     toString = unsafe.toString
-}
+};
 
 impl ToString Int {
     toString = unsafe.toString
-}
+};
 
 impl ToString Array<elt: Repr> {
     toString = repr
-}
+};
 
 impl ToString MutableArray<elt: Repr> {
     toString = repr

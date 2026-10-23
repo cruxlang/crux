@@ -2,44 +2,44 @@ pragma { NoBuiltin }
 
 // because the typechecker relies on certain modules being loaded, the
 // sequence of imports matters here.
-import types
-import cmp
-import length
-import boolean
-import option
-import result
-import number
-import integer
-import literal
-import array
-import mutarray
-import string
-import tostring
-import repr
-import print
-import range
+import types;
+import cmp;
+import length;
+import boolean;
+import option;
+import result;
+import number;
+import integer;
+import literal;
+import array;
+import mutarray;
+import string;
+import tostring;
+import repr;
+import print;
+import range;
 
 // TODO: not actually used, but the definitions aren't codegen'd in the right order if not imported here
-import tuple
-import operator
+import tuple;
+import operator;
 
-export import types
-export import cmp
-export import length
-export import boolean
-export import option
-export import result
-export import number
-export import integer
-export import literal
-export type Array = array.Array
-export let replicate = array.replicate
-export let each = array.each
-export type String = string.String
-export import tostring
-export import repr
-export import print
-export import range
+export import types;
+export import cmp;
+export import length;
+export import boolean;
+export import option;
+export import result;
+export import number;
+export import integer;
+export import literal;
+export type Array = array.Array;
+export let replicate = array.replicate;
+export let each = array.each;
+export type String = string.String;
+export import tostring;
+export import repr;
+export import print;
+export import range;
 
 // Arrays have unspecified representation here. They are represented as JS arrays.
 

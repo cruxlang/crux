@@ -89,7 +89,7 @@ fn parses_function_and_trailing_commas() {
 fn parses_import_forms() {
     let module = parse(
         "x.cx",
-        "import foo.bar(...)\nimport x.y(A, B,)\nimport z as _\nlet value = 1",
+        "import foo.bar(...);\nimport x.y(A, B,);\nimport z as _;\nlet value = 1",
     )
     .unwrap();
     assert_eq!(module.imports.len(), 3);

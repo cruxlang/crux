@@ -1,7 +1,7 @@
-import foo(...)
+import foo(...);
 
 fun main() {
-    let x: Foo = Foo
+    let x: Foo = Foo;
     match x {
         Foo => x->output()
     }

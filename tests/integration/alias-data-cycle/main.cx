@@ -1,5 +1,5 @@
 type A = C;
-data B { B(A), Z }
+data B { B(A), Z };
 type C = B;
 
 let x: A = B(Z);

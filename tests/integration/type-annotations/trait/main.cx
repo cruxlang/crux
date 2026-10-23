@@ -1,14 +1,14 @@
 trait Plop {
   plop(self): String
-}
+};
 
 data Flip {
   Flip
-}
+};
 
 fun f<a: Plop>(a: a) {
   plop(a)
-}
+};
 
 fun main() {
   f(Flip)

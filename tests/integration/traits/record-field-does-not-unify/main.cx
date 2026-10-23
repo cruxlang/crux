@@ -1,21 +1,21 @@
-import dict
-import js.unsafe
+import dict;
+import js.unsafe;
 
 trait PD {
   pd: self => ()
-}
+};
 
 impl PD {...} {
-  for fieldValue { fieldValue + (1 as Number) }
+  for fieldValue { fieldValue + (1 as Number) };
   pd(r) {
-    let d = dict.from(fieldMap(r))
+    let d = dict.from(fieldMap(r));
     for item in sorted(d->items()) {
-      let (key, value) = item
-      print(key)
+      let (key, value) = item;
+      print(key);
       print(unsafe.toString(value) as String)
     }
   }
-}
+};
 
 fun main() {
   pd({x: "hello"})

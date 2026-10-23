@@ -1,4 +1,4 @@
-import mymod(...)
+import mymod(...);
 
 fun main() {
   match Exported(value) {

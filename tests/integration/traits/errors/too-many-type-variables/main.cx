@@ -1,6 +1,6 @@
 trait N {
   e(self): Number
-}
+};
 
 impl N Number<a> {
   e(m) {

@@ -1,10 +1,10 @@
 fun double_x(r) {
-    r.x = r.x + r.x
+    r.x = r.x + r.x;
     r
-}
+};
 
 fun main() {
-  let a = double_x({ mutable x: 22 as Number, y: 11 as Number })
-  print(a.x)
+  let a = double_x({ mutable x: 22 as Number, y: 11 as Number });
+  print(a.x);
   print(a.y)
 }

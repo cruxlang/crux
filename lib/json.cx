@@ -1,11 +1,11 @@
-import js
+import js;
 import dict;
 
 data Error {
     Error(String)
-}
+};
 
-export data Value {}
+export data Value {};
 
 let _typeOf: Value => String = _unsafe_js("function (x) { return typeof x; }");
 let _throw<a>: Error => a = _unsafe_js("function (e) { throw e; }");
@@ -21,29 +21,29 @@ fun assert(b: Boolean, error: String) {
     if not(b) {
         _throw(Error(error))
     }
-}
+};
 
 fun assertTypeOf(a: Value, expectedType: String) {
     let t = _typeOf(a);
     if expectedType != t {
         _throw(Error("Wanted " + expectedType + " but got " + t + ": " + _stringify(a)))
     }
-}
+};
 
 export fun decodeNumber(a: Value): Number {
-    assertTypeOf(a, "number")
-    return _unsafe_coerce(a);
-}
+    assertTypeOf(a, "number");
+    return _unsafe_coerce(a)
+};
 
 export fun decodeBoolean(a: Value): Boolean {
-    assertTypeOf(a, "boolean")
-    return _unsafe_coerce(a);
-}
+    assertTypeOf(a, "boolean");
+    return _unsafe_coerce(a)
+};
 
 export fun decodeString(a: Value): String {
-    assertTypeOf(a, "string")
-    return _unsafe_coerce(a);
-}
+    assertTypeOf(a, "string");
+    return _unsafe_coerce(a)
+};
 
 export fun decodeNullable<a>(decoder: Value => a): Value => ?a {
     fun(a) {
@@ -52,35 +52,35 @@ export fun decodeNullable<a>(decoder: Value => a): Value => ?a {
         } else {
             return Some(decoder(a))
         }
-    };
-}
+    }
+};
 
 export fun decodeArray<element>(
     elementDecoder: Value => element
 ): Value => [element] {
     fun (arr) {
-        assert(_isArray(arr), "Expected array but got " + _stringify(arr))
-    
+        assert(_isArray(arr), "Expected array but got " + _stringify(arr));
+
         let result = mutable [];
         for element in _unsafe_coerce(arr) {
             result->append(elementDecoder(element))
-        }
-        result->freeze();
-    };
-}
+        };
+        result->freeze()
+    }
+};
 
 export fun decodeKey<element>(
     keyDecoder: Value => element,
     obj: Value,
     key: String
 ): element {
-    assertTypeOf(obj, "object")
-    return keyDecoder(_getAttr(obj, key));
-}
+    assertTypeOf(obj, "object");
+    return keyDecoder(_getAttr(obj, key))
+};
 
 export fun fromString<a>(s: String, decoder: Value => a): a {
-    decoder(_parseJson(s));
-}
+    decoder(_parseJson(s))
+};
 
 // Encoder
 
@@ -90,53 +90,53 @@ export let renderJSON: Value => String = _unsafe_js("JSON.stringify");
 
 export trait ToJSON {
     toJSON: self => Value
-}
+};
 
 impl ToJSON Value {
-  toJSON(v) { v };
-}
+  toJSON(v) { v }
+};
 
 impl ToJSON Array<a: ToJSON> {
-  toJSON = array => _unsafe_coerce(array->map(toJSON));
-}
+  toJSON = array => _unsafe_coerce(array->map(toJSON))
+};
 
 impl ToJSON String {
-  toJSON = str => _unsafe_coerce(str);
-}
+  toJSON = str => _unsafe_coerce(str)
+};
 
 impl ToJSON Number {
-  toJSON = num => _unsafe_coerce(num);
-}
+  toJSON = num => _unsafe_coerce(num)
+};
 
 impl ToJSON Boolean {
-  toJSON = b => _unsafe_coerce(b);
-}
+  toJSON = b => _unsafe_coerce(b)
+};
 
 impl ToJSON js.Null {
-  toJSON = _ => nullJSValue;
-}
+  toJSON = _ => nullJSValue
+};
 
 impl ToJSON dict.Dict<V: ToJSON> {
-  toJSON = d => _unsafe_coerce(d->map(toJSON));
-}
+  toJSON = d => _unsafe_coerce(d->map(toJSON))
+};
 
 impl ToJSON Option<T: ToJSON> {
   toJSON(v) {
     match v {
-      None => nullJSValue
+      None => nullJSValue;
       Some(x) => toJSON(x)
-    };
+    }
   }
-}
+};
 
 impl ToJSON {...} {
-  for fieldValue { toJSON(fieldValue) }
-  
+  for fieldValue { toJSON(fieldValue) };
+
   toJSON(rec) {
     toJSON(dict.from(fieldMap(rec)))
-  };
-}
+  }
+};
 
 export fun encode<V: ToJSON>(value: V): String {
-    renderJSON(toJSON(value));
+    renderJSON(toJSON(value))
 }

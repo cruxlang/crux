@@ -1,8 +1,8 @@
-data N(Number)
+data N(Number);
 
 fun p(N(i)) {
   print(i)
-}
+};
 
 fun main() {
   [N(1), N(2), N(3)]->each(fun(n) {

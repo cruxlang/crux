@@ -1,10 +1,10 @@
 
-fun one(): ({}) { {} }
+fun one(): ({}) { {} };
 
-fun two(): Option<{x:Number}> { None }
+fun two(): Option<{x:Number}> { None };
 
-fun three(): Option<({})> { Some({}) }
+fun three(): Option<({})> { Some({}) };
 
-fun four(): (Option<{}>) { Some({}) }
+fun four(): (Option<{}>) { Some({}) };
 
 fun main() {}

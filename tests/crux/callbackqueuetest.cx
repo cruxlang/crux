@@ -1,93 +1,93 @@
-import test(...)
-import assert
+import test(...);
+import assert;
 
-import callbackqueue(CallbackQueue, IgnoreExceptions)
+import callbackqueue(CallbackQueue, IgnoreExceptions);
 
 test("runs callback", () => {
-  let result = mutable []
+  let result = mutable [];
 
-  let cbs = CallbackQueue::new()
+  let cbs = CallbackQueue::new();
   cbs->add(() => {
     result->append("hello")
-  })
+  });
 
-  cbs->run()
-  assert.equal(mutable ["hello"], result)
+  cbs->run();
+  assert.equal(mutable ["hello"], result);
 
-  cbs->run()
+  cbs->run();
   assert.equal(mutable ["hello"], result)
-})
+});
 
 test("runs all callbacks", () => {
-  let result = mutable []
+  let result = mutable [];
 
-  let cbs = CallbackQueue::new()
+  let cbs = CallbackQueue::new();
   cbs->add(() => {
     result->append("hello")
-  })
+  });
 
   cbs->add(() => {
     result->append("goodbye")
-  })
+  });
 
-  cbs->run()
+  cbs->run();
 
   assert.equal(["goodbye", "hello"], sorted(result->freeze()))
-})
+});
 
 test("clear", () => {
-  let cbs = CallbackQueue::new()
+  let cbs = CallbackQueue::new();
   cbs->add(() => {
     assert.fail("should not get here")
-  })
-  cbs->clear()
+  });
+  cbs->clear();
   cbs->run()
-})
+});
 
-exception Boom String
+exception Boom String;
 
 test("exception in callback prevents previous callbacks from running again", () => {
-  let result = mutable []
-  let cbs = CallbackQueue::new()
+  let result = mutable [];
+  let cbs = CallbackQueue::new();
   cbs->add(() => {
     result->append("one")
-  })
+  });
   cbs->add(() => {
     throw Boom "two"
-  })
+  });
   cbs->add(() => {
     result->append("three")
-  })
+  });
 
   try {
-    cbs->run()
-    assert.fail("failed to throw")
+    cbs->run();
+    assert.fail("failed to throw");
   }
   catch Boom value {
     assert.equal("two", value)
-  }
-  assert.equal(mutable ["one"], result)
+  };
+  assert.equal(mutable ["one"], result);
 
-  cbs->run()
+  cbs->run();
   assert.equal(mutable ["one", "three"], result)
-})
+});
 
 test("ignore exceptions mode", () => {
-  let result = mutable []
-  let cbs = CallbackQueue::new()
+  let result = mutable [];
+  let cbs = CallbackQueue::new();
   cbs->add(() => {
     result->append("one")
-  })
+  });
   cbs->add(() => {
     throw Boom "two"
-  })
+  });
   cbs->add(() => {
     result->append("three")
-  })
+  });
 
   cbs->runWithOptions({
     exceptionPolicy: IgnoreExceptions,
-  })
+  });
   assert.equal(mutable ["one", "three"], result)
 })
 

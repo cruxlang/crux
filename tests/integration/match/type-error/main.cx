@@ -1,6 +1,6 @@
 data Wrapper<a> {
   Wrapped(a)
-}
+};
 
 fun main() {
   match Wrapped("hi") {

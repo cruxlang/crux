@@ -1,25 +1,25 @@
 trait From {
   f(String): self
-}
+};
 
 impl From Boolean {
   f(s) {
     s->startsWith("hello")
   }
-}
+};
 
 trait To {
   t(self): String
-}
+};
 
 impl To Boolean {
   t(b) {
     if b then "true" else "not true"
   }
-}
+};
 
 fun main() {
-  let r: Boolean = f("hello world")
-  print(r)
+  let r: Boolean = f("hello world");
+  print(r);
   print(t(False))
 }

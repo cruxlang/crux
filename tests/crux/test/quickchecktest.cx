@@ -1,4 +1,4 @@
-import test.quickcheck(prop)
+import test.quickcheck(prop);
 
 prop("strings equal themselves", fun(x: String) {
     x == x

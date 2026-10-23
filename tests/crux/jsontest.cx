@@ -1,38 +1,38 @@
-import dict
-import js
-import json
-import assert
-import test(...)
+import dict;
+import js;
+import json;
+import assert;
+import test(...);
 
 test("encode string array", () => {
   assert.equal("[\"hi\"]", json.encode(["hi"]))
-})
+});
 
 test("encode number array", () => {
   assert.equal("[1,2]", json.encode([1 as Number, 2]))
-})
+});
 
 test("encode booleans", () => {
   assert.equal("[true,false]", json.encode([True, False]))
-})
+});
 
 test("encode null", () => {
   assert.equal("null", json.encode(js.Null))
-})
+});
 
 test("encode dict", () => {
-  let a = dict.new()
-  assert.equal("{}", json.encode(a))
+  let a = dict.new();
+  assert.equal("{}", json.encode(a));
 
-  a->set("hello", True)
+  a->set("hello", True);
   assert.equal("{\"hello\":true}", json.encode(a))
-})
+});
 
 test("encode record literals", () => {
   assert.equal("{\"hello\":true}", json.encode({
     hello: True,
   }))
-})
+});
 
 test("encode options", () => {
   assert.equal("[null,10]", json.encode([None, Some(10 as Number)]))

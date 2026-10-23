@@ -1,9 +1,9 @@
-print("hello")
+print("hello");
 
 fun foo() {
   print("world")
-}
+};
 
-foo()
+foo();
 
 fun main() {}

@@ -1,6 +1,6 @@
 fun f(): [_] {
   return ["hello"]
-}
+};
 
 fun main() {
   for x in f() {

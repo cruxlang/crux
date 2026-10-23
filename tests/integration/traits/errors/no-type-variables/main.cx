@@ -1,9 +1,9 @@
 trait N {
-  e(self): Number;
-}
+  e(self): Number
+};
 
 impl N Option {
   e = fun(m) {
-    return 0;
-  };
+    return 0
+  }
 }

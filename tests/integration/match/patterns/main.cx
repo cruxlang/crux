@@ -1,14 +1,14 @@
 data IntList {
     Element(Number, IntList),
     Nil,
-}
+};
 
-let list = Element(1 as Number, Element(2, Nil))
+let list = Element(1 as Number, Element(2, Nil));
 let length = match list {
-    Element(num, Nil) => 1 as Number
-    Element(numOne, Element(numTwo, Nil)) => 2
+    Element(num, Nil) => 1 as Number;
+    Element(numOne, Element(numTwo, Nil)) => 2;
     Nil => 0
-}
+};
 
 fun main() {
   print(length)

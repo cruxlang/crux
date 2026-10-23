@@ -1,4 +1,4 @@
-export let value = 10
+export let value = 10;
 
 export data Type {
   Constructor(Number)

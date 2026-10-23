@@ -64,11 +64,23 @@ fn parses_multiline_if_then_else() {
 
 #[test]
 fn parses_nested_aligned_blocks() {
-    let expression = ok("fun() {\n  if True {\n    a()\n    b()\n  }\n  c()\n}");
+    let expression = ok("fun() {\n  if True {\n    a();\n    b()\n  };\n  c()\n}");
     let ExpressionKind::Function(function) = expression.kind else {
         panic!("expected function");
     };
     assert!(matches!(function.body.kind, ExpressionKind::Sequence(_, _)));
+}
+
+#[test]
+fn rejects_newlines_as_statement_delimiters() {
+    let parsed = parse_expression("layout.cx", "fun() {\n  first()\n  second()\n}");
+    assert!(parsed
+        .diagnostics
+        .iter()
+        .any(|error| error.message.contains("must be terminated by a semicolon")));
+
+    let module = crux::chumsky_parser::parse_module("layout.cx", "let first = 1\nlet second = 2");
+    assert!(!module.diagnostics.is_empty());
 }
 
 #[test]
@@ -177,7 +189,7 @@ fn parses_arrays_records_postfix_and_assignment() {
 fn parses_loops_bindings_and_returns_in_blocks() {
     let result = parse_expression(
         "<test>",
-        "fun(xs) {\n  let mutable last = 0\n  for x in xs { last = x }\n  while False { last = 1 }\n  return last\n}",
+        "fun(xs) {\n  let mutable last = 0;\n  for x in xs { last = x };\n  while False { last = 1 };\n  return last\n}",
     );
     assert!(result.output.is_some(), "{:?}", result.diagnostics);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
@@ -187,13 +199,13 @@ fn parses_loops_bindings_and_returns_in_blocks() {
 fn parses_a_complete_module_with_chumsky() {
     let source = concat!(
         "pragma { NoBuiltin }\n",
-        "import support.values(Thing,)\n",
-        "export data Maybe<a> { Some(a), None, }\n",
-        "type Pair<a, b> = (a, b)\n",
-        "declare external<T>: fun(T) -> T\n",
+        "import support.values(Thing,);\n",
+        "export data Maybe<a> { Some(a), None, };\n",
+        "type Pair<a, b> = (a, b);\n",
+        "declare external<T>: fun(T) -> T;\n",
         "export fun mapOne<T>(f: fun(T) -> T, value: T): T {\n",
         "  f(value)\n",
-        "}\n",
+        "};\n",
         "let answer: Int = 42",
     );
     let result = crux::chumsky_parser::parse_module("<test>", source);
@@ -210,10 +222,10 @@ fn parses_trait_constraints_and_nominal_impls() {
     let source = concat!(
         "trait Display {\n",
         "  display(self): String\n",
-        "}\n",
+        "};\n",
         "impl Display Number {\n",
         "  display(value) { value as String }\n",
-        "}\n",
+        "};\n",
         "fun show<a: Display>(value: a): String { display(value) }",
     );
     let result = crux::chumsky_parser::parse_module("<test>", source);

@@ -1,26 +1,26 @@
-export exception AssertionError String
+export exception AssertionError String;
 
 export fun fail(msg) {
   throw AssertionError msg
-}
+};
 
 export fun true(expr) {
   if not(expr) {
     throw AssertionError "expected " + repr(expr) + " to be true"
   }
-}
+};
 
 export fun false(expr) {
   if expr {
     throw AssertionError "expected " + repr(expr) + " to be false"
   }
-}
+};
 
 export fun equal(expected, actual) {
   if expected != actual {
     throw AssertionError "expected " + repr(expected) + " but got " + repr(actual)
   }
-}
+};
 
 export fun notEqual(expected, actual) {
   if expected == actual {

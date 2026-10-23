@@ -1,12 +1,12 @@
 trait Trait {
-  method(self, self): self
+  method(self, self): self;
   display(self): String
-}
+};
 
 impl Trait Number {
-  method(x, y) { x + y }
+  method(x, y) { x + y };
   display(z) { toString(z) }
-}
+};
 
 fun main() {
   print(display(method(10 as Number, 5)))

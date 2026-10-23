@@ -1,12 +1,12 @@
-exception Foo String
+exception Foo String;
 
 fun bar() {
   throw Foo "hello"
-}
+};
 
 fun foo() {
   bar() + 2
-}
+};
 
 fun main() {
   foo() + 1

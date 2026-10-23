@@ -1,6 +1,6 @@
 pragma { NoBuiltin }
 
-import tostring(...)
+import tostring(...);
 
 export fun print(x): () {
     _unsafe_js("console").log(toString(x))

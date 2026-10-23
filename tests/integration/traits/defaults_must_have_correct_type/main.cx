@@ -1,17 +1,17 @@
 
 export trait Trait {
   display: (self) => String = 44 as Number
-}
+};
 
 impl Trait Number {
   display(z) {
     toString(z)
   }
-}
+};
 
-impl Trait String {}
+impl Trait String {};
 
 fun main() {
-  print(display(10 as Number))
+  print(display(10 as Number));
   print(display("Howdy"))
 }

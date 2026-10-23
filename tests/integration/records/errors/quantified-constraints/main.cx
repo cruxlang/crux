@@ -1,8 +1,8 @@
 fun g<Rec: {...: String}>(a: Rec) {
-}
+};
 
 fun f<Rec: {y: Number, ...: String}>(a: Rec) {
   g(a)
-}
+};
 
 fun main() {}

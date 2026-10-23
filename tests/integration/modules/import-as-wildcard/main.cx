@@ -1,4 +1,4 @@
-import mymod as _
+import mymod as _;
 
 fun main() {
   print("in main")

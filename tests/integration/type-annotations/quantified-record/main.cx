@@ -1,12 +1,12 @@
 fun f<Rec: {foo: String}>(x: Rec): Rec {
-  print(x.foo)
+  print(x.foo);
   return x
-}
+};
 
 fun main() {
   let y = f({
     foo: "Hello",
     bar: "World",
-  })
+  });
   print(y.bar)
 }

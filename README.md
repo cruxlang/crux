@@ -89,6 +89,8 @@ reference and can be checked with `stack test`.
 The browser and npm compiler is implemented as a Rust/WebAssembly package in
 `cruxjs`; see `cruxjs/README.md` for its build and JavaScript APIs.
 
+Emacs support is in [`tools/emacs`](tools/emacs/README.md).
+
 # A Tour of the Code
 
 1. `rust/src/lexer.rs` converts source text into positioned tokens.

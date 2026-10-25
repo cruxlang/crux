@@ -8,7 +8,12 @@ description = "A type-safe language that compiles to JavaScript"
 [lib]
 path = "rust/src/lib.rs"
 
+[[bin]]
+name = "crux"
+path = "rust/src/main.rs"
+
 [dependencies]
+clap = { version = "4.5", features = ["derive"] }
 chumsky = { version = "0.13.0", default-features = false, features = ["std", "pratt"] }
 stacker = "0.1.25"
 
@@ -34,6 +39,10 @@ path = "rust/tests/codegen.rs"
 [[test]]
 name = "compiler"
 path = "rust/tests/compiler.rs"
+
+[[test]]
+name = "cli"
+path = "rust/tests/cli.rs"
 
 [[test]]
 name = "chumsky_corpus"

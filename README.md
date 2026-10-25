@@ -108,6 +108,14 @@ The public entry points are `crux::parse(file_name, source)`,
 `crux::compiler::compile_path(path)`. Wasm hosts use the filesystem-free
 `crux::compiler::compile_in_memory` entry point.
 
+The CLI compiles a program to runnable JavaScript on standard output:
+
+```sh
+cargo run -- compile path/to/main.cx > main.js
+# `c` is an alias for `compile`; use -o main.js to write directly.
+cargo run -- editor install-emacs
+```
+
 The Chumsky parser enforces explicit token and nesting limits before entering
 recursive combinators. The former hand-written parser remains temporarily as
 `crux::parse_compat` for AST migration comparisons.

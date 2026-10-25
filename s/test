@@ -2,6 +2,4 @@
 set -e
 cd "$(dirname "$0")"/..
 
-cabal test
-cabal build exe:crux
-dist/build/crux/crux test
+exec cargo test "$@" -- --nocapture

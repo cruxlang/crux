@@ -74,6 +74,13 @@ fn compatibility_parser_uses_match_arm_commas() {
 }
 
 #[test]
+fn both_parsers_accept_unaligned_blocks_and_top_level_declarations() {
+    let source = "  pragma { NoBuiltin\n}\n  fun main() {\nlet x = 1;\n      return x\n}\n";
+    parse("<test>", source).unwrap();
+    crux::parse_compat("<test>", source).unwrap();
+}
+
+#[test]
 fn parses_function_and_trailing_commas() {
     let decl = parse_one("fun f<T>(x: T): [T] {\n  [x,]\n}");
     let DeclarationKind::Function {

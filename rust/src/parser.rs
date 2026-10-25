@@ -59,7 +59,6 @@ struct Parser {
     file: String,
     tokens: Vec<Token>,
     at: usize,
-    continuation_floor: Option<(usize, usize)>,
 }
 
 impl Parser {
@@ -68,7 +67,6 @@ impl Parser {
             file: file.into(),
             tokens,
             at: 0,
-            continuation_floor: None,
         }
     }
 
@@ -147,9 +145,6 @@ impl Parser {
         }
         let mut declarations = vec![];
         while self.peek().is_some() {
-            if self.peek().unwrap().line_start != 1 {
-                return Err(self.error("top-level declaration must begin at the left margin"));
-            }
             declarations.push(self.declaration()?);
             self.take(&TokenKind::Semicolon);
         }
@@ -161,7 +156,7 @@ impl Parser {
     }
 
     fn pragmas(&mut self) -> Result<Vec<Pragma>, ParseError> {
-        let open = self.expect(&TokenKind::Pragma)?;
+        self.expect(&TokenKind::Pragma)?;
         self.expect(&TokenKind::OpenBrace)?;
         let mut result = vec![];
         while !self.is(&TokenKind::CloseBrace) {
@@ -176,13 +171,7 @@ impl Parser {
                 }
             }
         }
-        let close = self.expect(&TokenKind::CloseBrace)?;
-        if close.pos.line > open.pos.line && close.line_start < open.line_start {
-            return Err(ParseError {
-                pos: close.pos,
-                message: "pragma block is dedented too far".into(),
-            });
-        }
+        self.expect(&TokenKind::CloseBrace)?;
         Ok(result)
     }
 
@@ -1030,10 +1019,9 @@ impl Parser {
 
     fn return_expression(&mut self) -> Result<Expression, ParseError> {
         let start = self.expect(&TokenKind::Return)?;
-        let has_value = self.peek().is_some_and(|next| {
-            !matches!(next.kind, TokenKind::CloseBrace | TokenKind::Semicolon)
-                && (next.pos.line == start.pos.line || next.pos.column > start.line_start)
-        });
+        let has_value = self
+            .peek()
+            .is_some_and(|next| !matches!(next.kind, TokenKind::CloseBrace | TokenKind::Semicolon));
         let value = if has_value {
             self.no_semi_expression()?
         } else {
@@ -1113,9 +1101,6 @@ impl Parser {
     {
         let mut lhs = term(self)?;
         loop {
-            if !self.continuation_allowed() {
-                break;
-            }
             let Some((_, op)) = ops.iter().find(|(kind, _)| self.is(kind)) else {
                 break;
             };
@@ -1157,9 +1142,6 @@ impl Parser {
     fn application_expression(&mut self) -> Result<Expression, ParseError> {
         let mut lhs = self.basic_expression()?;
         loop {
-            if !self.continuation_allowed() {
-                break;
-            }
             if self.take(&TokenKind::OpenParen).is_some() {
                 let args = self.comma_list(TokenKind::CloseParen, |p| p.no_semi_expression())?;
                 self.expect(&TokenKind::CloseParen)?;
@@ -1395,42 +1377,8 @@ impl Parser {
                 kind: ExpressionKind::Literal(Literal::Unit),
             });
         }
-        let first_line_start = self
-            .peek()
-            .ok_or_else(|| self.error("unterminated block"))?
-            .line_start;
-        if self.peek().unwrap().pos.line > open.pos.line
-            && self.peek().unwrap().pos.column <= open.line_start
-        {
-            return Err(self.error("block contents must be indented"));
-        }
-        let first_line = self.peek().unwrap().pos.line;
-        let first =
-            self.with_continuation_floor(first_line, first_line_start, |p| p.semi_expression())?;
-        let mut expressions = vec![first];
-        while !self.is(&TokenKind::CloseBrace) {
-            let next = self
-                .peek()
-                .ok_or_else(|| self.error("unterminated block"))?;
-            if next.line_start != first_line_start {
-                return Err(self.error(format!(
-                    "block line must begin in column {first_line_start}"
-                )));
-            }
-            let line = next.pos.line;
-            let expression =
-                self.with_continuation_floor(line, first_line_start, |p| p.semi_expression())?;
-            expressions.push(expression);
-        }
+        let result = self.semi_expression()?;
         self.expect(&TokenKind::CloseBrace)?;
-        let mut iter = expressions.into_iter();
-        let mut result = iter.next().unwrap();
-        for rhs in iter {
-            result = Expression {
-                pos: open.pos.clone(),
-                kind: ExpressionKind::Sequence(Box::new(result), Box::new(rhs)),
-            };
-        }
         Ok(result)
     }
 
@@ -1450,30 +1398,6 @@ impl Parser {
             result.push(parse_one(self)?);
         }
         Ok(result)
-    }
-
-    fn continuation_allowed(&self) -> bool {
-        let Some((anchor_line, floor)) = self.continuation_floor else {
-            return true;
-        };
-        self.peek()
-            .is_none_or(|token| token.pos.line == anchor_line || token.pos.column > floor)
-    }
-
-    fn with_continuation_floor<T, F>(
-        &mut self,
-        line: usize,
-        floor: usize,
-        f: F,
-    ) -> Result<T, ParseError>
-    where
-        F: FnOnce(&mut Self) -> Result<T, ParseError>,
-    {
-        let previous = self.continuation_floor;
-        self.continuation_floor = Some((line, floor));
-        let result = f(self);
-        self.continuation_floor = previous;
-        result
     }
 }
 

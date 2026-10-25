@@ -1,9 +1,8 @@
 //! Experimental Chumsky parser.
 //!
 //! This module deliberately lives beside the compatibility parser while the
-//! approach is evaluated.  Its focus is expression parsing, Crux's physical
-//! line layout, recovery, and the ambiguous expression forms that put the
-//! most pressure on a parser implementation.
+//! approach is evaluated. Its focus is expression parsing, recovery, and the
+//! ambiguous forms that put the most pressure on a parser implementation.
 
 use crate::ast::*;
 use crate::lexer::{lex, TokenKind};
@@ -23,8 +22,8 @@ pub const MAX_TOKENS: usize = 1_000_000;
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum LayoutToken {
     Lex(TokenKind),
-    /// A physical line boundary followed by the first token's column.
-    Newline(usize),
+    /// A physical line boundary used for multiline syntax and diagnostics.
+    Newline,
 }
 
 #[derive(Clone, Debug)]
@@ -51,7 +50,7 @@ impl fmt::Display for LayoutToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Lex(token) => write!(f, "{token:?}"),
-            Self::Newline(indent) => write!(f, "line break at column {indent}"),
+            Self::Newline => write!(f, "line break"),
         }
     }
 }
@@ -59,7 +58,6 @@ impl fmt::Display for LayoutToken {
 #[derive(Clone, Debug)]
 struct LayoutMeta {
     pos: Pos,
-    line_start: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -190,18 +188,14 @@ fn layout_stream(lexical: Vec<crate::lexer::Token>) -> (Vec<LayoutToken>, Vec<La
     let mut previous_line = None;
     for token in lexical {
         if previous_line.is_some_and(|line| line != token.pos.line) {
-            stream.push(LayoutToken::Newline(token.line_start));
+            stream.push(LayoutToken::Newline);
             metadata.push(LayoutMeta {
                 pos: token.pos.clone(),
-                line_start: token.line_start,
             });
         }
         previous_line = Some(token.pos.line);
         stream.push(LayoutToken::Lex(token.kind));
-        metadata.push(LayoutMeta {
-            pos: token.pos,
-            line_start: token.line_start,
-        });
+        metadata.push(LayoutMeta { pos: token.pos });
     }
     (stream, metadata)
 }
@@ -234,7 +228,7 @@ where
     I: ValueInput<'tokens, Token = LayoutToken, Span = Span>,
 {
     let tok = |kind| just(LayoutToken::Lex(kind));
-    let newline = select! { LayoutToken::Newline(indent) => indent };
+    let newline = select! { LayoutToken::Newline => () };
     let newlines = newline.repeated().ignored();
     let name = select! {
         LayoutToken::Lex(TokenKind::LowerIdent(name)) => name,
@@ -372,7 +366,7 @@ where
     I: ValueInput<'tokens, Token = LayoutToken, Span = Span>,
 {
     let tok = |kind| just(LayoutToken::Lex(kind));
-    let newline = select! { LayoutToken::Newline(indent) => indent };
+    let newline = select! { LayoutToken::Newline => () };
     let newlines = newline.repeated().ignored();
     let separator = tok(TokenKind::Semicolon).then_ignore(newlines).ignored();
     let name = select! {
@@ -946,7 +940,7 @@ where
     I: ValueInput<'tokens, Token = LayoutToken, Span = Span>,
 {
     let tok = |kind| just(LayoutToken::Lex(kind));
-    let newline = select! { LayoutToken::Newline(indent) => indent };
+    let newline = select! { LayoutToken::Newline => () };
     let newlines = newline.repeated().ignored();
 
     let position = move |span: Span| {
@@ -1033,41 +1027,9 @@ where
             )
             .then_ignore(newlines);
 
-        let delimited_expressions = tok(TokenKind::OpenParen)
-            .map_with(move |_, extra| {
-                let span: Span = extra.span();
-                (
-                    metadata[span.start].pos.clone(),
-                    metadata[span.start].line_start,
-                )
-            })
-            .then(expression_list.clone())
-            .then(tok(TokenKind::CloseParen).map_with(move |_, extra| {
-                let span: Span = extra.span();
-                metadata[span.start].clone()
-            }))
-            .validate(
-                |(((open_pos, open_indent), expressions), close), span, emitter| {
-                    for expression in &expressions {
-                        if expression.pos.line > open_pos.line
-                            && expression.pos.column <= open_indent
-                        {
-                            emitter.emit(Rich::custom(
-                                span.span(),
-                                "multiline parenthesized content must be indented",
-                            ));
-                            break;
-                        }
-                    }
-                    if close.pos.line > open_pos.line && close.pos.column < open_indent {
-                        emitter.emit(Rich::custom(
-                            span.span(),
-                            "closing parenthesis is dedented past its opener",
-                        ));
-                    }
-                    expressions
-                },
-            );
+        let delimited_expressions = expression_list
+            .clone()
+            .delimited_by(tok(TokenKind::OpenParen), tok(TokenKind::CloseParen));
 
         let parenthesized_elements = delimited_expressions.clone();
         let parenthesized = parenthesized_elements
@@ -1298,10 +1260,7 @@ where
         let if_expression = tok(TokenKind::If)
             .map_with(move |_, extra| {
                 let span: Span = extra.span();
-                (
-                    metadata[span.start].pos.clone(),
-                    metadata[span.start].line_start,
-                )
+                metadata[span.start].pos.clone()
             })
             .then_ignore(newlines)
             .then(expr.clone())
@@ -1321,27 +1280,17 @@ where
                             .or_not(),
                     )),
             )
-            .validate(
-                move |(((pos, if_indent), condition), (yes, no)), extra, emitter| {
-                    if condition.pos.line > pos.line && condition.pos.column <= if_indent {
-                        emitter.emit(Rich::custom(
-                            extra.span(),
-                            "multiline if condition must be indented",
-                        ));
-                    }
-                    Expression {
-                        pos: pos.clone(),
-                        kind: ExpressionKind::If(
-                            Box::new(condition),
-                            Box::new(yes),
-                            Box::new(no.unwrap_or(Expression {
-                                pos,
-                                kind: ExpressionKind::Literal(Literal::Unit),
-                            })),
-                        ),
-                    }
-                },
-            );
+            .map(move |((pos, condition), (yes, no))| Expression {
+                pos: pos.clone(),
+                kind: ExpressionKind::If(
+                    Box::new(condition),
+                    Box::new(yes),
+                    Box::new(no.unwrap_or(Expression {
+                        pos,
+                        kind: ExpressionKind::Literal(Literal::Unit),
+                    })),
+                ),
+            });
 
         let match_expression = tok(TokenKind::Match)
             .ignore_then(expr.clone())
@@ -1501,82 +1450,36 @@ where
 {
     let open = just(LayoutToken::Lex(TokenKind::OpenBrace)).map_with(move |_, extra| {
         let span: Span = extra.span();
-        (
-            metadata[span.start].pos.clone(),
-            metadata[span.start].line_start,
-        )
+        metadata[span.start].pos.clone()
     });
     let close = just(LayoutToken::Lex(TokenKind::CloseBrace));
-    let newline = select! { LayoutToken::Newline(indent) => indent };
-    let line_start = newline.map_with(|indent, extra| (indent, extra.span()));
-
+    let newline = select! { LayoutToken::Newline => () };
+    let newlines = newline.repeated().ignored();
     let semicolon = just(LayoutToken::Lex(TokenKind::Semicolon));
-    let stop = newline.ignored().or(close.clone().ignored());
-    let recovered = expression
-        .clone()
-        .then(semicolon.clone().or_not())
-        .recover_with(via_parser(
-            any()
-                .and_is(stop.not())
-                .repeated()
-                .at_least(1)
-                .ignored()
-                .map_with(move |_, extra| {
-                    let span: Span = extra.span();
-                    (error_expression(metadata[span.start].pos.clone()), None)
-                }),
-        ));
+    let stop = semicolon.clone().ignored().or(close.clone().ignored());
+    let recovered = expression.clone().recover_with(via_parser(
+        any()
+            .and_is(stop.not())
+            .repeated()
+            .at_least(1)
+            .ignored()
+            .map_with(move |_, extra| {
+                let span: Span = extra.span();
+                error_expression(metadata[span.start].pos.clone())
+            }),
+    ));
+    let expressions = newlines
+        .ignore_then(
+            recovered
+                .separated_by(semicolon.then_ignore(newlines))
+                .allow_trailing()
+                .collect::<Vec<_>>(),
+        )
+        .then_ignore(newlines);
 
-    let multiline = line_start
-        .then(recovered)
-        .repeated()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .then_ignore(newline.repeated())
-        .validate(|lines, _, emitter| {
-            if let Some(((expected, _), _)) = lines.first() {
-                for (indent, span) in lines.iter().map(|((indent, span), _)| (indent, span)) {
-                    if indent != expected {
-                        emitter.emit(Rich::custom(
-                            *span,
-                            format!("block line must begin in column {expected}, found {indent}"),
-                        ));
-                    }
-                }
-            }
-            for ((_, span), (_, terminator)) in lines.iter().take(lines.len() - 1) {
-                if terminator.is_none() {
-                    emitter.emit(Rich::custom(
-                        *span,
-                        "statements on separate lines must be terminated by a semicolon",
-                    ));
-                }
-            }
-            lines
-                .into_iter()
-                .map(|(_, (expression, _))| expression)
-                .collect::<Vec<_>>()
-        });
-
-    let inline = expression
-        .clone()
-        .separated_by(semicolon)
-        .allow_trailing()
-        .at_least(1)
-        .collect::<Vec<_>>();
-
-    let empty_block = newline.repeated().to(Vec::new());
-
-    open.then(choice((multiline, inline, empty_block)))
+    open.then(expressions)
         .then_ignore(close)
-        .validate(|((pos, opener_indent), expressions), span, emitter| {
-            if let Some(first) = expressions.first() {
-                if first.pos.line > pos.line && first.pos.column <= opener_indent {
-                    emitter.emit(Rich::custom(span.span(), "block contents must be indented"));
-                }
-            }
-            sequence(pos, expressions)
-        })
+        .map(|(pos, expressions)| sequence(pos, expressions))
 }
 
 fn match_cases<'tokens, I, E, Pat>(
@@ -1594,9 +1497,7 @@ where
 {
     let open = just(LayoutToken::Lex(TokenKind::OpenBrace));
     let close = just(LayoutToken::Lex(TokenKind::CloseBrace));
-    let newlines = select! { LayoutToken::Newline(_) => () }
-        .repeated()
-        .ignored();
+    let newlines = select! { LayoutToken::Newline => () }.repeated().ignored();
     let comma = just(LayoutToken::Lex(TokenKind::Comma));
     let block = block_parser(expression.clone(), metadata);
     let case = newlines

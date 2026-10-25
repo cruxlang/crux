@@ -123,7 +123,7 @@ fn keyword(s: &str) -> Option<TokenKind> {
     })
 }
 
-/// Tokenize Crux source while retaining the layout information needed by the parser.
+/// Tokenize Crux source while retaining positions for diagnostics and tooling.
 pub fn lex(file: &str, source: &str) -> Result<Vec<Token>, LexError> {
     let chars: Vec<char> = source.chars().collect();
     let mut out = Vec::new();

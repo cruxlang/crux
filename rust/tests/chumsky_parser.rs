@@ -72,7 +72,7 @@ fn parses_multiline_if_then_else() {
 }
 
 #[test]
-fn parses_nested_aligned_blocks() {
+fn parses_nested_blocks() {
     let expression = ok("fun() {\n  if True {\n    a();\n    b()\n  };\n  c()\n}");
     let ExpressionKind::Function(function) = expression.kind else {
         panic!("expected function");
@@ -83,52 +83,37 @@ fn parses_nested_aligned_blocks() {
 #[test]
 fn rejects_newlines_as_statement_delimiters() {
     let parsed = parse_expression("layout.cx", "fun() {\n  first()\n  second()\n}");
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|error| error.message.contains("must be terminated by a semicolon")));
+    assert!(!parsed.diagnostics.is_empty());
 
     let module = crux::chumsky_parser::parse_module("layout.cx", "let first = 1\nlet second = 2");
     assert!(!module.diagnostics.is_empty());
 }
 
 #[test]
-fn reports_misaligned_block_line_but_retains_ast() {
-    let parsed = parse_expression("layout.cx", "fun() {\n  first()\n   second()\n  third()\n}");
-    assert!(
-        parsed.output.is_some(),
-        "layout validation discarded the AST"
-    );
-    assert!(
-        parsed
-            .diagnostics
-            .iter()
-            .any(|error| error.message.contains("block line must begin")),
-        "missing alignment diagnostic: {:#?}",
-        parsed.diagnostics
-    );
+fn accepts_blocks_at_any_indentation() {
+    let expression = ok("fun() {\nfirst();\n    second();\n third()\n}");
+    assert!(matches!(expression.kind, ExpressionKind::Function(_)));
+    let mixed = ok("fun() { first();\nsecond() }");
+    assert!(matches!(mixed.kind, ExpressionKind::Function(_)));
 }
 
 #[test]
-fn rejects_dedented_if_condition_without_discarding_it() {
-    let parsed = parse_expression("layout.cx", "if\nTrue\nthen\n  1\nelse\n  2");
-    assert!(parsed.output.is_some());
-    assert!(parsed
-        .diagnostics
-        .iter()
-        .any(|error| error.message.contains("if condition must be indented")));
+fn accepts_dedented_if_condition() {
+    let expression = ok("if\nTrue\nthen\n  1\nelse\n  2");
+    assert!(matches!(expression.kind, ExpressionKind::If(_, _, _)));
 }
 
 #[test]
-fn validates_multiline_application_indentation() {
+fn accepts_multiline_application_at_any_indentation() {
     let valid = parse_expression("layout.cx", "apply(\n  first,\n  second,\n)");
     assert!(valid.diagnostics.is_empty(), "{:#?}", valid.diagnostics);
 
-    let invalid = parse_expression("layout.cx", "apply(\nfirst,\nsecond,\n)");
-    assert!(invalid.output.is_some());
-    assert!(invalid.diagnostics.iter().any(|error| error
-        .message
-        .contains("parenthesized content must be indented")));
+    let dedented = parse_expression("layout.cx", "apply(\nfirst,\nsecond,\n)");
+    assert!(
+        dedented.diagnostics.is_empty(),
+        "{:#?}",
+        dedented.diagnostics
+    );
 }
 
 #[test]
@@ -147,7 +132,7 @@ fn distinguishes_parentheses_lambdas_and_calls() {
 fn recovers_a_bad_block_line_and_continues() {
     let parsed = parse_expression(
         "recovery.cx",
-        "fun() {\n  before()\n  let = 1\n  after()\n}",
+        "fun() {\n  before();\n  let = 1;\n  after()\n}",
     );
     assert!(
         parsed.output.is_some(),

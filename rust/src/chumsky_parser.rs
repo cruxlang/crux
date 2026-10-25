@@ -702,6 +702,7 @@ where
         .map(|(name, ty)| DeclarationKind::Exception { name, ty });
     let export_import = tok(TokenKind::Import)
         .ignore_then(name)
+        .then_ignore(separator.clone())
         .map(DeclarationKind::ExportImport);
 
     let trait_method_traditional = tok(TokenKind::Colon)
@@ -914,7 +915,7 @@ where
         .then_ignore(newlines)
         .then(
             import
-                .then_ignore(separator.clone().or_not())
+                .then_ignore(separator.clone())
                 .repeated()
                 .collect::<Vec<_>>()
                 .map(|groups| groups.into_iter().flatten().collect::<Vec<_>>()),

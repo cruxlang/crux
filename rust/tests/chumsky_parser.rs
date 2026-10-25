@@ -212,6 +212,29 @@ fn parses_a_complete_module_with_chumsky() {
 }
 
 #[test]
+fn imports_require_semicolons_with_chumsky() {
+    for source in [
+        "import foo",
+        "import foo\nlet value = 1",
+        "import { foo(...) }",
+        "export import foo",
+    ] {
+        let result = crux::chumsky_parser::parse_module("<test>", source);
+        assert!(
+            result.output.is_none() || !result.diagnostics.is_empty(),
+            "accepted {source:?}"
+        );
+    }
+
+    let result = crux::chumsky_parser::parse_module(
+        "<test>",
+        "import foo;\nimport { bar(...) };\nexport import foo;",
+    );
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.output.is_some());
+}
+
+#[test]
 fn parses_trait_constraints_and_nominal_impls() {
     let source = concat!(
         "trait Display {\n",

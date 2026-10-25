@@ -120,6 +120,23 @@ fn parses_import_forms() {
 }
 
 #[test]
+fn compatibility_parser_requires_import_semicolons() {
+    for source in [
+        "import foo",
+        "import foo\nlet value = 1",
+        "import { foo(...) }",
+        "export import foo",
+    ] {
+        assert!(parse("x.cx", source).is_err(), "accepted {source:?}");
+    }
+    assert!(parse(
+        "x.cx",
+        "import foo;\nimport { bar(...) };\nexport import foo;"
+    )
+    .is_ok());
+}
+
+#[test]
 fn parses_repository_sources() {
     fn visit(path: &std::path::Path, failures: &mut Vec<String>) {
         if path.is_dir() {

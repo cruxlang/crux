@@ -142,6 +142,7 @@ impl Parser {
         let mut imports = vec![];
         while self.is(&TokenKind::Import) {
             imports.extend(self.imports()?);
+            self.expect(&TokenKind::Semicolon)?;
         }
         let mut declarations = vec![];
         while self.peek().is_some() {
@@ -247,7 +248,9 @@ impl Parser {
             Some(TokenKind::Exception) => self.exception_decl()?,
             Some(TokenKind::Import) if exported => {
                 self.bump()?;
-                DeclarationKind::ExportImport(self.any_ident()?.0)
+                let name = self.any_ident()?.0;
+                self.expect(&TokenKind::Semicolon)?;
+                DeclarationKind::ExportImport(name)
             }
             _ if !exported => {
                 let value = self.no_semi_expression()?;

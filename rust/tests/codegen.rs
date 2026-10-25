@@ -13,6 +13,14 @@ fn emits_functions_and_returns() {
 }
 
 #[test]
+fn trailing_semicolon_discards_the_final_value() {
+    assert_eq!(
+        generate("fun value() { 7 }; fun unit() { 7; }"),
+        "function value() {\n  return 7;\n}\nfunction unit() {\n  7;\n  return void 0;\n}\n"
+    );
+}
+
+#[test]
 fn emits_jsffi_data() {
     assert_eq!(
         generate("data jsffi JST { A = undefined, B = null, C = true, D = false, E = 10, F = \"hi\", }"),

@@ -1,0 +1,11 @@
+fun value(): Number { 7 };
+fun early(): Number { return 9; };
+fun unit(): Unit {
+  print("effect");
+  8;
+};
+fun main() {
+  print(value());
+  unit();
+  print(early())
+}

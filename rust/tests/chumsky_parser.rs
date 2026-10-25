@@ -1,4 +1,4 @@
-use crux::ast::{BinaryOp, DeclarationKind, Expression, ExpressionKind, Pattern, Pragma};
+use crux::ast::{BinaryOp, DeclarationKind, Expression, ExpressionKind, Literal, Pattern, Pragma};
 use crux::chumsky_parser::parse_expression;
 
 fn ok(source: &str) -> Expression {
@@ -78,6 +78,28 @@ fn parses_nested_blocks() {
         panic!("expected function");
     };
     assert!(matches!(function.body.kind, ExpressionKind::Sequence(_, _)));
+}
+
+#[test]
+fn trailing_semicolon_makes_a_block_return_unit() {
+    let value = ok("fun() { 7 }");
+    let ExpressionKind::Function(value) = value.kind else {
+        panic!("expected function");
+    };
+    assert!(matches!(
+        value.body.kind,
+        ExpressionKind::Literal(Literal::Integer(7))
+    ));
+
+    let unit = ok("fun() { 7; }");
+    let ExpressionKind::Function(unit) = unit.kind else {
+        panic!("expected function");
+    };
+    assert!(matches!(
+        unit.body.kind,
+        ExpressionKind::Sequence(_, ref tail)
+            if matches!(tail.kind, ExpressionKind::Literal(Literal::Unit))
+    ));
 }
 
 #[test]

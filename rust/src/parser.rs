@@ -873,7 +873,17 @@ impl Parser {
         let mut lhs = self.no_semi_expression()?;
         while self.take(&TokenKind::Semicolon).is_some() {
             if self.is(&TokenKind::CloseBrace) {
-                break;
+                let pos = lhs.pos.clone();
+                return Ok(Expression {
+                    pos: pos.clone(),
+                    kind: ExpressionKind::Sequence(
+                        Box::new(lhs),
+                        Box::new(Expression {
+                            pos,
+                            kind: ExpressionKind::Literal(Literal::Unit),
+                        }),
+                    ),
+                });
             }
             let rhs = self.no_semi_expression()?;
             let pos = lhs.pos.clone();

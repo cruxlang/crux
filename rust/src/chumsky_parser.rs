@@ -58,6 +58,14 @@ impl fmt::Display for LayoutToken {
 #[derive(Clone, Debug)]
 struct LayoutMeta {
     pos: Pos,
+    boundary: LayoutBoundary,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LayoutBoundary {
+    Newline,
+    Semicolon,
+    Other,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -191,11 +199,20 @@ fn layout_stream(lexical: Vec<crate::lexer::Token>) -> (Vec<LayoutToken>, Vec<La
             stream.push(LayoutToken::Newline);
             metadata.push(LayoutMeta {
                 pos: token.pos.clone(),
+                boundary: LayoutBoundary::Newline,
             });
         }
         previous_line = Some(token.pos.line);
+        let boundary = if token.kind == TokenKind::Semicolon {
+            LayoutBoundary::Semicolon
+        } else {
+            LayoutBoundary::Other
+        };
         stream.push(LayoutToken::Lex(token.kind));
-        metadata.push(LayoutMeta { pos: token.pos });
+        metadata.push(LayoutMeta {
+            pos: token.pos,
+            boundary,
+        });
     }
     (stream, metadata)
 }
@@ -1480,7 +1497,21 @@ where
 
     open.then(expressions)
         .then_ignore(close)
-        .map(|(pos, expressions)| sequence(pos, expressions))
+        .map_with(move |(pos, mut expressions), extra| {
+            let span: Span = extra.span();
+            let trailing_semicolon = metadata[span.start..span.end.saturating_sub(1)]
+                .iter()
+                .rev()
+                .find(|meta| meta.boundary != LayoutBoundary::Newline)
+                .is_some_and(|meta| meta.boundary == LayoutBoundary::Semicolon);
+            if trailing_semicolon {
+                expressions.push(Expression {
+                    pos: pos.clone(),
+                    kind: ExpressionKind::Literal(Literal::Unit),
+                });
+            }
+            sequence(pos, expressions)
+        })
 }
 
 fn match_cases<'tokens, I, E, Pat>(

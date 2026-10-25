@@ -18,6 +18,14 @@ fn checks_functions_applications_and_control_flow() {
 }
 
 #[test]
+fn trailing_semicolon_changes_the_function_result_type_to_unit() {
+    check_source("fun unit(): Unit { 7; }").unwrap();
+    check_source("fun value(): Int { 7 }").unwrap();
+    let error = check_source("fun wrong(): Int { 7; }").unwrap_err();
+    assert!(matches!(error.kind, TypeErrorKind::CannotUnify(_, _)));
+}
+
+#[test]
 fn rejects_incompatible_branches() {
     let error = check_source("data Boolean { True, False };\nlet bad = if True then 1 else \"no\"")
         .unwrap_err();

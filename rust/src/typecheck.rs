@@ -1539,8 +1539,13 @@ impl Checker {
                 self.named("Unit", vec![], pos)
             }
             ExpressionKind::Sequence(left, right) => {
-                self.expression(left)?;
-                self.expression(right)
+                let left_ty = self.expression(left)?;
+                let right_ty = self.expression(right)?;
+                if always_diverges(left) {
+                    Ok(left_ty)
+                } else {
+                    Ok(right_ty)
+                }
             }
             ExpressionKind::If(condition, yes, no) => {
                 let cond = self.expression(condition)?;
@@ -2075,6 +2080,26 @@ impl Checker {
         };
         seen.remove(&id);
         Ok(rendered)
+    }
+}
+
+fn always_diverges(expression: &Expression) -> bool {
+    match &expression.kind {
+        ExpressionKind::Return(_) | ExpressionKind::Throw(_, _) => true,
+        ExpressionKind::Sequence(left, right) => always_diverges(left) || always_diverges(right),
+        ExpressionKind::If(condition, yes, no) => {
+            always_diverges(condition) || (always_diverges(yes) && always_diverges(no))
+        }
+        ExpressionKind::Match(subject, cases) => {
+            always_diverges(subject)
+                || (!cases.is_empty() && cases.iter().all(|case| always_diverges(&case.body)))
+        }
+        ExpressionKind::TryCatch(body, _, handler) => {
+            always_diverges(body) && always_diverges(handler)
+        }
+        ExpressionKind::As(value, _) => always_diverges(value),
+        ExpressionKind::Let { value, .. } => always_diverges(value),
+        _ => false,
     }
 }
 

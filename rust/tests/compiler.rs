@@ -10,6 +10,19 @@ fn compiles_through_the_chumsky_parser_typechecker_and_backend() {
 }
 
 #[test]
+fn rejects_a_value_return_type_after_a_trailing_semicolon() {
+    let error = crux::compiler::compile("<test>", "fun wrong(): Number { 7; }").unwrap_err();
+    assert!(matches!(error, crux::compiler::CompileError::Type(_)));
+
+    crux::compiler::compile("<test>", "fun ok(): Number { return 7; }").unwrap();
+    crux::compiler::compile(
+        "<test>",
+        "fun both(): Number { if True { return 7; } else { return 8; }; }",
+    )
+    .unwrap();
+}
+
+#[test]
 fn project_loader_rejects_circular_imports() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let path = root.join("tests/integration/errors/circular-imports/main.cx");
